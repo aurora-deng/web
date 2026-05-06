@@ -3,6 +3,22 @@
 #include <atomic>
 #include "server/http/http.h"
 std::atomic<uint64_t> global_conn_id{0}; // 自增
+
+void SubReactor::updateEvent(int fd)
+{
+    auto it = conns.find(fd);
+    if (it == conns.end())
+        return;
+    uint32_t ev = 0;
+    it->second.state.readPaused=it->second.state.pauseByMemory||it->second.state.pauseByPipeline;
+    if(!it->second.state.readPaused)ev |= EPOLLIN;
+
+    if (it->second.state.wantWrite)
+    {
+        ev |= EPOLLOUT;
+    }
+    rearm(fd, ev);
+}
 // 统一套接字关闭
 // 优化：防止其他的线程来杀死我当前线程的fd
 void SubReactor::fd_close(int fd)
@@ -12,10 +28,10 @@ void SubReactor::fd_close(int fd)
         return;
 
     // 优化：加上状态检查，防止当某fd已经关闭之后重复关闭或者关闭之后任然在fd
-    if (it->second.state == CLOSED)
+    if (it->second.state.closed)
         return;
 
-    it->second.state = CLOSED;
+    it->second.state.closed = true;
     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
     conns.erase(it);
@@ -34,7 +50,7 @@ void SubReactor::rearm(int fd, uint32_t events)
     auto it = conns.find(fd);
     if (it == conns.end())
         return;
-    if (it->second.state == CLOSED)
+    if (it->second.state.closed)
         return;
     epoll_event ev{};
     ev.events = EPOLLONESHOT | EPOLLET | events;
@@ -89,71 +105,86 @@ void SubReactor::handleWrite(int fd)
         return;
     auto &conn = it->second;
 
-    auto iter = conn.pendingResponses.find(conn.nextResponseSeq);
-    if (iter == conn.pendingResponses.end()) // 表示当前该fd没有可以发送respons,切换为监听状态
+    while (true)
     {
-        rearm(fd, EPOLLIN);
-        return;
-    }
-    // 使用循环防止要发送的消息大小大于socket的内核大小，导致后续的没发出去,保证这条消息完整的发出
-    while (conn.pendingResponses.count(conn.nextResponseSeq))
-    {
+        auto iter = conn.pendingResponses.find(conn.nextResponseSeq);
+        if (iter == conn.pendingResponses.end()) // 表示当前该fd没有可以发送respons,切换为监听状态
+        {
+            break;
+        }
         // 按照顺序取出消息并回复
         auto &resp = conn.pendingResponses[conn.nextResponseSeq];
-        if(resp.data.size()==resp.offset)break;
-        int n = send(fd, resp.data.data() + resp.offset, resp.data.size() - resp.offset, 0);
-
-        if (n > 0) // 清空已经发送的部分
+        // 使用循环防止要发送的消息大小大于socket的内核大小，导致后续的没发出去,保证这条消息完整的发出
+        while (resp.data.size() > resp.offset)
         {
-            resp.offset += n;
-        }
-        else if (n == -1) // 表示没有消息或者发送的消息发布完了
-        {
-            perror("send error");
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            int n = send(fd, resp.data.data() + resp.offset, resp.data.size() - resp.offset, MSG_NOSIGNAL);
+            if (n > 0) // 清空已经发送的部分
             {
-                // 发不完等下一次
-                break;
+                resp.offset += n;
             }
-            else if (errno == EINTR)
+            else if (n == -1) // 表示没有消息或者发送的消息发布完了
             {
-                // 信号被打断重新尝试
-                continue;
+                perror("send error");
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {
+                    // 发不完等下一次
+                    break;
+                }
+                else if (errno == EINTR)
+                {
+                    // 信号被打断重新尝试
+                    continue;
+                }
+                else
+                {
+                    // 出现错误
+                    fd_close(fd);
+                    return;
+                }
             }
-            else
+            else if (n == 0)
             {
-                // 出现错误
+                // 表示连接异常直接关闭即可
                 fd_close(fd);
                 return;
             }
         }
-        else if (n == 0)
+
+        if (resp.data.size() == resp.offset)
         {
-            // 表示连接异常直接关闭即可
-            fd_close(fd);
-            return;
+            conn.pendingResponses.erase(conn.nextResponseSeq);
+            conn.nextResponseSeq++;
+        }
+        else
+        {
+            break;
         }
     }
-    // 将这一部分提出循环之外，放在循环内会重复调用浪费时间
-    if (conn.pendingResponses[conn.nextResponseSeq].data.size() == conn.pendingResponses[conn.nextResponseSeq].offset)
-    {
-        conn.pendingResponses.erase(conn.nextResponseSeq);
-        conn.nextResponseSeq++;
-        // 优化防止直接结束fd之后又要重新连接，直接更改模式
-        conn.state = ConnState::READING;
 
+    // 将这一部分提出循环之外，放在循环内会重复调用浪费时间
+    if (conn.pendingResponses.empty())
+    {
+
+        // 优化防止直接结束fd之后又要重新连接，直接更改模式
+        conn.state.wantWrite=false;
         if (conn.keepAlive)
         {
-            conn.state = READING;
             if (!conn.pendingRequests.empty())
             {
 
                 while (!conn.pendingRequests.empty())
-                    if(!processRequest(fd))break;
+                    if (!processRequest(fd))
+                        break;
+
+                if (!conn.pendingResponses.empty())
+                    conn.state.wantWrite = true;
+                updateEvent(fd);
             }
             else
+            {
                 // 重新激活为监听状态
-                rearm(fd, EPOLLIN);
+                updateEvent(fd);
+            }
         }
         else
         {
@@ -162,11 +193,10 @@ void SubReactor::handleWrite(int fd)
     }
     else
     {
-        conn.state = WRITING;
-        rearm(fd, EPOLLOUT|EPOLLIN);
+        conn.state.wantWrite = true;
+        updateEvent(fd);
     }
 }
-
 
 // 读取函数
 void SubReactor::handleRead(int fd)
@@ -185,7 +215,8 @@ void SubReactor::handleRead(int fd)
     // // 优化：判断是否可以进行数据读入,不单纯使用PROCESSING，可以防止readBuffer越积越大
     if (conn.pendingBytes > MAX_PENDING_BYTES)
     {
-        conn.readPaused = true;
+        conn.state.pauseByMemory = true;
+        updateEvent(fd);
         return;
     }
     // 开始接受数据
@@ -240,17 +271,22 @@ void SubReactor::handleRead(int fd)
     {
         PendingRequest req;
         req.data = extract_request(conn.readBuffer);
+        conn.pendingBytes = conn.readBuffer.size();
+        if (conn.pendingBytes < MAX_PENDING_BYTES)
+            conn.state.pauseByMemory = false;
         req.seq = conn.nextRequestSeq++;
         conn.pendingRequests.push(req);
     }
     if (!conn.pendingRequests.empty())
     {
         while (!conn.pendingRequests.empty())
-            if(!processRequest(fd)) break;
+            if (!processRequest(fd))
+                break;
+        updateEvent(fd);
     }
     else
     {
-        rearm(fd, EPOLLIN);
+        updateEvent(fd);
     }
 
     // if (!closed)
@@ -305,11 +341,14 @@ bool SubReactor::processRequest(int fd)
     if (it == conns.end())
         return false;
     auto &conn = it->second;
-    if (it->second.state != READING)
+    if (it->second.state.readPaused)
+    {
         return false;
+    }
     // 优化:防止队列数据过载
     if (conn.inflightTasks >= MAX_PIPELINE)
     {
+        conn.state.pauseByPipeline=true;
         return false;
     }
     conn.inflightTasks++;
@@ -318,8 +357,7 @@ bool SubReactor::processRequest(int fd)
     conn.pendingRequests.pop();
     conn.pendingBytes = conn.readBuffer.size();
     if (conn.pendingBytes < MAX_PENDING_BYTES)
-        conn.readPaused = false;
-
+        conn.state.pauseByMemory = false;
     uint64_t cid = conn.id;
     // conn.state = PROCESSING;
     SubReactor *reactor = this;
@@ -432,14 +470,24 @@ bool SubReactor::handleTaskResultOnce()
     if (it->second.id != task.id)
         return true;
     it->second.inflightTasks--;
+    bool needRearmRead=false;
+    if(it->second.inflightTasks<MAX_PIPELINE&&it->second.state.pauseByPipeline)
+    {
+        it->second.state.pauseByPipeline=false;
+        needRearmRead=true;
+    }
+
     // bool needEnableWrite = it->second.writeBuffer.empty();
     // 将信息拆分之后返回个conns并更新conns的状态
-    it->second.state = ConnState::WRITING;
+    it->second.state.wantWrite = true;
     it->second.keepAlive = task.keepAlive;
-    it->second.pendingResponses[task.seq].data = task.response;
+    it->second.pendingResponses[task.seq].data = std::move(task.response);
     // 如果之前没有需要写的，则需要重新唤醒对应fd为epollout状态
-    // if (needEnableWrite)
-    rearm(task.fd, EPOLLOUT|EPOLLIN);
+    if (needRearmRead||it->second.pendingResponses.size()==1)
+    {
+        it->second.state.wantWrite=true;
+        updateEvent(task.fd);
+    }
     // 优化;防爆
     if (it->second.pendingResponses[task.seq].data.size() > 1024 * 1024)
     {
@@ -468,7 +516,8 @@ void SubReactor::loop()
             {
                 uint64_t cnt;
                 while (read(event_fd, &cnt, sizeof(cnt)) > 0)
-                    ; // 清空计数
+                    ; 
+                    // 清空计数
                 while (handleTaskResultOnce())
                     ;
             }
@@ -506,6 +555,6 @@ void SubReactor::addFd(int fd)
     conn.fd = fd;
     conn.id = ++global_conn_id;
     conn.keepAlive = false;
-    conn.state = ConnState::READING;
+    conn.state.readPaused = false;
     conns[fd] = conn;
 }
