@@ -150,6 +150,8 @@ void SubReactor::handleWrite(int fd)
 
                 while (!conn.pendingRequests.empty())
                     if(!processRequest(fd))break;
+
+                rearm(fd,EPOLLIN);
             }
             else
                 // 重新激活为监听状态
@@ -247,6 +249,8 @@ void SubReactor::handleRead(int fd)
     {
         while (!conn.pendingRequests.empty())
             if(!processRequest(fd)) break;
+
+        rearm(fd,EPOLLIN);
     }
     else
     {
