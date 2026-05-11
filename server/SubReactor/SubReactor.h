@@ -20,15 +20,16 @@
 #define MAX_PENDING_BYTES MB(4)     //最大数据长
 #define MAX_PIPELINE   10240             //最大任务提交数
 extern ThreadPool pool;     //公用main函数全局的线程池
-
 // 优化，使用多reactor，每个reactor拥有独自的epoll，
 // 并且每个reactor独自占领独自资源实现类似单独进程的作用，拥有自己的资源，从而实现无锁
-enum ConnState
+struct ConnState
 {
-    READING,
-    WRITING,
-    // PROCESSING,
-    CLOSED
+    bool closed=false;
+    // bool wantRead=true;
+    bool pauseByPipeline=false;
+    bool pauseByMemory=false;
+    bool wantWrite=false;
+    bool readPaused=false;
 };
 
 struct PendingRequest
@@ -45,7 +46,6 @@ struct pedingResponse
 struct Connection
 {
     bool keepAlive;
-    bool readPaused =false;
     int fd;
     uint64_t id;
     size_t pendingBytes=0;                     //统计目前fd中已经储存的请求数据的总字节量，用于控制合适的时候拒绝read数据保持待机状态
@@ -103,6 +103,9 @@ public:
     
     // 重新唤醒、
     void rearm(int fd, uint32_t events);
+
+    // 用于优化集成rearm,结构性优化，接纳允许同时write和read
+    void updateEvent(int fd);
    
     // 用于判断消息是否发送完
     bool is_complete(const std::string &buf);
