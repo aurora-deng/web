@@ -11,6 +11,15 @@
 #include "SubReactor.h"
 std::atomic<uint64_t> global_conn_id{0}; // 自增
 
+
+// 统一小写
+static inline std::string toLower(std::string s)
+{
+    for (char &c : s)
+        c = std::tolower((unsigned char)c);
+    return s;
+}
+
 void SubReactor::updateEvent(int fd)
 {
     auto it = conns.find(fd);
@@ -27,33 +36,30 @@ void SubReactor::updateEvent(int fd)
     }
     rearm(fd, ev);
 }
-void SubReactor::checkTimeout()
-{
-    for (auto it = conns.begin(); it != conns.end();)
-    {
-        if (currentTick - it->second.activeTick >= 60)
-        {
-            int fd = it->first;
-            ++it;
-            fd_close(fd);
-        }
-        else
-        {
-            ++it;
-        }
-    }
-}
+
 // 统一套接字关闭
 // 优化：防止其他的线程来杀死我当前线程的fd
-void SubReactor::fd_close(int fd)
+void SubReactor::fd_close(int fd,std::string reason)
 {
     auto it = conns.find(fd);
     if (it == conns.end())
         return;
+    std::cout
+        << "[CLOSE]"
+        << " fd="
+        << fd
+        << " reason="
+        << reason
+        << " "
+        << strerror(errno)
+        << std::endl;
 
     // 优化：加上状态检查，防止当某fd已经关闭之后重复关闭或者关闭之后任然在fd
     if (it->second.state.closed)
         return;
+    
+    // 删除对应时间轮
+    wheel.remove(fd);
 
     it->second.state.closed = true;
     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
@@ -64,6 +70,7 @@ void SubReactor::fd_close(int fd)
 // 设置fd为非堵塞，对于新添加的fd都要使用
 void SubReactor::fd_unblock(int fd)
 {
+    
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
@@ -244,6 +251,7 @@ static SendState sendChunk(int fd, ChunkBolck &chunk)
 // 头文件发送函数
 static SendState sendHeader(int fd, pendingResponse &resp)
 {
+    
     // 先发送头文件
     while (resp.headerOffset < resp.header.size())
     {
@@ -371,7 +379,6 @@ void SubReactor::handleWrite(int fd)
     if (it == conns.end())
         return;
 
-    it->second.activeTick = currentTick;
     auto &conn = it->second;
     while (true)
     {
@@ -382,6 +389,21 @@ void SubReactor::handleWrite(int fd)
         }
         // 按照顺序取出消息并回复
         auto &resp = iter->second;
+
+
+        // ——————————————————————————————————————————————————————————————————日志
+        if (!resp.useSendfile &&
+            !resp.chunked &&
+            !resp.body)
+        {
+            // std::cout
+            //     << "RESP BODY NULL "
+            //     << fd
+            //     << std::endl;
+
+            fd_close(fd,"RESP BODY NULL ");
+            return;
+        }
         // 使用循环防止要发送的消息大小大于socket的内核大小，导致后续的没发出去,保证这条消息完整的发出
         // // 先发送头文件
         // while (resp.headerOffset < resp.header.size())
@@ -469,9 +491,11 @@ void SubReactor::handleWrite(int fd)
             case SEND_OK:
                 break;
             case SEND_AGAIN:
-                continue;
+                break;
             case SEND_CLOSED:
-                fd_close(fd);
+                // std::cout
+                //     << "sendHeader close\n";
+                fd_close(fd,"sendHeader close");
                 return;
             }
 
@@ -482,13 +506,19 @@ void SubReactor::handleWrite(int fd)
             case SEND_AGAIN:
                 break;
             case SEND_CLOSED:
-                fd_close(fd);
+                // std::cout
+                //     << "sendFile close\n";
+                // fd_close(fd,"sendFile close");
                 // 关闭文件,优化统一由filecache关闭
                 // close(resp.filebody.fd);
                 return;
             }
-            if (resp.filebody.remain==0&& resp.header.size() == resp.headerOffset)
+            if (resp.filebody.remain == 0 && resp.header.size() == resp.headerOffset)
             {
+                if(resp.useSendfile)
+                {
+                    FileCache::instace().put(resp.filebody.filepath);
+                }
                 conn.pendingResponses.erase(conn.nextResponseSeq);
                 conn.nextResponseSeq++;
             }
@@ -509,7 +539,9 @@ void SubReactor::handleWrite(int fd)
                 case SEND_AGAIN:
                     break;
                 case SEND_CLOSED:
-                    fd_close(fd);
+                    // std::cout
+                    //     << "sendwritev close\n";
+                    // fd_close(fd,"sendwritev close");
                     return;
                 }
                 if (resp.body->data.size() == resp.bodyOffset && resp.header.size() == resp.headerOffset)
@@ -530,9 +562,11 @@ void SubReactor::handleWrite(int fd)
                 case SEND_OK:
                     break;
                 case SEND_AGAIN:
-                    continue;
+                    break;;
                 case SEND_CLOSED:
-                    fd_close(fd);
+                    // std::cout
+                    //     << "sendHeader close\n";
+                    fd_close(fd,"sendHeader close");
                     return;
                 }
 
@@ -558,7 +592,8 @@ void SubReactor::handleWrite(int fd)
                     }
                     else
                     {
-                        fd_close(fd);
+
+                        fd_close(fd,"sendChunk error");
                         return;
                     }
                 }
@@ -570,13 +605,15 @@ void SubReactor::handleWrite(int fd)
                     case SEND_OK:
                         break;
                     case SEND_AGAIN:
-                        continue;
+                        break;
                     case SEND_CLOSED:
-                        fd_close(fd);
+                        // std::cout
+                        //     << "sendChunk close\n";
+                        fd_close(fd,"sendChunk close");
                         return;
                     }
                     // 一个stram彻底生命周期结束的地方
-                    if (resp.stream&&resp.chunked)
+                    if (resp.stream && resp.chunked)
                     {
                         conn.inflightTasks--;
                         if (conn.inflightTasks < MAX_PIPELINE)
@@ -627,7 +664,8 @@ void SubReactor::handleWrite(int fd)
         }
         else
         {
-            fd_close(fd);
+            // printf("conn.keepAlive false\n");
+            fd_close(fd,"conn.keepAlive false");
         }
     }
     else
@@ -650,7 +688,6 @@ void SubReactor::handleRead(int fd)
     if (it == conns.end())
         return;
 
-    it->second.activeTick = currentTick;
     auto &conn = it->second;
     // // 优化：判断是否可以进行数据读入,不单纯使用PROCESSING，可以防止readBuffer越积越大
     if (conn.pendingBytes > MAX_PENDING_BYTES)
@@ -680,7 +717,8 @@ void SubReactor::handleRead(int fd)
             }
             else
             { // 连接失败
-                fd_close(fd);
+                // printf("连接失败\n");
+                fd_close(fd,"连接失败");
                 closed = true; // 更新close用于后面重新唤醒
                 break;
             }
@@ -688,7 +726,7 @@ void SubReactor::handleRead(int fd)
         else if (res == 0)
         {
             // printf("对端数据已经下线\n");
-            fd_close(fd);
+            fd_close(fd,"对端数据已经下线");
             closed = true;
             break;
         }
@@ -715,7 +753,9 @@ void SubReactor::handleRead(int fd)
             break;
         if (state == PARSE_ERROR)
         {
-            fd_close(fd);
+            // std::string waning="try_parse_request PARSE_ERROR";
+            // LOG_INFO(waning+strerror(errno));
+            fd_close(fd,"try_parse_request PARSE_ERROR");
             return;
         }
 
@@ -805,7 +845,7 @@ bool SubReactor::processRequest(int fd)
                              if (req.version == "HTTP/1.1")
                              {
                                  // 默认为keep-alive
-                                 if (it != req.headers.end() && it->second == "close")
+                                 if (it != req.headers.end() && toLower(it->second) == "close")
                                  {
                                      resp.keepAlive = false;
                                  }
@@ -815,7 +855,7 @@ bool SubReactor::processRequest(int fd)
                              else
                              { // HTTP/1.0
                                  // 默认close
-                                 if (it != req.headers.end() && it->second == "keep-alive")
+                                 if (it != req.headers.end() && toLower(it->second) == "keep-alive")
                                  {
                                      resp.keepAlive = true;
                                  }
@@ -856,6 +896,7 @@ bool SubReactor::processRequest(int fd)
                              result.fileSize=resp.fileSize;
                              result.sendBegin=resp.sendBegin;
                              result.sendEnd=resp.sendEnd;
+                             result.filepath=resp.filePath;
 
                              result.keepAlive=resp.keepAlive;
                              reactor->pushResult(result); });
@@ -920,7 +961,7 @@ bool SubReactor::handleTaskResultOnce()
 {
     // 单次畜类每次的worker的返回的结果
     // 等每轮消息处理完之后将信息取出来，减少对锁的持有和竞争
-    
+
     TaskResult task;
     // 使用局部作用域，让锁尽快释放
     {
@@ -931,14 +972,25 @@ bool SubReactor::handleTaskResultOnce()
         task = push_to_SubReactor_queue.front();
         push_to_SubReactor_queue.pop();
     }
-    
+
+    // __________________________________________________________________日志检查
+    if (!task.body)
+    {
+        std::cout
+            << "BODY NULL fd="
+            << task.fd
+            << " seq="
+            << task.seq
+            << std::endl;
+    }
+
     // 优化：同时也是使用find查找，防止高并发导致fd误杀
     auto it = conns.find(task.fd);
     if (it == conns.end())
         return true;
     if (it->second.id != task.id)
         return true;
-    
+
     // 非流式发送（chunk）的生命周期结束点
     if (!task.chunked)
         it->second.inflightTasks--;
@@ -967,9 +1019,9 @@ bool SubReactor::handleTaskResultOnce()
     pending.useSendfile = task.useSendfile;
     pending.filebody.fd = task.fileFd;
     pending.filebody.size = task.fileSize;
+    pending.filebody.filepath=task.filepath;
     pending.filebody.offset = task.sendBegin;
     pending.filebody.remain = task.sendEnd - task.sendBegin + 1;
-
     // 使用回调函数自己唤醒
     if (pending.stream)
     {
@@ -985,23 +1037,24 @@ bool SubReactor::handleTaskResultOnce()
         updateEvent(task.fd);
     }
     // 防空指针
-    size_t bodySize=0;
-    if(pending.body)
+    size_t bodySize = 0;
+    if (pending.body)
     {
-        bodySize=pending.body->data.size();
+        bodySize = pending.body->data.size();
     }
     // 优化;防爆
-    if ( bodySize+ pending.header.size() > 1024 * 1024)
+    if (bodySize + pending.header.size() > 1024 * 1024)
     {
-        fd_close(task.fd);
+        // std::string waning="爆了";
+        // LOG_INFO(waning+strerror(errno));
+        fd_close(task.fd,"bodySize爆了");
         return false;
     }
-    std::string wanning="fd="+std::to_string(task.fd);
-    wanning+= "inflight="+std::to_string(it->second.inflightTasks);
-    wanning+= "pending="+std::to_string(it->second.pendingResponses.size());
-    LOG_INFO(
-    wanning+ strerror(errno)
-    );
+    // std::string wanning = "fd=" + std::to_string(task.fd);
+    // wanning += "inflight=" + std::to_string(it->second.inflightTasks);
+    // wanning += "pending=" + std::to_string(it->second.pendingResponses.size());
+    // LOG_INFO(
+    //     wanning + strerror(errno));
 
     return true;
 }
@@ -1035,12 +1088,19 @@ void SubReactor::loop()
 {
     // 创建epoll储存大小
     epoll_event events[MAX_EVENTS];
-
+    auto last=std::chrono::steady_clock::now();
     while (true)
     {
-        // 开始监听epfd并将数据存放到events中,优化1000ms无连接超时
-        int n = epoll_wait(epfd, events, MAX_EVENTS, 1000);
+        // 开始监听epfd并将数据存放到events中,优化100ms无连接超时
+        int n = epoll_wait(epfd, events, MAX_EVENTS, 100);
+        auto now=std::chrono::steady_clock::now();
 
+        auto sec=std::chrono::duration_cast<std::chrono::seconds>(now-last).count();        //刷新计时
+        if(sec>=1)
+        {
+            wheel.tick();
+            last=now;
+        }
         for (int i = 0; i < n; i++)
         {
             int fd = events[i].data.fd;
@@ -1072,9 +1132,9 @@ void SubReactor::loop()
         }
 
         currentTick++;
-        checkTimeout();
     }
 }
+
 void SubReactor::addFd(int fd)
 {
     // 设置为非堵塞
@@ -1096,4 +1156,7 @@ void SubReactor::addFd(int fd)
     conn.keepAlive = false;
     conn.state.readPaused = false;
     conns[fd] = conn;
+    
+    // 设置对应时间轮
+    wheel.add(fd,30);
 }

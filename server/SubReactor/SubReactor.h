@@ -13,11 +13,13 @@
 #include <unistd.h>
 #include <strings.h>
 #include <sys/socket.h>
+#include <unordered_set>
+
+#include"server/timer/TimeWheel.h"
 #include "server/http/http.h"
 #include "server/threadpoll/thread_pool.h"
 #include "server/Route/Router.h"
 #include "server/Buffer/Buffer.h"
-#include <unordered_set>
 #define MAX_EVENTS 1024
 #define KB(x) ((x) * 1024UL)
 #define MB(x) ((x) * 1024UL * 1024UL)
@@ -52,6 +54,7 @@ struct FileBody
     off_t size=0;
     off_t offset=0;
     off_t remain=0;
+    std::string filepath;
 };
 
 
@@ -68,7 +71,7 @@ struct pendingResponse
     size_t bodyOffset=0;
     size_t chunkOffset=0;
     size_t EndchunkOffset=0;
-
+    
     std::string header;
     ResponseBodyPtr body;
     FileBody filebody;
@@ -99,22 +102,8 @@ struct Connection
     // 增加时间轮,创立时间戳
     std::chrono::steady_clock::time_point lastActive;
     // 记录运行时间
-    uint64_t activeTick=0;
-};
-
-class TimerWheel{
-    public:
-        void add(int fd);
-        void refresh(int fd);
-
-        void tick();
-
-    private:
-    static constexpr int SLOT=60;
-    uint64_t currentTick=0;
-    int cur=0;
-
-    std::vector<std::unordered_set<int>>wheel;
+    uint64_t ecpireSlot=0;              //记录当前所在时间槽的位置
+    bool inWheel=false;                 //防止重复加入
 };
 
 struct TaskResult
@@ -133,6 +122,7 @@ struct TaskResult
     size_t sendBegin=0;
     size_t sendEnd=0;
     off_t fileSize=0;
+    std::string filepath;
 
     std::string header;
     ResponseBodyPtr body;
@@ -165,6 +155,17 @@ public:
     Router &router;
     std::queue<StreamNotify> StreamNotifyQueue;     //用于处理流式id和fd
 
+    TimerWheel wheel{
+        60,
+        [this](int fd)
+        {
+            fd_close(
+                fd,
+                "timeout"
+            );
+        }
+    };
+
     SubReactor(Router &router):router(router)
     {
         // 创建属于自己的epoll
@@ -177,12 +178,11 @@ public:
         epoll_ctl(epfd, EPOLL_CTL_ADD, event_fd, &ev);
 
     }
-
     void run();
     void pushResult(const TaskResult &res);
     void notifyStream(int fd,uint64_t id);
     // 统一套接字关闭
-    void fd_close(int fd);
+    void fd_close(int fd,std::string reason);
 
     // 设置fd为非堵塞，对于新添加的fd都要使用
     void fd_unblock(int fd);
@@ -192,8 +192,7 @@ public:
 
     // 用于优化集成rearm,结构性优化，接纳允许同时write和read
     void updateEvent(int fd);
-    // 超时检查
-    void checkTimeout();
+    
     // 写入函数
     void handleWrite(int fd);
     bool handleTaskResultOnce();

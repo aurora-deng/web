@@ -130,7 +130,7 @@ struct HttpResponse
     int filefd = -1;
 
     off_t fileSize = 0;
-
+    std::string filePath;
     size_t sendBegin = 0;
     size_t sendEnd = 0;
     // std::deque<ChunkBolck> chunks;

@@ -207,7 +207,7 @@ int main(int argc, const char *argv[])
     while (true)
     {
 
-        // 持续监听epfd并且将事件放到events
+        // 持续监听epfd并且将事件放到events，接受任务
         int n = epoll_wait(epfd, events, MAX_EVENTS, -1);
         // 处理io
         for (int i = 0; i < n; i++)
@@ -233,8 +233,9 @@ int main(int argc, const char *argv[])
                         }
                     }
                     printf("[%s:%d]:已连接成功，newfd=%d!!!!\n", inet_ntoa(cin.sin_addr), ntohs(cin.sin_port), newfd_);
-
+                    // 分配任务
                     subs[idx]->addFd(newfd_);
+                    // subs[idx]->addPendingFd(newfd_);
                     idx = (idx + 1) % subs.size();
                 }
             }

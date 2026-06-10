@@ -310,6 +310,7 @@ bool HttpResponse::sendfile(const std::string &path, RangeInfo &range)
         
         return false;
     }
+    filePath=path;
     filefd = file.fd;
 
     fileSize = file.size;
@@ -613,6 +614,7 @@ bool FileCache::get(const std::string &path, FileEntry &out)
     entry.size=st.st_size;
     entry.mtime=st.st_mtime;
     entry.fd=fd;
+    entry.refCount=1;
 
 
     cache[path]=entry;
