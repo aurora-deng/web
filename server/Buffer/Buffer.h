@@ -3,6 +3,18 @@
 #include<vector>
 #include <cstddef>
 
+// 链接状态机
+struct ConnState
+{
+    bool closed = false;
+    // bool wantRead=true;
+    bool pauseByPipeline = false;
+    bool pauseByMemory = false;
+    bool wantWrite = false;
+    bool readPaused = false;
+};
+
+
 // 这一段其实仍然需要拷贝，不过相较于第一代其实已经节省了很多的复制，不过这还不是最优的零拷贝
 // 最优的零拷贝是通过全部使用指针来实现内容判断和传输
 // 之后再加上状态机的标注对应块区内容就可以实现真正意义上的零拷贝，之后再往chunked上发展
@@ -26,7 +38,7 @@ struct Buffer{
     // 重置
     void retrieve(size_t len);
     
-
+    
     // 扩容
     void ensureWrite(size_t len);
     // 追加

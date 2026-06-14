@@ -5,35 +5,35 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
-#include "server/Buffer/Buffer.h"
 #include <memory>
 #include <deque>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string>
-// #include "server/SubReactor/SubReactor.h"
+
+#include "server/BufferPoll/BufferPoll.h"
+#include "server/Buffer/Buffer.h"
+#include "server/Repsonse/RespBody.h"
 // 使用共享指针优化多次move
-struct ResponseBody
-{
-    std::string data;
-};
-using ResponseBodyPtr = std::shared_ptr<ResponseBody>;
+// struct ResponseBody
+// {
+//     // 优化：先不申请空间，之后根据发送形式进行升级
+//     std::shared_ptr<Buffer> buffer = nullptr;
+//     // 使用析构函数自动释放空间，防止自己手动去找erase位置释放空间
+//     ~ResponseBody()
+//     {
+//         if (buffer)
+//             BufferPoll::instance().release(buffer);
+//     }
+// };
+// using ResponseBodyPtr = std::shared_ptr<ResponseBody>;
 
 enum ParseState
 {
     PARSE_OK,
     PARSE_NEED_MORE,
     PARSE_ERROR
-};
-
-struct ChunkBolck
-{
-    std::string prefix;
-    ResponseBodyPtr data;
-    std::string suffix = "\r\n";
-
-    size_t sent = 0;
 };
 
 struct RangeInfo
@@ -66,21 +66,6 @@ struct HttpRequest
     std::string_view body;
 };
 
-// 使用流式传递chunk
-struct StreamQueue
-{
-    std::mutex mtx;
-    std::deque<ChunkBolck> chunks;
-
-    bool finished = false;
-
-    // 故意对于push来写一个pushchunk是为了后续扩展方便，有利于集成一些策略
-    void pushChunk(ChunkBolck c);
-    // 增加回调函数使得自己唤醒自己
-    std::function<void()> wakeup;
-};
-using StreamQueuePtr = std::shared_ptr<StreamQueue>;
-
 struct FileEntry
 {
     int fd;
@@ -89,6 +74,7 @@ struct FileEntry
 
     int refCount;
 };
+
 // 使用filecache统一管理filefd,有锁不允许拷贝
 class FileCache
 {
@@ -107,8 +93,6 @@ public:
     ~FileCache();
 };
 
-
-
 struct HttpResponse
 {
     int status = 200;
@@ -117,25 +101,15 @@ struct HttpResponse
 
     std::unordered_map<std::string, std::string> headers;
 
-    ResponseBodyPtr body;
-
+    // 使用多态的基类实现
+    RespBodyPtr body = nullptr;
     bool keepAlive = true;
 
     // 介入chunked
     bool chunked = false;
 
-    // 鉴别是否使用静态文件发送形式
-    bool useSendfile = false;
-
-    int filefd = -1;
-
-    off_t fileSize = 0;
-    std::string filePath;
-    size_t sendBegin = 0;
-    size_t sendEnd = 0;
-    // std::deque<ChunkBolck> chunks;
     // 使用流式
-    StreamQueuePtr stream;
+    // StreamQueuePtr stream;
 
     HttpResponse();
 
@@ -144,10 +118,9 @@ struct HttpResponse
     // 这个其实是拼接，这样就是实现需要copy增大消耗
     // std::string toString() const;
     std::string buildHeader() const;
-
+// 流式发送chunk
     void beginChunked();
     void writeChunk(const std::string &s);
-
     void endChunked();
     // 完善response函数
     void setHeader(const std::string key, std::string value);

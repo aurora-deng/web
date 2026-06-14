@@ -11,7 +11,6 @@
 #include "SubReactor.h"
 std::atomic<uint64_t> global_conn_id{0}; // 自增
 
-
 // 统一小写
 static inline std::string toLower(std::string s)
 {
@@ -39,25 +38,26 @@ void SubReactor::updateEvent(int fd)
 
 // 统一套接字关闭
 // 优化：防止其他的线程来杀死我当前线程的fd
-void SubReactor::fd_close(int fd,std::string reason)
+void SubReactor::fd_close(int fd, std::string reason)
 {
     auto it = conns.find(fd);
     if (it == conns.end())
         return;
+
+    // 优化： 段错误修复处：移除误导性的 strerror(errno)，errno 可能是上一次系统调用残留的值
+    // "Resource temporarily unavailable" 就是残留的 EAGAIN，与关闭操作无关
     std::cout
         << "[CLOSE]"
         << " fd="
         << fd
         << " reason="
         << reason
-        << " "
-        << strerror(errno)
         << std::endl;
 
     // 优化：加上状态检查，防止当某fd已经关闭之后重复关闭或者关闭之后任然在fd
     if (it->second.state.closed)
         return;
-    
+
     // 删除对应时间轮
     wheel.remove(fd);
 
@@ -70,7 +70,7 @@ void SubReactor::fd_close(int fd,std::string reason)
 // 设置fd为非堵塞，对于新添加的fd都要使用
 void SubReactor::fd_unblock(int fd)
 {
-    
+
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
@@ -101,124 +101,91 @@ void SubReactor::run()
             loop(); });
     th.detach(); // 使用完之后删除该线程
 }
-// 使用状态机来处理返回结果
-enum SendState
-{
-    SEND_OK,
-    SEND_AGAIN,
-    SEND_CLOSED
-};
 
-// 正常发送
-static SendState sendWritev(int fd, pendingResponse &resp)
+// 优化，通过response来返回对应返回
+SendState SubReactor::sendBody(int fd, pendingResponse &resp)
 {
-    int NeedSentBytes = (resp.header.size() - resp.headerOffset) + (resp.body->data.size() - resp.bodyOffset);
-    iovec vec[2];
-    while (NeedSentBytes > 0)
+
+    while (true)
     {
-        int iovcnt = 0;
+
+        // header:先保证header能够发完
         if (resp.headerOffset < resp.header.size())
         {
-            vec[iovcnt].iov_base = (void *)(resp.header.data() + resp.headerOffset);
-            vec[iovcnt++].iov_len = resp.header.size() - resp.headerOffset;
-        }
-
-        if (resp.bodyOffset < resp.body->data.size())
-        {
-            vec[iovcnt].iov_base = (void *)(resp.body->data.data() + resp.bodyOffset);
-            vec[iovcnt++].iov_len = resp.body->data.size() - resp.bodyOffset;
-        }
-        int n = writev(fd, vec, iovcnt);
-        if (n > 0)
-        {
-            NeedSentBytes -= n;
-            if (resp.headerOffset + n > resp.header.size())
+            int n = send(fd, resp.header.data() + resp.headerOffset, resp.header.size() - resp.headerOffset, MSG_NOSIGNAL);
+            if (n > 0) // 清空已经发送的部分
             {
-
-                n -= (resp.header.size() - resp.headerOffset);
-                resp.headerOffset = resp.header.size();
-                resp.bodyOffset += n;
-            }
-            else
-            {
+                Conn timerconn;
+                timerconn.fd = fd;
+                wheel.refresh(timerconn);
                 resp.headerOffset += n;
-            }
-        }
-        else if (n == -1) // 表示没有消息或者发送的消息发布完了
-        {
-            LOG_ERROR(std::string("send error: ") + strerror(errno));
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                // 发不完等下一次
-                return SEND_AGAIN;
-            }
-            else if (errno == EINTR)
-            {
-                // 信号被打断重新尝试
+                // 最终header判定
+                if (resp.headerOffset < resp.header.size())
+                    return SEND_AGAIN;
+
+                // 用于处理正常发送后跳过SEND_Header_CLOSED
                 continue;
             }
-            else
+            else if (n == -1) // 表示没有消息或者发送的消息发布完了
             {
-                // 出现错误
-                return SEND_CLOSED;
+                LOG_ERROR(std::string("send error: ") + strerror(errno));
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {
+                    // 发不完等下一次
+                    return SEND_AGAIN;
+                }
+                else if (errno == EINTR)
+                {
+                    // 信号被打断重新尝试
+                    continue;
+                }
             }
-        }
-        else if (n == 0)
-        {
-            // 表示连接异常直接关闭即可
-            return SEND_CLOSED;
-        }
-    }
-
-    return SEND_OK;
-}
-
-// 发送chunked处理
-static SendState sendChunk(int fd, ChunkBolck &chunk)
-{
-
-    int total = chunk.prefix.size() + chunk.data->data.size() + chunk.suffix.size();
-    int NeedSent = total - chunk.sent;
-    iovec vec[4];
-    while (NeedSent > 0)
-    {
-        int iovcnt = 0;
-        if (chunk.sent < chunk.prefix.size())
-        {
-            vec[iovcnt].iov_base = (void *)(chunk.prefix.data() + chunk.sent);
-            vec[iovcnt++].iov_len = chunk.prefix.size() - chunk.sent;
+            return SEND_Header_CLOSED;
         }
 
-        if (chunk.sent < chunk.prefix.size() + chunk.data->data.size())
+        // body
+        if (!resp.body)
         {
-            size_t dataOffset = 0;
-
-            if (chunk.sent > chunk.prefix.size())
+            return SEND_OK;
+        }
+        // 判断是否为发送文件
+        auto file = std::dynamic_pointer_cast<FileBody>(resp.body);
+        if (file)
+        {
+            auto n = file->sendFile(fd);
+            if (n > 0)
             {
-                dataOffset =
-                    chunk.sent - chunk.prefix.size();
+                Conn timerconn;
+                timerconn.fd = fd;
+                wheel.refresh(timerconn);
+                if (file->finished())
+                    return SEND_OK;
+                // 发了但没有发完
+                return SEND_AGAIN;
             }
-            vec[iovcnt].iov_base = (void *)(chunk.data->data.data() + dataOffset);
-            vec[iovcnt++].iov_len = chunk.data->data.size() - dataOffset;
-        }
 
-        if (chunk.sent < chunk.prefix.size() + chunk.data->data.size() + chunk.suffix.size())
+            if (n == -2)
+                return SEND_AGAIN;
+
+            return SEND_File_CLOSED;
+        }
+        // 构建iov
+        std::vector<iovec> vec;
+        if (!resp.body->buildIov(vec, 65536))
         {
-            size_t suffixOffset = 0;
-
-            if (chunk.sent > chunk.prefix.size() + chunk.data->data.size())
-            {
-                suffixOffset =
-                    chunk.sent - chunk.prefix.size() - chunk.data->data.size();
-            }
-            vec[iovcnt].iov_base = (void *)(chunk.suffix.data() + suffixOffset);
-            vec[iovcnt++].iov_len = chunk.suffix.size() - suffixOffset;
+            return resp.body->finished() ? SEND_OK : SEND_AGAIN;
         }
-        int n = writev(fd, vec, iovcnt);
+
+        int n = writev(fd, vec.data(), vec.size());
         if (n > 0)
         {
-            chunk.sent += n;
-            NeedSent -= n;
+            Conn t;
+            t.fd = fd;
+            wheel.refresh(t);
+            resp.body->consume(n);
+            if (resp.body->finished())
+                return SEND_OK;
+            continue;
         }
         else if (n == -1) // 表示没有消息或者发送的消息发布完了
         {
@@ -236,139 +203,17 @@ static SendState sendChunk(int fd, ChunkBolck &chunk)
             else
             {
                 // 出现错误
-                return SEND_CLOSED;
+                LOG_ERROR(std::string("error: ") + strerror(errno));
+                return SEND_Writev_CLOSED;
             }
         }
         else if (n == 0)
         {
             // 表示连接异常直接关闭即可
-            return SEND_CLOSED;
+            LOG_ERROR(std::string("connect error: ") + strerror(errno));
+            return SEND_Writev_CLOSED;
         }
     }
-
-    return SEND_OK;
-}
-// 头文件发送函数
-static SendState sendHeader(int fd, pendingResponse &resp)
-{
-    
-    // 先发送头文件
-    while (resp.headerOffset < resp.header.size())
-    {
-        int n = send(fd, resp.header.data() + resp.headerOffset, resp.header.size() - resp.headerOffset, MSG_NOSIGNAL);
-        if (n > 0) // 清空已经发送的部分
-        {
-            resp.headerOffset += n;
-        }
-        else if (n == -1) // 表示没有消息或者发送的消息发布完了
-        {
-            LOG_ERROR(std::string("send error: ") + strerror(errno));
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                // 发不完等下一次
-                return SEND_AGAIN;
-            }
-            else if (errno == EINTR)
-            {
-                // 信号被打断重新尝试
-                continue;
-            }
-            else
-            {
-                // 出现错误
-                return SEND_CLOSED;
-            }
-        }
-        else if (n == 0)
-        {
-            // 表示连接异常直接关闭即可
-            return SEND_CLOSED;
-        }
-    }
-    bool headerDone = (resp.headerOffset == resp.header.size());
-    // 判断头文件是否发完，如果没发完，直接进入下一次循环，之后二次发送
-    if (!headerDone)
-    {
-        return SEND_AGAIN;
-    }
-    return SEND_OK;
-}
-
-// 静态文件发送函数
-static SendState sendEndChunk(int fd, pendingResponse &resp)
-{
-    // 发送一个最后的endChunk
-
-    while (resp.EndchunkOffset < resp.endChunks.size())
-    {
-        int n = send(fd, resp.endChunks.data() + resp.EndchunkOffset, resp.endChunks.size() - resp.EndchunkOffset, MSG_NOSIGNAL);
-        if (n > 0) // 清空已经发送的部分
-        {
-            resp.EndchunkOffset += n;
-        }
-        else if (n == -1) // 表示没有消息或者发送的消息发布完了
-        {
-            LOG_ERROR(std::string("send error: ") + strerror(errno));
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                // 发不完等下一次
-                return SEND_AGAIN;
-            }
-            else if (errno == EINTR)
-            {
-                // 信号被打断重新尝试
-                continue;
-            }
-            else
-            {
-                // 出现错误
-                return SEND_CLOSED;
-            }
-        }
-        else if (n == 0)
-        {
-            // 表示连接异常直接关闭即可
-            return SEND_CLOSED;
-        }
-    }
-    return SEND_OK;
-}
-
-static SendState sendFile(int fd, pendingResponse &resp)
-{
-    while (resp.filebody.remain > 0)
-    {
-        int n = sendfile(fd, resp.filebody.fd, &resp.filebody.offset, resp.filebody.remain);
-        if (n > 0)
-        {
-            resp.filebody.remain -= n;
-        }
-        else if (n == -1) // 表示没有消息或者发送的消息发布完了
-        {
-            LOG_ERROR(std::string("send error: ") + strerror(errno));
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                // 发不完等下一次
-                return SEND_AGAIN;
-            }
-            else if (errno == EINTR)
-            {
-                // 信号被打断重新尝试
-                continue;
-            }
-            else
-            {
-                // 出现错误
-                return SEND_CLOSED;
-            }
-        }
-        else if (n == 0)
-        {
-            // 表示连接异常直接关闭即可
-            return SEND_CLOSED;
-        }
-    }
-    return SEND_OK;
 }
 
 // 写入函数
@@ -390,287 +235,76 @@ void SubReactor::handleWrite(int fd)
         // 按照顺序取出消息并回复
         auto &resp = iter->second;
 
-
-        // ——————————————————————————————————————————————————————————————————日志
-        if (!resp.useSendfile &&
-            !resp.chunked &&
+        // ——————————————————————————————————————————————————————————————————日志-------------
+        if (
             !resp.body)
         {
-            // std::cout
-            //     << "RESP BODY NULL "
-            //     << fd
-            //     << std::endl;
-
-            fd_close(fd,"RESP BODY NULL ");
+            fd_close(fd, "RESP BODY NULL ");
             return;
         }
-        // 使用循环防止要发送的消息大小大于socket的内核大小，导致后续的没发出去,保证这条消息完整的发出
-        // // 先发送头文件
-        // while (resp.headerOffset < resp.header.size())
-        // {
-        //     int n = send(fd, resp.header.data() + resp.headerOffset, resp.header.size() - resp.headerOffset, MSG_NOSIGNAL);
-        //     if (n > 0) // 清空已经发送的部分
-        //     {
-        //         resp.headerOffset += n;
-        //     }
-        //     else if (n == -1) // 表示没有消息或者发送的消息发布完了
-        //     {
-        //         LOG_ERROR(std::string("send error: ") + strerror(errno));
-        //         if (errno == EAGAIN || errno == EWOULDBLOCK)
-        //         {
-        //             // 发不完等下一次
-        //             break;
-        //         }
-        //         else if (errno == EINTR)
-        //         {
-        //             // 信号被打断重新尝试
-        //             continue;
-        //         }
-        //         else
-        //         {
-        //             // 出现错误
-        //             fd_close(fd);
-        //             return;
-        //         }
-        //     }
-        //     else if (n == 0)
-        //     {
-        //         // 表示连接异常直接关闭即可
-        //         fd_close(fd);
-        //         return;
-        //     }
-        // }
 
-        // // 判断发送chunked还是常规body
-        // if (!resp.chunked)
-        // {
-        //     while (resp.bodyOffset < resp.body->data.size())
-        //     {
-        //         int n = send(fd, resp.body->data.data() + resp.bodyOffset, resp.body->data.size() - resp.bodyOffset, MSG_NOSIGNAL);
-        //         if (n > 0) // 清空已经发送的部分
-        //         {
-        //             resp.bodyOffset += n;
-        //         }
-        //         else if (n == -1) // 表示没有消息或者发送的消息发布完了
-        //         {
-        //             LOG_ERROR(std::string("send error: ") + strerror(errno));
-        //             if (errno == EAGAIN || errno == EWOULDBLOCK)
-        //             {
-        //                 // 发不完等下一次
-        //                 break;
-        //             }
-        //             else if (errno == EINTR)
-        //             {
-        //                 // 信号被打断重新尝试
-        //                 continue;
-        //             }
-        //             else
-        //             {
-        //                 // 出现错误
-        //                 fd_close(fd);
-        //                 return;
-        //             }
-        //         }
-        //         else if (n == 0)
-        //         {
-        //             // 表示连接异常直接关闭即可
-        //             fd_close(fd);
-        //             return;
-        //         }
-        //     }
-        // }else{
-
-        // }
-
-        if (resp.useSendfile)
+        switch (sendBody(fd, resp))
         {
-
-            // 先发送头文件
-            switch (sendHeader(fd, resp))
-            {
-            case SEND_OK:
-                break;
-            case SEND_AGAIN:
-                break;
-            case SEND_CLOSED:
-                // std::cout
-                //     << "sendHeader close\n";
-                fd_close(fd,"sendHeader close");
-                return;
-            }
-
-            switch (sendFile(fd, resp))
-            {
-            case SEND_OK:
-                break;
-            case SEND_AGAIN:
-                break;
-            case SEND_CLOSED:
-                // std::cout
-                //     << "sendFile close\n";
-                // fd_close(fd,"sendFile close");
-                // 关闭文件,优化统一由filecache关闭
-                // close(resp.filebody.fd);
-                return;
-            }
-            if (resp.filebody.remain == 0 && resp.header.size() == resp.headerOffset)
-            {
-                if(resp.useSendfile)
-                {
-                    FileCache::instace().put(resp.filebody.filepath);
-                }
-                conn.pendingResponses.erase(conn.nextResponseSeq);
-                conn.nextResponseSeq++;
-            }
-            else
-            {
-                break;
-            }
-        }
-        else
+        case SEND_OK:
         {
-            // 优化，使用抽象函数处理
-            if (!resp.chunked)
-            {
-                switch (sendWritev(fd, resp))
-                {
-                case SEND_OK:
-                    break;
-                case SEND_AGAIN:
-                    break;
-                case SEND_CLOSED:
-                    // std::cout
-                    //     << "sendwritev close\n";
-                    // fd_close(fd,"sendwritev close");
-                    return;
-                }
-                if (resp.body->data.size() == resp.bodyOffset && resp.header.size() == resp.headerOffset)
-                {
-                    conn.pendingResponses.erase(conn.nextResponseSeq);
-                    conn.nextResponseSeq++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            else
-            {
-                // 先发送头文件
-                switch (sendHeader(fd, resp))
-                {
-                case SEND_OK:
-                    break;
-                case SEND_AGAIN:
-                    break;;
-                case SEND_CLOSED:
-                    // std::cout
-                    //     << "sendHeader close\n";
-                    fd_close(fd,"sendHeader close");
-                    return;
-                }
-
-                // 开始发送chunk，使用流式
-                while (!resp.stream->chunks.empty())
-                {
-                    auto &chunk = resp.stream->chunks.front();
-
-                    SendState st = sendChunk(fd, chunk);
-
-                    if (st == SEND_OK)
-                    {
-                        size_t total = chunk.prefix.size() + chunk.data->data.size() + chunk.suffix.size();
-                        if (chunk.sent == total)
-                        {
-                            resp.stream->chunks.pop_front();
-                        };
-                        continue;
-                    }
-                    else if (st == SEND_AGAIN)
-                    {
-                        break;
-                    }
-                    else
-                    {
-
-                        fd_close(fd,"sendChunk error");
-                        return;
-                    }
-                }
-
-                if (resp.stream->chunks.empty() && resp.stream->finished)
-                {
-                    switch (sendEndChunk(fd, resp))
-                    {
-                    case SEND_OK:
-                        break;
-                    case SEND_AGAIN:
-                        break;
-                    case SEND_CLOSED:
-                        // std::cout
-                        //     << "sendChunk close\n";
-                        fd_close(fd,"sendChunk close");
-                        return;
-                    }
-                    // 一个stram彻底生命周期结束的地方
-                    if (resp.stream && resp.chunked)
-                    {
-                        conn.inflightTasks--;
-                        if (conn.inflightTasks < MAX_PIPELINE)
-                        {
-                            conn.state.pauseByPipeline = false;
-                            updateEvent(fd);
-                        }
-                    }
-                    conn.pendingResponses.erase(conn.nextResponseSeq);
-                    conn.nextResponseSeq++;
-                }
-                else
-                {
-                    break;
-                }
-            }
+            if (conn.inflightTasks > 0)
+                conn.inflightTasks--;
+            conn.pendingResponses.erase(iter);
+            conn.nextResponseSeq++;
+            continue;
         }
-
-        // 更新时间戳
-
-        conn.lastActive = std::chrono::steady_clock::now();
+        case SEND_AGAIN:
+            break;
+        case SEND_Header_CLOSED:
+            fd_close(fd, "sendHeader close");
+            return;
+        case SEND_Writev_CLOSED:
+            fd_close(fd, "sendwritev close");
+            return;
+        case SEND_Chunk_CLOSED:
+            fd_close(fd, "sendChunk error");
+            return;
+        case SEND_EndChunk_CLOSED:
+            fd_close(fd, "sendEndChunk close");
+            return;
+        case SEND_File_CLOSED:
+            fd_close(fd, "sendHeader close");
+            return;
+        }
+        break;
     }
 
+    // 段错误修复处：循环结束后重新查找 conn，因为循环内可能已通过 fd_close 删除了 conn
+    it = conns.find(fd);
+    if (it == conns.end())
+        return;
+    // 重新获取 conn 引用（循环前的 conn 可能因 fd_close 而悬空）
+    auto &conn_after_loop = it->second;
+
     // 将这一部分提出循环之外，放在循环内会重复调用浪费时间
-    if (conn.pendingResponses.empty())
+    if (conn_after_loop.pendingResponses.empty())
     {
 
         // 优化防止直接结束fd之后又要重新连接，直接更改模式
-        conn.state.wantWrite = false;
-        if (conn.keepAlive)
+        conn_after_loop.state.wantWrite = false;
+        if (conn_after_loop.keepAlive)
         {
-            if (!conn.pendingRequests.empty())
+            if (!conn_after_loop.pendingRequests.empty())
             {
-
-                while (!conn.pendingRequests.empty())
-                    if (!processRequest(fd))
-                        break;
-
-                if (!conn.pendingResponses.empty())
-                    conn.state.wantWrite = true;
-                updateEvent(fd);
+                processRequest(fd);
             }
-            else
-            {
-                // 重新激活为监听状态
-                updateEvent(fd);
-            }
+            // 重新激活为监听状态
+            updateEvent(fd);
         }
         else
         {
-            // printf("conn.keepAlive false\n");
-            fd_close(fd,"conn.keepAlive false");
+            // printf("conn_after_loop.keepAlive false\n");
+            fd_close(fd, "conn_after_loop.keepAlive false");
         }
     }
-    else
+    else // 处理sent_again
     {
-        conn.state.wantWrite = true;
+        conn_after_loop.state.wantWrite = true;
         updateEvent(fd);
     }
 }
@@ -718,7 +352,7 @@ void SubReactor::handleRead(int fd)
             else
             { // 连接失败
                 // printf("连接失败\n");
-                fd_close(fd,"连接失败");
+                fd_close(fd, "连接失败");
                 closed = true; // 更新close用于后面重新唤醒
                 break;
             }
@@ -726,7 +360,7 @@ void SubReactor::handleRead(int fd)
         else if (res == 0)
         {
             // printf("对端数据已经下线\n");
-            fd_close(fd,"对端数据已经下线");
+            fd_close(fd, "对端数据已经下线");
             closed = true;
             break;
         }
@@ -735,6 +369,11 @@ void SubReactor::handleRead(int fd)
         // 开始处理数据
         conn.readBuffer.append(buffer, res);
         conn.pendingBytes = conn.readBuffer.buf.size();
+
+        // 遇到有用请求，刷新请求.防止一直接受不到conn
+        Conn timeconn;
+        timeconn.fd = fd;
+        wheel.refresh(timeconn);
         // 可优化点：使用零拷贝  std::string localBuf.swap(conns[fd].readBuffer);
         //  或者使用现在的多reactor直接对conns进行操作
     }
@@ -755,7 +394,7 @@ void SubReactor::handleRead(int fd)
         {
             // std::string waning="try_parse_request PARSE_ERROR";
             // LOG_INFO(waning+strerror(errno));
-            fd_close(fd,"try_parse_request PARSE_ERROR");
+            fd_close(fd, "try_parse_request PARSE_ERROR");
             return;
         }
 
@@ -767,6 +406,7 @@ void SubReactor::handleRead(int fd)
         p.seq = conn.nextRequestSeq++;
         conn.pendingRequests.push(std::move(p));
     }
+
     if (!conn.pendingRequests.empty())
     {
         while (!conn.pendingRequests.empty())
@@ -779,7 +419,6 @@ void SubReactor::handleRead(int fd)
         updateEvent(fd);
     }
     // 更新时间戳
-    conn.lastActive = std::chrono::steady_clock::now();
 
     // if (!closed)
     // {
@@ -865,54 +504,26 @@ bool SubReactor::processRequest(int fd)
                                  }
                              }
 
-                             // 优化：使用keep-alive来标记连接状态，必须按照协议来使用body length来保障对响应时间，严格遵循协议
-                            //  优化:使用router
-                            //  std::string body = "<h1>Hello Epoll" + req.path + "</h1>";
-
-                            //  std::string response = // HTTP/1.1 默认 keep-alive
-                            //      "HTTP/1.1 200 OK\r\n"
-                            //      "Content-Type: text/html\r\n"
-                            //      "Content-Length: " +
-                            //      std::to_string(body.size()) + "\r\n";
-
-                            //  if (result.keepAlive)
-                            //  {
-                            //      response += "Connection: keep-alive\r\n";
-                            //  }
-                            //  else
-                            //  {
-                            //      response += "Connection: close\r\n";
-                            //  }
-
-                            //  response += "\r\n" + body;
-
+                            
                             
                              result.header=resp.buildHeader();
                              result.body=resp.body;
-                             result.chunked=resp.chunked;
-                             result.stream=resp.stream;
-                             result.fileFd=resp.filefd;
-                             result.useSendfile=resp.useSendfile;
-                             result.fileSize=resp.fileSize;
-                             result.sendBegin=resp.sendBegin;
-                             result.sendEnd=resp.sendEnd;
-                             result.filepath=resp.filePath;
-
+                            
                              result.keepAlive=resp.keepAlive;
                              reactor->pushResult(result); });
     return true;
 }
 
-void SubReactor::pushResult(const TaskResult &res)
+void SubReactor::pushResult(ReactorTask res)
 {
     bool needWalk = false;
     {
         std::lock_guard<std::mutex> lock(queue_mtx);
-        if (push_to_SubReactor_queue.empty())
+        if (Task_Queue.empty())
         {
             needWalk = true;
         }
-        push_to_SubReactor_queue.push(res);
+        Task_Queue.push(std::move(res));
     }
 
     if (needWalk)
@@ -929,16 +540,17 @@ void SubReactor::pushResult(const TaskResult &res)
         }
     }
 }
+
 void SubReactor::notifyStream(int fd, uint64_t id)
 {
     bool needWalk = false;
     {
         std::lock_guard<std::mutex> lock(queue_mtx);
-        if (StreamNotifyQueue.empty())
+        if (Task_Queue.empty())
         {
             needWalk = true;
         }
-        StreamNotifyQueue.push({fd, id});
+        Task_Queue.push(StreamNotify{fd, id});
     }
 
     if (needWalk)
@@ -962,38 +574,39 @@ bool SubReactor::handleTaskResultOnce()
     // 单次畜类每次的worker的返回的结果
     // 等每轮消息处理完之后将信息取出来，减少对锁的持有和竞争
 
-    TaskResult task;
+    ReactorTask task;
     // 使用局部作用域，让锁尽快释放
     {
         std::lock_guard<std::mutex> lock(queue_mtx);
-        if (push_to_SubReactor_queue.empty())
+        if (Task_Queue.empty())
             return false;
 
-        task = push_to_SubReactor_queue.front();
-        push_to_SubReactor_queue.pop();
+        task = std::move(Task_Queue.front());
+        Task_Queue.pop();
     }
-
-    // __________________________________________________________________日志检查
-    if (!task.body)
+    // 判断是哪个类型
+    // 如果是唤醒
+    if (std::holds_alternative<StreamNotify>(task))
     {
-        std::cout
-            << "BODY NULL fd="
-            << task.fd
-            << " seq="
-            << task.seq
-            << std::endl;
-    }
+        auto &w = std::get<StreamNotify>(task);
+        auto it = conns.find(w.fd);
+        if (it == conns.end())
+            return true;
+        if (it->second.id != w.connId)
+            return true;
+        it->second.state.wantWrite = true;
 
+        updateEvent(w.fd);
+
+        return true;
+    }
+    auto t = std::get<TaskResult>(task);
     // 优化：同时也是使用find查找，防止高并发导致fd误杀
-    auto it = conns.find(task.fd);
+    auto it = conns.find(t.fd);
     if (it == conns.end())
         return true;
-    if (it->second.id != task.id)
+    if (it->second.id != t.id)
         return true;
-
-    // 非流式发送（chunk）的生命周期结束点
-    if (!task.chunked)
-        it->second.inflightTasks--;
 
     bool needRearmRead = false;
     if (it->second.inflightTasks < MAX_PIPELINE && it->second.state.pauseByPipeline)
@@ -1002,105 +615,60 @@ bool SubReactor::handleTaskResultOnce()
         needRearmRead = true;
     }
 
-    // bool needEnableWrite = it->second.writeBuffer.empty();
-    // 将信息拆分之后返回个conns并更新conns的状态
-    it->second.state.wantWrite = true;
-    it->second.keepAlive = task.keepAlive;
-
     // it->second.pendingResponses[task.seq].data = std::move(task.response);
     // 使用零拷贝优化
-    auto &pending = it->second.pendingResponses[task.seq];
-
-    pending.header = std::move(task.header);
+    // 防止拿到一个空的，使用try_emplace会生成一个pair返回，如果ok=false则说明该返回是原先存在的
+    auto [iter, ok] = it->second.pendingResponses.try_emplace(t.seq);
+    auto &pending = iter->second;
+    pending.header = std::move(t.header);
     // 下面三种都是用了共享指针实现零拷贝优化
-    pending.body = task.body;
-    pending.chunked = task.chunked;
-    pending.stream = task.stream;
-    pending.useSendfile = task.useSendfile;
-    pending.filebody.fd = task.fileFd;
-    pending.filebody.size = task.fileSize;
-    pending.filebody.filepath=task.filepath;
-    pending.filebody.offset = task.sendBegin;
-    pending.filebody.remain = task.sendEnd - task.sendBegin + 1;
-    // 使用回调函数自己唤醒
-    if (pending.stream)
+    pending.body = std::move(t.body);
+
+    // 将信息拆分之后返回个conns并更新conns的状态
+    it->second.state.wantWrite = true;
+    it->second.keepAlive = t.keepAlive;
+
+    auto chunk = std::dynamic_pointer_cast<ChunkedBody>(pending.body);
+    if (chunk)
     {
-        pending.stream->wakeup = [reactor = this, fd = task.fd, cid = task.id]
+        chunk->wakeup = [reactor = this, fd = t.fd, cid = t.id]
         {
             reactor->notifyStream(fd, cid);
         };
     }
+
     // 如果之前没有需要写的，则需要重新唤醒对应fd为epollout状态
     if (needRearmRead || it->second.pendingResponses.size() == 1)
     {
         it->second.state.wantWrite = true;
-        updateEvent(task.fd);
+        updateEvent(t.fd);
     }
     // 防空指针
     size_t bodySize = 0;
     if (pending.body)
     {
-        bodySize = pending.body->data.size();
+        bodySize = pending.body->memoryUsage();
     }
     // 优化;防爆
-    if (bodySize + pending.header.size() > 1024 * 1024)
+    if (bodySize + pending.header.size() > MB(4))
     {
-        // std::string waning="爆了";
-        // LOG_INFO(waning+strerror(errno));
-        fd_close(task.fd,"bodySize爆了");
+        fd_close(t.fd, "response overflow");
         return false;
     }
-    // std::string wanning = "fd=" + std::to_string(task.fd);
-    // wanning += "inflight=" + std::to_string(it->second.inflightTasks);
-    // wanning += "pending=" + std::to_string(it->second.pendingResponses.size());
-    // LOG_INFO(
-    //     wanning + strerror(errno));
 
     return true;
 }
-// 作用：有新的chunk来了就唤醒epollout
-bool SubReactor::handleStreamNotify()
-{
-    // 模仿handleTaskResultOnce处理stram的流式唤醒
-    StreamNotify task;
-    // 使用局部作用域，让锁尽快释放
-    {
-        std::lock_guard<std::mutex> lock(queue_mtx);
-        if (StreamNotifyQueue.empty())
-            return false;
 
-        task = StreamNotifyQueue.front();
-        StreamNotifyQueue.pop();
-    }
-    // 优化：同时也是使用find查找，防止高并发导致fd误杀
-    auto it = conns.find(task.fd);
-    if (it == conns.end())
-        return true;
-    if (it->second.id != task.connId)
-        return true;
-    it->second.state.wantWrite = true;
-
-    updateEvent(task.fd);
-
-    return true;
-}
 void SubReactor::loop()
 {
     // 创建epoll储存大小
     epoll_event events[MAX_EVENTS];
-    auto last=std::chrono::steady_clock::now();
+    auto last = std::chrono::steady_clock::now();
     while (true)
     {
         // 开始监听epfd并将数据存放到events中,优化100ms无连接超时
-        int n = epoll_wait(epfd, events, MAX_EVENTS, 100);
-        auto now=std::chrono::steady_clock::now();
+        int n = epoll_wait(epfd, events, MAX_EVENTS, 1000);
 
-        auto sec=std::chrono::duration_cast<std::chrono::seconds>(now-last).count();        //刷新计时
-        if(sec>=1)
-        {
-            wheel.tick();
-            last=now;
-        }
         for (int i = 0; i < n; i++)
         {
             int fd = events[i].data.fd;
@@ -1113,8 +681,6 @@ void SubReactor::loop()
                     ;
                 // 清空计数
                 while (handleTaskResultOnce())
-                    ;
-                while (handleStreamNotify())
                     ;
             }
             else
@@ -1131,7 +697,17 @@ void SubReactor::loop()
             }
         }
 
-        currentTick++;
+        // 检查超时
+        auto now = std::chrono::steady_clock::now();
+
+        auto sec = std::chrono::duration_cast<std::chrono::seconds>(now - last).count(); // 刷新计时
+        if (sec >= 1)
+        {
+            wheel.tick();
+            last = now;
+        }
+
+        // currentTick++;
     }
 }
 
@@ -1156,7 +732,9 @@ void SubReactor::addFd(int fd)
     conn.keepAlive = false;
     conn.state.readPaused = false;
     conns[fd] = conn;
-    
+
     // 设置对应时间轮
-    wheel.add(fd,30);
+    Conn tmpconn;
+    tmpconn.fd = fd;
+    wheel.add(tmpconn);
 }

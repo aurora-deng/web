@@ -285,7 +285,6 @@ ParseState try_parse_request(Buffer &buf, HttpRequest &req)
 
 HttpResponse::HttpResponse()
 {
-    body = std::make_shared<ResponseBody>();
 }
 
 // 既然使用sendfile就是在静态文件发送，可能range出现问题，但是还是静态文件，因此状态就要变成206
@@ -302,26 +301,17 @@ bool HttpResponse::sendfile(const std::string &path, RangeInfo &range)
     // if (fd == -1)
     //     return false;
 
-
     // 使用filecache优化处理open和close
     FileEntry file;
-    if(!FileCache::instace().get(path,file))
+    if (!FileCache::instace().get(path, file))
     {
-        
+
         return false;
     }
-    filePath=path;
-    filefd = file.fd;
+    int sendEnd, sendBegin;
 
-    fileSize = file.size;
-    if (!range.enable)
-    {
-
-        useSendfile = true;
-        sendBegin = 0;
-        sendEnd = fileSize - 1;
-    }
-    else
+    size_t fileSize = file.size;
+    if (range.enable)
     {
         sendEnd = std::min(range.end, size_t(fileSize - 1));
         if (!range.suffix)
@@ -339,11 +329,20 @@ bool HttpResponse::sendfile(const std::string &path, RangeInfo &range)
             *this = stock416(fileSize);
             return true;
         }
-        useSendfile = true;
         // 更新Status
         status = 206;
         statusText = "Partial Content";
     }
+    auto b = std::make_shared<FileBody>();
+    b->fd = file.fd;
+    b->begin = sendBegin;
+    b->end = sendEnd;
+    b->offset = sendBegin;
+    b->remain_ = sendEnd - sendBegin + 1;
+    b->filePath = path;
+    b->filesize = fileSize;
+    this->body = b;
+
     return true;
 }
 
@@ -351,98 +350,35 @@ void HttpResponse::beginChunked()
 {
     chunked = true;
 
-    stream = std::make_shared<StreamQueue>();
-
+    body = std::make_shared<ChunkedBody>();
     headers["Transfer-Encoding"] = "chunked";
 }
 
 void HttpResponse::writeChunk(const std::string &s)
 {
+    auto chunk=std::dynamic_pointer_cast<ChunkedBody>(body);
+    if(!chunk)return;
     ChunkBolck c;
     std::stringstream ss;
     ss << std::hex << s.size();
 
     c.prefix = ss.str() + "\r\n";
+    auto body = std::make_shared<StringBody>();
+    body->buffer_=BufferPoll::instance().acquire();
 
-    c.data = std::make_shared<ResponseBody>();
-
-    c.data->data = s;
+    body->buffer_->append(s.data(), s.size());
+    c.data= body;
 
     c.suffix = "\r\n";
 
-    stream->pushChunk(c);
+    chunk->push(std::move(c));
 }
 
 void HttpResponse::endChunked()
 {
-    std::lock_guard lock(stream->mtx);
-    stream->finished = true;
+    if(body)body->finish();
 }
 
-// std::string HttpResponse::toString() const
-// {
-//     std::string res;
-
-//     res +=
-//         "HTTP/1.1 " + std::to_string(status) +
-//         " " +
-//         statusText +
-//         "\r\n";
-//     // 优化使用chunk
-//     // bool hasCL = false;
-//     for (auto &[k, v] : headers)
-//     {
-//         std::string lk=toLower(k);
-//         if (lk== "content-length"||lk=="transfer-encoding")
-//         {
-//             continue;
-//         }
-
-//         res += k + ": " + v + "\r\n";
-//         //     hasCL = true;
-//     }
-
-//     // if (!hasCL)
-
-//     if (keepAlive)
-//     {
-//         res += "Connection: keep-alive\r\n";
-//     }
-//     else
-//     {
-//         res += "Connection: close\r\n";
-//     }
-
-//     // chunked标记
-//     if(chunked)
-//     {
-//         res+="Transfer-Encoding: chunked\r\n";
-//     }else{
-//         res += "Content-Length: " + std::to_string(body->data.size()) + "\r\n";
-//     }
-
-//     // 头部结束
-//     res+="\r\n";
-//     if(chunked)
-//     {
-//         for(auto &data:chunks)
-//         {
-//             std::stringstream ss;
-//             ss<<std::hex<<data.size();
-
-//             res+=ss.str();
-//             res+="\r\n";
-
-//             res+=data;
-//             res+="\r\n";
-//         }
-
-//         res+="0\r\n\r\n";
-//     }else{
-//         res += body->data;
-//     }
-//     return res;
-// }
 
 std::string HttpResponse::buildHeader() const
 {
@@ -477,45 +413,44 @@ std::string HttpResponse::buildHeader() const
     {
         res += "Connection: close\r\n";
     }
-
     // chunked标记
     if (chunked)
     {
         res += "Transfer-Encoding: chunked\r\n";
     }
-    else if (useSendfile)
+    else
     {
-        if (useSendfile)
+        auto file = std::dynamic_pointer_cast<FileBody>(body);
+
+        if (file)
         {
             res += "Accept-Ranges: bytes\r\n";
-        }
-        if (status == 206)
-        {
-            res += "Content-Range: bytes ";
-            res += std::to_string(sendBegin);
-            res += "-";
-            res += std::to_string(sendEnd);
-            res += "/";
-            res += std::to_string(fileSize);
-            res += "\r\n";
 
-            res += "Content-Length: ";
-            res += std::to_string(sendEnd - sendBegin + 1);
-            res += "\r\n";
-        }
-        else if (status == 416)
-        {
-            res += "Content-Range: bytes ";
-            res += "*/" + std::to_string(fileSize) + "\r\n";
+            if (status == 206)
+            {
+                res += "Content-Range: bytes ";
+                res += std::to_string(file->begin);
+                res += "-";
+                res += std::to_string(file->end);
+                res += "/";
+                res += std::to_string(file->filesize);
+                res += "\r\n";
+            }
+
+            if (status == 416)
+            {
+                res += "Content-Range: bytes ";
+                res += "*/" + std::to_string(file->filesize) + "\r\n";
+            }
+            else
+            {
+                res += "Content-Length: " + std::to_string(file->remain_) + "\r\n";
+            }
         }
         else
         {
-            res += "Content-Length: " + std::to_string(fileSize) + "\r\n";
+            res += "Content-Length: " + std::to_string(body->memoryUsage()) + "\r\n";
         }
-    }
-    else
-    {
-        res += "Content-Length: " + std::to_string(body->data.size()) + "\r\n";
     }
 
     // 头部结束
@@ -530,19 +465,28 @@ void HttpResponse::setHeader(const std::string key, std::string value)
 
 void HttpResponse::text(const std::string &s)
 {
-    body->data = s;
+
+    auto buf = BufferPoll::instance().acquire();
+    buf->append(s.data(), s.size());
+    body = std::make_shared<StringBody>(buf);
     headers["Content-Type"] = "text/plain";
 }
 
 void HttpResponse::html(const std::string &s)
 {
-    body->data = s;
+
+    auto buf = BufferPoll::instance().acquire();
+    buf->append(s.data(), s.size());
+    body = std::make_shared<StringBody>(buf);
     headers["Content-Type"] = "text/html";
 }
 
 void HttpResponse::json(const std::string &s)
 {
-    body->data = s;
+
+    auto buf = BufferPoll::instance().acquire();
+    buf->append(s.data(), s.size());
+    body = std::make_shared<StringBody>(buf);
     headers["Content-Type"] = "application/json; charset=utf-8";
 }
 
@@ -570,17 +514,6 @@ HttpResponse HttpResponse::stock416(size_t fileSize)
     return resp;
 }
 
-void StreamQueue::pushChunk(ChunkBolck c)
-{
-    {
-        std::lock_guard lock(mtx);
-
-        chunks.push_back(std::move(c));
-    }
-    if (wakeup)
-        wakeup();
-}
-
 FileCache &FileCache::instace()
 {
     static FileCache filecache;
@@ -591,34 +524,34 @@ bool FileCache::get(const std::string &path, FileEntry &out)
 {
     std::lock_guard lock(mtx);
 
-    auto it=cache.find(path);
+    auto it = cache.find(path);
 
-    if(it!=cache.end())
+    if (it != cache.end())
     {
         it->second.refCount++;
-        out=it->second;
+        out = it->second;
         return true;
     }
-    int fd=open(path.c_str(),O_RDONLY);
+    int fd = open(path.c_str(), O_RDONLY);
 
-    if(fd<0)return false;
+    if (fd < 0)
+        return false;
 
     struct stat st;
-    if(fstat(fd,&st)<0)
+    if (fstat(fd, &st) < 0)
     {
         close(fd);
         return false;
     }
 
     FileEntry entry;
-    entry.size=st.st_size;
-    entry.mtime=st.st_mtime;
-    entry.fd=fd;
-    entry.refCount=1;
+    entry.size = st.st_size;
+    entry.mtime = st.st_mtime;
+    entry.fd = fd;
+    entry.refCount = 1;
 
-
-    cache[path]=entry;
-    out=entry;
+    cache[path] = entry;
+    out = entry;
     return true;
 }
 
@@ -626,13 +559,14 @@ void FileCache::put(const std::string &path)
 {
     std::lock_guard lock(mtx);
 
-    auto it=cache.find(path);
+    auto it = cache.find(path);
 
-    if(it==cache.end())return;
+    if (it == cache.end())
+        return;
 
     it->second.refCount--;
 
-    if(it->second.refCount<=0)
+    if (it->second.refCount <= 0)
     {
         close(it->second.fd);
         cache.erase(it);
@@ -641,7 +575,7 @@ void FileCache::put(const std::string &path)
 
 FileCache::~FileCache()
 {
-    for(auto&[k,v]:cache)
+    for (auto &[k, v] : cache)
     {
         close(v.fd);
     }
