@@ -1,5 +1,4 @@
 #include "Buffer.h"
-#include <algorithm>
 
 Buffer::Buffer(size_t initial)
 {
@@ -43,8 +42,15 @@ void Buffer::ensureWrite(size_t len)
     if (readPos + writableBytes() >= len)
     {
         size_t readable = readableBytes();
-
+        // 未读取的有效数据 整体搬到缓冲区最前面，重置读位置。
+        //         缓冲区原始：[已读数据][有效数据][空闲空间]
+        // 下标：      0       readPos      writePos     end
+        // 变为
+        // [有效数据][空闲空间................]
         std::copy(buf.begin() + readPos, buf.begin() + writePos, buf.begin());
+        // 更新位置,这里容易出现段错误
+        readPos=0;
+        writePos=readable;
     }
     else
     {

@@ -1,7 +1,8 @@
-#pragma once
-
+#ifndef ROUTER_H
+#define ROUTER_H
 #include <functional>
 #include <unordered_map>
+#include <utility>
 
 #include "server/http/http.h"
 
@@ -52,4 +53,4 @@ private:
     std::vector<Middleware> middlewares;
 };
 
-
+#endif
