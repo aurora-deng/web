@@ -6,7 +6,6 @@
 #include<memory>
 
 #include"server/Buffer/Buffer.h"
-#include"server/Repsonse/RespBody.h"
 
 
 class BufferPoll

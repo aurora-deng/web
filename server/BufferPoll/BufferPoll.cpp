@@ -17,7 +17,7 @@ std::shared_ptr<Buffer> BufferPoll::acquire()
         p->retrieve(p->readableBytes());
         return p;
     }
-    return std::shared_ptr<Buffer>();
+    return std::make_shared<Buffer>();
 }
 
 void BufferPoll::release(std::shared_ptr<Buffer> p)

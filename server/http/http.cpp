@@ -194,12 +194,8 @@ ParseState try_parse_request(Buffer &buf, HttpRequest &req)
     if (buf.readableBytes() < header_len + 4 + content_length)
         return PARSE_NEED_MORE;
 
-    // 解析body
-    // req.body.assign(body_start, content_length);
-    // 使用零拷贝优化
-    req.bodyData = body_start;
+    req.bodyData=std::string(body_start,content_length);
     req.bodySize = content_length;
-    req.body = std::string_view(body_start, content_length);
     // 清空缓存
     buf.retrieve(header_len + 4 + content_length);
 
@@ -232,9 +228,10 @@ bool HttpResponse::sendfile(const std::string &path, RangeInfo &range)
 
         return false;
     }
-    int sendEnd, sendBegin;
 
     size_t fileSize = file.size;
+    int sendEnd=fileSize-1, sendBegin=0;
+
     if (range.enable)
     {
         sendEnd = std::min(range.end, size_t(fileSize - 1));
@@ -287,10 +284,10 @@ void HttpResponse::writeChunk(const std::string &s)
     ss << std::hex << s.size();
 
     c.prefix = ss.str() + "\r\n";
-    auto body = std::make_shared<StringBody>();
-    body->buffer_=BufferPoll::instance().acquire();
-
-    body->buffer_->append(s.data(), s.size());
+    
+    auto buf=BufferPoll::instance().acquire();
+    buf->append(s.data(),s.size());
+    auto body=std::make_shared<StringBody>(buf);
     c.data= body;
 
     c.suffix = "\r\n";
@@ -373,7 +370,8 @@ std::string HttpResponse::buildHeader() const
         }
         else
         {
-            res += "Content-Length: " + std::to_string(body->memoryUsage()) + "\r\n";
+            size_t memSize=body?body->memoryUsage():0;
+            res += "Content-Length: " + std::to_string(memSize) + "\r\n";
         }
     }
 

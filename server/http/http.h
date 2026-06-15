@@ -53,13 +53,14 @@ struct HttpRequest
     std::unordered_map<std::string, std::string> headers;
     std::unordered_map<std::string, std::string> querryParams;
 
-    const char *bodyData = nullptr;
+    // const char *bodyData = nullptr;
+    std::string bodyData;
 
     RangeInfo range;
 
     size_t bodySize = 0;
     // 使用string_view这个是一个指针，不会复制内容
-    std::string_view body;
+    // std::string_view body;
 };
 
 

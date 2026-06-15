@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <thread>
 #include <unordered_map>
+#include<queue>
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
 #include <sys/uio.h>
@@ -19,6 +20,7 @@
 #include <atomic>
 #include <string.h>
 #include <algorithm>
+#include<mutex>
 #include <sys/sendfile.h>
 #include <utility>
 
@@ -74,12 +76,16 @@ struct pendingResponse
     RespBodyPtr body;
 };
 
+
 // ---------------------------------------------------链接体--------------------------
 
 
 struct Connection
 {
-    bool keepAlive;
+    // 崩溃修复处：keepAlive 必须初始化为 true
+    // 原代码未初始化，值为未定义。如果任务结果未被处理（keepAlive 未被设置），
+    // handleWrite 检查 keepAlive 时读到垃圾值，可能为 false → 连接被错误关闭
+    bool keepAlive=true;
     int fd;
     uint64_t id;
     size_t pendingBytes = 0;      // 统计目前fd中已经储存的请求数据的总字节量，用于控制合适的时候拒绝read数据保持待机状态
@@ -141,6 +147,11 @@ public:
     Router &router;
     // std::queue<StreamNotify> StreamNotifyQueue;     //用于处理流式id和fd
     std::queue<ReactorTask> Task_Queue;
+    // 段错误修复处：新增 pendingFds 队列，解决 addFd 线程安全问题
+    // 原代码 addFd 在主线程直接写 conns/wheel/epoll_ctl，与 SubReactor 线程竞争
+    // 导致 unordered_map rehash 时迭代器失效 → free(): invalid pointer
+    std::queue<int> pendingFds;
+    std::mutex pending_mtx;
     TimerWheel wheel;
 
     SubReactor(Router &router) : router(router), wheel(slotNum, timeout)
@@ -183,6 +194,8 @@ public:
     // 读取函数
     void handleRead(int fd);
     bool processRequest(int fd);
+    // 段错误修复处：处理待添加的 fd 队列，由 SubReactor 线程调用
+    void processPendingFds();
 
     void loop();
     void addFd(int fd);

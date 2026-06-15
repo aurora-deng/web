@@ -166,7 +166,7 @@ SendState SubReactor::sendBody(int fd, pendingResponse &resp)
         int n = writev(fd, vec.data(), vec.size());
         if (n > 0)
         {
-           
+
             wheel.refresh(fd);
             resp.body->consume(n);
             if (resp.body->finished())
@@ -273,7 +273,16 @@ void SubReactor::handleWrite(int fd)
 
         // 优化防止直接结束fd之后又要重新连接，直接更改模式
         conn_after_loop.state.wantWrite = false;
-        if (conn_after_loop.keepAlive)
+        // 崩溃修复处：只在所有响应都发完且没有进行中的任务时才检查 keepAlive
+        // 原代码在 pendingResponses 为空时就检查 keepAlive，但此时可能还有任务在进行中
+        // inflightTasks > 0 表示还有任务在线程池中处理，结果还没回来
+        // 此时 keepAlive 可能还没被最终设置，不应该关闭连接
+        if (conn_after_loop.inflightTasks > 0)
+        {
+            // 还有任务在进行中，等待结果回来后再决定
+            updateEvent(fd);
+        }
+        else if (conn_after_loop.keepAlive)
         {
             if (!conn_after_loop.pendingRequests.empty())
             {
@@ -284,7 +293,6 @@ void SubReactor::handleWrite(int fd)
         }
         else
         {
-            // printf("conn_after_loop.keepAlive false\n");
             fd_close(fd, "conn_after_loop.keepAlive false");
         }
     }
@@ -299,9 +307,6 @@ void SubReactor::handleWrite(int fd)
 void SubReactor::handleRead(int fd)
 {
     // 说明有东西从客户端反过来，准备接受东西，同时将整个任务进行处理
-
-    // 标志：用于判断是否需要进行重新唤醒，同时还使用epollONeshot防止多次提醒
-    bool closed = false;
 
     // 预查询,防止虚空索敌链接幽灵对象
     auto it = conns.find(fd);
@@ -339,16 +344,14 @@ void SubReactor::handleRead(int fd)
             { // 连接失败
                 // printf("连接失败\n");
                 fd_close(fd, "连接失败");
-                closed = true; // 更新close用于后面重新唤醒
-                break;
+                return;
             }
         }
         else if (res == 0)
         {
             // printf("对端数据已经下线\n");
             fd_close(fd, "对端数据已经下线");
-            closed = true;
-            break;
+            return;
         }
         // printf("收到数据：%.*s\n", res, buffer);
 
@@ -361,9 +364,6 @@ void SubReactor::handleRead(int fd)
         // 可优化点：使用零拷贝  std::string localBuf.swap(conns[fd].readBuffer);
         //  或者使用现在的多reactor直接对conns进行操作
     }
-
-    if (closed)
-        return;
 
     // 循环防止由于系统内核中相对于所要发送的消息而言内存不够，所以需要使用循环处理httpRequest,防止粘包
     // 优化去掉循环，防止发到被多次调用
@@ -500,54 +500,40 @@ bool SubReactor::processRequest(int fd)
 
 void SubReactor::pushResult(ReactorTask res)
 {
-    bool needWalk = false;
     {
         std::lock_guard<std::mutex> lock(queue_mtx);
-        if (Task_Queue.empty())
-        {
-            needWalk = true;
-        }
+
         Task_Queue.push(std::move(res));
     }
 
-    if (needWalk)
+    //  通知有东西写入到epoll中
+    // 每次都通知，确保不丢失
+    uint64_t one = 1;
+    if (write(event_fd, &one, sizeof(one)) == -1)
     {
-        //  通知有东西写入到epoll中
-        uint64_t one = 1;
-        if (write(event_fd, &one, sizeof(one)) == -1)
+        // 失败处理
+        if (errno != EAGAIN)
         {
-            // 失败处理
-            if (errno != EAGAIN)
-            {
-                LOG_INFO(std::string("eventfd write") + strerror(errno));
-            }
+            LOG_INFO(std::string("eventfd write") + strerror(errno));
         }
     }
 }
 
 void SubReactor::notifyStream(int fd, uint64_t id)
 {
-    bool needWalk = false;
     {
         std::lock_guard<std::mutex> lock(queue_mtx);
-        if (Task_Queue.empty())
-        {
-            needWalk = true;
-        }
         Task_Queue.push(StreamNotify{fd, id});
     }
 
-    if (needWalk)
+    //  通知有东西写入到epoll中
+    uint64_t one = 1;
+    if (write(event_fd, &one, sizeof(one)) == -1)
     {
-        //  通知有东西写入到epoll中
-        uint64_t one = 1;
-        if (write(event_fd, &one, sizeof(one)) == -1)
+        // 失败处理
+        if (errno != EAGAIN)
         {
-            // 失败处理
-            if (errno != EAGAIN)
-            {
-                LOG_INFO(std::string("eventfd write") + strerror(errno));
-            }
+            LOG_INFO(std::string("eventfd write") + strerror(errno));
         }
     }
 }
@@ -651,7 +637,10 @@ void SubReactor::loop()
     while (true)
     {
         // 开始监听epfd并将数据存放到events中,优化100ms无连接超时
-        int n = epoll_wait(epfd, events, MAX_EVENTS, 1000);
+        // 性能修复处：epoll_wait 超时从 1000ms 降为 100ms
+        // 原代码 1000ms 导致新事件最多等 1 秒才被处理，高并发下延迟飙升
+        // 100ms 在响应性和 CPU 占用之间取得平衡，同时保证时间轮每秒 tick 精度
+        int n = epoll_wait(epfd, events, MAX_EVENTS, 100);
 
         for (int i = 0; i < n; i++)
         {
@@ -663,9 +652,37 @@ void SubReactor::loop()
                 uint64_t cnt;
                 while (read(event_fd, &cnt, sizeof(cnt)) > 0)
                     ;
-                // 清空计数
-                while (handleTaskResultOnce())
+
+                // 段错误修复处：先处理待添加的 fd，再处理任务结果
+                // 确保所有对 conns/wheel/epoll_ctl 的操作都在 SubReactor 线程中完成
+                processPendingFds();
+                // 性能修复处：限制每轮最多处理 256 个任务结果，避免长时间阻塞事件循环
+                // 原代码 while(handleTaskResultOnce()) 无限循环，大量结果时新连接/读事件得不到处理
+                // 导致 75% 延迟飙到 2289ms，剩余结果下轮继续处理
+                int processed = 0;
+                while (handleTaskResultOnce() && ++processed < 256)
                     ;
+                // 崩溃修复处：如果还有剩余结果，重新写 eventfd 通知自己下轮继续处理
+                // 原代码只处理 256 个就退出，剩余结果没有通知永远不会被处理
+                // 导致客户端收不到响应超时关闭，服务器 conns 积压最终崩溃
+                {
+                    bool hasMore = false;
+                    {
+                        std::lock_guard<std::mutex> lock(queue_mtx);
+                        hasMore = !Task_Queue.empty();
+                    }
+                    if (hasMore)
+                    {
+                        uint64_t one = 1;
+                        if (write(event_fd, &one, sizeof(one)) == -1)
+                        {
+                            if (errno != EAGAIN)
+                            {
+                                LOG_INFO(std::string("addFd eventfd write error: ") + strerror(errno));
+                            }
+                        }
+                    }
+                }
             }
             else
             {
@@ -695,28 +712,61 @@ void SubReactor::loop()
     }
 }
 
+// 段错误修复处：addFd 改为只将 fd 放入待处理队列，由 SubReactor 线程完成实际注册
+// 原代码在主线程直接操作 conns/wheel/epoll_ctl，与 SubReactor 线程竞争
+// 导致 unordered_map rehash 时迭代器失效 → free(): invalid pointer
 void SubReactor::addFd(int fd)
 {
-    // 设置为非堵塞
+    // 设置为非堵塞（fcntl 是系统调用，线程安全，可以在主线程做）
     fd_unblock(fd);
-    epoll_event ev{};
-    // 将epoll状态修改为监听该文件描述符读事件，使用边缘触发，且每次事件只会触发一次，处理完毕需手动重置监听
-    // ONESHOT防止多个线程同时处理同一个 fd（你未来多 reactor 必用）,主要做作用就是通过使得重复fd多次发出通知
-    // 避免重复触发（减少惊群）
-    // 控制状态机
-    // 优化：始终让epoll中的fd处于epollin和epollout
-    ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
-    ev.data.fd = fd;
 
-    epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
-    // 初始化conns对象
-    Connection conn;
-    conn.fd = fd;
-    conn.id = ++global_conn_id;
-    conn.keepAlive = false;
-    conn.state.readPaused = false;
-    conns[fd] = conn;
+    // 将 fd 放入待处理队列
+    {
+        std::lock_guard<std::mutex> lock(pending_mtx);
+        pendingFds.push(fd);
+    }
 
-    // 设置对应时间轮
-    wheel.add(fd);
+    // 通过 eventfd 唤醒 SubReactor 线程
+    uint64_t one = 1;
+    if (write(event_fd, &one, sizeof(one)) == -1)
+    {
+        if (errno != EAGAIN)
+        {
+            LOG_INFO(std::string("addFd eventfd write error: ") + strerror(errno));
+        }
+    }
+}
+
+// 段错误修复处：由 SubReactor 线程调用，处理待添加的 fd 队列
+// 所有对 conns/wheel/epoll_ctl 的操作都在 SubReactor 线程中完成，消除数据竞争
+void SubReactor::processPendingFds()
+{
+    while (true)
+    {
+        int fd;
+        {
+            std::lock_guard<std::mutex> lock(pending_mtx);
+            if (pendingFds.empty())
+                break;
+            fd = pendingFds.front();
+            pendingFds.pop();
+        }
+
+        epoll_event ev{};
+        ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+        ev.data.fd = fd;
+        epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
+
+        // 初始化conns对象
+        Connection conn;
+        conn.fd = fd;
+        conn.id = ++global_conn_id;
+        // keepAlive 默认 true（在 Connection 结构体中初始化）
+        // 当任务结果返回时，handleTaskResultOnce 会根据 HTTP 版本和 Connection 头正确设置
+        conn.state.readPaused = false;
+        conns[fd] = conn;
+
+        // 设置对应时间轮
+        wheel.add(fd);
+    }
 }

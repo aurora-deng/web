@@ -51,7 +51,7 @@ public:
     void push(ChunkBolck c);
     // 由于使用的是共享指针，所以依旧使用通过共享指针的数量来判断是否使用chunk
     std::function<void()> wakeup;
-    StreamQueuePtr stream;
+    StreamQueuePtr stream=std::make_shared<StreamQueue>();
 
 private:
 
