@@ -1,4 +1,5 @@
 #include "ChunkedBody.h"
+#include "server/BufferPoll/BufferPoll.h"
 
 void StreamQueue::pushChunk(ChunkBolck c)
 {
@@ -73,7 +74,9 @@ void ChunkedBody::consume(size_t bytes)
     while (bytes && !stream->chunks.empty())
     {
         auto &c = stream->chunks.front();
-        size_t total = c.prefix.size() + c.data->buffer_->readableBytes() + c.suffix.size();
+        // 段错误修复处：c.data 或 c.data->buffer_ 可能为空，必须检查
+        size_t dataLen = (c.data && c.data->buffer_) ? c.data->buffer_->readableBytes() : 0;
+        size_t total = c.prefix.size() + dataLen + c.suffix.size();
         size_t remain = total - c.sent;
         // 统计消耗的内存
         size_t use = std::min(remain, bytes);
@@ -111,8 +114,9 @@ void ChunkedBody::finish()
 {
     ChunkBolck c;
     c.prefix = "0\r\n\r\n";
-    c.data=std::make_shared<StringBody>();
-    c.data->buffer_ = BufferPoll::instance().acquire();
+    // 段错误修复处：不再先构造 StringBody 再覆盖 buffer_（导致第一个 buffer 泄漏）
+    // 直接用空 Buffer 构造 StringBody
+    c.data = std::make_shared<StringBody>(BufferPoll::instance().acquire());
     c.suffix = "";
     push(std::move(c));
     done = true;
@@ -123,7 +127,9 @@ size_t ChunkedBody::remain() const
     size_t total = 0;
     for (auto &c : stream->chunks)
     {
-        size_t chunk_total = c.prefix.size() + c.data->buffer_->readableBytes() + c.suffix.size();
+        // 段错误修复处：c.data 或 c.data->buffer_ 可能为空
+        size_t dataLen = (c.data && c.data->buffer_) ? c.data->buffer_->readableBytes() : 0;
+        size_t chunk_total = c.prefix.size() + dataLen + c.suffix.size();
         total += (chunk_total > c.sent) ? (chunk_total - c.sent) : 0;
     }
     return total;
@@ -139,7 +145,9 @@ size_t ChunkedBody::memoryUsage() const
     size_t total = 0;
     for (auto &c : stream->chunks)
     {
-        total += c.prefix.size() + c.data->buffer_->readableBytes() + c.suffix.size();
+        // 段错误修复处：c.data 或 c.data->buffer_ 可能为空
+        size_t dataLen = (c.data && c.data->buffer_) ? c.data->buffer_->readableBytes() : 0;
+        total += c.prefix.size() + dataLen + c.suffix.size();
     }
     return total;
 }

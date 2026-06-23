@@ -15,12 +15,13 @@
 #include "server/Route/Router.h"
 #include "server/Buffer/Buffer.h"
 #include "server/SubReactor/SubReactor.h"
-#include "log/logger/logger.h"
+#include "logger/logger.h"
 #include <strings.h>
 #include <cstring>
 #include <map>
 #include <atomic> //自动累计函数库
 #include <algorithm>
+#include <signal.h> // 崩溃修复处：需要 signal() 忽略 SIGPIPE
 #define MAX_EVENTS 1024
 using Middleware = std::function<bool(Context &)>;
 
@@ -53,7 +54,10 @@ using Middleware = std::function<bool(Context &)>;
 int epfd = epoll_create(1);
 // int event_fd = eventfd(0, EFD_NONBLOCK); // 作用：一个线程间唤醒epoll的fd
 // 创建线程
-ThreadPool pool(4);
+// 性能修复处：线程池大小从 4 改为 CPU 核心数
+// 原代码 ThreadPool pool(4) 只有 4 个工作线程，5000 并发时请求排队导致 75% 延迟飙到 2289ms
+// 工作线程负责执行 router.handle()（业务逻辑），是请求处理的主要瓶颈
+ThreadPool pool(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 4);
 
 
 
@@ -78,6 +82,12 @@ void fd_jump_time_wait(int fd)
 
 int main(int argc, const char *argv[])
 {
+    // 崩溃修复处：忽略 SIGPIPE 信号
+    // 当客户端关闭连接后，服务器再往该连接 write 会触发 SIGPIPE 信号
+    // 默认行为是终止进程，这就是压测后服务器自动退出的根因
+    // wrk 压测结束后客户端关闭连接，服务器还在发送响应 → write 触发 SIGPIPE → 进程被杀
+    signal(SIGPIPE, SIG_IGN);
+
     int sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd_ < 0)
     {

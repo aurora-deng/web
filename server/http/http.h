@@ -53,13 +53,14 @@ struct HttpRequest
     std::unordered_map<std::string, std::string> headers;
     std::unordered_map<std::string, std::string> querryParams;
 
-    const char *bodyData = nullptr;
+    // 段错误修复处：bodyData 改为 string 深拷贝，避免指向 readBuffer 内部
+    // 原代码 bodyData/body(string_view) 指向 readBuffer 内部数据，
+    // 当线程池处理请求时 readBuffer 可能已被 append() 重新分配，导致悬空指针
+    std::string bodyData;
 
     RangeInfo range;
 
     size_t bodySize = 0;
-    // 使用string_view这个是一个指针，不会复制内容
-    std::string_view body;
 };
 
 

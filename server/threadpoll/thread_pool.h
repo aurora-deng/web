@@ -10,6 +10,9 @@
 #include<unistd.h>
 #include <utility>
 
+// 背压修复处：线程池任务队列最大长度
+#define MAX_THREAD_POOL_QUEUE 4096
+
 class ThreadPool{
     private:
     std::vector<std::thread> workers;
@@ -24,7 +27,7 @@ class ThreadPool{
     ThreadPool(int threadPoolSize);
     ~ThreadPool();
 
-    void addTask(std::function<void()> task);        //添加任务到线程池里面去
+    bool addTask(std::function<void()> task);        // 背压修复处：返回 bool 表示是否成功入队
 };
 
 

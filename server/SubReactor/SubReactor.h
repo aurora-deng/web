@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <thread>
 #include <unordered_map>
+#include <queue>
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
 #include <sys/uio.h>
@@ -17,6 +18,7 @@
 #include <unordered_set>
 #include <fcntl.h>
 #include <atomic>
+#include <mutex>
 #include <string.h>
 #include <algorithm>
 #include <sys/sendfile.h>
@@ -35,8 +37,10 @@
 #define MAX_EVENTS 1024
 #define KB(x) ((x) * 1024UL)
 #define MB(x) ((x) * 1024UL * 1024UL)
-#define MAX_PENDING_BYTES MB(4) // 最大数据长
-#define MAX_PIPELINE 1024       // 最大任务提交数
+#define MAX_PENDING_BYTES MB(1)       // 背压修复处：readBuffer 可读数据水位线，超过则暂停读
+#define MAX_PIPELINE 256              // 背压修复处：最大并发任务数，从 1024 降为 256
+#define MAX_PENDING_RESPONSES 512     // 背压修复处：pendingResponses 水位线，超过则暂停读
+#define MAX_WRITE_BUFFER_BYTES MB(2)  // 背压修复处：写缓冲区总大小水位线
 extern ThreadPool pool;         // 公用main函数全局的线程池
 // 优化，使用多reactor，每个reactor拥有独自的epoll，
 // 并且每个reactor独自占领独自资源实现类似单独进程的作用，拥有自己的资源，从而实现无锁
@@ -65,37 +69,105 @@ struct PendingRequest
 
 struct pendingResponse
 {
-    // std::string data;
-    // size_t offset = 0; // 优化：通过使用偏移量来判断数据是否发完，提效
-    // 进一步优化，实现零拷贝,但是在发送之前需要进行常规和chunked判断
-
     size_t headerOffset = 0;
     std::string header;
     RespBodyPtr body;
 };
 
-// ---------------------------------------------------链接体--------------------------
+// ---------------------------------------------------链接体（分层拆分）--------------------------
 
-
-struct Connection
+// 传输层：负责底层 I/O 状态和缓冲区
+struct ConnTransport
 {
-    bool keepAlive;
-    int fd;
-    uint64_t id;
-    size_t pendingBytes = 0;      // 统计目前fd中已经储存的请求数据的总字节量，用于控制合适的时候拒绝read数据保持待机状态
-    size_t inflightTasks = 0;     // 表示限制任务处理的提交数量太多
-                                  //  用于高并发下回复一致性
-    uint64_t nextRequestSeq = 0;  // 生成请求编号
-    uint64_t nextResponseSeq = 0; // 生成响应编号
+    int fd = -1;
+    uint64_t id = 0;
     Buffer readBuffer;
     ConnState state;
-    std::queue<PendingRequest> pendingRequests;           // 消息队列用于分离请求，缓解readBuffer即做缓冲队列又做请求处理队列
-    std::map<uint64_t, pendingResponse> pendingResponses; // 用于当做回复消息的队列，同时，通过map精准对应请求seq_id
-    // // 增加时间轮,创立时间戳
-    // std::chrono::steady_clock::time_point lastActive;
-    // 记录运行时间
-    uint64_t ecpireSlot = 0; // 记录当前所在时间槽的位置
-    bool inWheel = false;    // 防止重复加入
+    size_t pendingBytes = 0; // readBuffer 中未读数据字节数，用于背压判断
+};
+
+// 协议层：负责 HTTP 请求/响应的流水线管理
+struct ConnPipeline
+{
+    bool keepAlive = true;                              // 默认 keep-alive
+    size_t inflightTasks = 0;                           // 正在线程池中处理的任务数
+    uint64_t nextRequestSeq = 0;                        // 请求编号生成器
+    uint64_t nextResponseSeq = 0;                       // 响应编号消费器
+    std::queue<PendingRequest> pendingRequests;         // 待提交的请求队列
+    std::map<uint64_t, pendingResponse> pendingResponses; // 待发送的响应队列（按 seq 排序）
+};
+
+// 定时器层：负责连接超时管理
+struct ConnTimer
+{
+    uint64_t expireSlot = 0; // 当前所在时间槽的位置
+    bool inWheel = false;    // 防止重复加入时间轮
+};
+
+// 连接对象：组合三层
+struct Connection
+{
+    ConnTransport transport; // 传输层
+    ConnPipeline pipeline;   // 协议层
+    ConnTimer timer;         // 定时器层
+
+    // 便捷访问方法（引用成员指向自己的子对象）
+    int &fd = transport.fd;
+    uint64_t &id = transport.id;
+    Buffer &readBuffer = transport.readBuffer;
+    ConnState &state = transport.state;
+    size_t &pendingBytes = transport.pendingBytes;
+
+    bool &keepAlive = pipeline.keepAlive;
+    size_t &inflightTasks = pipeline.inflightTasks;
+    uint64_t &nextRequestSeq = pipeline.nextRequestSeq;
+    uint64_t &nextResponseSeq = pipeline.nextResponseSeq;
+    std::queue<PendingRequest> &pendingRequests = pipeline.pendingRequests;
+    std::map<uint64_t, pendingResponse> &pendingResponses = pipeline.pendingResponses;
+
+    uint64_t &expireSlot = timer.expireSlot;
+    bool &inWheel = timer.inWheel;
+
+    // 引用成员导致默认拷贝/移动赋值被删除，需要自定义
+    // 只拷贝子对象数据，引用自动指向自己的子对象
+    Connection() = default;
+    Connection(const Connection &other)
+        : transport(other.transport), pipeline(other.pipeline), timer(other.timer),
+          fd(transport.fd), id(transport.id), readBuffer(transport.readBuffer),
+          state(transport.state), pendingBytes(transport.pendingBytes),
+          keepAlive(pipeline.keepAlive), inflightTasks(pipeline.inflightTasks),
+          nextRequestSeq(pipeline.nextRequestSeq), nextResponseSeq(pipeline.nextResponseSeq),
+          pendingRequests(pipeline.pendingRequests), pendingResponses(pipeline.pendingResponses),
+          expireSlot(timer.expireSlot), inWheel(timer.inWheel) {}
+    Connection &operator=(const Connection &other)
+    {
+        if (this != &other)
+        {
+            transport = other.transport;
+            pipeline = other.pipeline;
+            timer = other.timer;
+            // 引用已绑定到自己的子对象，无需重新赋值
+        }
+        return *this;
+    }
+    Connection(Connection &&other) noexcept
+        : transport(std::move(other.transport)), pipeline(std::move(other.pipeline)), timer(std::move(other.timer)),
+          fd(transport.fd), id(transport.id), readBuffer(transport.readBuffer),
+          state(transport.state), pendingBytes(transport.pendingBytes),
+          keepAlive(pipeline.keepAlive), inflightTasks(pipeline.inflightTasks),
+          nextRequestSeq(pipeline.nextRequestSeq), nextResponseSeq(pipeline.nextResponseSeq),
+          pendingRequests(pipeline.pendingRequests), pendingResponses(pipeline.pendingResponses),
+          expireSlot(timer.expireSlot), inWheel(timer.inWheel) {}
+    Connection &operator=(Connection &&other) noexcept
+    {
+        if (this != &other)
+        {
+            transport = std::move(other.transport);
+            pipeline = std::move(other.pipeline);
+            timer = std::move(other.timer);
+        }
+        return *this;
+    }
 };
 // --------------------------------任务接受体----------------------------
 
@@ -134,6 +206,13 @@ public:
     size_t slotNum = 60; // 时间槽数量
     int timeout = 30;    // 超时时间
 
+    // eventfd 优化处：使用 atomic<bool> + exchange 合并唤醒
+    // 原代码每次 pushResult/notifyStream/addFd 都写 eventfd
+    // 10000 个任务结果 = 10000 次 write(event_fd) 系统调用
+    // 优化后：只有第一个写入者真正写 eventfd，后续写入者只入队不写
+    // 10000 个任务结果 = 1 次 write(event_fd) + 9999 次 atomic exchange
+    std::atomic<bool> notified{false};
+
     // uint64_t currentTick=0;         //记录全局时间
     // 将worker线程中的response加入到队列里面去
     std::mutex queue_mtx;
@@ -141,6 +220,9 @@ public:
     Router &router;
     // std::queue<StreamNotify> StreamNotifyQueue;     //用于处理流式id和fd
     std::queue<ReactorTask> Task_Queue;
+    // 段错误修复处：新增 pendingFds 队列，解决 addFd 线程安全问题
+    std::queue<int> pendingFds;
+    std::mutex pending_mtx;
     TimerWheel wheel;
 
     SubReactor(Router &router) : router(router), wheel(slotNum, timeout)
@@ -183,6 +265,8 @@ public:
     // 读取函数
     void handleRead(int fd);
     bool processRequest(int fd);
+    // 段错误修复处：处理待添加的 fd 队列，由 SubReactor 线程调用
+    void processPendingFds();
 
     void loop();
     void addFd(int fd);

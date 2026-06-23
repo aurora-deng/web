@@ -54,13 +54,19 @@ ThreadPool::~ThreadPool()
     }
 }
 
-void ThreadPool::addTask(std::function<void()> task)
+bool ThreadPool::addTask(std::function<void()> task)
 {
     {
         std::unique_lock<std::mutex> lock(mtx); // 获取锁资源，保护条件变量
+        // 背压修复处：线程池队列满时拒绝新任务，防止内存无限增长
+        if (tasks.size() >= MAX_THREAD_POOL_QUEUE)
+        {
+            return false;
+        }
         tasks.push(task);
-    }   
+    }
 
       // 唤醒一个等待的线程开始工作
     cv.notify_one(); // 唤醒一个线程去工作
+    return true;
 }

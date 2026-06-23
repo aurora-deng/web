@@ -17,7 +17,8 @@ std::shared_ptr<Buffer> BufferPoll::acquire()
         p->retrieve(p->readableBytes());
         return p;
     }
-    return std::shared_ptr<Buffer>();
+    // 段错误修复处：池为空时必须创建新 Buffer，否则返回空指针导致段错误
+    return std::make_shared<Buffer>();
 }
 
 void BufferPoll::release(std::shared_ptr<Buffer> p)

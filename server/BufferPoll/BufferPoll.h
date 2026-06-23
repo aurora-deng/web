@@ -6,7 +6,8 @@
 #include<memory>
 
 #include"server/Buffer/Buffer.h"
-#include"server/Repsonse/RespBody.h"
+// 段错误修复处：移除 #include "server/Repsonse/RespBody.h"，打破循环依赖
+// BufferPoll.h → RespBody.h → http.h → BufferPoll.h (循环)
 
 
 class BufferPoll
