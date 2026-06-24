@@ -464,6 +464,88 @@ std::string HttpResponse::buildHeader() const
     return res;
 }
 
+void HttpResponse::buildHeader()
+{
+    auto buf=BufferPoll::instance().acquire();
+    if (status == 304)
+    {
+        buf->append ( "\r\n");
+    }
+    buf->append
+        ("HTTP/1.1 " + std::to_string(status) +
+        " " +
+        statusText +
+        "\r\n");
+    // 优化使用chunk
+    // bool hasCL = false;
+    for (auto &[k, v] : headers)
+    {
+        std::string lk = toLower(k);
+        if (lk == "content-length" || lk == "transfer-encoding")
+        {
+            continue;
+        }
+
+        buf->append (k + ": " + v + "\r\n");
+        //     hasCL = true;
+    }
+
+    // if (!hasCL)
+
+    if (keepAlive)
+    {
+        buf->append( "Connection: keep-alive\r\n");
+    }
+    else
+    {
+        buf->append( "Connection: close\r\n");
+    }
+    // chunked标记
+    if (chunked)
+    {
+        buf->append ("Transfer-Encoding: chunked\r\n");
+    }
+    else
+    {
+        auto file = std::dynamic_pointer_cast<FileBody>(body);
+
+        if (file)
+        {
+            buf->append( "Accept-Ranges: bytes\r\n");
+
+            if (status == 206)
+            {
+                buf->append ("Content-Range: bytes ");
+                buf->append( std::to_string(file->begin));
+                buf->append ("-");
+                buf->append (std::to_string(file->end));
+                buf->append ("/");
+                buf->append (std::to_string(file->filesize));
+                buf->append ("\r\n");
+            }
+
+            if (status == 416)
+            {
+                buf->append( "Content-Range: bytes ");
+                buf->append ("*/" + std::to_string(file->filesize) + "\r\n");
+            }
+            else
+            {
+                buf->append( "Content-Length: " + std::to_string(file->remain_) + "\r\n");
+            }
+        }
+        else
+        {
+            size_t memSize = body ? body->memoryUsage() : 0;
+            buf->append ("Content-Length: " + std::to_string(memSize) + "\r\n");
+        }
+    }
+
+    // 头部结束
+    buf->append ("\r\n");
+    HeaderBody_=std::make_shared<HeaderBody>(buf);
+}
+
 void HttpResponse::setHeader(const std::string key, std::string value)
 {
     headers[key] = std::move(value);
@@ -518,6 +600,16 @@ HttpResponse HttpResponse::stock416(size_t fileSize)
         "bytes */" +
             std::to_string(fileSize));
     return resp;
+}
+void HttpResponse::reset()
+{
+    statusText="OK";
+    status=200;
+    headers.clear();
+    body.reset();
+    HeaderBody_.reset();
+    keepAlive=true;
+    chunked=false;
 }
 
 void HttpRequest::reset()

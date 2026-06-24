@@ -79,12 +79,12 @@ struct HttpResponse
     std::unordered_map<std::string, std::string> headers;
 
     // 使用多态的基类实现
+    RespBodyPtr HeaderBody_=nullptr;
     RespBodyPtr body = nullptr;
     bool keepAlive = true;
 
     // 介入chunked
     bool chunked = false;
-
     // 使用流式
     // StreamQueuePtr stream;
 
@@ -95,6 +95,7 @@ struct HttpResponse
     // 这个其实是拼接，这样就是实现需要copy增大消耗
     // std::string toString() const;
     std::string buildHeader() const;
+    void buildHeader();
 // 流式发送chunk
     void beginChunked();
     void writeChunk(const std::string &s);
@@ -108,6 +109,8 @@ struct HttpResponse
     void json(const std::string &s);
     static HttpResponse stock404();
     static HttpResponse stock416(size_t fileSize);
+    void reset();
+
 };
 
 // HttpRequest parse_request(const std::string& data);

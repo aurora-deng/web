@@ -54,7 +54,10 @@ void SubReactor::fd_close(int fd, std::string reason)
 
     // 删除对应时间轮
     wheel.remove(fd);
-
+    for(auto&[k,v]:it->second.pendingResponses)
+    {
+        responsePool.release(v.resp);
+    }
     it->second.state.closed = true;
     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
@@ -105,7 +108,7 @@ SendState SubReactor::sendBody(int fd, pendingResponse &resp)
 
         // header:先保证header能够发完
 
-        if (resp.header->remain() > 0)
+        if (resp.resp->HeaderBody_->remain() > 0)
         {
 
             // 构建iov
@@ -114,18 +117,18 @@ SendState SubReactor::sendBody(int fd, pendingResponse &resp)
             BlockGuard guard{segPool, block};
 
             std::vector<iovec> vec;
-            if (!resp.header->buildSegments(block, 65536))
+            if (!resp.resp->HeaderBody_->buildSegments(block, 65536))
             {
-                return resp.header->finished() ? SEND_OK : SEND_AGAIN;
+                return resp.resp->HeaderBody_->finished() ? SEND_OK : SEND_AGAIN;
             }
             BlockToIov(block, vec);
             int n = writev(fd, vec.data(), vec.size());
             if (n > 0) // 清空已经发送的部分
             {
                 wheel.refresh(fd);
-                resp.header->consume(n);
+                resp.resp->HeaderBody_->consume(n);
                  // 最终header判定
-                if (resp.header->remain())
+                if (resp.resp->HeaderBody_->remain())
                     return SEND_AGAIN;
 
                 // 用于处理正常发送后跳过SEND_Header_CLOSED
@@ -151,19 +154,19 @@ SendState SubReactor::sendBody(int fd, pendingResponse &resp)
         }
 
         // body
-        if (!resp.body)
+        if (!resp.resp->body)
         {
             return SEND_OK;
         }
         // 判断是否为发送文件
         // auto file = std::dynamic_pointer_cast<FileBody>(resp.body);
-        if (resp.body->useSendfile())
+        if (resp.resp->body->useSendfile())
         {
-            auto n = resp.body->sendFile(fd);
+            auto n = resp.resp->body->sendFile(fd);
             if (n > 0)
             {
                 wheel.refresh(fd);
-                if (resp.body->finished())
+                if (resp.resp->body->finished())
                     return SEND_OK;
                 // 发了但没有发完
                 return SEND_AGAIN;
@@ -180,9 +183,9 @@ SendState SubReactor::sendBody(int fd, pendingResponse &resp)
         BlockGuard guard{segPool, block};
 
         std::vector<iovec> vec;
-        if (!resp.body->buildSegments(block, 65536))
+        if (!resp.resp->body->buildSegments(block, 65536))
         {
-            return resp.body->finished() ? SEND_OK : SEND_AGAIN;
+            return resp.resp->body->finished() ? SEND_OK : SEND_AGAIN;
         }
         BlockToIov(block, vec);
         int n = writev(fd, vec.data(), vec.size());
@@ -190,8 +193,8 @@ SendState SubReactor::sendBody(int fd, pendingResponse &resp)
         {
 
             wheel.refresh(fd);
-            resp.body->consume(n);
-            if (resp.body->finished())
+            resp.resp->body->consume(n);
+            if (resp.resp->body->finished())
                 return SEND_OK;
             continue;
         }
@@ -244,7 +247,7 @@ void SubReactor::handleWrite(int fd)
 
         // ——————————————————————————————————————————————————————————————————日志-------------
         if (
-            !resp.body)
+            !resp.resp->body)
         {
             fd_close(fd, "RESP BODY NULL ");
             return;
@@ -417,8 +420,8 @@ void SubReactor::handleRead(int fd)
     // 优化减轻readBUffer的负担，同时循环处理请求将其塞入到对应的请求队列中
     while (true)
     {
-        HttpRequest req;
-        ParseState state = try_parse_request(conn.readBuffer, req);
+        auto req=requestPool.acquire();
+        ParseState state = try_parse_request(conn.readBuffer, *req);
         if (state == PARSE_NEED_MORE)
             break;
         if (state == PARSE_ERROR)
@@ -430,7 +433,7 @@ void SubReactor::handleRead(int fd)
         }
 
         PendingRequest p;
-        p.data = std::move(req);
+        p.data = req;
         conn.pendingBytes = conn.readBuffer.readableBytes();
         if (conn.pendingBytes < MAX_PENDING_BYTES)
             conn.state.pauseByMemory = false;
@@ -516,47 +519,53 @@ bool SubReactor::processRequest(int fd)
                              result.seq=request.seq;
                             //  result.state=PROCESSING;
                              // 解析Http
-                             HttpRequest req =request.data;
+                             auto req =requestPool.acquire();
+                             // 把const对象完整拷贝到可修改的池请求对象
+                            req = request.data; 
 
-                             auto it = req.headers.find("connection");
+                             auto it = req->headers.find("connection");
 
                             // 通过路由器处理，将req转化成对应的resp
-                            HttpResponse resp=reactor->router.handle(req);
+                            auto resp=responsePool.acquire();
+                            *resp=reactor->router.handle(*req);
 
                             
 
                              // 优化：仔细处理Http/1.0，防止误判keep-alive,防止http1.0直接误判keep-alive
-                             if (req.version == "HTTP/1.1")
+                             if (req->version == "HTTP/1.1")
                              {
                                  // 默认为keep-alive
-                                 if (it != req.headers.end() && toLower(it->second) == "close")
+                                 if (it != req->headers.end() && toLower(it->second) == "close")
                                  {
-                                     resp.keepAlive = false;
+                                     resp->keepAlive = false;
                                  }
                                  else
-                                     resp.keepAlive = true;
+                                     resp->keepAlive = true;
                              }
                              else
                              { // HTTP/1.0
                                  // 默认close
-                                 if (it != req.headers.end() && toLower(it->second) == "keep-alive")
+                                 if (it != req->headers.end() && toLower(it->second) == "keep-alive")
                                  {
-                                     resp.keepAlive = true;
+                                     resp->keepAlive = true;
                                  }
                                  else
                                  {
-                                     resp.keepAlive = false;
+                                     resp->keepAlive = false;
                                  }
                              }
 
                             
-                            auto h=std::make_shared<HeaderBody>();
-                            h->append(resp.buildHeader());
-                            result.header=h;
-                            result.body=resp.body;
+                            resp->buildHeader();
+                            result.resp=resp;
+
+                            result.resp=resp;
                             
-                            result.keepAlive=resp.keepAlive;
-                            reactor->pushResult(result); });
+                            result.keepAlive=resp->keepAlive;
+                            reactor->pushResult(result); 
+                            requestPool.release(req);
+                            responsePool.release(resp);
+                        });
     if (!ok)
     {
         // 背压修复处：线程池拒绝任务，回滚状态
@@ -678,9 +687,10 @@ bool SubReactor::handleTaskResultOnce()
     // 防止拿到一个空的，使用try_emplace会生成一个pair返回，如果ok=false则说明该返回是原先存在的
     auto [iter, ok] = it->second.pendingResponses.try_emplace(t.seq);
     auto &pending = iter->second;
-    pending.header = std::move(t.header);
-    // 下面三种都是用了共享指针实现零拷贝优化
-    pending.body = std::move(t.body);
+    // pending.header = std::move(t.header);
+    // // 下面三种都是用了共享指针实现零拷贝优化
+    // pending.body = std::move(t.body);
+    pending.resp=t.resp;
 
     // 将信息拆分之后返回个conns并更新conns的状态
     it->second.state.wantWrite = true;
@@ -702,7 +712,7 @@ bool SubReactor::handleTaskResultOnce()
         }
     }
 
-    auto chunk = std::dynamic_pointer_cast<ChunkedBody>(pending.body);
+    auto chunk = std::dynamic_pointer_cast<ChunkedBody>(pending.resp->body);
     if (chunk)
     {
         chunk->wakeup = [reactor = this, fd = t.fd, cid = t.id]
@@ -732,12 +742,12 @@ bool SubReactor::handleTaskResultOnce()
 
     // 防空指针
     size_t bodySize = 0;
-    if (pending.body)
+    if (pending.resp->body)
     {
-        bodySize = pending.body->memoryUsage();
+        bodySize = pending.resp->body->memoryUsage();
     }
     // 优化;防爆
-    if (bodySize + pending.header->memoryUsage() > MB(4))
+    if (bodySize + pending.resp->HeaderBody_->memoryUsage() > MB(4))
     {
         fd_close(t.fd, "response overflow");
         return false;

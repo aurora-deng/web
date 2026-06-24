@@ -36,6 +36,7 @@
 #include "server/Repsonse/FileBody.h"
 #include "server/SegmentPool/SegmentPool.h"
 #include "server/Repsonse/HeaderBody.h"
+#include"server/ObjectPool/ObjectPool.h"
 #define MAX_EVENTS 1024
 #define KB(x) ((x) * 1024UL)
 #define MB(x) ((x) * 1024UL * 1024UL)
@@ -46,6 +47,8 @@
 #define MAX_WRITE_BUFFER_BYTES MB(2) // 背压修复处：写缓冲区总大小水位线
 
 extern ThreadPool pool; // 公用main函数全局的线程池
+extern ObjectPoll<HttpRequest> requestPool;
+extern ObjectPoll<HttpResponse> responsePool;
 // 优化，使用多reactor，每个reactor拥有独自的epoll，
 // 并且每个reactor独自占领独自资源实现类似单独进程的作用，拥有自己的资源，从而实现无锁
 
@@ -67,14 +70,13 @@ enum SendState
 struct PendingRequest
 {
     uint64_t seq;
-    HttpRequest data;
+    HttpRequest* data;
 };
 
 struct pendingResponse
 {
 
-    RespBodyPtr header;
-    RespBodyPtr body;
+    HttpResponse* resp;
 };
 
 // ---------------------------------------------------链接体（分层拆分）--------------------------
@@ -194,8 +196,7 @@ struct TaskResult
     uint64_t id = 0;  // fd链接id
     uint64_t seq = 0; // 用于当做响应请求时候的id
 
-    RespBodyPtr header;
-    RespBodyPtr body;
+    HttpResponse* resp;
 
     ConnState state;
 };
