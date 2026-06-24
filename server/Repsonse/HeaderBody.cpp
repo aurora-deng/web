@@ -20,7 +20,7 @@ int HeaderBody::buildSegments(Block *block, size_t max)
     if (remain == 0)
         return 0;
     auto n = std::min(remain, max);
-    auto &seg = block->segs[block->idx];
+    auto &seg = block->segs[block->idx++];
     seg.type = Segment::BUFFER;
     seg.data = buffer_->peek() + offset;
     seg.len = n;

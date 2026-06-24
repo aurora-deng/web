@@ -123,7 +123,7 @@ SendState SubReactor::sendBody(int fd, pendingResponse &resp)
             if (n > 0) // 清空已经发送的部分
             {
                 wheel.refresh(fd);
-                resp.body->consume(n);
+                resp.header->consume(n);
                  // 最终header判定
                 if (resp.header->remain())
                     return SEND_AGAIN;

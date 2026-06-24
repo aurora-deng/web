@@ -288,7 +288,7 @@ bool HttpResponse::sendfile(const std::string &path, const HttpRequest &req, Ran
     headers["ETag"] = file->etag;
 
     headers["Last-Modified"] = file->lastModified;
-    headers["Cache-Control"] ="public,max-age=3600";
+    headers["Cache-Control"] = "public,max-age=3600";
 
     constexpr size_t SMALL = KB(128);
     constexpr size_t MMAP = MB(16);
@@ -299,7 +299,7 @@ bool HttpResponse::sendfile(const std::string &path, const HttpRequest &req, Ran
         auto buf = BufferPoll::instance().acquire();
         size_t len = sendEnd - sendBegin + 1;
         buf->ensureWrite(len);
-        ssize_t n = pread(file->fd, buf->beginWrite(), fileSize, sendBegin);
+        ssize_t n = pread(file->fd, buf->beginWrite(), len, sendBegin);
         if (n <= 0)
         {
             BufferPoll::instance().release(buf);
@@ -315,12 +315,22 @@ bool HttpResponse::sendfile(const std::string &path, const HttpRequest &req, Ran
     // 大文件
     if (fileSize < MMAP)
     {
-        void *p = mmap(nullptr, fileSize, PROT_READ, MAP_PRIVATE, file->fd, 0);
-        if (p != MAP_FAILED)
+        if (file->mapped && file->mmapPtr && !file->evicted.load(std::memory_order_acquire))
         {
-            file->mmapPtr = p;
-            file->mapped = true;
+            // FileCache 已经完成 mmap，直接使用
             b->use_mmap = true;
+        }
+        else if (!file->mapped && !file->warming)
+        {
+            // FileCache 还没有 mmap，在请求路径中做 mmap
+            // 注意：这里的 mmap 由 FileEntry 管理，cleaner 可以释放
+            void *p = mmap(nullptr, fileSize, PROT_READ, MAP_PRIVATE, file->fd, 0);
+            if (p != MAP_FAILED)
+            {
+                file->mmapPtr = p;
+                file->mapped = true;
+                b->use_mmap = true;
+            }
         }
     }
     b->file = file;
@@ -508,4 +518,19 @@ HttpResponse HttpResponse::stock416(size_t fileSize)
         "bytes */" +
             std::to_string(fileSize));
     return resp;
+}
+
+void HttpRequest::reset()
+{
+    valid=true;
+    method.clear();
+    raw_path.clear();
+    path.clear();
+    query.clear();
+    version.clear();
+    bodyData.clear();
+    headers.clear();
+    bodySize=0;
+    querryParams.clear();
+    range={};
 }

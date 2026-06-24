@@ -33,9 +33,11 @@ struct Block
 inline void BlockToIov(const Block* block, std::vector<iovec> &out)
 {
     out.clear();
-    for (auto &x : block->segs)
+    for (int i = 0; i < block->idx; i++)
     {
-        out.push_back({(void *)x.data, x.len});
+        auto &x = block->segs[i];
+        if(x.len>0)
+            out.push_back({(void *)x.data, x.len});
     }
 }
 

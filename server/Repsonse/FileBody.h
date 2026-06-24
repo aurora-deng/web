@@ -13,7 +13,7 @@
 #include<sys/mman.h>
 #include <atomic>
 #include<thread>
-
+#include<list>
 
 #include"RespBody.h"
 #include"server/Buffer/Buffer.h"
@@ -32,17 +32,19 @@ struct FileEntry
 
     void* mmapPtr=nullptr;
 
-    bool mapped=false;
+    // 判断是否使用mapp
+    std::atomic<bool> mapped{false};
     std::string lastModified;
     bool metaReady=false;
 
     std::atomic<uint64_t> hits{0};
     // 记录服务器什么时候访问过，用途：冷热判断，释放 mmap，预热判
     std::atomic<uint64_t> lastVisit{0};
-    bool warning=false;
+    std::atomic<bool> warming{false};
     std::string etag;
     // 用于判断是否已经被munmap释放
     std::atomic<bool> evicted{false};
+    std::list<std::string>::iterator lruIt;
     ~FileEntry();
 
 };
@@ -54,6 +56,7 @@ class FileCache
 private:
     std::unordered_map<std::string, FileEntryPtr>cache;
     std::thread cleaner;
+    std::list<std::string> lru;
     std::atomic<bool> stop;
     std::mutex mtx;
 

@@ -66,6 +66,7 @@ struct HttpRequest
     size_t bodySize = 0;
     // 使用string_view这个是一个指针，不会复制内容
     // std::string_view body;
+    void reset();
 };
 
 
