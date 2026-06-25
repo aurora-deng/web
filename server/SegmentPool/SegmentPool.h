@@ -30,15 +30,23 @@ struct Block
     int idx = 0;
 };
 
-inline void BlockToIov(const Block* block, std::vector<iovec> &out)
+// 性能修复处：BlockToIov 改为写入调用方提供的固定数组并返回数量
+// 原代码签名为 (const Block*, std::vector<iovec>&)，每次调用都触发 vector 堆分配
+// Block 内 segs[64] 是定长数组，最多 64 段，改用栈上 iovec[64] 即可零分配
+inline int BlockToIov(const Block *block, iovec *out, int maxCount)
 {
-    out.clear();
-    for (int i = 0; i < block->idx; i++)
+    int n = 0;
+    for (int i = 0; i < block->idx && n < maxCount; i++)
     {
-        auto &x = block->segs[i];
-        if(x.len>0)
-            out.push_back({(void *)x.data, x.len});
+         const auto &x = block->segs[i];
+        if (x.len > 0)
+        {
+            out[n].iov_base = const_cast<char *>(x.data);
+            out[n].iov_len = x.len;
+            n++;
+        }
     }
+    return n;
 }
 
 class SegmentPool

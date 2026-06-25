@@ -40,14 +40,9 @@ void SubReactor::fd_close(int fd, std::string reason)
 
     // 优化： 段错误修复处：移除误导性的 strerror(errno)，errno 可能是上一次系统调用残留的值
     // "Resource temporarily unavailable" 就是残留的 EAGAIN，与关闭操作无关
-    std::cout
-        << "[CLOSE]"
-        << " fd="
-        << fd
-        << " reason="
-        << reason
-        << std::endl;
-
+    // 性能修复处：原代码每个连接关闭都 cout + endl，wrk 结束时 1000 连接同时关闭 → cout 锁串行化
+    // 改用异步 Logger，不阻塞 SubReactor 线程
+    LOG_DEBUG(std::string("[CLOSE] fd=") + std::to_string(fd) + " reason=" + reason);
     // 优化：加上状态检查，防止当某fd已经关闭之后重复关闭或者关闭之后任然在fd
     if (it->second.state.closed)
         return;
@@ -116,13 +111,14 @@ SendState SubReactor::sendBody(int fd, pendingResponse &resp)
             // 由于后面存在判断会导致直接返回，所以创建变量BlockGuard随着函数的消失而自动析构释放block
             BlockGuard guard{segPool, block};
 
-            std::vector<iovec> vec;
+            // 性能修复处：用栈上 iovec[64] 替代 std::vector<iovec>，消除每次 writev 的堆分配
             if (!resp.resp->HeaderBody_->buildSegments(block, 65536))
             {
                 return resp.resp->HeaderBody_->finished() ? SEND_OK : SEND_AGAIN;
             }
-            BlockToIov(block, vec);
-            int n = writev(fd, vec.data(), vec.size());
+            iovec vec[64];
+            int cnt = BlockToIov(block, vec, 64);
+            int n = writev(fd, vec, cnt);
             if (n > 0) // 清空已经发送的部分
             {
                 wheel.refresh(fd);
@@ -182,13 +178,14 @@ SendState SubReactor::sendBody(int fd, pendingResponse &resp)
         // 由于后面存在判断会导致直接返回，所以创建变量BlockGuard随着函数的消失而自动析构释放block
         BlockGuard guard{segPool, block};
 
-        std::vector<iovec> vec;
+         // 性能修复处：用栈上 iovec[64] 替代 std::vector<iovec>，消除每次 writev 的堆分配
         if (!resp.resp->body->buildSegments(block, 65536))
         {
             return resp.resp->body->finished() ? SEND_OK : SEND_AGAIN;
         }
-        BlockToIov(block, vec);
-        int n = writev(fd, vec.data(), vec.size());
+        iovec vec[64];
+        int cnt = BlockToIov(block, vec, 64);
+        int n = writev(fd, vec, cnt);
         if (n > 0)
         {
 
@@ -246,12 +243,15 @@ void SubReactor::handleWrite(int fd)
         auto &resp = iter->second;
 
         // ——————————————————————————————————————————————————————————————————日志-------------
-        if (
-            !resp.resp->body)
-        {
-            fd_close(fd, "RESP BODY NULL ");
-            return;
-        }
+        // if (
+        //     !resp.resp->body)
+        // {
+        //     fd_close(fd, "RESP BODY NULL ");
+        //     return;
+        // }
+         // 段错误修复：body 为 null 是合法的（如 204/304 响应），
+        // sendBody 内部已处理 body==null 的情况（返回 SEND_OK），无需特殊处理
+
 
         switch (sendBody(fd, resp))
         {
@@ -259,6 +259,7 @@ void SubReactor::handleWrite(int fd)
         {
             if (conn.inflightTasks > 0)
                 conn.inflightTasks--;
+            responsePool.release(resp.resp);
             conn.pendingResponses.erase(iter);
             conn.nextResponseSeq++;
             continue;
@@ -374,7 +375,10 @@ void SubReactor::handleRead(int fd)
     // 开始接受数据
     while (true)
     {
-        char buffer[8192];
+        // 性能修复处：recv 缓冲区从 8KB 提升到 64KB
+        // 原代码每次最多读 8KB，大请求或 pipeline 请求需要多次 recv 系统调用
+        // 64KB 接近 TCP 默认窗口规模，单次 recv 即可读完一个典型请求
+        char buffer[65536];
         // 接收消息
         int res = recv(fd, buffer, sizeof(buffer), 0);
 
@@ -519,9 +523,8 @@ bool SubReactor::processRequest(int fd)
                              result.seq=request.seq;
                             //  result.state=PROCESSING;
                              // 解析Http
-                             auto req =requestPool.acquire();
-                             // 把const对象完整拷贝到可修改的池请求对象
-                            req = request.data; 
+                              // request.data 是从池中获取的 HttpRequest*，直接使用，不再额外 acquire
+                             HttpRequest* req = request.data;
 
                              auto it = req->headers.find("connection");
 
@@ -559,12 +562,10 @@ bool SubReactor::processRequest(int fd)
                             resp->buildHeader();
                             result.resp=resp;
 
-                            result.resp=resp;
                             
                             result.keepAlive=resp->keepAlive;
                             reactor->pushResult(result); 
-                            requestPool.release(req);
-                            responsePool.release(resp);
+                            requestPool.release(request.data);
                         });
     if (!ok)
     {
@@ -666,9 +667,17 @@ bool SubReactor::handleTaskResultOnce()
     // 优化：同时也是使用find查找，防止高并发导致fd误杀
     auto it = conns.find(t.fd);
     if (it == conns.end())
+    {
+        // 段错误修复：连接已关闭，释放 resp 避免内存泄漏
+        responsePool.release(t.resp);
         return true;
+    }
     if (it->second.id != t.id)
+    {
+        // 段错误修复：连接已关闭，释放 resp 避免内存泄漏
+        responsePool.release(t.resp);
         return true;
+    }
 
     bool needRearmRead = false;
     if (it->second.inflightTasks < MAX_PIPELINE && it->second.state.pauseByPipeline)

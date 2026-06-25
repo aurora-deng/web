@@ -15,14 +15,14 @@
 #include <atomic> //自动累计函数库
 #include <algorithm>
 #include <stdlib.h>
-#include<signal.h>
+#include <signal.h>
 #include "server/threadpoll/thread_pool.h"
 #include "server/http/http.h"
 #include "server/Route/Router.h"
 #include "server/Buffer/Buffer.h"
 #include "server/SubReactor/SubReactor.h"
 #include "log/logger/logger.h"
-#include"server/ObjectPool/ObjectPool.h"
+#include "server/ObjectPool/ObjectPool.h"
 #define MAX_EVENTS 1024
 using Middleware = std::function<bool(Context &)>;
 
@@ -60,8 +60,6 @@ int epfd = epoll_create(1);
 ThreadPool pool(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 4);
 // ObjectPoll<HttpRequest> requestPool;
 // ObjectPoll<HttpResponse> responsePool;
-
-
 
 // 🚨 必须满足 3 个条件才算正确
 // ✔ 1. id 全局唯一（atomic）
@@ -143,11 +141,14 @@ int main(int argc, const char *argv[])
     struct sockaddr_in cin;
     socklen_t socklen = sizeof(cin);
     // 优化：使用共享指针来管理好router，使用唯一指针俩管理好sub,防止串台，同事遵循rall防止内存泄漏
-    auto router = std::make_shared<Router>();  // ✅ 真正创建对象
+    auto router = std::make_shared<Router>(); // ✅ 真正创建对象
     std::vector<std::unique_ptr<SubReactor>> subs;
+    // 性能修复处：原代码使用 std::cout 日志中间件，每个请求都 cout + endl
+    // std::cout 内部全局锁 + endl 强制 flush，1000 并发下工作线程串行化
+    // 改用异步 Logger（双缓冲 + 后台写线程），业务线程只入队不阻塞
     router->use([](Context &ctx) -> bool
                 {
-        std::cout<<ctx.req.method<<" "<<ctx.req.path<<std::endl;
+        LOG_HTTP(ctx.req.method+" "+ctx.req.path);
         return true; });
 
     router->use([](Context &ctx) -> bool
@@ -243,7 +244,11 @@ int main(int argc, const char *argv[])
                             break;
                         }
                     }
-                    printf("[%s:%d]:已连接成功，newfd=%d!!!!\n", inet_ntoa(cin.sin_addr), ntohs(cin.sin_port), newfd_);
+                    // printf("[%s:%d]:已连接成功，newfd=%d!!!!\n", inet_ntoa(cin.sin_addr), ntohs(cin.sin_port), newfd_);
+                     // 性能修复处：原代码每个新连接都 printf + inet_ntoa
+                    // printf 持 stdio 全局锁，inet_ntoa 使用静态缓冲区非线程安全
+                    // 改用异步 Logger，不阻塞 accept
+                    LOG_INFO(std::string("new connection fd=") + std::to_string(newfd_));
                     // 分配任务
                     subs[idx]->addFd(newfd_);
                     // subs[idx]->addPendingFd(newfd_);
