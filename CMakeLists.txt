@@ -29,6 +29,9 @@ add_executable(
     server/SegmentPool/SegmentPool.cpp
     server/Repsonse/HeaderBody.cpp
     server/ObjectPool/ObjectPool.cpp
+
+    server/CoroutineScheduler/CoroutineScheduler.cpp
+    server/CoroutineScheduler/AWaiter.cpp
     )
 
 

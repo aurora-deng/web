@@ -23,6 +23,7 @@
 #include <mutex>
 #include <sys/sendfile.h>
 #include <utility>
+#include<coroutine>
 
 #include "server/timer/TimeWheel.h"
 #include "server/http/http.h"
@@ -37,6 +38,10 @@
 #include "server/SegmentPool/SegmentPool.h"
 #include "server/Repsonse/HeaderBody.h"
 #include"server/ObjectPool/ObjectPool.h"
+#include"server/CoroutineScheduler/CoroutineScheduler.h"
+#include"server/CoroutineScheduler/Task.h"
+#include"server/CoroutineScheduler/AWaiter.h"
+
 #define MAX_EVENTS 1024
 #define KB(x) ((x) * 1024UL)
 #define MB(x) ((x) * 1024UL * 1024UL)
@@ -51,6 +56,14 @@ extern ObjectPoll<HttpRequest> requestPool;
 extern ObjectPoll<HttpResponse> responsePool;
 // 优化，使用多reactor，每个reactor拥有独自的epoll，
 // 并且每个reactor独自占领独自资源实现类似单独进程的作用，拥有自己的资源，从而实现无锁
+
+// 使用协程结构体来优化状态机
+struct CoroutineContext
+{
+    std::coroutine_handle<> handle;
+    bool waitingRead=false;
+    bool waitingWrite=false;
+};
 
 // 使用状态机来处理发送返回结果
 enum SendState
@@ -185,6 +198,8 @@ struct Connection
         }
         return *this;
     }
+
+    CoroutineContext coroutine;
 };
 // --------------------------------任务接受体----------------------------
 
@@ -242,6 +257,10 @@ public:
     std::mutex pending_mtx;
     TimerWheel wheel;
     SegmentPool segPool;
+
+    // 协程对象
+    CoroutineScheduler scheduler;
+    Task session(int fd);
 
     SubReactor(Router &router) : router(router), wheel(slotNum, timeout)
     {

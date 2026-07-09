@@ -84,6 +84,14 @@ void SubReactor::rearm(int fd, uint32_t events)
     }
 }
 
+Task SubReactor::session(int fd)
+{
+    while (true)
+    {
+        co_await ReadAwaiter(this,fd);
+    };
+}
+
 void SubReactor::run()
 {
     // 获得属于自己的线程
@@ -427,11 +435,15 @@ void SubReactor::handleRead(int fd)
         auto req=requestPool.acquire();
         ParseState state = try_parse_request(conn.readBuffer, *req);
         if (state == PARSE_NEED_MORE)
+        {
+            requestPool.release(req);
             break;
+        }
         if (state == PARSE_ERROR)
         {
             // std::string waning="try_parse_request PARSE_ERROR";
             // LOG_INFO(waning+strerror(errno));
+            requestPool.release(req);
             fd_close(fd, "try_parse_request PARSE_ERROR");
             return;
         }
@@ -853,6 +865,7 @@ void SubReactor::loop()
             last = now;
         }
 
+        scheduler.runReady();
         // currentTick++;
     }
 }
@@ -907,6 +920,8 @@ void SubReactor::processPendingFds()
 
         // 初始化conns对象
         Connection conn;
+        auto task=session(fd);
+        task.resume();
         conn.fd = fd;
         conn.id = ++global_conn_id;
         // keepAlive 默认 true（在 Connection 结构体中初始化）

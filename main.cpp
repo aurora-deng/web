@@ -23,6 +23,8 @@
 #include "server/SubReactor/SubReactor.h"
 #include "log/logger/logger.h"
 #include "server/ObjectPool/ObjectPool.h"
+#include "server/CoroutineScheduler/CoroutineScheduler.h"
+#include "server/CoroutineScheduler/Task.h"
 #define MAX_EVENTS 1024
 using Middleware = std::function<bool(Context &)>;
 
@@ -79,6 +81,7 @@ void fd_jump_time_wait(int fd)
     int opt = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 }
+
 
 int main(int argc, const char *argv[])
 {
@@ -206,6 +209,10 @@ int main(int argc, const char *argv[])
                     auto it = ctx.req.headers.find("range");
 
                     ctx.resp.sendfile(path.c_str(),ctx.req,ctx.req.range); });
+
+
+    
+   
     // 返回你的计算机 物理上能并行执行的线程数量（逻辑核心数）
     int N = std::thread::hardware_concurrency();
     if (N == 0)
@@ -213,6 +220,7 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < N; i++)
     {
         subs.push_back(std::make_unique<SubReactor>(*router));
+
         subs.back()->run();
     }
     int idx = 0;
@@ -245,7 +253,7 @@ int main(int argc, const char *argv[])
                         }
                     }
                     // printf("[%s:%d]:已连接成功，newfd=%d!!!!\n", inet_ntoa(cin.sin_addr), ntohs(cin.sin_port), newfd_);
-                     // 性能修复处：原代码每个新连接都 printf + inet_ntoa
+                    // 性能修复处：原代码每个新连接都 printf + inet_ntoa
                     // printf 持 stdio 全局锁，inet_ntoa 使用静态缓冲区非线程安全
                     // 改用异步 Logger，不阻塞 accept
                     LOG_INFO(std::string("new connection fd=") + std::to_string(newfd_));
@@ -257,5 +265,6 @@ int main(int argc, const char *argv[])
             }
         }
     }
+
     return 0;
 }
