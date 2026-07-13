@@ -55,18 +55,7 @@ using Middleware = std::function<bool(Context &)>;
 //     ConnState state;
 // };
 int epfd = epoll_create(1);
-// int event_fd = eventfd(0, EFD_NONBLOCK); // 作用：一个线程间唤醒epoll的fd
-// 性能修复处：线程池大小从 4 改为 CPU 核心数
-// 原代码 ThreadPool pool(4) 只有 4 个工作线程，5000 并发时请求排队导致 75% 延迟飙到 2289ms
-// 工作线程负责执行 router.handle()（业务逻辑），是请求处理的主要瓶颈
-ThreadPool pool(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 4);
-// ObjectPoll<HttpRequest> requestPool;
-// ObjectPoll<HttpResponse> responsePool;
 
-// 🚨 必须满足 3 个条件才算正确
-// ✔ 1. id 全局唯一（atomic）
-// ✔ 2. 任务带 id
-// ✔ 3. 使用前校验 id
 
 // 设置fd为非堵塞，对于新添加的fd都要使用
 void fd_unblock(int fd)

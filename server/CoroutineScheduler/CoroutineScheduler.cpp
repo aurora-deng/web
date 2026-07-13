@@ -7,28 +7,43 @@ void CoroutineScheduler::add(Handle h)
 
 void CoroutineScheduler::suspend(int fd, uint32_t event, Handle h)
 {
-    waiting[fd]={event,h};
+    waiting[fd] = {event, h};
 }
 
 void CoroutineScheduler::resume(int fd, uint32_t event)
 {
-    auto it=waiting.find(fd);
-    if(it==waiting.end())return;
-
+    auto it = waiting.find(fd);
+    if (it == waiting.end())
+        return;
+    if (it->second.event != event)
+        return;
+    // auto evIt = it->second.find(event);
+    // if (evIt == it->second.end())
+    //     return;
+    // readyQueue.push(evIt->second);
     readyQueue.push(it->second.handle);
     waiting.erase(it);
+}
+
+// 协程安全修复：取消 fd 关联的等待协程
+void CoroutineScheduler::cancel(int fd)
+{
+    waiting.erase(fd);
 }
 
 void CoroutineScheduler::runReady()
 {
     while (!readyQueue.empty())
     {
-        auto h=readyQueue.front();
+        auto h = readyQueue.front();
         readyQueue.pop();
-        if(!h.done())
+        h.resume();
+        if(!h)continue;
+
+        if (h.done())
         {
-            h.resume();
+            h.destroy();
+            continue;
         }
     }
-    
 }

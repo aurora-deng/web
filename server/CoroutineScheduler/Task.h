@@ -3,42 +3,73 @@
 #define TASK_H
 #include <coroutine>
 #include <exception>
-class Task
+// 思路：理解协程创建任务的流程
+/*
+首先创建对应的结构体变量--->之后调用get_return_object，返回Task结构体
+--->之后task构造函数实现-->之后实现initial_suspend
+--->return_value--->final_suspend--->返回值--->析构函数结束task
+*/
+
+// 协程 Task 包装器
+// 关键设计：final_suspend 返回 suspend_never
+// 协程 co_return 后自动销毁帧，避免内存泄漏
+// 注意：co_return 后 handle 变为 done 状态，任何人都不应再 resume 它
+// runReady 中的 h.done() 检查会跳过已完成的 handle
+
+template <typename T = void>
+class Task;
+
+template <>
+class Task<void>
 {
 public:
     struct promise_type
     {
+        // T value;
+        // 获得协程信息
         Task get_return_object()
         {
             return Task{
                 std::coroutine_handle<promise_type>::from_promise(*this)};
         }
+        // suspend_always表示先不要启动协程，处于悬挂等待使用resume唤醒
+        // suspend_nerver表示先先启动协程，处于启动等待使用co_await暂停之后在使用resume唤醒
 
         std::suspend_always initial_suspend()
         {
             return {};
         }
-
-        std::suspend_always final_suspend() noexcept
+        // 表示协程结束后不要立即结束协程，所以使用always
+        std::suspend_never final_suspend() noexcept
         {
             return {};
         }
-
+        // 对应co_return
         void return_void() {}
 
+        // 异常处理
         void unhandled_exception()
         {
             std::terminate();
         }
-    };
-    public:
-    using Handle = std::coroutine_handle<promise_type>;
-    explicit Task(Handle h) : handle(h) {}
 
-    Task(Task &&other)
+        // void return_value(T v)
+        // {
+        //     value=v;
+        // }
+    };
+    using Handle = std::coroutine_handle<promise_type>;
+    Task(Handle h) : handle(h) {}
+
+    Task(Task &&other) 
     {
-        handle = other.handle;
-        other.handle = nullptr;
+        if(this!=&other)
+        {
+            if(handle)handle.destroy();
+            handle = other.handle;
+            other.handle = nullptr;
+        }
+        
     }
 
     ~Task()
@@ -50,9 +81,10 @@ public:
     }
     void resume()
     {
-        handle.resume();
+        if(handle&&!handle.done())
+            handle.resume();
     }
-    bool done()const
+    bool done() const
     {
         return handle.done();
     }
@@ -62,6 +94,10 @@ public:
         handle = nullptr;
         return h;
     }
+    // T result()
+    // {
+    //     return handle.promise().value;
+    // }
 
 private:
     Handle handle;

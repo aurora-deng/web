@@ -1,27 +1,23 @@
-#include"CoroutineScheduler.h"
-#include"Task.h"
-#include<iostream>
+#include "CoroutineScheduler.h"
+#include "Task.h"
+#include <iostream>
 
-
-        // ————————————————————————————测试协程——————————————————————————————————————
-Task test()
+// ————————————————————————————测试协程——————————————————————————————————————
+Task hello()
 {
     std::cout << "A\n";
 
-    co_await std::suspend_always{};
-
-    std::cout << "B\n";
+    co_return;
 }
 int main()
- {
+{
 
-        Task t = test();
-        CoroutineScheduler scheduler;
-        scheduler.add(t.release());
+    auto t = hello();
 
-        scheduler.runReady();
+    std::cout << "Before\n";
 
-        // std::cout<<"Hello!!!!\n";
-        scheduler.runReady();
-        return 0;
-    }
+    t.resume();
+
+    std::cout << "After\n";
+    return 0;
+}
