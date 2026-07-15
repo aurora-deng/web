@@ -72,11 +72,6 @@ enum SendState
 
 // ------------------------任务线程处理中间体----------------------
 
-struct pendingResponse
-{
-
-    HttpResponse *resp;
-};
 
 // ---------------------------------------------------链接体（分层拆分）--------------------------
 
@@ -94,10 +89,8 @@ struct ConnTransport
 struct ConnPipeline
 {
     bool keepAlive = true;
-    size_t inflightTasks = 0;                             // 表示限制任务处理的提交数量太多
                                                           //  用于高并发下回复一致性
     uint64_t nextRequestSeq = 0;                          // 生成请求编号
-    std::map<uint64_t, pendingResponse> pendingResponses; // 用于当做回复消息的队列，同时，通过map精准对应请求seq_id
 };
 
 // 定时器层：负责连接超时管理
@@ -123,9 +116,7 @@ struct Connection
     size_t &pendingBytes = transport.pendingBytes;
 
     bool &keepAlive = pipeline.keepAlive;
-    size_t &inflightTasks = pipeline.inflightTasks;
     uint64_t &nextRequestSeq = pipeline.nextRequestSeq;
-    std::map<uint64_t, pendingResponse> &pendingResponses = pipeline.pendingResponses;
 
     uint64_t &expireSlot = timer.expireSlot;
     bool &inWheel = timer.inWheel;
@@ -136,9 +127,8 @@ struct Connection
     Connection(const Connection &other) : transport(other.transport), pipeline(other.pipeline), timer(other.timer),
                                           fd(transport.fd), id(transport.id), readBuffer(transport.readBuffer),
                                           state(transport.state), pendingBytes(transport.pendingBytes),
-                                          keepAlive(pipeline.keepAlive), inflightTasks(pipeline.inflightTasks),
+                                          keepAlive(pipeline.keepAlive), 
                                           nextRequestSeq(pipeline.nextRequestSeq),
-                                          pendingResponses(pipeline.pendingResponses),
                                           expireSlot(timer.expireSlot), inWheel(timer.inWheel) {}
 
     // 拷贝赋值运算符 operator=(const Connection &other)
@@ -157,10 +147,9 @@ struct Connection
     Connection(Connection &&other) noexcept : transport(std::move(other.transport)), pipeline(std::move(other.pipeline)), timer(std::move(other.timer)),
                                               fd(transport.fd), id(transport.id), readBuffer(transport.readBuffer),
                                               state(transport.state), pendingBytes(transport.pendingBytes),
-                                              keepAlive(pipeline.keepAlive), inflightTasks(pipeline.inflightTasks),
+                                              keepAlive(pipeline.keepAlive),
                                               nextRequestSeq(pipeline.nextRequestSeq),
-                                              pendingResponses(pipeline.pendingResponses),
-                                              expireSlot(timer.expireSlot), inWheel(timer.inWheel), session(std::move(other.session)), coroutine_context(other.coroutine_context) {}
+                                              expireSlot(timer.expireSlot), inWheel(timer.inWheel), session(std::move(other.session)) {}
     // 移动赋值运算符 operator=(Connection &&other) noexcept
     Connection &operator=(Connection &&other) noexcept
     {
@@ -224,7 +213,6 @@ public:
             });
     }
     void run();
-    void notifyStream(int fd, uint64_t id);
     // 统一套接字关闭
     void fd_close(int fd, std::string reason, bool fromCoroutine = false);
 
@@ -236,16 +224,13 @@ public:
     // 用于优化集成rearm,结构性优化，接纳允许同时write和read
     void updateEvent(int fd);
     // 使用 wakeReadCoroutine,wakeWriteCoroutine 防止重复 scheduler.add
+    // 读取函数
     void wakeReadCoroutine(int fd);
+    // 写入函数
     void wakeWriteCoroutine(int fd);
     // 使用response多态继承之后统一发送函数
-    SendState sendBody(int fd, pendingResponse &resp);
+    SendState sendBody(int fd, HttpResponse &resp);
 
-    // 写入函数
-    void handleWrite(int fd);
-    // 读取函数
-    void handleRead(int fd);
-    Task<HttpResponse*> execute(HttpRequest &req);
     HttpResponse *createResponse(HttpRequest &req);
     void finishReaponse();
     bool recvSocket(int fd);

@@ -10,9 +10,7 @@ struct ConnState
 {
     bool closed = false;
     // bool wantRead=true;
-    bool pauseByPipeline = false;   // 任务并发数超限，暂停提交新任务
     bool pauseByMemory = false;     // readBuffer 可读数据超限，暂停读
-    bool pauseByWriteBacklog = false; // 背压修复处：pendingResponses 积压超限，暂停读
     bool wantWrite = false;
     bool readPaused = false;           // 综合读暂停标志（任一背压条件触发即为 true）
 };  

@@ -4,13 +4,8 @@
 #include <coroutine>
 #include"server/CoroutineScheduler/AWaiter.h"
 #include"server/CoroutineScheduler/Task.h"
-enum class AwaitType
-{
-    NONE,
-    READ,
-    WRITE,
-    TIMER
-};
+#include"server/http/http.h"
+
 class SubReactor;
 struct CoroutineContext{
      std::coroutine_handle<> handle;
@@ -25,20 +20,22 @@ class HttpSession
 {
 private:
     SubReactor* reactor=nullptr;
-    Connection* conn=nullptr;
+    int fd=-1;
 public:
     CoroutineContext coroutine_context;
-
-    explicit HttpSession(Connection* c,SubReactor* r):reactor(r),conn(c){
+    explicit HttpSession(int fd,SubReactor* r):reactor(r),fd(fd){
 
     }
     
+    void afterSend();
 
     Task<void> run();
 private:
     Task<HttpRequest> readRequest();
     Task<HttpResponse*> execute(HttpRequest& req);
     Task<void> send(HttpResponse* resp);
+    bool readSocket();
+
 };
 
 

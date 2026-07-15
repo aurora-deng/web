@@ -32,6 +32,10 @@ add_executable(
 
     server/CoroutineScheduler/CoroutineScheduler.cpp
     server/CoroutineScheduler/AWaiter.cpp
+
+    server/http/HttpSession.cpp
+    server/CoroutineScheduler/CoroutineScheduler.cpp
+    server/CoroutineScheduler/AWaiter.cpp
     )
 
 

@@ -40,7 +40,7 @@ public:
             return {};
         }
         // 表示协程结束后不要立即结束协程，所以使用always
-        std::suspend_never final_suspend() noexcept
+        std::suspend_always final_suspend() noexcept
         {
             return {};
         }
@@ -61,15 +61,15 @@ public:
     using Handle = std::coroutine_handle<promise_type>;
     Task(Handle h) : handle(h) {}
 
-    Task(Task &&other) 
+    Task(Task &&other)
     {
-        if(this!=&other)
+        if (this != &other)
         {
-            if(handle)handle.destroy();
+            if (handle)
+                handle.destroy();
             handle = other.handle;
             other.handle = nullptr;
         }
-        
     }
 
     ~Task()
@@ -81,7 +81,7 @@ public:
     }
     void resume()
     {
-        if(handle&&!handle.done())
+        if (handle && !handle.done())
             handle.resume();
     }
     bool done() const
@@ -98,6 +98,93 @@ public:
     // {
     //     return handle.promise().value;
     // }
+
+private:
+    Handle handle;
+};
+
+template <typename T>
+class Task
+{
+public:
+    struct promise_type
+    {
+        T value;
+        // 获得协程信息
+        Task get_return_object()
+        {
+            return Task{
+                std::coroutine_handle<promise_type>::from_promise(*this)};
+        }
+        // suspend_always表示先不要启动协程，处于悬挂等待使用resume唤醒
+        // suspend_nerver表示先先启动协程，处于启动等待使用co_await暂停之后在使用resume唤醒
+
+        std::suspend_always initial_suspend()
+        {
+            return {};
+        }
+        // 表示协程结束后不要立即结束协程，所以使用always
+        std::suspend_always final_suspend() noexcept
+        {
+            return {};
+        }
+        // 对应co_return
+        // void return_void() {}
+
+        // 异常处理
+        void unhandled_exception()
+        {
+            std::terminate();
+        }
+
+        // 对应co_return
+        void return_value(T v)
+        {
+            value=v;
+        }
+        
+    };
+
+    using Handle = std::coroutine_handle<promise_type>;
+    Task(Handle h) : handle(h) {}
+
+    Task(Task &&other)
+    {
+        if (this != &other)
+        {
+            if (handle)
+                handle.destroy();
+            handle = other.handle;
+            other.handle = nullptr;
+        }
+    }
+
+    ~Task()
+    {
+        if (handle)
+        {
+            handle.destroy();
+        }
+    }
+    void resume()
+    {
+        if (handle && !handle.done())
+            handle.resume();
+    }
+    bool done() const
+    {
+        return handle.done();
+    }
+    Handle release()
+    {
+        auto h = handle;
+        handle = nullptr;
+        return h;
+    }
+    T result()
+    {
+        return handle.promise().value;
+    }
 
 private:
     Handle handle;

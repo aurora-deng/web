@@ -7,7 +7,13 @@
 #include <unordered_map>
 #include <queue>
 #include <algorithm>
-
+enum class AwaitType
+{
+    NONE,
+    READ,
+    WRITE,
+    TIMER
+};
 // 用于保存handle
 class CoroutineScheduler
 {
