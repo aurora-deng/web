@@ -43,7 +43,9 @@ void SubReactor::wakeReadCoroutine(int fd)
         return; // 已在运行/已唤醒，不重复入队
     if (!ctx.handle || ctx.handle.done())
         return; // 无效 handle，跳过
-    ctx.state = AwaitType::READ;
+    // 刷新状态
+    ctx.state = AwaitType::NONE;
+    ctx.waiting=false;
     auto h = ctx.handle;
     if (h)
     {
@@ -63,6 +65,7 @@ void SubReactor::wakeWriteCoroutine(int fd)
     if (!ctx.handle || ctx.handle.done())
         return;
     ctx.state = AwaitType::NONE;
+    ctx.waiting=false;
      auto h = ctx.handle;
     if (h)
     {
@@ -150,18 +153,6 @@ void SubReactor::rearm(int fd, uint32_t events)
         LOG_INFO(std::string("epol_ctl MOD failed") + strerror(errno));
     }
 }
-
-// void SubReactor::wakeReadCoroutine(int fd, Handle handle)
-// {
-
-//     auto it=conns.find(fd);
-//     if(it==conns.end())return;
-//     auto &c=it->second;
-//     if(!c.coroutine.waitingRead)return;                 //已运行/已经唤醒，不重复入队
-//     if(!c.coroutine.handle||c.coroutine.handle.done()) return;
-//     c.coroutine.waitingRead=false;
-//     scheduler.add(handle);
-// }
 
 void SubReactor::run()
 {
@@ -526,19 +517,17 @@ void SubReactor::processPendingFds()
 
         conn->fd = fd;
         conn->id = ++global_conn_id;
-        auto ptr = conn.get();
-        conns.emplace(fd, std::move(conn));
-        auto &realConn = *conns[fd];
-        // keepAlive 默认 true（在 Connection 结构体中初始化）
-        // 当任务结果返回时，handleTaskResultOnce 会根据 HTTP 版本和 Connection 头正确设置
         conn->state.readPaused = false;
-        realConn.session = std::make_unique<HttpSession>(fd, &realConn);
+
+        auto *raw = conn.get();
+        conns.emplace(fd, std::move(conn));
+        
+        raw->session = std::make_shared<HttpSession>(fd, this);
         // conns[fd] = conn;
-        auto task = realConn.session->run();
+        auto task = raw->session->run();    
         auto h=task.release();
-        realConn.session->coroutine_context.handle=h;
-        // conns入库之后，将其对应连接的对应协程唤醒
-        // 必须要使用release从而实现所有权的转移
+        raw->session->coroutine_context.handle=h;
+        
         scheduler.add(h); // handle交给scheduler管理
         scheduler.runReady();          // 启动到第一个co_await
         // 设置对应时间轮
