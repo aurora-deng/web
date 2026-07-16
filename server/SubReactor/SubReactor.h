@@ -127,7 +127,7 @@ struct Connection
     Connection(const Connection &other) : transport(other.transport), pipeline(other.pipeline), timer(other.timer),
                                           fd(transport.fd), id(transport.id), readBuffer(transport.readBuffer),
                                           state(transport.state), pendingBytes(transport.pendingBytes),
-                                          keepAlive(pipeline.keepAlive), 
+                                          keepAlive(pipeline.keepAlive),  session(std::move(other.session)) ,
                                           nextRequestSeq(pipeline.nextRequestSeq),
                                           expireSlot(timer.expireSlot), inWheel(timer.inWheel) {}
 

@@ -3,6 +3,7 @@
 #define TASK_H
 #include <coroutine>
 #include <exception>
+#include <utility>
 // 思路：理解协程创建任务的流程
 /*
 首先创建对应的结构体变量--->之后调用get_return_object，返回Task结构体
@@ -60,17 +61,24 @@ public:
     using Handle = std::coroutine_handle<promise_type>;
     Task(Handle h) : handle(h) {}
 
-    Task(Task &&other)
+    Task(Task &&other) noexcept
+        : handle(std::exchange(other.handle, nullptr))
+    {
+    }
+
+    Task &operator=(Task &&other) noexcept
     {
         if (this != &other)
         {
             if (handle)
                 handle.destroy();
-            handle = other.handle;
-            other.handle = nullptr;
+            handle = std::exchange(other.handle, nullptr);
         }
+        return *this;
     }
 
+    Task(const Task &) = delete;
+    Task &operator=(const Task &) = delete;
     ~Task()
     {
         if (handle)
@@ -139,28 +147,38 @@ public:
         // 对应co_return
         void return_value(T v)
         {
-            value=v;
+            value = v;
         }
-        
     };
 
     using Handle = std::coroutine_handle<promise_type>;
     Task(Handle h) : handle(h) {}
 
-    Task(Task &&other)
+    Task(Task &&other) noexcept
+        : handle(std::exchange(other.handle, nullptr))
+    {
+    }
+
+    Task &operator=(Task &&other) noexcept
     {
         if (this != &other)
         {
             if (handle)
                 handle.destroy();
-            handle = other.handle;
-            other.handle = nullptr;
+            handle = std::exchange(other.handle, nullptr);
         }
+        return *this;
     }
+
+    Task(const Task &) = delete;
+    Task &operator=(const Task &) = delete;
 
     ~Task()
     {
-        
+        if (handle)
+        {
+            handle.destroy();
+        }
     }
     void resume()
     {
@@ -179,7 +197,7 @@ public:
     }
     T result()
     {
-        return handle.promise().value;
+        return std::move(handle.promise().value);
     }
 
 private:

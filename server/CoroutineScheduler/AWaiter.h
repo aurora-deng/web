@@ -12,7 +12,7 @@ class ReadAwaiter
 public:
     ReadAwaiter(SubReactor *reactor, int fd) : reactor(reactor), fd(fd) {}
     bool await_ready();
-    void await_suspend(std::coroutine_handle<> h);
+    bool await_suspend(std::coroutine_handle<> h);
     void await_resume();
     // auto operator co_await()
     // {

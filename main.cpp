@@ -28,34 +28,10 @@
 #define MAX_EVENTS 1024
 using Middleware = std::function<bool(Context &)>;
 
-// 添加状态机用于后续链接有利于正常处理当前的状态,替代之前的单一wantWrite
-// enum ConnState
-// {
-//     READING,
-//     WRITING,
-//     CLOSED
-// };
-
-// struct Connection
-// {
-//     int fd;
-//     uint64_t id;
-//     std::string readBuffer;
-//     std::string writeBuffer;
-//     bool keepAlive;
-//     ConnState state;
-// };
-
-// struct TaskResult
-// {
-//     int fd;
-//     uint64_t id;
-//     std::string response;
-//     bool keepAlive;
-//     ConnState state;
-// };
 int epfd = epoll_create(1);
-
+// 原代码 ThreadPool pool(4) 只有 4 个工作线程，5000 并发时请求排队导致 75% 延迟飙到 2289ms
+// 工作线程负责执行 router.handle()（业务逻辑），是请求处理的主要瓶颈
+ThreadPool pool(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 4);
 
 // 设置fd为非堵塞，对于新添加的fd都要使用
 void fd_unblock(int fd)

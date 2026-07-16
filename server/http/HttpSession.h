@@ -4,6 +4,7 @@
 #include <coroutine>
 #include"server/CoroutineScheduler/AWaiter.h"
 #include"server/CoroutineScheduler/Task.h"
+#include"server/http/HttpSession.h"
 #include"server/http/http.h"
 
 class SubReactor;
@@ -30,7 +31,7 @@ public:
     void afterSend();
 
     Task<void> run();
-private:
+private:    
     Task<HttpRequest> readRequest();
     Task<HttpResponse*> execute(HttpRequest& req);
     Task<void> send(HttpResponse* resp);

@@ -5,19 +5,14 @@ void CoroutineScheduler::add(Handle h)
     if(!h)
         return;
 
-    auto addr=h.address();
-
-    if(scheduled.count(addr))
-        return;
-
-    scheduled.insert(addr);
+    if(!scheduled.insert(h.address()).second)return;
 
     readyQueue.push(h);
 }
 
 void CoroutineScheduler::suspend(int fd, uint32_t event, Handle h)
 {
-    waiting[fd] = {event, h};
+    waiting[fd] = {event, AwaitType::NONE,h};
 }
 
 void CoroutineScheduler::resume(int fd, uint32_t event)
@@ -27,12 +22,9 @@ void CoroutineScheduler::resume(int fd, uint32_t event)
         return;
     if (it->second.event != event)
         return;
-    // auto evIt = it->second.find(event);
-    // if (evIt == it->second.end())
-    //     return;
-    // readyQueue.push(evIt->second);
-    readyQueue.push(it->second.handle);
+    auto h=it->second.handle;
     waiting.erase(it);
+    add(h);
 }
 
 // 协程安全修复：取消 fd 关联的等待协程
@@ -47,10 +39,12 @@ void CoroutineScheduler::runReady()
     {
         auto h = readyQueue.front();
         readyQueue.pop();
-        scheduled.erase(h.address());
-        h.resume();
         if(!h)continue;
+        scheduled.erase(h.address());
+        if (h.done()) {
+            h.destroy();
+        }
+        h.resume();
 
-        if (h.done()) h.destroy();
     }
 }

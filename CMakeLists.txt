@@ -25,13 +25,11 @@ add_executable(
     server/Repsonse/FileBody.cpp
     server/Repsonse/StringBody.cpp
     server/SubReactor/SubReactor.cpp
+    server/Repsonse/HeaderBody.cpp
+
     server/timer/TimeWheel.cpp
     server/SegmentPool/SegmentPool.cpp
-    server/Repsonse/HeaderBody.cpp
     server/ObjectPool/ObjectPool.cpp
-
-    server/CoroutineScheduler/CoroutineScheduler.cpp
-    server/CoroutineScheduler/AWaiter.cpp
 
     server/http/HttpSession.cpp
     server/CoroutineScheduler/CoroutineScheduler.cpp

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <cstring>
+#include<string_view>
 
 // 链接状态机
 struct ConnState

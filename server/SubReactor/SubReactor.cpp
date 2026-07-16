@@ -301,7 +301,7 @@ bool SubReactor::recvSocket(int fd)
     // 预查询,防止虚空索敌链接幽灵对象
     auto it = conns.find(fd);
     if (it == conns.end())
-        return;
+        return false;
 
     auto &conn = *it->second;
 

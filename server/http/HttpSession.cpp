@@ -70,7 +70,7 @@ void HttpSession::afterSend()
     }
     else
     {
-        reactor->fd_close(fd,"keepalive false");
+        reactor->fd_close(fd,"keepalive false",true);
     }
 }
 
@@ -88,23 +88,28 @@ Task<void> HttpSession::run()
     {
 
         auto conn = getConn();
-        if (!conn)
-            co_return;
+        if (!conn||conn->state.closed)co_return;
         HttpRequest req;
         // 不需要使用recv是由于希望一次await、一次事件、一次处理
         while (true)
         {
-
+            auto conn = getConn();
+            if (!conn||conn->state.closed)co_return;
             if (readSocket())
             {
-                co_return;
+                // 区分：连接已关闭 vs 需要等待更多数据 vs 背压
+                if(!getConn()||getConn()->state.closed)co_return;
+                co_await ReadAwaiter(reactor, fd);
+                continue;
             }
             conn = getConn();
             if (!conn)
                 co_return;
 
-            if (!reactor->parseOneRequest(req, *conn))
-                co_await ReadAwaiter(reactor, fd);
+            if (reactor->parseOneRequest(req, *conn))
+                break;// 得到完整请求，进入业务处理
+            
+            co_await ReadAwaiter(reactor, fd);
         }
 
         HttpResponse *resp = reactor->createResponse(req);
