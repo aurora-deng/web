@@ -161,10 +161,7 @@ public:
 
     ~Task()
     {
-        if (handle)
-        {
-            handle.destroy();
-        }
+        
     }
     void resume()
     {

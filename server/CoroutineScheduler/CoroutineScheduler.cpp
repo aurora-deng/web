@@ -2,6 +2,16 @@
 
 void CoroutineScheduler::add(Handle h)
 {
+    if(!h)
+        return;
+
+    auto addr=h.address();
+
+    if(scheduled.count(addr))
+        return;
+
+    scheduled.insert(addr);
+
     readyQueue.push(h);
 }
 
@@ -37,6 +47,7 @@ void CoroutineScheduler::runReady()
     {
         auto h = readyQueue.front();
         readyQueue.pop();
+        scheduled.erase(h.address());
         h.resume();
         if(!h)continue;
 

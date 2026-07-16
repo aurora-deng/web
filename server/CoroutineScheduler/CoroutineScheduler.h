@@ -37,6 +37,7 @@ private:
     };
     std::queue<Handle> readyQueue;
     std::unordered_map<int, WaitNode> waiting;
+    std::unordered_set<void*> scheduled;
 };
 
 #endif
