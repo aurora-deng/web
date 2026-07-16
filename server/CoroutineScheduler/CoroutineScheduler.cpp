@@ -51,10 +51,6 @@ void CoroutineScheduler::runReady()
         h.resume();
         if(!h)continue;
 
-        if (h.done())
-        {
-            h.destroy();
-            continue;
-        }
+        if (h.done()) h.destroy();
     }
 }
