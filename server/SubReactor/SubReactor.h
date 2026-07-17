@@ -48,9 +48,6 @@
 #define MB(x) ((x) * 1024UL * 1024UL)
 
 #define MAX_PENDING_BYTES MB(1)      // 背压修复处：readBuffer 可读数据水位线，超过则暂停读
-#define MAX_PIPELINE 256             // 背压修复处：最大并发任务数，从 1024 降为 256
-#define MAX_PENDING_RESPONSES 512    // 背压修复处：pendingResponses 水位线，超过则暂停读
-#define MAX_WRITE_BUFFER_BYTES MB(2) // 背压修复处：写缓冲区总大小水位线
 
 extern ObjectPoll<HttpRequest> requestPool;
 extern ObjectPoll<HttpResponse> responsePool;
@@ -69,7 +66,12 @@ enum SendState
     SEND_File_CLOSED,
     SEND_REMAIN
 };
-
+enum class RecvState
+{
+    READY,
+    PAUSED,
+    CLOSED
+};
 // ------------------------任务线程处理中间体----------------------
 
 
@@ -86,11 +88,12 @@ struct ConnTransport
 };
 
 // 协议层：负责 HTTP 请求/响应的流水线管理
-struct ConnPipeline
+// 协议层：本版本按连接串行处理请求，只保存连接复用状态。
+struct ConnProtocol
 {
     bool keepAlive = true;
-                                                          //  用于高并发下回复一致性
-    uint64_t nextRequestSeq = 0;                          // 生成请求编号
+        //                                                       //  用于高并发下回复一致性
+        // uint64_t nextRequestSeq = 0;                          // 生成请求编号
 };
 
 // 定时器层：负责连接超时管理
@@ -104,7 +107,7 @@ struct Connection
 {
     
     ConnTransport transport; // 传输层
-    ConnPipeline pipeline;   // 协议层
+    ConnProtocol protocol;   // 协议层
     ConnTimer timer;         // 定时器层
     // 保存当前连接的对应的业务状态,用来保存业务的所有信息
     std::shared_ptr<HttpSession> session;
@@ -115,52 +118,16 @@ struct Connection
     ConnState &state = transport.state;
     size_t &pendingBytes = transport.pendingBytes;
 
-    bool &keepAlive = pipeline.keepAlive;
-    uint64_t &nextRequestSeq = pipeline.nextRequestSeq;
+    bool &keepAlive = protocol.keepAlive;
 
     uint64_t &expireSlot = timer.expireSlot;
     bool &inWheel = timer.inWheel;
 
-   
     Connection() = default;
-    // 拷贝构造函数 Connection(const Connection &other)
-    Connection(const Connection &other) : transport(other.transport), pipeline(other.pipeline), timer(other.timer),
-                                          fd(transport.fd), id(transport.id), readBuffer(transport.readBuffer),
-                                          state(transport.state), pendingBytes(transport.pendingBytes),
-                                          keepAlive(pipeline.keepAlive),  session(std::move(other.session)) ,
-                                          nextRequestSeq(pipeline.nextRequestSeq),
-                                          expireSlot(timer.expireSlot), inWheel(timer.inWheel) {}
-
-    // 拷贝赋值运算符 operator=(const Connection &other)
-    Connection &operator=(const Connection &other)
-    {
-        if (this != &other)
-        {
-            transport = other.transport;
-            pipeline = other.pipeline;
-            timer = other.timer;
-        }
-        return *this;
-    }
-
-    // 移动构造函数 Connection(Connection &&other) noexcept
-    Connection(Connection &&other) noexcept : transport(std::move(other.transport)), pipeline(std::move(other.pipeline)), timer(std::move(other.timer)),
-                                              fd(transport.fd), id(transport.id), readBuffer(transport.readBuffer),
-                                              state(transport.state), pendingBytes(transport.pendingBytes),
-                                              keepAlive(pipeline.keepAlive),
-                                              nextRequestSeq(pipeline.nextRequestSeq),
-                                              expireSlot(timer.expireSlot), inWheel(timer.inWheel), session(std::move(other.session)) {}
-    // 移动赋值运算符 operator=(Connection &&other) noexcept
-    Connection &operator=(Connection &&other) noexcept
-    {
-        if (this != &other)
-        {
-            transport = std::move(other.transport);
-            pipeline = std::move(other.pipeline);
-            timer = std::move(other.timer);
-        }
-        return *this;
-    }
+    Connection(const Connection &) = delete;
+    Connection &operator=(const Connection &) = delete;
+    Connection(Connection &&) = delete;
+    Connection &operator=(Connection &&) = delete;
 };
 // --------------------------------任务接受体----------------------------
 
@@ -211,6 +178,20 @@ public:
             {
                 fd_close(fd, "timeout");
             });
+        scheduler.setCompletionCallback(
+            [this](int fd,std::coroutine_handle<> handle)
+            {
+                auto it=conns.find(fd);
+                if(it==conns.end()||it->second->session)return;
+                auto &ctx=it->second->session->coroutine_context;
+                if(ctx.handle&&ctx.handle.address()==handle.address())
+                {
+                    ctx.handle=nullptr;
+                    ctx.state=AwaitType::NONE;
+                    ctx.waiting=false;
+                }
+            }
+        );
     }
     void run();
     // 统一套接字关闭
@@ -223,7 +204,7 @@ public:
     void rearm(int fd, uint32_t events);
     // 用于优化集成rearm,结构性优化，接纳允许同时write和read
     void updateEvent(int fd);
-    // 使用 wakeReadCoroutine,wakeWriteCoroutine 防止重复 scheduler.add
+    // 使用 wakeReadCoroutine/wakeWriteCoroutine 统一进入 scheduler.schedule 去重。
     // 读取函数
     void wakeReadCoroutine(int fd);
     // 写入函数
@@ -231,10 +212,10 @@ public:
     // 使用response多态继承之后统一发送函数
     SendState sendBody(int fd, HttpResponse &resp);
 
-    HttpResponse *createResponse(HttpRequest &req);
+    HttpResponse *createResponse(HttpRequest &req,bool keepAlive);
     void finishReaponse();
-    bool recvSocket(int fd);
-    bool parseOneRequest(HttpRequest &req, Connection &conn);
+    RecvState recvSocket(int fd);
+    ParseState parseOneRequest(HttpRequest &req, Connection &conn);
     // 段错误修复处：处理待添加的 fd 队列，由 SubReactor 线程调用
     void processPendingFds();
 

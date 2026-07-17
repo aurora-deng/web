@@ -1,5 +1,7 @@
 
 #include "SubReactor.h"
+#include <cctype>
+#include <chrono>
 std::atomic<uint64_t> global_conn_id{0}; // 自增
 
 // 统一小写
@@ -19,7 +21,7 @@ void SubReactor::updateEvent(int fd)
     // 背压修复处：综合所有背压条件决定是否暂停读
     // 任一背压条件触发都应暂停读，防止数据继续涌入
 
-    it->second->state.readPaused = it->second->state.pauseByMemory ;
+    it->second->state.readPaused = it->second->state.pauseByMemory;
     if (!it->second->state.readPaused)
         ev |= EPOLLIN;
 
@@ -27,7 +29,6 @@ void SubReactor::updateEvent(int fd)
     {
         ev |= EPOLLOUT;
     }
-    
 
     rearm(fd, ev);
 }
@@ -39,37 +40,37 @@ void SubReactor::wakeReadCoroutine(int fd)
         return;
     auto &c = *it->second;
     auto &ctx = c.session->coroutine_context;
-    if (ctx.state!=AwaitType::READ)
+    if (ctx.state != AwaitType::READ)
         return; // 已在运行/已唤醒，不重复入队
     if (!ctx.handle || ctx.handle.done())
         return; // 无效 handle，跳过
     // 刷新状态
     ctx.state = AwaitType::NONE;
-    ctx.waiting=false;
+    ctx.waiting = false;
     auto h = ctx.handle;
     if (h)
     {
-        scheduler.add(h);
+        scheduler.schedule(h);
     }
 }
 
-// 修复3：安全唤醒写协程，防止重复 scheduler.add
+// 安全唤醒写协程，统一由 scheduler.schedule 去重。
 void SubReactor::wakeWriteCoroutine(int fd)
 {
     auto it = conns.find(fd);
     if (it == conns.end())
         return;
     auto &ctx = it->second->session->coroutine_context;
-    if (ctx.state!=AwaitType::WRITE)
+    if (ctx.state != AwaitType::WRITE)
         return;
-    if (!ctx.handle || ctx.handle.done())
+    if (!ctx.handle)
         return;
     ctx.state = AwaitType::NONE;
-    ctx.waiting=false;
-     auto h = ctx.handle;
+    ctx.waiting = false;
+    auto h = ctx.handle;
     if (h)
     {
-        scheduler.add(h);
+        scheduler.schedule(h);
     }
 }
 // 统一套接字关闭
@@ -89,19 +90,18 @@ void SubReactor::fd_close(int fd, std::string reason, bool fromCoroutine)
     if (it->second->state.closed)
         return;
 
-  
     // 协程安全修复：区分「协程内关闭」和「外部关闭」
     // 关键原则：绝不在 fd_close 中 h.destroy() 协程
     // 因为 readyQueue 中可能还有该 handle，destroy 后 resume 是 UB
-    // 方案：唤醒协程让它自行 co_return，final_suspend(suspend_never) 后帧自动释放
+    // 外部关闭唤醒协程收尾；final_suspend 后由 scheduler.reap 统一销毁。
     std::coroutine_handle<> coroutineToWake;
     auto h = it->second->session->coroutine_context.handle;
     if (h)
     {
         it->second->session->coroutine_context.handle = nullptr;
-        it->second->session->coroutine_context.state=AwaitType::NONE;
+        it->second->session->coroutine_context.state = AwaitType::NONE;
 
-        if (!fromCoroutine && !h.done())
+        if (!fromCoroutine)
         {
             // 外部关闭：唤醒挂起中的协程，让它检测到 closed 后自行 co_return
             // 不能在 conns.erase 之前 resume（否则协程可能访问正在被删除的 conn）
@@ -113,20 +113,18 @@ void SubReactor::fd_close(int fd, std::string reason, bool fromCoroutine)
 
     // 删除对应时间轮
     wheel.remove(fd);
-   
+
     it->second->state.closed = true;
 
-    scheduler.cancel(fd);       // 清除 waiting 中的关联
     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
     conns.erase(it);
     // printf("close fd=%d\n", fd);
     // 在 conns.erase 之后唤醒协程（此时 conns[fd] 已不存在）
     // 协程 resume 后 session 中 conns.find(fd) 返回 end() → co_return
-    // final_suspend(suspend_never) → 帧自动释放，无需外部 destroy
     if (coroutineToWake)
     {
-        scheduler.add(coroutineToWake);
+        scheduler.schedule(coroutineToWake);
     }
 }
 // 设置fd为非堵塞，对于新添加的fd都要使用
@@ -293,15 +291,14 @@ SendState SubReactor::sendBody(int fd, HttpResponse &resp)
     }
 }
 
-
-bool SubReactor::recvSocket(int fd)
+RecvState SubReactor::recvSocket(int fd)
 {
     // 说明有东西从客户端反过来，准备接受东西，同时将整个任务进行处理
 
     // 预查询,防止虚空索敌链接幽灵对象
     auto it = conns.find(fd);
     if (it == conns.end())
-        return false;
+        return RecvState::CLOSED;
 
     auto &conn = *it->second;
 
@@ -312,13 +309,13 @@ bool SubReactor::recvSocket(int fd)
     {
         conn.state.pauseByMemory = true;
         updateEvent(fd);
-        return false;
+        return RecvState::PAUSED;
     }
     // 开始接受数据
     while (true)
     {
         // 性能修复处：recv 缓冲区从 8KB 提升到 64KB
-        // 原代码每次最多读 8KB，大请求或 pipeline 请求需要多次 recv 系统调用
+        // 原代码每次最多读 8KB， 请求需要多次 recv 系统调用
         // 64KB 接近 TCP 默认窗口规模，单次 recv 即可读完一个典型请求
         char buffer[65536];
         // 接收消息
@@ -339,37 +336,42 @@ bool SubReactor::recvSocket(int fd)
             else
             { // 连接失败
                 // printf("连接失败\n");
-                fd_close(fd, "连接失败");
-                return false;
+                fd_close(fd, "连接失败", true);
+                return RecvState::CLOSED;
             }
         }
         else if (res == 0)
         {
             // printf("对端数据已经下线\n");
-            fd_close(fd, "对端数据已经下线");
-            return false;
+            fd_close(fd, "对端数据已经下线", true);
+            return RecvState::CLOSED;
         }
         // printf("收到数据：%.*s\n", res, buffer);
 
         // 开始处理数据
         conn.readBuffer.append(buffer, res);
         conn.pendingBytes = conn.readBuffer.readableBytes();
+        if(conn.pendingBytes > MAX_PENDING_BYTES)
+        {
+            conn.state.pauseByMemory = true;
+            updateEvent(fd);
+            return RecvState::PAUSED;
+        }
 
         // 遇到有用请求，刷新请求.防止一直接受不到conn
         wheel.refresh(fd);
         // 可优化点：使用零拷贝  std::string localBuf.swap(conns[fd].readBuffer);
         //  或者使用现在的多reactor直接对conns进行操作
     }
-    return true;
+    return RecvState::READY;
 }
 
-
-bool SubReactor::parseOneRequest(HttpRequest &req, Connection &conn)
+ParseState SubReactor::parseOneRequest(HttpRequest &req, Connection &conn)
 {
     ParseState state = try_parse_request(conn.readBuffer, req);
     if (state == PARSE_NEED_MORE)
     {
-        return false;
+        return PARSE_NEED_MORE;
     }
 
     if (state == PARSE_OK)
@@ -378,27 +380,36 @@ bool SubReactor::parseOneRequest(HttpRequest &req, Connection &conn)
         if (conn.pendingBytes < MAX_PENDING_BYTES)
             conn.state.pauseByMemory = false;
         // 背压修复处：检查 pendingResponses 积压，超限则暂停读
-        
-        return true;
+        bool keepAlive = req.version == "HTTP/1.1";
+        auto connection = req.headers.find("connection");
+        if (connection != req.headers.end())
+        {
+            const auto value = toLower(connection->second);
+            if (value == "close")
+                keepAlive = false;
+            else if (value == "keep-alive")
+                keepAlive = true;
+        }
+        conn.keepAlive = keepAlive;
+        return PARSE_OK;
     }
 
-    fd_close(conn.fd, "parse error");
-    return false;
+    fd_close(conn.fd, "parse error", true);
+    return PARSE_ERROR;
 }
 
-
-
-HttpResponse *SubReactor::createResponse(HttpRequest &req)
+HttpResponse *SubReactor::createResponse(HttpRequest &req, bool keepAlive)
 {
     auto resp = responsePool.acquire();
     *resp = router.handle(req);
+    resp->keepAlive = keepAlive;
+    resp->buildHeader();
     return resp;
 }
 
 void SubReactor::finishReaponse()
 {
 }
-
 
 void SubReactor::loop()
 {
@@ -432,10 +443,15 @@ void SubReactor::loop()
                 // 段错误修复处：先处理待添加的 fd，再处理任务结果
                 // 确保所有对 conns/wheel/epoll_ctl 的操作都在 SubReactor 线程中完成
                 processPendingFds();
-                
             }
             else
             {
+                if (events[i].events & (EPOLLERR | EPOLLHUP))
+                {
+                    fd_close(fd, "epoll error or hangup");
+                    continue;
+                }
+
                 if (events[i].events & EPOLLOUT) //-------处理write-send发出
                 {
                     wakeWriteCoroutine(fd);
@@ -521,16 +537,17 @@ void SubReactor::processPendingFds()
 
         auto *raw = conn.get();
         conns.emplace(fd, std::move(conn));
-        
+
         raw->session = std::make_shared<HttpSession>(fd, this);
         // conns[fd] = conn;
-        auto task = raw->session->run();    
-        auto h=task.release();
-        raw->session->coroutine_context.handle=h;
-        
-        scheduler.add(h); // handle交给scheduler管理
-        scheduler.runReady();          // 启动到第一个co_await
+        auto task = raw->session->run();
+        auto h = task.release();
+        raw->session->coroutine_context.handle = h;
+
         // 设置对应时间轮
         wheel.add(fd);
+
+        scheduler.adopt(fd,h,raw->session);
+        scheduler.runReady(); // 启动到第一个co_await
     }
 }

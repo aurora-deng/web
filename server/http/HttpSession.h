@@ -4,8 +4,7 @@
 #include <coroutine>
 #include"server/CoroutineScheduler/AWaiter.h"
 #include"server/CoroutineScheduler/Task.h"
-#include"server/http/HttpSession.h"
-#include"server/http/http.h"
+#include "server/CoroutineScheduler/CoroutineScheduler.h"
 
 class SubReactor;
 struct CoroutineContext{
@@ -30,12 +29,7 @@ public:
     
     void afterSend();
 
-    Task<void> run();
-private:    
-    Task<HttpRequest> readRequest();
-    Task<HttpResponse*> execute(HttpRequest& req);
-    Task<void> send(HttpResponse* resp);
-    bool readSocket();
+    Task<void> run();   
 
 };
 

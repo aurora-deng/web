@@ -2,11 +2,13 @@
 #ifndef COROUTINE_SCHEDUER_H
 #define COROUTINE_SCHEDUER_H
 #include <coroutine>
-#include <cstdint>
+#include<functional>
+#include<memory>
 #include <queue>
 #include <unordered_map>
 #include<unordered_set>
-#include <algorithm>
+
+
 enum class AwaitType
 {
     NONE,
@@ -19,25 +21,29 @@ class CoroutineScheduler
 {
 public:
     using Handle = std::coroutine_handle<>;
-    void add(Handle h);                             // 创建协程
-    void suspend(int fd, uint32_t event, Handle h); // 等待协程
-    void resume(int fd, uint32_t event);            // 放入到queue中等待进行统一恢复协程
+    using CompletionCallback=std::function<void(int,Handle)>;
+    ~CoroutineScheduler();
+    // 接收 Task::release() 转移过来的协程帧所有权；owner 保证成员协程的
+    // HttpSession 在协程帧销毁前仍然存活。
+    void adopt(int fd, Handle h, std::shared_ptr<void> owner = {});
+    // 将已由调度器持有的协程加入就绪队列。
+    void schedule(Handle h);
+    
+    void setCompletionCallback(CompletionCallback callback);
     void runReady();
-    // 协程安全修复：取消 fd 关联的等待协程
-    // fd_close 时调用，防止已关闭 fd 的协程被意外唤醒
-    void cancel(int fd);
 
 private:
-    std::queue<Handle> ready;
-    struct WaitNode
+    struct OwnedCoroutine
     {
-        uint32_t event;
-        AwaitType type;
         Handle handle;
+        int fd;
+        std::shared_ptr<void> owner;
     };
+    void reap(Handle h);
     std::queue<Handle> readyQueue;
-    std::unordered_map<int, WaitNode> waiting;
+    std::unordered_map<void*,OwnedCoroutine> owned;
     std::unordered_set<void*> scheduled;
+    CompletionCallback completionCallback;
 };
 
 #endif

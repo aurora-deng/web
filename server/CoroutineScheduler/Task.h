@@ -10,13 +10,10 @@
 --->之后task构造函数实现-->之后实现initial_suspend
 --->return_value--->final_suspend--->返回值--->析构函数结束task
 */
-
-// 协程 Task 包装器
-// 关键设计：final_suspend 返回 suspend_never
-// 协程 co_return 后自动销毁帧，避免内存泄漏
-// 注意：co_return 后 handle 变为 done 状态，任何人都不应再 resume 它
-// runReady 中的 h.done() 检查会跳过已完成的 handle
-
+// 协程 Task 包装器。
+// Task 在 release() 前拥有协程帧；release() 后所有权必须立即交给
+// CoroutineScheduler::adopt()。协程在 final_suspend 停住，调度器清理所有
+// 观察引用后通过唯一的 reap 路径销毁帧。
 template <typename T = void>
 class Task;
 

@@ -20,8 +20,7 @@ bool ReadAwaiter:: await_suspend(std::coroutine_handle<> h)
     conn.session->coroutine_context.handle = h;
     conn.session->coroutine_context.state=AwaitType::READ;
     conn.session->coroutine_context.waiting=true;
-    // 注册 EPOLLIN 等待读事件
-    reactor->scheduler.suspend(fd,EPOLLIN,h);
+   
     reactor->updateEvent(fd);
     return true;
 }
@@ -42,12 +41,12 @@ bool WriteAwaiter::await_ready()
     return it == reactor->conns.end() || it->second->state.closed;
 }
 
-void WriteAwaiter::await_suspend(std::coroutine_handle<> h)
+bool WriteAwaiter::await_suspend(std::coroutine_handle<> h)
 {
     // 修复2+5：用 find 查找，不用 conns[fd]
     auto it = reactor->conns.find(fd);
     if (it == reactor->conns.end() || it->second->state.closed)
-        return; // 连接已关闭，不挂起
+        return false; // 连接已关闭，不挂起
 
     auto &conn = *it->second;
     conn.session->coroutine_context.handle = h;
@@ -56,9 +55,9 @@ void WriteAwaiter::await_suspend(std::coroutine_handle<> h)
 
     // 注册 EPOLLOUT 等待写事件
     conn.state.wantWrite = true;
-    reactor->scheduler.suspend(fd,EPOLLOUT,h);
 
     reactor->updateEvent(fd);
+    return true;
 }
 
 void WriteAwaiter::await_resume()

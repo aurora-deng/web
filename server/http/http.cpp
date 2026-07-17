@@ -384,11 +384,7 @@ void HttpResponse::endChunked()
 std::string HttpResponse::buildHeader() const
 {
     std::string res;
-    if (status == 304)
-    {
-        res += "\r\n";
-        return res;
-    }
+   
     res +=
         "HTTP/1.1 " + std::to_string(status) +
         " " +
@@ -467,10 +463,7 @@ std::string HttpResponse::buildHeader() const
 void HttpResponse::buildHeader()
 {
     auto buf=BufferPoll::instance().acquire();
-    if (status == 304)
-    {
-        buf->append ( "\r\n");
-    }
+   
     buf->append
         ("HTTP/1.1 " + std::to_string(status) +
         " " +

@@ -1,8 +1,30 @@
 #include "CoroutineScheduler.h"
+#include<utility>
 
-void CoroutineScheduler::add(Handle h)
+CoroutineScheduler::~CoroutineScheduler()
+{
+    readyQueue={};
+    scheduled.clear();
+    for(auto &[_,coroutine]:owned)
+    {
+        if(coroutine.handle)
+            coroutine.handle.destroy();
+    }
+}
+
+void CoroutineScheduler::adopt(int fd, Handle h, std::shared_ptr<void> owner)
 {
     if(!h)
+        return;
+    auto [_,inserted]=owned.emplace(h.address(),OwnedCoroutine{h,fd,std::move(owner)});
+    if(inserted)
+        schedule(h);
+}
+
+// 类似add
+void CoroutineScheduler::schedule(Handle h)
+{
+    if(!h||owned.find(h.address())==owned.end())
         return;
 
     if(!scheduled.insert(h.address()).second)return;
@@ -10,27 +32,9 @@ void CoroutineScheduler::add(Handle h)
     readyQueue.push(h);
 }
 
-void CoroutineScheduler::suspend(int fd, uint32_t event, Handle h)
+void CoroutineScheduler::setCompletionCallback(CompletionCallback callback)
 {
-    waiting[fd] = {event, AwaitType::NONE,h};
-}
-
-void CoroutineScheduler::resume(int fd, uint32_t event)
-{
-    auto it = waiting.find(fd);
-    if (it == waiting.end())
-        return;
-    if (it->second.event != event)
-        return;
-    auto h=it->second.handle;
-    waiting.erase(it);
-    add(h);
-}
-
-// 协程安全修复：取消 fd 关联的等待协程
-void CoroutineScheduler::cancel(int fd)
-{
-    waiting.erase(fd);
+    completionCallback=std::move(callback);
 }
 
 void CoroutineScheduler::runReady()
@@ -40,11 +44,33 @@ void CoroutineScheduler::runReady()
         auto h = readyQueue.front();
         readyQueue.pop();
         if(!h)continue;
+        if(owned.find(h.address())==owned.end())continue;
         scheduled.erase(h.address());
-        if (h.done()) {
-            h.destroy();
+        if (!h.done()) {
+            h.resume();
         }
-        h.resume();
-
+        if(h.done())
+        {
+            reap(h);
+        }
     }
 }
+
+// 类似删除函数
+void CoroutineScheduler::reap(Handle h)
+{
+    if(!h)
+        return;
+    
+    auto it=owned.find(h.address());
+    if(it==owned.end())return;
+
+    const int fd=it->second.fd;
+    auto owner=std::move(it->second.owner);
+    scheduled.erase(h.address());
+    if(completionCallback)
+        completionCallback(fd,h);
+    owned.erase(it);
+    h.destroy();
+}
+
