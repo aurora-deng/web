@@ -22,7 +22,12 @@ const char *Buffer::peek() const
 
 char *Buffer::beginWrite()
 {
-    return buf.data()+writePos;
+    return buf.data() + writePos;
+}
+
+const char *Buffer::beginWrite() const
+{
+    return buf.data() + writePos;
 }
 
 void Buffer::retrieve(size_t len)
@@ -54,8 +59,8 @@ void Buffer::ensureWrite(size_t len)
         // [有效数据][空闲空间................]
         std::copy(buf.begin() + readPos, buf.begin() + writePos, buf.begin());
         // 更新位置,这里容易出现段错误
-        readPos=0;
-        writePos=readable;
+        readPos = 0;
+        writePos = readable;
     }
     else
     {
@@ -67,29 +72,46 @@ void Buffer::append(const char *data, size_t len)
 {
     ensureWrite(len);
     // std::copy(data, data + len, buf.begin() + writePos);
-    memcpy(beginWrite(),data,len);
+    memcpy(beginWrite(), data, len);
     writePos += len;
 }
 
 void Buffer::append(std::string_view s)
 {
-    append(s.data(),s.size());
+    append(s.data(), s.size());
 }
 
 void Buffer::clear()
 {
-    readPos=0;
-    writePos=0;
+    readPos = 0;
+    writePos = 0;
 }
 
 const char *Buffer::findCRLFCRLF() const
 {
-    const char *begin=peek();
-    const char *end=begin+readableBytes();
+    const char *begin = peek();
+    const char *end = begin + readableBytes();
 
-    const char *p=std::search(begin,end,"\r\n\r\n","\r\n\r\n"+4);
+    const char *p = std::search(begin, end, "\r\n\r\n", "\r\n\r\n" + 4);
 
-    if(p==end)return nullptr;
+    if (p == end)
+        return nullptr;
 
     return p;
+}
+
+const char* Buffer::findCRLF() const
+{
+    auto it =
+        std::search(
+            peek(),
+            beginWrite(),
+            "\r\n",
+            "\r\n"+2
+        );
+
+    if(it==beginWrite())
+        return beginWrite();
+
+    return it;
 }

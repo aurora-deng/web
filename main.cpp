@@ -25,8 +25,9 @@
 #include "server/ObjectPool/ObjectPool.h"
 #include "server/CoroutineScheduler/CoroutineScheduler.h"
 #include "server/CoroutineScheduler/Task.h"
+#include "server/http/RequestContext/RequestContext.h"
 #define MAX_EVENTS 1024
-using Middleware = std::function<bool(Context &)>;
+using Middleware = std::function<void(RequestContext &, std::function<void()>)>;
 
 int epfd = epoll_create(1);
 // 原代码 ThreadPool pool(4) 只有 4 个工作线程，5000 并发时请求排队导致 75% 延迟飙到 2289ms
@@ -46,7 +47,6 @@ void fd_jump_time_wait(int fd)
     int opt = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 }
-
 
 int main(int argc, const char *argv[])
 {
@@ -114,70 +114,82 @@ int main(int argc, const char *argv[])
     // 性能修复处：原代码使用 std::cout 日志中间件，每个请求都 cout + endl
     // std::cout 内部全局锁 + endl 强制 flush，1000 并发下工作线程串行化
     // 改用异步 Logger（双缓冲 + 后台写线程），业务线程只入队不阻塞
-    router->use([](Context &ctx) -> bool
+    router->use([](RequestContext &ctx, auto next) -> bool
                 {
         LOG_HTTP(ctx.req.method+" "+ctx.req.path);
+        next(); 
         return true; });
 
-    router->use([](Context &ctx) -> bool
+    router->use([](RequestContext &ctx, auto next)
                 {
-        if(ctx.req.path=="/admin")
+        if(ctx.request.path=="/admin")
         {
-            auto it=ctx.req.headers.find("token");
+            auto it=ctx.request.headers.find("token");
 
-            if(it==ctx.req.headers.end())
+            if(it==ctx.request.headers.end())
             {
-                ctx.resp.status=401;
-                ctx.resp.text("Unauthorized");
+                ctx.response->status=401;
+                ctx.response->text("Unauthorized");
 
-                return false;
+                return ;
             }
         }
-        return true; });
+        next(); });
     router->GET("/",
-                [](Context &ctx)
+                [](RequestContext &ctx) -> bool
                 {
-                    ctx.resp.html("<h1>hello</h1>");
+                    ctx.response =
+                        responsePool.acquire();
+
+                    ctx.response->html("<h1>hello</h1>");
+                    return true;
                 });
 
     router->GET("/user/:id",
-                [](Context &ctx)
+                [](RequestContext &ctx) -> bool
                 {
-                    ctx.resp.text(ctx.params.at("id"));
+                    ctx.response =
+                        responsePool.acquire();
+                    ctx.response->text(ctx.params.at("id"));
+                    return true;
                 });
 
     router->GET("/stream1",
-                [](Context &ctx)
+                [](RequestContext &ctx)->bool
                 {
-                    ctx.resp.writeChunk("hello");
-                    ctx.resp.writeChunk(" world");
+                    ctx.response = responsePool.acquire();
+                    ctx.response->writeChunk("hello");
+                    ctx.response->writeChunk(" world");
+                    return true;
                 });
 
     router->GET("/stream2",
-                [](Context &ctx)
+                [](RequestContext &ctx)->bool
                 {
-                    ctx.resp.beginChunked();
+                    ctx.response = responsePool.acquire();
+                    ctx.response->beginChunked();
 
                     for (int i = 0; i < 10; i++)
                     {
-                        ctx.resp.writeChunk(
+                        ctx.response->writeChunk(
                             "hello\n");
 
                         sleep(1);
                     }
 
-                    ctx.resp.endChunked();
+                    ctx.response->endChunked();
+                    return true;
+
                 });
-    router->GET("/logo", [](Context &ctx)
+    router->GET("/logo", [](RequestContext &ctx)->bool
                 {
                     std::string path = "./static/logo.png";
-                    auto it = ctx.req.headers.find("range");
+                    auto it = ctx.request.headers.find("range");
 
-                    ctx.resp.sendfile(path.c_str(),ctx.req,ctx.req.range); });
+                    ctx.response->sendfile(path.c_str(),ctx.request,ctx.request.range); 
+                    return true;
+                });
 
-
-    
-   
     // 返回你的计算机 物理上能并行执行的线程数量（逻辑核心数）
     int N = std::thread::hardware_concurrency();
     if (N == 0)

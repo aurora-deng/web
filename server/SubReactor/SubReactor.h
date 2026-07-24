@@ -41,13 +41,16 @@
 #include "server/CoroutineScheduler/CoroutineScheduler.h"
 #include "server/CoroutineScheduler/Task.h"
 #include "server/CoroutineScheduler/AWaiter.h"
-#include "server/http/HttpSession.h"
+#include "server/http/HttpSession/HttpSession.h"
+#include "server/http/HttpParser/HttpParser.h"
+#include"server/http/HttpCodec/HttpCodec.h"
+#include"server/http/ResponseSender/ResponseSender.h"
 
 #define MAX_EVENTS 1024
 #define KB(x) ((x) * 1024UL)
 #define MB(x) ((x) * 1024UL * 1024UL)
 
-#define MAX_PENDING_BYTES MB(1)      // 背压修复处：readBuffer 可读数据水位线，超过则暂停读
+#define MAX_PENDING_BYTES MB(1) // 背压修复处：readBuffer 可读数据水位线，超过则暂停读
 
 extern ObjectPoll<HttpRequest> requestPool;
 extern ObjectPoll<HttpResponse> responsePool;
@@ -55,17 +58,8 @@ extern ObjectPoll<HttpResponse> responsePool;
 // 并且每个reactor独自占领独自资源实现类似单独进程的作用，拥有自己的资源，从而实现无锁
 
 // 使用状态机来处理发送返回结果
-enum SendState
-{
-    SEND_OK,
-    SEND_AGAIN,
-    SEND_Writev_CLOSED,
-    SEND_Chunk_CLOSED,
-    SEND_Header_CLOSED,
-    SEND_EndChunk_CLOSED,
-    SEND_File_CLOSED,
-    SEND_REMAIN
-};
+enum SendState;
+
 enum class RecvState
 {
     READY,
@@ -73,7 +67,6 @@ enum class RecvState
     CLOSED
 };
 // ------------------------任务线程处理中间体----------------------
-
 
 // ---------------------------------------------------链接体（分层拆分）--------------------------
 
@@ -92,8 +85,10 @@ struct ConnTransport
 struct ConnProtocol
 {
     bool keepAlive = true;
-        //                                                       //  用于高并发下回复一致性
-        // uint64_t nextRequestSeq = 0;                          // 生成请求编号
+    HttpParser parser;
+    HttpRequest currentRequest;
+    //                                                       //  用于高并发下回复一致性
+    // uint64_t nextRequestSeq = 0;                          // 生成请求编号
 };
 
 // 定时器层：负责连接超时管理
@@ -105,7 +100,7 @@ struct ConnTimer
 
 struct Connection
 {
-    
+
     ConnTransport transport; // 传输层
     ConnProtocol protocol;   // 协议层
     ConnTimer timer;         // 定时器层
@@ -122,6 +117,11 @@ struct Connection
 
     uint64_t &expireSlot = timer.expireSlot;
     bool &inWheel = timer.inWheel;
+    HttpParser &parser = protocol.parser;
+
+    HttpRequest &currentRequest = protocol.currentRequest;
+    std::deque<HttpResponse> responses;
+
 
     Connection() = default;
     Connection(const Connection &) = delete;
@@ -145,15 +145,15 @@ class SubReactor
 public:
     int epfd;
     std::unordered_map<int, std::unique_ptr<Connection>> conns; // 接受发送类
+    HttpCodec codec;
     std::thread th;
     int event_fd;
     size_t slotNum = 60; // 时间槽数量
     int timeout = 30;    // 超时时间
 
-   
     std::atomic<bool> notified{false};
-
-    Router &router;
+    ResponseSender sender{segPool,wheel};
+    Router &router; 
 
     std::queue<int> pendingFds;
     std::mutex pending_mtx;
@@ -179,19 +179,19 @@ public:
                 fd_close(fd, "timeout");
             });
         scheduler.setCompletionCallback(
-            [this](int fd,std::coroutine_handle<> handle)
+            [this](int fd, std::coroutine_handle<> handle)
             {
-                auto it=conns.find(fd);
-                if(it==conns.end()||it->second->session)return;
-                auto &ctx=it->second->session->coroutine_context;
-                if(ctx.handle&&ctx.handle.address()==handle.address())
+                auto it = conns.find(fd);
+                if (it == conns.end() || it->second->session)
+                    return;
+                auto &ctx = it->second->session->coroutine_context;
+                if (ctx.handle && ctx.handle.address() == handle.address())
                 {
-                    ctx.handle=nullptr;
-                    ctx.state=AwaitType::NONE;
-                    ctx.waiting=false;
+                    ctx.handle = nullptr;
+                    ctx.state = AwaitType::NONE;
+                    ctx.waiting = false;
                 }
-            }
-        );
+            });
     }
     void run();
     // 统一套接字关闭
@@ -210,9 +210,9 @@ public:
     // 写入函数
     void wakeWriteCoroutine(int fd);
     // 使用response多态继承之后统一发送函数
-    SendState sendBody(int fd, HttpResponse &resp);
+    void handleWrite(Connection& conn);
 
-    HttpResponse *createResponse(HttpRequest &req,bool keepAlive);
+    HttpResponse *createResponse(HttpRequest &req, bool keepAlive);
     void finishReaponse();
     RecvState recvSocket(int fd);
     ParseState parseOneRequest(HttpRequest &req, Connection &conn);

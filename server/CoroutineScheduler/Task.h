@@ -24,6 +24,7 @@ public:
     struct promise_type
     {
         // T value;
+
         // 获得协程信息
         Task get_return_object()
         {
@@ -41,6 +42,7 @@ public:
         {
             return {};
         }
+
         // 对应co_return
         void return_void() {}
 
@@ -114,6 +116,7 @@ public:
     struct promise_type
     {
         T value;
+        // std::coroutine_handle<> continuation = nullptr;
         // 获得协程信息
         Task get_return_object()
         {
@@ -128,10 +131,35 @@ public:
             return {};
         }
         // 表示协程结束后不要立即结束协程，所以使用always
-        std::suspend_always final_suspend() noexcept
+         std::suspend_always final_suspend() noexcept
         {
             return {};
         }
+
+        // 表示协程结束后不要立即结束协程，所以使用always
+        // auto final_suspend() noexcept
+        // {
+        //     struct Awaiter
+        //     {
+        //         bool await_ready() noexcept
+        //         {
+        //             return false;
+        //         }
+
+        //         void await_suspend(std::coroutine_handle<promise_type> h)
+        //         {
+        //             auto &promise = h.promise();
+        //             if (promise.continuation)
+        //             {
+        //                 promise.continuation.resume();
+        //             }
+        //         }
+        //         void await_resume() {}
+        //     };
+
+        //     return Awaiter{};
+        // }
+
         // 对应co_return
         // void return_void() {}
 
@@ -196,6 +224,23 @@ public:
     {
         return std::move(handle.promise().value);
     }
+    // bool await_ready()
+    // {
+    //     return handle.done();
+    // }
+
+    // void await_suspend(
+    //     std::coroutine_handle<> parent)
+    // {
+    //     handle.promise().continuation = parent;
+
+    //     handle.resume();
+    // }
+
+    // T await_resume()
+    // {
+    //     return std::move(handle.promise().value);
+    // }
 
 private:
     Handle handle;
