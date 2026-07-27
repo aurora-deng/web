@@ -43,8 +43,8 @@
 #include "server/CoroutineScheduler/AWaiter.h"
 #include "server/http/HttpSession/HttpSession.h"
 #include "server/http/HttpParser/HttpParser.h"
-#include"server/http/HttpCodec/HttpCodec.h"
-#include"server/http/ResponseSender/ResponseSender.h"
+#include "server/http/HttpCodec/HttpCodec.h"
+#include "server/http/ResponseSender/ResponseSender.h"
 
 #define MAX_EVENTS 1024
 #define KB(x) ((x) * 1024UL)
@@ -62,6 +62,8 @@ enum SendState;
 
 enum class RecvState
 {
+    // READY 表示本轮已读到 EAGAIN，可继续解析；PAUSED 表示触发背压并已撤销读关注；
+    // CLOSED 表示连接对象可能已删除，调用方不得继续持有旧引用。
     READY,
     PAUSED,
     CLOSED
@@ -100,11 +102,13 @@ struct ConnTimer
 
 struct Connection
 {
-
+    // 分层成员保留清晰职责；下面的引用别名兼容现有调用点。引用成员绑定后不可重定向，
+    // 因此 Connection 禁止复制和移动，始终由 conns 中的 unique_ptr 提供稳定地址。
     ConnTransport transport; // 传输层
     ConnProtocol protocol;   // 协议层
     ConnTimer timer;         // 定时器层
-    // 保存当前连接的对应的业务状态,用来保存业务的所有信息
+    // session 由 Connection 持有，调度器在协程存活期间还会保留共享所有权；
+    // 这样连接从 conns 删除后，已唤醒的协程仍可安全执行到 co_return，而不会访问已析构 session。
     std::shared_ptr<HttpSession> session;
 
     int &fd = transport.fd;
@@ -122,7 +126,6 @@ struct Connection
     HttpRequest &currentRequest = protocol.currentRequest;
     std::deque<HttpResponse> responses;
 
-
     Connection() = default;
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
@@ -132,6 +135,8 @@ struct Connection
 // --------------------------------任务接受体----------------------------
 
 // 用于唤醒stream使用的结构体
+// 流式响应的异步通知同时携带 fd 与连接代号；fd 会被内核复用，connId 可供后续扩展时
+// 拒绝投递到“同 fd、不同连接”的旧通知。
 struct StreamNotify
 {
     int fd;
@@ -143,29 +148,35 @@ struct StreamNotify
 class SubReactor
 {
 public:
+    // conns 及其指向对象只允许 SubReactor 线程访问；跨线程入口仅限 addFd 的受锁队列。
     int epfd;
     std::unordered_map<int, std::unique_ptr<Connection>> conns; // 接受发送类
-    HttpCodec codec;
     std::thread th;
     int event_fd;
     size_t slotNum = 60; // 时间槽数量
     int timeout = 30;    // 超时时间
 
+    // notified 合并连续 eventfd 写入，避免高并发接入时为每个 fd 都触发一次系统调用。
     std::atomic<bool> notified{false};
-    ResponseSender sender{segPool,wheel};
-    Router &router; 
+    Router &router;
 
     std::queue<int> pendingFds;
     std::mutex pending_mtx;
     TimerWheel wheel;
     SegmentPool segPool;
+    ResponseSender sender;
+    HttpCodec codec;
 
-    // 协程对象
+    // 调度器是协程句柄的统一排队和销毁点，避免 I/O 回调直接 resume/destroy 造成重入或悬空句柄。
     CoroutineScheduler scheduler;
 
-    SubReactor(Router &router) : router(router), wheel(slotNum, timeout)
+    SubReactor(Router &router)
+        : router(router),
+          wheel(slotNum, timeout),
+          sender(segPool, wheel),
+          codec(router)
     {
-        // 创建属于自己的epoll
+        // eventfd 把主线程投递转换为本 Reactor 的普通可读事件，使连接注册仍在所有者线程执行。
         epfd = epoll_create(1);
         // 用于实现多线程之间通信 + 唤醒 epoll
         event_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
@@ -178,11 +189,13 @@ public:
             {
                 fd_close(fd, "timeout");
             });
+        // 协程完成后只在句柄仍匹配当前 session 时清理上下文；地址比对可避免旧完成通知
+        // 清掉后续协程登记的句柄，为未来支持协程替换/重启保留安全边界。
         scheduler.setCompletionCallback(
             [this](int fd, std::coroutine_handle<> handle)
             {
                 auto it = conns.find(fd);
-                if (it == conns.end() || it->second->session)
+                if (it == conns.end() || !it->second->session)
                     return;
                 auto &ctx = it->second->session->coroutine_context;
                 if (ctx.handle && ctx.handle.address() == handle.address())
@@ -209,11 +222,9 @@ public:
     void wakeReadCoroutine(int fd);
     // 写入函数
     void wakeWriteCoroutine(int fd);
-    // 使用response多态继承之后统一发送函数
-    void handleWrite(Connection& conn);
+    // // 使用response多态继承之后统一发送函数
+    // void handleWrite(Connection &conn);
 
-    HttpResponse *createResponse(HttpRequest &req, bool keepAlive);
-    void finishReaponse();
     RecvState recvSocket(int fd);
     ParseState parseOneRequest(HttpRequest &req, Connection &conn);
     // 段错误修复处：处理待添加的 fd 队列，由 SubReactor 线程调用

@@ -1,6 +1,7 @@
 #include "Router.h"
 
-// 解析path
+// 路由模板和请求路径使用相同切分规则，忽略重复/首尾斜杠产生的空片段；
+// 动态参数因此按片段位置比较，而不是做容易误匹配的字符串前缀判断。
 static std::vector<std::string> splitPath(const std::string &path)
 {
     std::vector<std::string> res;
@@ -142,6 +143,7 @@ bool Router::handle(RequestContext &ctx)
 bool Router::dispatchMiddleware(RequestContext &ctx)
 {
     size_t index = 0;
+    bool continueToRoute = false;
     std::function<void()> next;
     // Middleware
     next = [&]()
@@ -150,12 +152,14 @@ bool Router::dispatchMiddleware(RequestContext &ctx)
         {
             auto &mw = middlewares[index++];
             mw(ctx, next);
-
-            return;
+        }
+        else
+        {
+            continueToRoute = true;
         }
     };
     next();
-    return ctx.response==nullptr;
+    return continueToRoute;
 }
 
 bool Router::matchStatic(RequestContext &ctx)
@@ -190,7 +194,6 @@ bool Router::matchDynamic(RequestContext &ctx)
         methodIt->second;
 
     return matchRoute(ctx, methodRoutes);
-    
 }
 
 void Router::make404(RequestContext &ctx)
