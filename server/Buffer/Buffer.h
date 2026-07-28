@@ -14,6 +14,8 @@ struct ConnState
     bool pauseByMemory = false; // readBuffer 可读数据超限，暂停读
     bool wantWrite = false;
     bool readPaused = false; // 综合读暂停标志（任一背压条件触发即为 true）
+    // 对端半关闭写方向时仍可能已有一个完整请求；先完成响应，再关闭连接。
+    bool peerClosed = false;
 };
 
 // 这一段其实仍然需要拷贝，不过相较于第一代其实已经节省了很多的复制，不过这还不是最优的零拷贝

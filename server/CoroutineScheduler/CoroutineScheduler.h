@@ -14,6 +14,7 @@ enum class AwaitType
     NONE,
     READ,
     WRITE,
+    EXECUTE,
     TIMER
 };
 // 用于保存handle

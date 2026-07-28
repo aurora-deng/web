@@ -35,4 +35,25 @@ private:
     SubReactor *reactor;
 };
 
+
+/**
+ * @brief 执行等待器（协程 awaiter）
+ *
+ * 用于协程挂起等待 Executor 完成 handler 执行。
+ * 与 ReadAwaiter/WriteAwaiter 不同，不注册 epoll 事件，
+ * 而是等待 Worker 线程完成后通过 completeQueue 唤醒。
+ */
+class ExecuteAwaiter
+{
+public:
+    ExecuteAwaiter(SubReactor *reactor, int fd) : reactor(reactor), fd(fd) {}
+    bool await_ready();
+    bool await_suspend(std::coroutine_handle<> h);
+    void await_resume();
+
+private:
+    int fd;
+    SubReactor *reactor;
+};
+
 #endif

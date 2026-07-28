@@ -24,6 +24,7 @@
 #include <sys/sendfile.h>
 #include <utility>
 #include <coroutine>
+#include <stdexcept>
 
 #include "server/timer/TimeWheel.h"
 #include "server/http/http.h"
@@ -45,6 +46,7 @@
 #include "server/http/HttpParser/HttpParser.h"
 #include "server/http/HttpCodec/HttpCodec.h"
 #include "server/http/ResponseSender/ResponseSender.h"
+#include "server/Executor/Executor.h"
 
 #define MAX_EVENTS 1024
 #define KB(x) ((x) * 1024UL)
@@ -82,16 +84,6 @@ struct ConnTransport
     size_t pendingBytes = 0; // 统计目前fd中已经储存的请求数据的总字节量，用于控制合适的时候拒绝read数据保持待机状态
 };
 
-// 协议层：负责 HTTP 请求/响应的流水线管理
-// 协议层：本版本按连接串行处理请求，只保存连接复用状态。
-struct ConnProtocol
-{
-    bool keepAlive = true;
-    HttpParser parser;
-    HttpRequest currentRequest;
-    //                                                       //  用于高并发下回复一致性
-    // uint64_t nextRequestSeq = 0;                          // 生成请求编号
-};
 
 // 定时器层：负责连接超时管理
 struct ConnTimer
@@ -102,10 +94,7 @@ struct ConnTimer
 
 struct Connection
 {
-    // 分层成员保留清晰职责；下面的引用别名兼容现有调用点。引用成员绑定后不可重定向，
-    // 因此 Connection 禁止复制和移动，始终由 conns 中的 unique_ptr 提供稳定地址。
     ConnTransport transport; // 传输层
-    ConnProtocol protocol;   // 协议层
     ConnTimer timer;         // 定时器层
     // session 由 Connection 持有，调度器在协程存活期间还会保留共享所有权；
     // 这样连接从 conns 删除后，已唤醒的协程仍可安全执行到 co_return，而不会访问已析构 session。
@@ -117,14 +106,10 @@ struct Connection
     ConnState &state = transport.state;
     size_t &pendingBytes = transport.pendingBytes;
 
-    bool &keepAlive = protocol.keepAlive;
 
     uint64_t &expireSlot = timer.expireSlot;
     bool &inWheel = timer.inWheel;
-    HttpParser &parser = protocol.parser;
 
-    HttpRequest &currentRequest = protocol.currentRequest;
-    std::deque<HttpResponse> responses;
 
     Connection() = default;
     Connection(const Connection &) = delete;
@@ -152,38 +137,63 @@ public:
     int epfd;
     std::unordered_map<int, std::unique_ptr<Connection>> conns; // 接受发送类
     std::thread th;
+    std::atomic<bool> running{true};        //使用原子化处理，来判断是否运行
     int event_fd;
     size_t slotNum = 60; // 时间槽数量
     int timeout = 30;    // 超时时间
 
     // notified 合并连续 eventfd 写入，避免高并发接入时为每个 fd 都触发一次系统调用。
     std::atomic<bool> notified{false};
-    Router &router;
 
     std::queue<int> pendingFds;
     std::mutex pending_mtx;
     TimerWheel wheel;
     SegmentPool segPool;
     ResponseSender sender;
-    HttpCodec codec;
+    // Codec 与 Executor 由 ServerRuntime 统一管理；所有 SubReactor 只借用，
+    // 避免每个 Reactor 各自创建一组 Worker 导致线程数平方级膨胀，所以使用地址引用。
+    HttpCodec &codec;
+    Executor &executor;
 
+    // Worker 线程完成后通过 completeQueue 通知 Reactor 线程
+    std::mutex completeMtx;
+    std::queue<std::pair<int, uint64_t>> completeQueue;
+    // 僵尸协程唤醒表：fd_close 时协程正在 Executor 中执行，连接被删除后
+    // Worker 完成时通过 connId 在此查找 handle 并直接调度，防止协程泄漏。
+    std::unordered_map<uint64_t, std::coroutine_handle<>> zombieWakes;
+    
     // 调度器是协程句柄的统一排队和销毁点，避免 I/O 回调直接 resume/destroy 造成重入或悬空句柄。
     CoroutineScheduler scheduler;
 
-    SubReactor(Router &router)
-        : router(router),
-          wheel(slotNum, timeout),
+    SubReactor(HttpCodec &codec, Executor &executor)
+        : wheel(slotNum, timeout),
           sender(segPool, wheel),
-          codec(router)
+          codec(codec),
+          executor(executor)
     {
         // eventfd 把主线程投递转换为本 Reactor 的普通可读事件，使连接注册仍在所有者线程执行。
-        epfd = epoll_create(1);
+        epfd = epoll_create1(EPOLL_CLOEXEC);
+        if (epfd == -1)
+            throw std::runtime_error(std::string("subreactor epoll_create1: ") + strerror(errno));
+
         // 用于实现多线程之间通信 + 唤醒 epoll
         event_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+
+        if (event_fd == -1)
+        {
+            close(epfd);
+            throw std::runtime_error(std::string("subreactor eventfd: ") + strerror(errno));
+        }
         epoll_event ev{};
         ev.events = EPOLLIN;
         ev.data.fd = event_fd;
-        epoll_ctl(epfd, EPOLL_CTL_ADD, event_fd, &ev);
+        if (epoll_ctl(epfd, EPOLL_CTL_ADD, event_fd, &ev) == -1)
+        {
+            close(event_fd);
+            close(epfd);
+            throw std::runtime_error(std::string("subreactor epoll_ctl: ") + strerror(errno));
+        }
+
         wheel.setCloseCallbace(
             [this](int fd)
             {
@@ -206,9 +216,12 @@ public:
                 }
             });
     }
+    ~SubReactor();
     void run();
+    void stop();
+    void join();
     // 统一套接字关闭
-    void fd_close(int fd, std::string reason, bool fromCoroutine = false);
+    void fd_close(int fd, std::string_view reason, bool fromCoroutine = false);
 
     // 设置fd为非堵塞，对于新添加的fd都要使用
     void fd_unblock(int fd);
@@ -222,11 +235,14 @@ public:
     void wakeReadCoroutine(int fd);
     // 写入函数
     void wakeWriteCoroutine(int fd);
-    // // 使用response多态继承之后统一发送函数
-    // void handleWrite(Connection &conn);
+    // 唤醒执行完成的协程（由 processComplete 调用）
+    void wakeExecuteCoroutine(int fd);
+    // Worker 线程完成 handler 后调用（线程安全），投递完成通知
+    void notifyExecuteComplete(int fd, uint64_t connId);
+    // Reactor 线程消费完成队列，唤醒对应协程
+    void processComplete();
 
     RecvState recvSocket(int fd);
-    ParseState parseOneRequest(HttpRequest &req, Connection &conn);
     // 段错误修复处：处理待添加的 fd 队列，由 SubReactor 线程调用
     void processPendingFds();
 

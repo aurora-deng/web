@@ -6,15 +6,17 @@
 #include"server/CoroutineScheduler/Task.h"
 #include "server/CoroutineScheduler/CoroutineScheduler.h"
 #include"server/http/RequestContext/RequestContext.h"
+#include "server/http/HttpParser/HttpParser.h"
 
 class SubReactor;
 // SessionState 描述一个连接上串行请求的主流程。状态显式化后，读等待、业务执行和写等待
 // 不会在回调中交叉重入，也为后续增加观测指标或超时策略提供稳定阶段。
 enum class SessionState
 {
-    READ_REQUEST,
-    EXECUTE,
-    SEND_RESPONSE,
+    READING,
+    PARSING,
+    EXECUTING,
+    WRITING,
     CLOSED
 };
 enum class RequestReadResult
@@ -44,7 +46,11 @@ class HttpSession
 private:
     SubReactor* reactor=nullptr;
     int fd=-1;
-    SessionState state=SessionState::READ_REQUEST;
+     // HTTP 生命周期完全属于 Session；Connection 只保留 fd、Buffer 和套接字状态。
+    HttpParser parser_;
+    RequestContext context_;
+    bool keepAlive_=true;
+    SessionState state=SessionState::READING;
 public:
     CoroutineContext coroutine_context;
     explicit HttpSession(int fd,SubReactor* r):reactor(r),fd(fd){
@@ -52,10 +58,9 @@ public:
     }
     Connection * getConn();
     void afterSend();
-    // bool sendResponse(RequestContext &ctx);
-    // bool execute(RequestContext &ctx);
-    RequestReadResult readRequest(RequestContext &ctx);
-    Task<void> run();   
+    RequestReadResult readRequest();
+    SessionState sessionState() const { return state; }
+    Task<void> run();    
 
 };
 

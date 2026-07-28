@@ -65,3 +65,38 @@ bool WriteAwaiter::await_suspend(std::coroutine_handle<> h)
 void WriteAwaiter::await_resume()
 {
 }
+
+
+
+// ExecuteAwaiter: 挂起协程等待 Executor 完成 handler 执行。
+// 不注册 epoll 事件，由 SubReactor::processComplete 在 Worker 完成后唤醒。
+bool ExecuteAwaiter::await_ready()
+{
+    // 连接已关闭时不挂起，让协程继续走 getConn()==nullptr 的退出路径
+    auto it = reactor->conns.find(fd);
+    return it == reactor->conns.end() || it->second->state.closed;
+}
+
+bool ExecuteAwaiter::await_suspend(std::coroutine_handle<> h)
+{
+    auto it = reactor->conns.find(fd);
+    if (it == reactor->conns.end() || it->second->state.closed)
+        return false; // 连接已关闭，不挂起
+
+    auto &conn = *it->second;
+    conn.session->coroutine_context.handle = h;
+    conn.session->coroutine_context.state = AwaitType::EXECUTE;
+    conn.session->coroutine_context.waiting = true;
+    // 不注册 epoll 事件：唤醒由 processComplete → wakeExecuteCoroutine 完成
+    return true;
+}
+
+void ExecuteAwaiter::await_resume()
+{
+    // 清理 waiting 状态；连接可能已关闭，查表失败是合法路径
+    auto it = reactor->conns.find(fd);
+    // 判断是否可以直接唤醒
+    if (it == reactor->conns.end() || it->second->state.closed)
+        return;
+    it->second->session->coroutine_context.waiting = false;
+}

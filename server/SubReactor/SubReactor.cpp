@@ -4,12 +4,40 @@
 #include <chrono>
 std::atomic<uint64_t> global_conn_id{0}; // 自增
 
-// 统一小写
-static inline std::string toLower(std::string s)
+SubReactor::~SubReactor()
 {
-    for (char &c : s)
-        c = std::tolower((unsigned char)c);
-    return s;
+    // 先停止后散出
+    stop();
+    join();
+
+    // 线程退出后不再有 epoll/连接表并发访问；直接关闭传输资源。
+    // 协程帧随后由 CoroutineScheduler 析构统一销毁。
+    for (auto &[fd, _] : conns)
+        close(fd);
+    conns.clear();
+    if (event_fd >= 0)
+        close(event_fd);
+    if (epfd >= 0)
+        close(epfd);
+}
+
+// 线程关闭策略
+void SubReactor::join()
+{
+    if (th.joinable())
+        th.join();
+}
+
+// 使用关闭触发唤醒策略，如果关闭就发送fd使得epoll知道，逻辑参考单个reactor里面的函数
+void SubReactor::stop()
+{
+    // 判断是否早已关闭
+    if (!running.exchange(false))
+        return;
+    uint64_t one = 1;
+    // 发送关闭通知
+    if (event_fd >= 0)
+        (void)write(event_fd, &one, sizeof(one));
 }
 
 void SubReactor::updateEvent(int fd)
@@ -73,66 +101,111 @@ void SubReactor::wakeWriteCoroutine(int fd)
         scheduler.schedule(h);
     }
 }
-// void SubReactor::handleWrite(Connection &conn)
-// {
-//     auto state = sender.send(conn.fd, conn.);
 
-//     switch (state)
-//     {
+// 由于在io端的线程和在业务端的线程分离，所以协程唤醒需要有单独的函数来实现唤醒
+// 唤醒执行完成的协程：Worker 线程完成 handler 后通过 processComplete 调用。
+void SubReactor::wakeExecuteCoroutine(int fd)
+{
+    auto it = conns.find(fd);
+    if (it == conns.end())
+        return;
+    auto &ctx = it->second->session->coroutine_context;
+    if (ctx.state != AwaitType::EXECUTE)
+        return;
+    if (!ctx.handle)
+        return;
+    ctx.state = AwaitType::NONE;
+    ctx.waiting = false;
+    scheduler.schedule(ctx.handle);
+}
 
-//     case SEND_OK:
+// Worker 线程调用（线程安全）：投递完成通知到 completeQueue，并通过 eventfd 唤醒 Reactor。
+// 跨线程通信通知函数，通知work线程工作，实现队列缓存，保障跨线程通信安全，同时使用write提醒竹reactor
+void SubReactor::notifyExecuteComplete(int fd, uint64_t connId)
+{
+    {
+        std::lock_guard<std::mutex> lock(completeMtx);
+        completeQueue.push({fd, connId});
+    }
+    if (!notified.exchange(true))
+    {
+        uint64_t one = 1;
+        if (write(event_fd, &one, sizeof(one)) == -1)
+        {
+            if (errno != EAGAIN)
+            {
+                LOG_INFO(std::string("notifyExecuteComplete eventfd write error: ") + strerror(errno));
+            }
+        }
+    }
+}
 
-//         finishResponse(conn);
+// Reactor 线程消费（业务处理完成）完成队列：匹配 connId 后唤醒对应协程。
+// 批量交换队列减少锁竞争，处理僵尸唤醒防止协程泄漏。
+void SubReactor::processComplete()
+{
+    std::queue<std::pair<int, uint64_t>> local;
+    {
+        std::lock_guard<std::mutex> lock(completeMtx);
+        local.swap(completeQueue);
+    }
+    while (!local.empty())
+    {
+        auto [fd, connId] = local.front();
+        local.pop();
 
-//         break;
+        auto it = conns.find(fd);
+        if (it != conns.end() && it->second->id == connId)
+        {
+            wakeExecuteCoroutine(fd);
+            continue;
+        }
+        // 连接已关闭：检查僵尸唤醒表，防止协程泄漏
+        auto zit = zombieWakes.find(connId);
+        if (zit != zombieWakes.end())
+        {
+            auto h = zit->second;
+            zombieWakes.erase(zit);
+            if (h && !h.done())
+                scheduler.schedule(h);
+        }
+    }
+}
 
-//     case SEND_AGAIN:
 
-//         enableWrite(conn.fd);
-
-//         break;
-
-//     case SEND_CLOSED:
-
-//         close(conn.fd);
-
-//         break;
-//     }
-// }
-// 统一套接字关闭
-// 优化：防止其他的线程来杀死我当前线程的fd
-void SubReactor::fd_close(int fd, std::string reason, bool fromCoroutine)
+// 统一套接字关闭，并维持"只有所属 Reactor 关闭连接"的所有权规则。
+void SubReactor::fd_close(int fd, std::string_view reason, bool fromCoroutine)
 {
     auto it = conns.find(fd);
     if (it == conns.end())
         return;
 
-    // 优化： 段错误修复处：移除误导性的 strerror(errno)，errno 可能是上一次系统调用残留的值
-    // "Resource temporarily unavailable" 就是残留的 EAGAIN，与关闭操作无关
-    // 性能修复处：原代码每个连接关闭都 cout + endl，wrk 结束时 1000 连接同时关闭 → cout 锁串行化
-    // 改用异步 Logger，不阻塞 SubReactor 线程
-    LOG_DEBUG(std::string("[CLOSE] fd=") + std::to_string(fd) + " reason=" + reason);
+   
+     LOG_DEBUG(std::string("[CLOSE] fd=") + std::to_string(fd) + " reason=" + std::string(reason));
     // 优化：加上状态检查，防止当某fd已经关闭之后重复关闭或者关闭之后任然在fd
     if (it->second->state.closed)
         return;
 
-    // 协程安全修复：区分「协程内关闭」和「外部关闭」
-    // 关键原则：绝不在 fd_close 中 h.destroy() 协程
-    // 因为 readyQueue 中可能还有该 handle，destroy 后 resume 是 UB
-    // 外部关闭唤醒协程收尾；final_suspend 后由 scheduler.reap 统一销毁。
+   
     std::coroutine_handle<> coroutineToWake;
     auto h = it->second->session->coroutine_context.handle;
+    // 判断是否还在执行
+    bool wasExecuting = it->second->session->coroutine_context.state == AwaitType::EXECUTE;
+    uint64_t connId = it->second->id;
     if (h)
     {
         it->second->session->coroutine_context.handle = nullptr;
         it->second->session->coroutine_context.state = AwaitType::NONE;
 
-        if (!fromCoroutine)
+        if (!fromCoroutine && !wasExecuting)
         {
-            // 外部关闭：唤醒挂起中的协程，让它检测到 closed 后自行 co_return
-            // 不能在 conns.erase 之前 resume（否则协程可能访问正在被删除的 conn）
-            // 只记录 handle，等 conns.erase 之后再 add 到 readyQueue
             coroutineToWake = h;
+        }else if (!fromCoroutine && wasExecuting)
+        {
+            // 协程在 Executor 中执行，连接将被删除。
+            // 将 handle 存入 zombieWakes，Worker 完成后 processComplete 会通过 connId
+            // 找到并调度它，让协程恢复后通过 getConn()==nullptr 安全退出。
+            zombieWakes[connId] = h;
         }
         // fromCoroutine: 协程自己调用 fd_close 后会 co_return 自然结束，无需额外操作
     }
@@ -145,9 +218,7 @@ void SubReactor::fd_close(int fd, std::string reason, bool fromCoroutine)
     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
     conns.erase(it);
-    // printf("close fd=%d\n", fd);
-    // 在 conns.erase 之后唤醒协程（此时 conns[fd] 已不存在）
-    // 协程 resume 后 session 中 conns.find(fd) 返回 end() → co_return
+    // 重新唤醒
     if (coroutineToWake)
     {
         scheduler.schedule(coroutineToWake);
@@ -170,7 +241,7 @@ void SubReactor::rearm(int fd, uint32_t events)
     if (it->second->state.closed)
         return;
     epoll_event ev{};
-    ev.events = EPOLLONESHOT | EPOLLET | events;
+    ev.events = EPOLLONESHOT | EPOLLET | EPOLLRDHUP | events;
     ev.data.fd = fd;
     if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev) == -1)
     {
@@ -185,7 +256,6 @@ void SubReactor::run()
                      {
             // 放置要处理的业务逻辑函数
             loop(); });
-    th.detach(); // 使用完之后删除该线程
 }
 
 RecvState SubReactor::recvSocket(int fd)
@@ -209,7 +279,7 @@ RecvState SubReactor::recvSocket(int fd)
         return RecvState::PAUSED;
     }
     // 开始接受数据
-    while (true)
+     while (running.load(std::memory_order_acquire))
     {
         // 性能修复处：recv 缓冲区从 8KB 提升到 64KB
         // 原代码每次最多读 8KB， 请求需要多次 recv 系统调用
@@ -239,9 +309,10 @@ RecvState SubReactor::recvSocket(int fd)
         }
         else if (res == 0)
         {
-            // printf("对端数据已经下线\n");
-            fd_close(fd, "对端数据已经下线", true);
-            return RecvState::CLOSED;
+            // TCP FIN 可能和最后一个完整请求同时到达。立即 fd_close 会丢弃已经读入的请求；
+            // 记录半关闭状态，让 Session 在能够完整解析时发完最后一个响应。
+            conn.state.peerClosed = true;
+            break;
         }
         // printf("收到数据：%.*s\n", res, buffer);
 
@@ -263,31 +334,6 @@ RecvState SubReactor::recvSocket(int fd)
     return RecvState::READY;
 }
 
-ParseState SubReactor::parseOneRequest(HttpRequest &req, Connection &conn)
-{
-    // codec封装使用
-    ParseState state = codec.decode(conn, req);
-
-    if (state != PARSE_OK)
-    {
-        return state;
-    }
-    conn.pendingBytes = conn.readBuffer.readableBytes();
-    if (conn.pendingBytes < MAX_PENDING_BYTES)
-        conn.state.pauseByMemory = false;
-    return PARSE_OK;
-}
-
-HttpResponse *SubReactor::createResponse(HttpRequest &req, bool keepAlive)
-{
-    auto resp = responsePool.acquire();
-    resp->keepAlive = keepAlive;
-    return resp;
-}
-
-void SubReactor::finishReaponse()
-{
-}
 
 void SubReactor::loop()
 {
@@ -301,7 +347,13 @@ void SubReactor::loop()
         // 原代码 1000ms 导致新事件最多等 1 秒才被处理，高并发下延迟飙升
         // 100ms 在响应性和 CPU 占用之间取得平衡，同时保证时间轮每秒 tick 精度
         int n = epoll_wait(epfd, events, MAX_EVENTS, 100);
-
+        if (n < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            LOG_ERROR(std::string("subreactor epoll_wait: ") + strerror(errno));
+            break;
+        }
         for (int i = 0; i < n; i++)
         {
             int fd = events[i].data.fd;
@@ -321,21 +373,28 @@ void SubReactor::loop()
                 // 段错误修复处：先处理待添加的 fd，再处理任务结果
                 // 确保所有对 conns/wheel/epoll_ctl 的操作都在 SubReactor 线程中完成
                 processPendingFds();
+                processComplete();
             }
             else
             {
-                if (events[i].events & (EPOLLERR | EPOLLHUP))
+                if (events[i].events & EPOLLERR)
                 {
-                    fd_close(fd, "epoll error or hangup");
+                    fd_close(fd, "epoll error");
                     continue;
                 }
-
+                // 处理半关闭情况，主要就是防止出现信息还没有发送完直接关闭连接了
+                if (events[i].events & (EPOLLHUP | EPOLLRDHUP))
+                {
+                    auto it = conns.find(fd);
+                    if (it != conns.end())
+                        it->second->state.peerClosed = true;
+                }
                 if (events[i].events & EPOLLOUT) //-------处理write-send发出
                 {
                     wakeWriteCoroutine(fd);
                 }
 
-                if (events[i].events & EPOLLIN) // 处理监听接受
+                if (events[i].events & (EPOLLIN | EPOLLHUP | EPOLLRDHUP)) // 处理监听接受/半关闭
                 {
                     wakeReadCoroutine(fd);
                 }
@@ -363,6 +422,12 @@ void SubReactor::loop()
 // 导致 unordered_map rehash 时迭代器失效 → free(): invalid pointer
 void SubReactor::addFd(int fd)
 {
+    // 判断当前线程是否已经运行
+    if (!running.load(std::memory_order_acquire))
+    {
+        close(fd);
+        return;
+    }
     // 设置为非堵塞（fcntl 是系统调用，线程安全，可以在主线程做）
     fd_unblock(fd);
 
@@ -390,19 +455,19 @@ void SubReactor::addFd(int fd)
 // 所有对 conns/wheel/epoll_ctl 的操作都在 SubReactor 线程中完成，消除数据竞争
 void SubReactor::processPendingFds()
 {
-    while (true)
+    // 直接交换获得所有数据到本地来慢慢处理
+    std::queue<int> local;
     {
-        int fd;
-        {
-            std::lock_guard<std::mutex> lock(pending_mtx);
-            if (pendingFds.empty())
-                break;
-            fd = pendingFds.front();
-            pendingFds.pop();
-        }
+        std::lock_guard<std::mutex> lock(pending_mtx);
+        local.swap(pendingFds);
+    }
+    while (!local.empty())
+    {
+        int fd = local.front();
+        local.pop();
 
         epoll_event ev{};
-        ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+        ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT | EPOLLRDHUP;
         ev.data.fd = fd;
         epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
 

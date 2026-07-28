@@ -3,6 +3,10 @@
 #define HTTP_PARSER_H
 
 #include "../http.h"
+#include "ParserUtils.h"
+#include "RequestLineParser.h"
+#include "HeaderParser.h"
+#include "BodyParser.h"
 
 enum class ParseStage
 {
@@ -20,49 +24,46 @@ enum class ParseStage
 // 负责解析
 // 增量 HTTP/1.x 请求解析器。它只消费已确认完整且合法的字节，未完成数据留在 Buffer，
 // 因而能正确处理半包和粘包；三类大小上限则在分配大对象前拒绝异常输入，约束单连接资源占用。
+//
+// 解析逻辑被拆分为三个栈上子解析器：RequestLineParser、HeaderParser、BodyParser。
+// HttpParser 保留 stage 状态机，负责协调三个子解析器并在它们之间传递 framing 状态
+// （keepAlive、contentLength、chunked、headerBytes 等）。
 class HttpParser
 {
 public:
-    static constexpr size_t MAX_REQUEST_LINE_BYTES = 8 * 1024;
-    static constexpr size_t MAX_HEADER_BYTES = 64 * 1024;
-    static constexpr size_t MAX_BODY_BYTES = 1024 * 1024;
+    static constexpr size_t MAX_REQUEST_LINE_BYTES = kMaxRequestLineBytes;
+    static constexpr size_t MAX_HEADER_BYTES = kMaxHeaderBytes;
+    static constexpr size_t MAX_BODY_BYTES = kMaxBodyBytes;
     ParseState parse(Buffer &buffer, HttpRequest &req);
     void reset();
     size_t getContentLength() const
     {
-        return contentLength;
+        return headerParser_.contentLength();
     }
 
     bool keepAlive() const
     {
-        return keepAlive_;
+        return headerParser_.keepAlive();
+    }
+
+    bool chunked() const
+    {
+        return headerParser_.chunked();
+    }
+
+    const RangeInfo &range() const
+    {
+        return headerParser_.range();
     }
 
 private:
     ParseStage stage = ParseStage::REQUEST_LINE;
 
-    size_t contentLength = 0;
+    bool resultDelivered_ = false;
 
-    bool keepAlive_ = true;
-
-    bool hasRange = false;
-
-    RangeInfo range;
-    bool headerFinished = false;
-
-    // chunked 与 Content-Length 互斥，避免请求边界歧义带来的请求走私风险。
-    bool chunked = false;
-    bool hasContentLength = false;
-    size_t currentChunkSize = 0;
-    // headerBytes 同时累计普通头和 trailer，bodyBytes 累计所有 chunk，
-    // 防止攻击者通过拆成多行或多个小块绕过单次长度检查。
-    size_t headerBytes = 0;
-    size_t bodyBytes = 0;
-    ParseState parseRequestLine(Buffer &, HttpRequest &);
-    ParseState parseHeaders(Buffer &, HttpRequest &);
-    ParseState parseChunkSize(Buffer &);
-    ParseState parseChunkData(Buffer &buf, HttpRequest &req);
-    ParseState parseChunkTrailers(Buffer& buf);
-    ParseState parseBody(Buffer &, HttpRequest &);
+    // 三个子解析器均为栈上成员对象，无需动态分配。
+    RequestLineParser requestLineParser_;
+    HeaderParser headerParser_;
+    BodyParser bodyParser_;
 };
 #endif
