@@ -3,20 +3,35 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/epoll.h>
+#include <sys/eventfd.h>
 #include <cstring>
 #include <thread>
-#include <signal.h>
+#include <csignal>
 #include <iostream>
 #include <stdexcept>
 #include <algorithm>
 #include <netinet/tcp.h>
+#include <atomic>
 
 #include "log/logger/logger.h"
 #include "server/http/RequestContext/RequestContext.h"
+
+namespace
+{
+    std::atomic<ServerRuntime *> g_runtime{nullptr};
+
+    void handleStopSignal(int)
+    {
+        // 仅做 async-signal-safe 操作：置位并由 eventfd 唤醒 accept 循环。
+        if (auto *runtime = g_runtime.load(std::memory_order_acquire))
+            runtime->requestStop();
+    }
+} // namespace
 
 ServerRuntime::ServerRuntime()
     : router_(std::make_shared<Router>()),
@@ -29,17 +44,26 @@ ServerRuntime::ServerRuntime()
 
 ServerRuntime::~ServerRuntime()
 {
+    requestStop();
     // 先停止并 join Reactor，确保不会再向 Executor 提交任务；成员析构随后先 drain
     // Executor，再销毁仍持有 Session/协程帧的 Reactor，避免 shutdown 期间悬空访问。
     if (reactorGroup_)
     {
-        reactorGroup_->stop();
-        reactorGroup_->join();
-    }
-    if (listenFd_ >= 0)
         close(listenFd_);
+        listenFd_ = -1;
+    }
+    if (wakeFd_ >= 0)
+    {
+        close(wakeFd_);
+        wakeFd_ = -1;
+    }
     if (epfd_ >= 0)
+    {
         close(epfd_);
+        epfd_ = -1;
+    }
+    if (g_runtime.load(std::memory_order_acquire) == this)
+        g_runtime.store(nullptr, std::memory_order_release);
 }
 
 // 由于本次架构实现的是一io接受+多reactor组，所以每个reactor组也需要有对应的监听
@@ -95,6 +119,10 @@ void ServerRuntime::setupListener()
         throw std::runtime_error(std::string("epoll_create1: ") + strerror(errno));
     }
 
+    wakeFd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+    if (wakeFd_ < 0)
+        throw std::runtime_error(std::string("eventfd wake: ") + strerror(errno));
+
     // 定义epoll事件结构体，零初始化
     epoll_event ev{};
     ev.events = EPOLLIN | EPOLLET; // EPOLLIN：监听可读事件（新连接到达）；EPOLLET：开启边缘触发模式
@@ -105,8 +133,37 @@ void ServerRuntime::setupListener()
     if (epoll_ctl(epfd_, EPOLL_CTL_ADD, listenFd_, &ev) == -1)
         throw std::runtime_error(std::string("epoll_ctl listener: ") + strerror(errno));
 
+    ev.events = EPOLLIN;
+    ev.data.fd = wakeFd_;
+    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, wakeFd_, &ev) == -1)
+        throw std::runtime_error(std::string("epoll_ctl wake: ") + strerror(errno));
+
     // 服务初始化完成，打印启动日志
     std::cout << "server started..." << std::endl;
+}
+
+
+void ServerRuntime::requestStop()
+{
+    running_.store(false, std::memory_order_release);
+    if (wakeFd_ >= 0)
+    {
+        uint64_t one = 1;
+        (void)write(wakeFd_, &one, sizeof(one));
+    }
+}
+
+
+void ServerRuntime::releaseListener()
+{
+    // 尽早关闭 listen，把 8080 还给系统；不必等 Reactor join 结束。
+    if (listenFd_ >= 0)
+    {
+        if (epfd_ >= 0)
+            (void)epoll_ctl(epfd_, EPOLL_CTL_DEL, listenFd_, nullptr);
+        close(listenFd_);
+        listenFd_ = -1;
+    }
 }
 
 void ServerRuntime::createReactors()
@@ -128,7 +185,7 @@ void ServerRuntime::acceptLoop()
 {
     // 开始接收来自reactor发送或者触发的信息给到reactors
     epoll_event events[1024];
-    while (true)
+    while (running_.load(std::memory_order_acquire))
     {
         int n = epoll_wait(epfd_, events, 1024, -1);
         if (n < 0)
@@ -137,21 +194,32 @@ void ServerRuntime::acceptLoop()
                 continue;
             throw std::runtime_error(std::string("acceptor epoll_wait: ") + strerror(errno));
         }
+
+        if (!running_.load(std::memory_order_acquire))
+            break;
+        
         for (int i = 0; i < n; i++)
         {
             int fd = events[i].data.fd;
+            if (fd == wakeFd_)
+            {
+                uint64_t cnt = 0;
+                while (read(wakeFd_, &cnt, sizeof(cnt)) > 0)
+                    ;
+                continue;
+            }
             if (fd == listenFd_)
             {
                 struct sockaddr_in cin{};
                 socklen_t socklen = sizeof(cin);
-                while (true)
+                while (running_.load(std::memory_order_acquire))
                 {
                     int newfd = accept4(
                         listenFd_,
                         reinterpret_cast<sockaddr *>(&cin),
                         &socklen,
                         SOCK_NONBLOCK | SOCK_CLOEXEC);
-                    
+
                     if (newfd == -1)
                     {
                         if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -161,8 +229,24 @@ void ServerRuntime::acceptLoop()
                         LOG_ERROR(std::string("accept error") + strerror(errno));
                         break;
                     }
+                   
+                    // 关闭 Nagle，避免小响应头/体分写触发 Delayed ACK ~40ms 地板。
                     int yes = 1;
-                    setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
+                    if (setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) == -1)
+                    {
+                        LOG_ERROR(std::string("TCP_NODELAY: ") + strerror(errno));
+                        close(newfd);
+                        continue;
+                    }
+
+                    if (maxConnections_ > 0 &&
+                        reactorGroup_->activeConnections() >= maxConnections_)
+                    {
+                        // accept 侧软限流：超额连接立即关闭，避免无界占满 fd/内存。
+                        close(newfd);
+                        continue;
+                    }
+
                     LOG_INFO(std::string("new connection fd=") + std::to_string(newfd));
                     reactorGroup_->dispatch(newfd);
                 }
@@ -175,5 +259,21 @@ void ServerRuntime::start()
 {
     setupListener();
     createReactors();
+     g_runtime.store(this, std::memory_order_release);
+    std::signal(SIGINT, handleStopSignal);
+    std::signal(SIGTERM, handleStopSignal);
+
     acceptLoop();
+
+    // Ctrl+C 路径：立刻释放监听端口，再回收 Reactor，避免 join 期间端口仍被占用。
+    releaseListener();
+    
+    // 停止接受后回收 Reactor，再返回；Executor 随成员析构 drain。
+    if (reactorGroup_)
+    {
+        reactorGroup_->stop();
+        reactorGroup_->join();
+    }
+    g_runtime.store(nullptr, std::memory_order_release);
+    std::cout << "server stopped." << std::endl;
 }

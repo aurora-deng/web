@@ -379,7 +379,7 @@ Task<void> HttpSession::run()
                 state = SessionState::CLOSED;
                 co_return;
             }
-            // 调用底层发送器发送响应数据
+            // 调用底层发送器发送响应数据,触发发送函数
             const auto sendState = reactor->sender.send(fd, *response);
             switch (sendState)
             {

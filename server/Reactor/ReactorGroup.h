@@ -25,6 +25,7 @@ public:
     void stop();
     void join();
     size_t size() const { return reactors_.size(); }
+    size_t activeConnections() const;
 
 private:
     HttpCodec &codec_;

@@ -218,6 +218,8 @@ void SubReactor::fd_close(int fd, std::string_view reason, bool fromCoroutine)
     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
     conns.erase(it);
+    activeConns_.fetch_sub(1, std::memory_order_relaxed);
+
     // 重新唤醒
     if (coroutineToWake)
     {
@@ -340,13 +342,16 @@ void SubReactor::loop()
     // 创建epoll储存大小
     epoll_event events[MAX_EVENTS];
     auto last = std::chrono::steady_clock::now();
-    while (true)
+    // stop() 会清 running 并写 eventfd；必须在每次 wait 后检查，否则 join() 永久挂起。
+    while (running.load(std::memory_order_acquire))
     {
         // 开始监听epfd并将数据存放到events中,优化100ms无连接超时
         // 性能修复处：epoll_wait 超时从 1000ms 降为 100ms
         // 原代码 1000ms 导致新事件最多等 1 秒才被处理，高并发下延迟飙升
         // 100ms 在响应性和 CPU 占用之间取得平衡，同时保证时间轮每秒 tick 精度
         int n = epoll_wait(epfd, events, MAX_EVENTS, 100);
+        if (!running.load(std::memory_order_acquire))
+            break;
         if (n < 0)
         {
             if (errno == EINTR)
@@ -466,6 +471,12 @@ void SubReactor::processPendingFds()
         int fd = local.front();
         local.pop();
 
+        if (!running.load(std::memory_order_acquire))
+        {
+            close(fd);
+            continue;
+        }
+
         epoll_event ev{};
         ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT | EPOLLRDHUP;
         ev.data.fd = fd;
@@ -480,6 +491,7 @@ void SubReactor::processPendingFds()
 
         auto *raw = conn.get();
         conns.emplace(fd, std::move(conn));
+        activeConns_.fetch_add(1, std::memory_order_relaxed);
 
         raw->session = std::make_shared<HttpSession>(fd, this);
         // conns[fd] = conn;

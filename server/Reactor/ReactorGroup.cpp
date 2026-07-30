@@ -54,3 +54,12 @@ void ReactorGroup::join()
     for (auto &reactor : reactors_)
         reactor->join();
 }
+
+
+size_t ReactorGroup::activeConnections() const
+{
+    size_t total = 0;
+    for (const auto &reactor : reactors_)
+        total += reactor->activeConnections();
+    return total;
+}

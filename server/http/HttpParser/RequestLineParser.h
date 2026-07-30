@@ -12,6 +12,7 @@
 // 负责解析 HTTP 请求行（method raw_path version）及 query 参数。
 // 请求行有自己的长度上限，半行数据保持原位等待下一次 recv；
 // HTTP/1.1 默认 keep-alive，HTTP/1.0 默认 close，后续由 HeaderParser 根据 Connection 头覆盖。
+// 解析请求请求头
 class RequestLineParser
 {
 public:

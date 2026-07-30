@@ -138,6 +138,7 @@ public:
     std::unordered_map<int, std::unique_ptr<Connection>> conns; // 接受发送类
     std::thread th;
     std::atomic<bool> running{true};        //使用原子化处理，来判断是否运行
+    std::atomic<size_t> activeConns_{0};   //活跃连接计数
     int event_fd;
     size_t slotNum = 60; // 时间槽数量
     int timeout = 30;    // 超时时间
@@ -218,8 +219,12 @@ public:
     }
     ~SubReactor();
     void run();
-    void stop();
-    void join();
+    void stop();                 //停止工作函数
+    void join();                //判断是否结束线程
+    size_t activeConnections() const
+    {
+        return activeConns_.load(std::memory_order_relaxed);
+    }
     // 统一套接字关闭
     void fd_close(int fd, std::string_view reason, bool fromCoroutine = false);
 
