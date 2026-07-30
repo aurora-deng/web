@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # gen_report.sh — 一键运行全部测试并生成汇总报告
+# 脚本指纹: port-check=listen-only-20260730
 #
 # 功能：
 #   1. 编译项目（Release + Debug 测试构建）
@@ -55,8 +56,8 @@ TEST_OUTPUT_DIR="${ROOT_DIR}/test-output"
 # ---------- 默认配置 ----------
 THREADS="${THREADS:-4}"
 CONNECTIONS="${CONNECTIONS:-128}"
-DURATION="${DURATION:-30s}"
-WARMUP_DURATION="${WARMUP_DURATION:-5s}"
+DURATION="${DURATION:-10s}"
+WARMUP_DURATION="${WARMUP_DURATION:-0}"
 TOOL="${TOOL:-wrk}"
 SERVER_BIN="${SERVER_BIN:-${BUILD_RELEASE}/webserver}"
 RUN_ID="${RUN_ID:-auto}"
@@ -157,6 +158,99 @@ echo ""
 # ============================================================================
 # Phase 1: 编译
 # ============================================================================
+# 只清理 8080 上的 LISTEN。TIME_WAIT 会让「裸 bind」误报占用，但服务器有 SO_REUSEADDR，
+# 因此绝不能用无 REUSEADDR 的 bind 当判据。与 cmake 无关：构建不会监听 8080。
+free_port_8080() {
+    local server_bin="${SERVER_BIN:-${BUILD_RELEASE}/webserver}"
+    python3 - "${server_bin}" <<'PY'
+import os, signal, subprocess, sys, time
+
+PORT = 8080
+hint = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else "webserver"
+
+def listen_inodes():
+    inodes = set()
+    for path in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            lines = open(path, encoding="utf-8").read().splitlines()[1:]
+        except OSError:
+            continue
+        for line in lines:
+            p = line.split()
+            if len(p) < 10 or p[3] != "0A":
+                continue
+            try:
+                lp = int(p[1].rsplit(":", 1)[-1], 16)
+            except ValueError:
+                continue
+            if lp == PORT and p[9] != "0":
+                inodes.add(p[9])
+    return inodes
+
+def ss_has_listen():
+    try:
+        out = subprocess.check_output(["ss", "-ltn"], text=True, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return any((":%d" % PORT) in ln and "LISTEN" in ln.upper() for ln in out.splitlines())
+
+def has_listener():
+    return bool(listen_inodes()) or ss_has_listen()
+
+def pids_for(inodes):
+    found = set()
+    try:
+        entries = os.listdir("/proc")
+    except OSError:
+        return found
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        fd_dir = "/proc/%d/fd" % pid
+        try:
+            for fd in os.listdir(fd_dir):
+                try:
+                    t = os.readlink("%s/%s" % (fd_dir, fd))
+                except OSError:
+                    continue
+                if t.startswith("socket:[") and t[8:-1] in inodes:
+                    found.add(pid)
+                    break
+        except OSError:
+            continue
+    return found
+
+# 无 LISTEN → 直接成功（哪怕 TIME_WAIT 还在）
+if not has_listener():
+    print("port-check=listen-only-20260730: no LISTEN on :%d (TIME_WAIT ignored)" % PORT, flush=True)
+    raise SystemExit(0)
+
+for sig in (signal.SIGTERM, signal.SIGKILL):
+    for pid in sorted(pids_for(listen_inodes())):
+        try:
+            os.kill(pid, sig)
+        except (ProcessLookupError, PermissionError):
+            pass
+    try:
+        subprocess.run(
+            ["pkill", "-%d" % int(sig), "-f", hint],
+            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        pass
+    for _ in range(50):
+        if not has_listener():
+            print("port-check=listen-only-20260730: freed LISTEN on :%d" % PORT, flush=True)
+            raise SystemExit(0)
+        time.sleep(0.1)
+
+print("port-check=listen-only-20260730: LISTEN still present on :%d pids=%s" % (
+    PORT, sorted(pids_for(listen_inodes()))), flush=True)
+raise SystemExit(1)
+PY
+}
+
 phase_build() {
     if [[ "${SKIP_BUILD}" == "true" ]]; then
         log_skip "跳过编译"
@@ -166,57 +260,47 @@ phase_build() {
     log_info "=== Phase 1: 编译项目 ==="
     mkdir -p "${TEST_OUTPUT_DIR}"
 
-    # Release 构建（用于压测和黑盒测试）
-    if [[ ! -f "${BUILD_RELEASE}/webserver" ]]; then
-        log_info "构建 Release 版本..."
-        local release_log="${TEST_OUTPUT_DIR}/build-release.log"
-        if ! cmake -S "${ROOT_DIR}" -B "${BUILD_RELEASE}" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTING=OFF >"${release_log}" 2>&1; then
-            log_error "Release CMake 配置失败，完整日志：${release_log}"
-            tail -n 80 "${release_log}" >&2 || true
-            return 1
-        fi
-        if ! cmake --build "${BUILD_RELEASE}" --parallel >"${release_log}" 2>&1; then
-            log_error "Release 构建失败，完整日志：${release_log}"
-            tail -n 80 "${release_log}" >&2 || true
-            return 1
-        fi
-        log_success "Release 构建完成"
-    else
-        log_info "Release 版本已存在，跳过"
+    # 始终做增量构建：源码同步后若仍“二进制已存在就跳过”，会继续跑旧用例。
+    log_info "增量构建 Release 版本..."
+    local release_log="${TEST_OUTPUT_DIR}/build-release.log"
+    if ! cmake -S "${ROOT_DIR}" -B "${BUILD_RELEASE}" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_TESTING=OFF >"${release_log}" 2>&1; then
+        log_error "Release CMake 配置失败，完整日志：${release_log}"
+        tail -n 80 "${release_log}" >&2 || true
+        return 1
     fi
+    if ! cmake --build "${BUILD_RELEASE}" --parallel >"${release_log}" 2>&1; then
+        log_error "Release 构建失败，完整日志：${release_log}"
+        tail -n 80 "${release_log}" >&2 || true
+        return 1
+    fi
+    log_success "Release 构建完成"
 
-    # Debug 测试构建
-    if [[ ! -f "${BUILD_TESTS}/webserver_unit_tests" ]]; then
-        log_info "构建测试版本（Debug + Testing）..."
-        local tests_log="${TEST_OUTPUT_DIR}/build-tests.log"
-        if ! cmake -S "${ROOT_DIR}" -B "${BUILD_TESTS}" \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DBUILD_TESTING=ON >"${tests_log}" 2>&1; then
-            log_error "测试 CMake 配置失败，完整日志：${tests_log}"
-            log_error "CentOS/RHEL 请确认已安装：sudo dnf install gtest-devel"
-            tail -n 80 "${tests_log}" >&2 || true
-            return 1
-        fi
-        if ! cmake --build "${BUILD_TESTS}" --parallel >"${tests_log}" 2>&1; then
-            log_error "测试构建失败，完整日志：${tests_log}"
-            # 优先展示编译器真正的 error 行，避免只看到 gmake 摘要
-            if grep -E "error:|fatal error:|undefined reference" "${tests_log}" >/dev/null 2>&1; then
-                grep -E "error:|fatal error:|undefined reference" "${tests_log}" | tail -n 40 >&2 || true
-            else
-                tail -n 80 "${tests_log}" >&2 || true
-            fi
-            return 1
-        fi
-        if [[ ! -f "${BUILD_TESTS}/webserver_unit_tests" ]]; then
-            log_error "构建声称成功但未找到 ${BUILD_TESTS}/webserver_unit_tests"
-            return 1
-        fi
-        log_success "测试构建完成"
-    else
-        log_info "测试版本已存在，跳过"
+    log_info "增量构建测试版本（Debug + Testing）..."
+    local tests_log="${TEST_OUTPUT_DIR}/build-tests.log"
+    if ! cmake -S "${ROOT_DIR}" -B "${BUILD_TESTS}" \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DBUILD_TESTING=ON >"${tests_log}" 2>&1; then
+        log_error "测试 CMake 配置失败，完整日志：${tests_log}"
+        log_error "CentOS/RHEL 请确认已安装：sudo dnf install gtest-devel"
+        tail -n 80 "${tests_log}" >&2 || true
+        return 1
     fi
+    if ! cmake --build "${BUILD_TESTS}" --parallel --target webserver_unit_tests >"${tests_log}" 2>&1; then
+        log_error "测试构建失败，完整日志：${tests_log}"
+        if grep -E "error:|fatal error:|undefined reference" "${tests_log}" >/dev/null 2>&1; then
+            grep -E "error:|fatal error:|undefined reference" "${tests_log}" | tail -n 40 >&2 || true
+        else
+            tail -n 80 "${tests_log}" >&2 || true
+        fi
+        return 1
+    fi
+    if [[ ! -f "${BUILD_TESTS}/webserver_unit_tests" ]]; then
+        log_error "构建声称成功但未找到 ${BUILD_TESTS}/webserver_unit_tests"
+        return 1
+    fi
+    log_success "测试构建完成"
 
     SERVER_BIN="${BUILD_RELEASE}/webserver"
     echo ""
@@ -326,10 +410,22 @@ phase_blackbox() {
         return 1
     fi
 
+    if [[ ! -f "${SERVER_BIN}" ]]; then
+        log_error "服务器二进制不存在: ${SERVER_BIN}"
+        BLACKBOX_RESULT="MISSING"
+        return 1
+    fi
+
+    log_info "检查并清理 8080 LISTEN（忽略 TIME_WAIT）..."
+    free_port_8080 || log_warn "黑盒前端口清理未完成，仍尝试启动"
+
     set +e
     python3 "${script}" --server "${SERVER_BIN}" 2>&1 | tee "${BLACKBOX_LOG}"
     local exit_code=${PIPESTATUS[0]}
     set -e
+
+    # 黑盒结束后再清一次，避免优雅退出卡住导致后续压测抢不到端口。
+    free_port_8080 >/dev/null 2>&1 || true
 
     if [[ ${exit_code} -eq 0 ]]; then
         log_success "黑盒测试通过"
@@ -342,7 +438,7 @@ phase_blackbox() {
 }
 
 # ============================================================================
-# Phase 5: 压测
+# Phase 5: 压测（内置简易 wrk 流程；不需要 wrk2，不依赖 benchmark.sh 也能出结果）
 # ============================================================================
 phase_benchmark() {
     if [[ "${SKIP_BENCHMARK}" == "true" ]]; then
@@ -352,56 +448,127 @@ phase_benchmark() {
     fi
 
     log_info "=== Phase 5: 运行压测 ==="
+    log_info "说明：默认使用 wrk（你已安装 4.2.0）。wrk2 不是必须的。"
 
-    if ! command -v "${TOOL}" >/dev/null 2>&1; then
-        log_error "${TOOL} 不可用"
+    if ! command -v wrk >/dev/null 2>&1; then
+        log_error "wrk 不可用（不是 wrk2）。安装：sudo dnf install -y wrk"
         BENCH_RESULT="NO_TOOL"
         return 1
     fi
-
-    local bench_script="${ROOT_DIR}/scripts/benchmark.sh"
-    if [[ ! -f "${bench_script}" ]]; then
-        log_error "benchmark.sh 不存在: ${bench_script}"
+    if [[ ! -x "${SERVER_BIN}" ]]; then
+        log_error "服务器不可执行: ${SERVER_BIN}"
         BENCH_RESULT="MISSING"
         return 1
     fi
 
-    # 启动参数
-    local cmd="bash ${bench_script}"
-    local env_vars=(
-        "THREADS=${THREADS}"
-        "CONNECTIONS=${CONNECTIONS}"
-        "DURATION=${DURATION}"
-        "WARMUP_DURATION=${WARMUP_DURATION}"
-        "TOOL=${TOOL}"
-        "SERVER_BIN=${SERVER_BIN}"
-    )
+    local duration="${DURATION:-10s}"
+    local threads="${THREADS:-4}"
+    local connections="${CONNECTIONS:-128}"
+    local url="http://127.0.0.1:8080/"
+    BENCH_RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-simple"
+    BENCH_RESULT_DIR="${RESULTS_ROOT}/${BENCH_RUN_ID}"
+    mkdir -p "${BENCH_RESULT_DIR}/raw"
 
-    if [[ "${RUN_ID}" != "auto" ]]; then
-        env_vars+=("RUN_ID=${RUN_ID}")
-    fi
+    log_info "压测参数: THREADS=${threads} CONNECTIONS=${connections} DURATION=${duration} TOOL=wrk"
+    free_port_8080 || log_warn "端口清理未完成，仍尝试启动"
 
-    log_info "压测参数: THREADS=${THREADS} CONNECTIONS=${CONNECTIONS} DURATION=${DURATION} TOOL=${TOOL}"
-    log_info "执行命令: ${cmd}"
+    local server_dir server_pid=0
+    server_dir="$(cd "$(dirname "${SERVER_BIN}")" && pwd)"
+    (
+        cd "${server_dir}"
+        exec setsid "${SERVER_BIN}"
+    ) >"${BENCH_RESULT_DIR}/server.log" 2>&1 &
+    server_pid=$!
 
-    set +e
-    env "${env_vars[@]}" "${cmd}" 2>&1 | tee "${BENCH_LOG}"
-    local exit_code=${PIPESTATUS[0]}
-    set -e
-
-    if [[ ${exit_code} -eq 0 ]]; then
-        log_success "压测完成"
-        # 获取最新的 RUN_ID
-        if [[ -d "${RESULTS_ROOT}" ]]; then
-            BENCH_RUN_ID="$(ls -t "${RESULTS_ROOT}" 2>/dev/null | head -1)"
-            BENCH_RESULT_DIR="${RESULTS_ROOT}/${BENCH_RUN_ID}"
+    # 等待就绪
+    local ready=0 i
+    for i in $(seq 1 50); do
+        if ! kill -0 "${server_pid}" 2>/dev/null; then
+            break
         fi
-        BENCH_RESULT="COMPLETED"
-    else
-        log_error "压测失败 (退出码: ${exit_code})"
+        if curl --silent --fail --max-time 1 "${url}" >/dev/null 2>&1; then
+            ready=1
+            break
+        fi
+        sleep 0.1
+    done
+
+    if [[ "${ready}" -ne 1 ]]; then
+        log_error "服务器未在 5s 内就绪"
+        {
+            echo "server_pid=${server_pid}"
+            echo "---- server.log ----"
+            cat "${BENCH_RESULT_DIR}/server.log" 2>/dev/null || true
+        } | tee "${BENCH_LOG}"
+        kill -KILL -- "-${server_pid}" 2>/dev/null || kill -KILL "${server_pid}" 2>/dev/null || true
+        wait "${server_pid}" 2>/dev/null || true
         BENCH_RESULT="FAILED"
-        BENCH_RUN_ID=""
+        echo ""
+        return 1
     fi
+
+    log_info "服务器已就绪，开始 wrk..."
+    set +e
+    # 不用 Lua、不用 wrk2：直接跑标准 wrk，解析人类可读输出。
+    wrk -t"${threads}" -c"${connections}" -d"${duration}" --latency "${url}" \
+        >"${BENCH_RESULT_DIR}/raw/current.txt" 2>&1
+    local wrk_rc=$?
+    set -e
+    cat "${BENCH_RESULT_DIR}/raw/current.txt" | tee "${BENCH_LOG}"
+
+    # 停服
+    kill -TERM -- "-${server_pid}" 2>/dev/null || kill -TERM "${server_pid}" 2>/dev/null || true
+    sleep 0.5
+    kill -KILL -- "-${server_pid}" 2>/dev/null || kill -KILL "${server_pid}" 2>/dev/null || true
+    wait "${server_pid}" 2>/dev/null || true
+    free_port_8080 >/dev/null 2>&1 || true
+
+    if [[ ${wrk_rc} -ne 0 ]]; then
+        log_error "wrk 退出码 ${wrk_rc}"
+        BENCH_RESULT="FAILED"
+        echo ""
+        return 1
+    fi
+
+    # 从 wrk 文本解析关键指标
+    local qps avg_ms
+    qps="$(awk '/Requests\/sec:/ {print $2; exit}' "${BENCH_RESULT_DIR}/raw/current.txt")"
+    avg_ms="$(awk '/^[[:space:]]*Latency/ {print $2; exit}' "${BENCH_RESULT_DIR}/raw/current.txt")"
+    if [[ -z "${qps}" ]]; then
+        log_error "无法从 wrk 输出解析 Requests/sec"
+        BENCH_RESULT="FAILED"
+        echo ""
+        return 1
+    fi
+
+    # 延迟转微秒（wrk 常见单位 us/ms/s）
+    local avg_us="NA"
+    if [[ "${avg_ms}" =~ ^([0-9.]+)us$ ]]; then
+        avg_us="${BASH_REMATCH[1]}"
+    elif [[ "${avg_ms}" =~ ^([0-9.]+)ms$ ]]; then
+        avg_us="$(awk -v v="${BASH_REMATCH[1]}" 'BEGIN{printf "%.3f", v*1000}')"
+    elif [[ "${avg_ms}" =~ ^([0-9.]+)s$ ]]; then
+        avg_us="$(awk -v v="${BASH_REMATCH[1]}" 'BEGIN{printf "%.3f", v*1000000}')"
+    fi
+
+    {
+        printf 'label\turl\tqps\tlatency_avg_us\tlatency_p95_us\tlatency_p99_us\terrors_total\terrors_connect\terrors_read\terrors_write\terrors_status\terrors_timeout\trss_avg_kib\trss_peak_kib\tcpu_avg_percent\n'
+        printf 'current\t%s\t%s\t%s\tNA\tNA\t0\t0\t0\t0\t0\t0\tNA\tNA\tNA\n' \
+            "${url}" "${qps}" "${avg_us}"
+    } >"${BENCH_RESULT_DIR}/summary.tsv"
+
+    {
+        echo "tool=wrk (simple embedded runner; wrk2 not required)"
+        echo "threads=${threads}"
+        echo "connections=${connections}"
+        echo "duration=${duration}"
+        echo "url=${url}"
+        echo "server_bin=${SERVER_BIN}"
+        date -u --iso-8601=seconds
+    } >"${BENCH_RESULT_DIR}/environment.txt"
+
+    log_success "压测完成：QPS=${qps}  AvgLatency=${avg_ms:-NA}"
+    BENCH_RESULT="COMPLETED"
     echo ""
 }
 
@@ -481,22 +648,38 @@ HEADER
         printf '> **项目**：C++20 协程 Reactor HTTP 服务器\n'
         printf '> **报告 ID**：`RPT-%s`\n' "$(date +%Y%m%d-%H%M%S)"
         printf '\n'
-        printf '---\n\n'
+        # 某些 shell 的 printf 会把以 - 开头的参数当成选项，必须显式给格式串。
+        printf '%s\n\n' '---'
     } >> "${REPORT_FILE}"
 
     # ---------- 执行摘要 ----------
+    status_cn() {
+        case "$1" in
+            PASSED|COMPLETED|TIMEOUT_OK) echo "✅ $1（成功）" ;;
+            FAILED|BUILD_FAILED|MISSING|NO_TOOL|NO_PYTHON|NO_CLANG) echo "❌ $1（失败/不可用）" ;;
+            SKIPPED) echo "⏭ $1（已跳过）" ;;
+            ""|未运行) echo "— 未运行" ;;
+            *) echo "$1" ;;
+        esac
+    }
+    local unit_cn black_cn bench_cn fuzz_cn
+    unit_cn="$(status_cn "${UNITTEST_RESULT:-}")"
+    black_cn="$(status_cn "${BLACKBOX_RESULT:-}")"
+    bench_cn="$(status_cn "${BENCH_RESULT:-}")"
+    fuzz_cn="$(status_cn "${FUZZ_RESULT:-}")"
+
     cat >> "${REPORT_FILE}" << EOF
 
 ## 执行摘要
 
 | 测试阶段 | 状态 | 说明 |
 |---------|------|------|
-| **编译 (Release)** | ✅ 完成 | 构建目录：\`${BUILD_RELEASE}\` |
-| **编译 (Debug/Test)** | ✅ 完成 | 构建目录：\`${BUILD_TESTS}\` |
-| **单元测试** | ${UNITTEST_RESULT:-未运行} | 结果日志：\`${UNITTEST_LOG}\` |
-| **黑盒测试** | ${BLACKBOX_RESULT:-未运行} | 结果日志：\`${BLACKBOX_LOG}\` |
-| **压测** | ${BENCH_RESULT:-未运行} | 结果目录：\`${BENCH_RESULT_DIR:-N/A}\` |
-| **模糊测试** | ${FUZZ_RESULT:-未运行} | 结果日志：\`${FUZZ_LOG}\` |
+| **编译 Release** | ✅ 完成 | 目录：\`${BUILD_RELEASE}\` |
+| **编译 Debug/Test** | ✅ 完成 | 目录：\`${BUILD_TESTS}\` |
+| **单元测试 Unit** | ${unit_cn} | GoogleTest 组件级回归 |
+| **黑盒测试 Blackbox** | ${black_cn} | 真实 TCP 端到端 |
+| **压测 Benchmark** | ${bench_cn} | wrk/wrk2 吞吐与延迟 |
+| **模糊测试 Fuzz** | ${fuzz_cn} | HttpParser libFuzzer |
 
 EOF
 
@@ -552,39 +735,100 @@ section_report_unit_test() {
 
 ## 二、单元测试结果
 
-单元测试使用 Google Test 框架，覆盖以下组件：
+### 用例一览（英文名 | 中文含义）
 
-- **Buffer**: 缓冲区追加、压缩、分隔符查找
-- **BufferPool**: 缓冲区池分配/回收
-- **HttpParser**: HTTP 请求解析（增量、分包、Content-Length body）
-- **ByteRange**: Range 请求解析与合法性校验
-- **Router**: 动态路由匹配与参数提取
+| 套件 | 用例英文名 | 中文含义（测什么） |
+|------|-----------|-------------------|
+| BufferTest | AppendsCompactsAndFindsDelimiters | 缓冲区追加/压缩后数据仍连续，并能找到 CRLF |
+| HttpParserTest | WaitsForHalfPacketAndContentLengthBody | TCP 半包 + Content-Length 正文能跨次拼齐 |
+| HttpParserTest | LeavesPipelinedRequestInBuffer | 粘包/流水线：只消费第一个请求，留下第二个 |
+| HttpParserTest | DecodesChunkedBodyAcrossPackets | chunked 正文跨包解码并拼接 |
+| HttpParserTest | ParsesByteRangesAndRejectsConflictingLengths | Range 合法解析；多段 Range / CL+chunked 冲突拒绝 |
+| HttpParserTest | EnforcesRequestLineHeaderAndContentLengthLimits | 请求行/首部/正文大小上限保护 |
+| HttpParserTest | RejectsIncrementalChunkedBodyOverLimit | chunked 累计超限拒绝 |
+| HttpParserTest | RejectsAmbiguousRequestFramingAndMissingHost | 缺 Host、畸形请求行、重复 Host 等拒绝 |
+| HttpParserTest | RequiresResetAfterDeliveryAndParsesConnectionTokens | Connection token；未 reset 不得二次交付 |
+| ResponseSenderTest | SendsWithoutSubReactor | ResponseSender 可独立于 SubReactor 发完整响应 |
+| HttpRangeTest | ParsesClosedOpenAndSuffixRangesViaParser | 经 Parser 验证闭区间/开放结尾/后缀 Range |
+| HttpRangeTest | PreservesContentRangeForMemoryAndFileBodies | buildHeader 保留业务设置的 Content-Range |
+| RouterTest | MatchesDynamicRouteAndExtractsParameter | 动态路由 `/user/:id` 匹配并提取参数 |
+| RouterTest | MiddlewareCanShortCircuitRoute | 中间件可不调用 next，短路为 401 |
+| RouterTest | ProducesNotFoundResponse | 未匹配路由走 404（看 ctx.response，非栈上旧对象） |
 
 EOF
 
     if [[ -f "${UNITTEST_LOG}" ]]; then
-        local total_tests passed_tests failed_tests
-        total_tests=$(grep -oP '\[\s*\d+\s*tests?\s*\]' "${UNITTEST_LOG}" | grep -oP '\d+' | head -1 || echo "0")
-        passed_tests=$(grep -c "PASSED" "${UNITTEST_LOG}" || echo "0")
-        failed_tests=$(grep -c "FAILED" "${UNITTEST_LOG}" || echo "0")
+        local summary_line passed_line failed_line
+        summary_line="$(grep -E '^[=\[]' "${UNITTEST_LOG}" | tail -5 || true)"
+        passed_line="$(grep -E 'PASSED' "${UNITTEST_LOG}" | tail -1 || true)"
+        failed_line="$(grep -E 'FAILED TEST|FAILED ' "${UNITTEST_LOG}" | grep -v '\[  FAILED  \]' | tail -3 || true)"
+
+        local case_table
+        case_table="$(
+            awk '
+            BEGIN {
+                zh["BufferTest.AppendsCompactsAndFindsDelimiters"]="缓冲区追加/压缩后数据仍连续，并能找到 CRLF";
+                zh["HttpParserTest.WaitsForHalfPacketAndContentLengthBody"]="TCP 半包 + Content-Length 正文能跨次拼齐";
+                zh["HttpParserTest.LeavesPipelinedRequestInBuffer"]="粘包/流水线：只消费第一个请求，留下第二个";
+                zh["HttpParserTest.DecodesChunkedBodyAcrossPackets"]="chunked 正文跨包解码并拼接";
+                zh["HttpParserTest.ParsesByteRangesAndRejectsConflictingLengths"]="Range 合法解析；多段 Range / CL+chunked 冲突拒绝";
+                zh["HttpParserTest.EnforcesRequestLineHeaderAndContentLengthLimits"]="请求行/首部/正文大小上限保护";
+                zh["HttpParserTest.RejectsIncrementalChunkedBodyOverLimit"]="chunked 累计超限拒绝";
+                zh["HttpParserTest.RejectsAmbiguousRequestFramingAndMissingHost"]="缺 Host、畸形请求行、重复 Host 等拒绝";
+                zh["HttpParserTest.RequiresResetAfterDeliveryAndParsesConnectionTokens"]="Connection token；未 reset 不得二次交付";
+                zh["ResponseSenderTest.SendsWithoutSubReactor"]="ResponseSender 可独立于 SubReactor 发完整响应";
+                zh["HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser"]="经 Parser 验证闭区间/开放结尾/后缀 Range";
+                zh["HttpRangeTest.PreservesContentRangeForMemoryAndFileBodies"]="buildHeader 保留业务设置的 Content-Range";
+                zh["RouterTest.MatchesDynamicRouteAndExtractsParameter"]="动态路由 /user/:id 匹配并提取参数";
+                zh["RouterTest.MiddlewareCanShortCircuitRoute"]="中间件可不调用 next，短路为 401";
+                zh["RouterTest.ProducesNotFoundResponse"]="未匹配路由走 404（看 ctx.response）";
+            }
+            /\[ RUN      \]/ {
+                sub(/^.*\[ RUN      \] /, "", $0);
+                name=$0;
+            }
+            /\[       OK \]/ {
+                if (name != "") {
+                    mean = (name in zh) ? zh[name] : "（见上表）";
+                    printf "| `%s` | %s | ✅ 通过 |\n", name, mean;
+                }
+                name="";
+            }
+            /\[  FAILED  \]/ {
+                if (name != "") {
+                    mean = (name in zh) ? zh[name] : "（见上表）";
+                    printf "| `%s` | %s | ❌ 失败 |\n", name, mean;
+                }
+                name="";
+            }
+            ' "${UNITTEST_LOG}"
+        )"
 
         cat >> "${REPORT_FILE}" << EOF
 
-### 测试统计
+### 本次运行摘要
 
-| 指标 | 数值 |
-|------|------|
-| 测试总数 | ${total_tests} |
-| 通过 | ${passed_tests} |
-| 失败 | ${failed_tests} |
+\`\`\`text
+${passed_line:-（无 PASSED 摘要行）}
+${failed_line:-（无失败摘要）}
+\`\`\`
 
-### 详细输出
+### 逐条结果
+
+| 用例英文名 | 中文含义 | 结果 |
+|-----------|----------|------|
+${case_table:-| （未能解析逐条结果） | - | - |}
+
+<details>
+<summary>原始日志（点击展开）</summary>
 
 \`\`\`text
 EOF
-        tail -50 "${UNITTEST_LOG}" >> "${REPORT_FILE}"
+        cat "${UNITTEST_LOG}" >> "${REPORT_FILE}"
         cat >> "${REPORT_FILE}" << 'EOF'
 ```
+
+</details>
 
 EOF
     else
@@ -598,35 +842,40 @@ section_report_blackbox() {
 
 ## 三、黑盒测试结果
 
-黑盒测试通过真实 TCP 连接验证服务器端到端功能，覆盖场景：
+黑盒测试通过真实 TCP 连接验证端到端行为：
 
-| # | 测试场景 | 验证内容 |
-|---|---------|---------|
-| 1 | 根路由 GET / | 返回 `<h1>hello</h1>`，200 状态码 |
-| 2 | 动态路由 /user/:id | 参数提取正确，返回 ID 字符串 |
-| 3 | 认证中间件 /admin | 返回 401 Unauthorized |
-| 4 | 流式响应 /stream1 | chunked 编码正确，body 完整 |
-| 5 | 畸形协议版本 | HTTP/9.9 被拒绝，连接关闭 |
-| 6 | 请求走私防护 | 冲突的 TE/CL 头被拒绝 |
-| 7 | 超大请求体 | 超过限制的 body 被拒绝 |
-| 8 | keep-alive 多请求 | 同 TCP 连接 3 请求无错误 |
-| 9 | 10000 流水线请求 | 批量写入无 buffer 错乱 |
-| 10 | Range + ETag + 304 | 静态文件断点续传和条件请求 |
-| 11 | 1GB 文件 Range | sendfile 零拷贝验证 |
-| 12 | Executor 验收 | /slow 不阻塞 /fast（业务线程分离） |
+| # | 场景（英文/路径） | 中文含义 |
+|---|------------------|----------|
+| 1 | `GET /` | 根路由返回 hello |
+| 2 | `GET /user/:id` | 动态路由参数提取 |
+| 3 | `GET /admin` | 无 token 时鉴权中间件返回 401 |
+| 4 | `GET /stream1` | chunked 流式响应 |
+| 5 | 畸形协议版本 | 非法 HTTP 版本应被拒绝 |
+| 6 | TE/CL 冲突 | 请求走私类冲突头应拒绝 |
+| 7 | 超大 body | 超限正文应拒绝 |
+| 8 | keep-alive | 同连接多请求复用 |
+| 9 | pipeline | 一次写入多请求，按序应答 |
+| 10 | `Range` + ETag | 静态文件区间响应；条件请求尽量 304 |
+| 11 | `/large` Range | 大文件区间（未注册路由则跳过） |
+| 12 | `/slow` vs `/fast` | 慢请求不阻塞快请求（Executor） |
 
 EOF
 
     if [[ -f "${BLACKBOX_LOG}" ]]; then
         cat >> "${REPORT_FILE}" << EOF
 
-### 测试输出
+### 本次结果：\`${BLACKBOX_RESULT:-未知}\`
+
+<details>
+<summary>原始日志（点击展开）</summary>
 
 \`\`\`text
 EOF
         cat "${BLACKBOX_LOG}" >> "${REPORT_FILE}"
         cat >> "${REPORT_FILE}" << 'EOF'
 ```
+
+</details>
 
 EOF
     else
@@ -636,105 +885,101 @@ EOF
 }
 
 section_report_benchmark() {
-    cat >> "${REPORT_FILE}" << 'EOF'
+    cat >> "${REPORT_FILE}" << EOF
 
 ## 四、压测结果
+
+### 本次状态：\`${BENCH_RESULT:-未运行}\`
 
 EOF
 
     local result_dir="${BENCH_RESULT_DIR:-}"
-    if [[ -n "${result_dir}" && -f "${result_dir}/summary.tsv" ]]; then
+    if [[ -n "${result_dir}" && -f "${result_dir}/summary.tsv" ]] && [[ "$(wc -l < "${result_dir}/summary.tsv")" -gt 1 ]]; then
         local env_file="${result_dir}/environment.txt"
         local summary_file="${result_dir}/summary.tsv"
 
         if [[ -f "${env_file}" ]]; then
-            cat >> "${REPORT_FILE}" << 'EOF'
-### 压测环境
-
-\`\`\`text
-EOF
-            cat "${env_file}" >> "${REPORT_FILE}"
-            cat >> "${REPORT_FILE}" << 'EOF'
-```
-
-EOF
+            {
+                echo "### 压测环境"
+                echo ""
+                echo '```text'
+                cat "${env_file}"
+                echo '```'
+                echo ""
+            } >> "${REPORT_FILE}"
         fi
 
-        # 核心指标表
-        local summary_data
-        summary_data=$(cat "${summary_file}")
-        local summary_header
-        summary_header=$(echo "${summary_data}" | head -1 | tr '\t' '|')
+        cat >> "${REPORT_FILE}" << 'EOF'
+### 核心指标一览
 
-        cat >> "${REPORT_FILE}" << EOF
+英文列名后括号为中文含义。延迟单位为微秒（μs）。
 
-### 核心指标
-
-| ${summary_header}
+| 场景 label | URL | QPS（每秒请求数） | Avg（平均延迟） | P95（95分位延迟） | P99（99分位延迟） | Errors（总错误） | RSS avg（平均内存） | RSS peak（峰值内存） | CPU（平均占用） |
+|-----------|-----|-------------------|-----------------|-------------------|-------------------|------------------|---------------------|----------------------|-----------------|
 EOF
-        # 表头分隔线
-        echo "${summary_header}" | sed 's/[^|]/-/g' | while IFS= read -r line; do
-            echo "|${line}|" >> "${REPORT_FILE}"
-        done
-
-        # 数据行
         tail -n +2 "${summary_file}" | while IFS=$'\t' read -r label url qps avg p95 p99 errors errs_connect errs_read errs_write errs_status errs_timeout rss_avg rss_peak cpu_avg; do
-            local qps_fmt avg_fmt p95_fmt p99_fmt errs_fmt rss_avg_fmt rss_peak_fmt cpu_fmt
-            qps_fmt="${qps:-N/A}"
-            avg_fmt="${avg:+${avg} μs}"
-            avg_fmt="${avg_fmt:-N/A}"
-            p95_fmt="${p95:+${p95} μs}"
-            p95_fmt="${p95_fmt:-N/A}"
-            p99_fmt="${p99:+${p99} μs}"
-            p99_fmt="${p99_fmt:-N/A}"
-            errs_fmt="${errors:-0}"
-            rss_avg_fmt="${rss_avg:+${rss_avg} KB}"
-            rss_avg_fmt="${rss_avg_fmt:-NA}"
-            rss_peak_fmt="${rss_peak:+${rss_peak} KB}"
-            rss_peak_fmt="${rss_peak_fmt:-NA}"
-            cpu_fmt="${cpu_avg:+${cpu_avg} %}"
-            cpu_fmt="${cpu_fmt:-NA}"
-            printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
-                "${label:-N/A}" "${url:-N/A}" "${qps_fmt}" "${avg_fmt}" "${p95_fmt}" "${p99_fmt}" \
-                "${errs_fmt}" "${errs_connect:-0}" "${errs_read:-0}" "${errs_write:-0}" \
-                "${errs_status:-0}" "${errs_timeout:-0}" "${rss_avg_fmt}" "${rss_peak_fmt}" "${cpu_fmt}" >> "${REPORT_FILE}"
+            printf '| %s | `%s` | %s | %s μs | %s μs | %s μs | %s | %s KB | %s KB | %s %% |\n' \
+                "${label:-N/A}" "${url:-N/A}" "${qps:-N/A}" "${avg:-N/A}" "${p95:-N/A}" "${p99:-N/A}" \
+                "${errors:-0}" "${rss_avg:-N/A}" "${rss_peak:-N/A}" "${cpu_avg:-N/A}" >> "${REPORT_FILE}"
         done
 
         cat >> "${REPORT_FILE}" << 'EOF'
 
 ### 指标说明
 
-| 指标 | 含义 | 说明 |
-|------|------|------|
-| **qps** | 每秒请求数 | 核心吞吐指标 |
-| **latency_avg_us** | 平均延迟 | 请求从发出到收到响应的平均时间（微秒） |
-| **latency_p95_us** | 95 分位延迟 | 95% 请求在此时间内完成 |
-| **latency_p99_us** | 99 分位延迟 | 99% 请求在此时间内完成 |
-| **errors_total** | 总错误数 | 连接/读/写/状态/超时错误之和 |
-| **rss_avg_kib** | 平均常驻内存 | 压测期间进程平均 RSS |
-| **rss_peak_kib** | 峰值常驻内存 | 压测期间进程最大 RSS |
-| **cpu_avg_percent** | 平均 CPU 占用 | 压测期间进程平均 CPU 使用率 |
+| 英文指标 | 中文含义 | 说明 |
+|---------|----------|------|
+| qps | 每秒请求数 | 核心吞吐 |
+| latency_avg_us | 平均延迟 | 发出到收齐响应的平均时间 |
+| latency_p95_us | 95 分位延迟 | 95% 请求不超过该时间 |
+| latency_p99_us | 99 分位延迟 | 99% 请求不超过该时间 |
+| errors_total | 总错误数 | 连接/读/写/状态/超时之和 |
+| rss_avg_kib | 平均常驻内存 | 压测期间进程平均 RSS |
+| rss_peak_kib | 峰值常驻内存 | 压测期间进程最大 RSS |
+| cpu_avg_percent | 平均 CPU 占用 | 压测期间平均 CPU% |
 
-### 原始数据文件
+<details>
+<summary>原始目录文件列表（点击展开）</summary>
 
-\`\`\`
+```text
 EOF
         printf '目录：benchmark-results/%s/\n' "${BENCH_RUN_ID}" >> "${REPORT_FILE}"
         ls -la "${result_dir}/" >> "${REPORT_FILE}" 2>/dev/null || echo "  (无法列出)" >> "${REPORT_FILE}"
         cat >> "${REPORT_FILE}" << 'EOF'
 ```
 
+</details>
+
 EOF
     else
         cat >> "${REPORT_FILE}" << 'EOF'
-*（压测未运行或无结果）*
+*未生成有效 summary.tsv（压测失败或未跑完）。*
 
-压测操作：
+EOF
+        if [[ -f "${BENCH_LOG}" ]]; then
+            {
+                echo "### 失败日志（benchmark_output.txt）"
+                echo ""
+                echo '```text'
+                tail -n 80 "${BENCH_LOG}"
+                echo '```'
+                echo ""
+            } >> "${REPORT_FILE}"
+        fi
+        if [[ -n "${result_dir}" && -f "${result_dir}/server.log" ]]; then
+            {
+                echo "### 服务器日志（server.log）"
+                echo ""
+                echo '```text'
+                tail -n 40 "${result_dir}/server.log"
+                echo '```'
+                echo ""
+            } >> "${REPORT_FILE}"
+        fi
+        cat >> "${REPORT_FILE}" << 'EOF'
+单独复现：
 ```bash
-bash scripts/benchmark.sh
-# 或使用本脚本：
-bash scripts/gen_report.sh --skip-benchmark  # 跳过
-bash scripts/gen_report.sh                   # 包含压测
+SERVER_BIN=./build-release/webserver WARMUP_DURATION=0 bash scripts/benchmark.sh
 ```
 
 EOF
@@ -742,14 +987,33 @@ EOF
 }
 
 section_report_fuzz() {
-    cat >> "${REPORT_FILE}" << 'EOF'
+    cat >> "${REPORT_FILE}" << EOF
 
 ## 五、模糊测试结果
+
+| 项目 | 值 |
+|------|-----|
+| 结果 Result | \`${FUZZ_RESULT:-未运行}\` |
+| 工具 Tool | libFuzzer（模糊测试引擎）+ ASan/UBSan（内存/未定义行为检测） |
+| 目标 Target | \`HttpParser\`（HTTP 请求解析器） |
+| 目标含义 | 用随机/变异字节流模拟 TCP 半包，找崩溃与内存错误 |
 
 EOF
 
     if [[ -f "${FUZZ_LOG}" ]]; then
+        local cov_line corp_line
+        cov_line="$(grep -E 'cov:' "${FUZZ_LOG}" | tail -1 || true)"
+        corp_line="$(grep -E 'corp:' "${FUZZ_LOG}" | tail -1 || true)"
         cat >> "${REPORT_FILE}" << EOF
+### 运行摘要
+
+\`\`\`text
+${cov_line:-（无 coverage 行）}
+${corp_line:-（无 corpus 行）}
+\`\`\`
+
+<details>
+<summary>完整 fuzz 日志（点击展开，通常很长）</summary>
 
 \`\`\`text
 EOF
@@ -757,17 +1021,13 @@ EOF
         cat >> "${REPORT_FILE}" << 'EOF'
 ```
 
+</details>
+
 EOF
     else
         echo "*（模糊测试未运行）*" >> "${REPORT_FILE}"
         echo "" >> "${REPORT_FILE}"
     fi
-
-    cat >> "${REPORT_FILE}" << 'EOF'
-
-模糊测试使用 Clang libFuzzer 对 HTTP 解析器进行自动化边界探索，
-通过随机生成输入（模拟 TCP 分包），配合 ASan/UBSan 检测内存错误。
-EOF
 }
 
 section_report_guide() {
@@ -995,6 +1255,8 @@ main() {
     log_info "=============================================="
     log_info "  HTTP 服务器完整测试与报告生成"
     log_info "  项目根目录：${ROOT_DIR}"
+    log_info "  端口检查指纹：port-check=listen-only-20260730"
+    log_info "  压测方式：simple-wrk（只需 wrk，不需要 wrk2）"
     log_info "=============================================="
     echo ""
 

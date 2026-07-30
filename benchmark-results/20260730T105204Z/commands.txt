@@ -1,0 +1,1 @@
+current	wrk --threads 4 --connections 128 --duration 10s --latency --script /home/pikachu/webserver/scripts/wrk_report.lua http://127.0.0.1:8080/ 

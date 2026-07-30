@@ -1,0 +1,51 @@
+Running main() from /home/pikachu/webserver/googletest/googletest/src/gtest_main.cc
+[==========] Running 15 tests from 5 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from BufferTest
+[ RUN      ] BufferTest.AppendsCompactsAndFindsDelimiters
+[       OK ] BufferTest.AppendsCompactsAndFindsDelimiters (0 ms)
+[----------] 1 test from BufferTest (0 ms total)
+
+[----------] 8 tests from HttpParserTest
+[ RUN      ] HttpParserTest.WaitsForHalfPacketAndContentLengthBody
+[       OK ] HttpParserTest.WaitsForHalfPacketAndContentLengthBody (0 ms)
+[ RUN      ] HttpParserTest.LeavesPipelinedRequestInBuffer
+[       OK ] HttpParserTest.LeavesPipelinedRequestInBuffer (0 ms)
+[ RUN      ] HttpParserTest.DecodesChunkedBodyAcrossPackets
+[       OK ] HttpParserTest.DecodesChunkedBodyAcrossPackets (0 ms)
+[ RUN      ] HttpParserTest.ParsesByteRangesAndRejectsConflictingLengths
+[       OK ] HttpParserTest.ParsesByteRangesAndRejectsConflictingLengths (0 ms)
+[ RUN      ] HttpParserTest.EnforcesRequestLineHeaderAndContentLengthLimits
+[       OK ] HttpParserTest.EnforcesRequestLineHeaderAndContentLengthLimits (2 ms)
+[ RUN      ] HttpParserTest.RejectsIncrementalChunkedBodyOverLimit
+[       OK ] HttpParserTest.RejectsIncrementalChunkedBodyOverLimit (4 ms)
+[ RUN      ] HttpParserTest.RejectsAmbiguousRequestFramingAndMissingHost
+[       OK ] HttpParserTest.RejectsAmbiguousRequestFramingAndMissingHost (0 ms)
+[ RUN      ] HttpParserTest.RequiresResetAfterDeliveryAndParsesConnectionTokens
+[       OK ] HttpParserTest.RequiresResetAfterDeliveryAndParsesConnectionTokens (0 ms)
+[----------] 8 tests from HttpParserTest (7 ms total)
+
+[----------] 1 test from ResponseSenderTest
+[ RUN      ] ResponseSenderTest.SendsWithoutSubReactor
+[       OK ] ResponseSenderTest.SendsWithoutSubReactor (0 ms)
+[----------] 1 test from ResponseSenderTest (0 ms total)
+
+[----------] 2 tests from HttpRangeTest
+[ RUN      ] HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser
+[       OK ] HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser (0 ms)
+[ RUN      ] HttpRangeTest.PreservesContentRangeForMemoryAndFileBodies
+[       OK ] HttpRangeTest.PreservesContentRangeForMemoryAndFileBodies (0 ms)
+[----------] 2 tests from HttpRangeTest (0 ms total)
+
+[----------] 3 tests from RouterTest
+[ RUN      ] RouterTest.MatchesDynamicRouteAndExtractsParameter
+[       OK ] RouterTest.MatchesDynamicRouteAndExtractsParameter (0 ms)
+[ RUN      ] RouterTest.MiddlewareCanShortCircuitRoute
+[       OK ] RouterTest.MiddlewareCanShortCircuitRoute (0 ms)
+[ RUN      ] RouterTest.ProducesNotFoundResponse
+[       OK ] RouterTest.ProducesNotFoundResponse (0 ms)
+[----------] 3 tests from RouterTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 15 tests from 5 test suites ran. (8 ms total)
+[  PASSED  ] 15 tests.

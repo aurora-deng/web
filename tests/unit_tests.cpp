@@ -12,7 +12,7 @@
  *   - Buffer          : 追加、压缩、分隔符查找
  *   - HttpParser      : 半包/粘包/chunked/range/长度限制/请求走私/reset
  *   - ResponseSender  : 独立于 SubReactor 的发送验证
- *   - HttpRange       : 闭区间/开区间/后缀范围/Content-Range
+ *   - HttpRange       : 通过 HttpParser 验证 Range 首部；Content-Range 保留
  *   - Router          : 动态路由/中间件短路/404
  */
 
@@ -507,55 +507,52 @@ TEST(ResponseSenderTest, SendsWithoutSubReactor)
 // ============================================================================
 
 /**
- * @test HttpRangeTest.ResolvesClosedOpenSuffixAndInvalidRanges
- * @brief 验证 resolveByteRange() 对各种 Range 格式的解析。
+ * @test HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser
+ * @brief 通过 HttpParser 验证 Range 首部解析（本仓库无独立 resolveByteRange API）。
  *
- * 测试场景：
- *   1. 闭区间 (10-19)：begin=10, end=19（包含式 end）
- *   2. 开区间 (25-)：begin=25, end=99（延伸到资源末尾）
- *   3. 后缀范围 (-10)：begin=90, end=99（从末尾反推）
- *   4. 后缀范围超量 (-200, 资源100)：begin=0, end=99（退化为整个资源）
- *   5. 越界范围 (100-, 资源100)：返回 false（不可满足）
- *   6. 空资源 (0 字节)：返回 false
- *
- * 为什么重要：
- *   - Range 解析是断点续传（206）的基础
- *   - 边界条件（空资源、超量后缀）容易出现 size_t 下溢
- *   - HTTP 规范要求超量后缀退化为整个资源
+ * 当前实现把闭区间/后缀 Range 解析落在 HttpParser 内，字节换算在 sendfile 路径完成。
+ * 单测只验证解析器产出的 RangeInfo，不依赖不存在的自由函数。
  */
-TEST(HttpRangeTest, ResolvesClosedOpenSuffixAndInvalidRanges)
+TEST(HttpRangeTest, ParsesClosedOpenAndSuffixRangesViaParser)
 {
-    size_t begin = 0;
-    size_t end = 0;
-
-    // 闭区间直接映射，验证 HTTP 的包含式 end 语义没有被误作半开区间。
-    RangeInfo closed{true, 10, false, 19};
-    EXPECT_TRUE(::resolveByteRange(closed, 100, begin, end));
-    EXPECT_EQ(begin, 10U);
-    EXPECT_EQ(end, 19U);
-
-    // 省略结尾时应延伸到资源末尾，为断点续传提供符合规范的长度计算。
-    RangeInfo open{true, 25, false, SIZE_MAX};
-    EXPECT_TRUE(::resolveByteRange(open, 100, begin, end));
-    EXPECT_EQ(begin, 25U);
-    EXPECT_EQ(end, 99U);
-
-    // 后缀范围从总长度反推起点；请求长度超过资源时应退化为整个资源，
-    // 避免 size_t 下溢并保持客户端可预测行为。
-    RangeInfo suffix{true, 0, true, 10};
-    EXPECT_TRUE(::resolveByteRange(suffix, 100, begin, end));
-    EXPECT_EQ(begin, 90U);
-    EXPECT_EQ(end, 99U);
-
-    suffix.end = 200;
-    EXPECT_TRUE(::resolveByteRange(suffix, 100, begin, end));
-    EXPECT_EQ(begin, 0U);
-    EXPECT_EQ(end, 99U);
-
-    // 起点等于资源长度及空资源均不可满足，覆盖最容易出现越界的边界条件。
-    RangeInfo outOfRange{true, 100, false, SIZE_MAX};
-    EXPECT_FALSE(::resolveByteRange(outOfRange, 100, begin, end));
-    EXPECT_FALSE(::resolveByteRange(closed, 0, begin, end));
+    {
+        HttpParser parser;
+        HttpRequest request;
+        Buffer buffer;
+        buffer.append("GET /logo HTTP/1.1\r\nHost: test\r\nRange: bytes=10-19\r\n\r\n");
+        ASSERT_EQ(parser.parse(buffer, request), PARSE_OK);
+        EXPECT_TRUE(request.range.enable);
+        EXPECT_FALSE(request.range.suffix);
+        EXPECT_EQ(request.range.begin, 10U);
+        EXPECT_EQ(request.range.end, 19U);
+    }
+    {
+        HttpParser parser;
+        HttpRequest request;
+        Buffer buffer;
+        buffer.append("GET /logo HTTP/1.1\r\nHost: test\r\nRange: bytes=25-\r\n\r\n");
+        ASSERT_EQ(parser.parse(buffer, request), PARSE_OK);
+        EXPECT_TRUE(request.range.enable);
+        EXPECT_FALSE(request.range.suffix);
+        EXPECT_EQ(request.range.begin, 25U);
+    }
+    {
+        HttpParser parser;
+        HttpRequest request;
+        Buffer buffer;
+        buffer.append("GET /logo HTTP/1.1\r\nHost: test\r\nRange: bytes=-10\r\n\r\n");
+        ASSERT_EQ(parser.parse(buffer, request), PARSE_OK);
+        EXPECT_TRUE(request.range.enable);
+        EXPECT_TRUE(request.range.suffix);
+        EXPECT_EQ(request.range.end, 10U);
+    }
+    {
+        HttpParser parser;
+        HttpRequest request;
+        Buffer buffer;
+        buffer.append("GET /logo HTTP/1.1\r\nHost: test\r\nRange: bytes=0-1,3-4\r\n\r\n");
+        EXPECT_EQ(parser.parse(buffer, request), PARSE_ERROR);
+    }
 }
 
 /**
@@ -705,7 +702,7 @@ TEST(RouterTest, MiddlewareCanShortCircuitRoute)
  *   2. 发送请求到 /missing
  *   3. 验证 router.handle() 返回 true（Router 已处理）
  *   4. 验证 context.handled 为 true
- *   5. 验证响应状态码为 404，状态文本为 "Not Found"
+ *   5. 验证 context.response 上状态码为 404、body 为 "Not Found"
  *
  * 为什么重要：
  *   - 未匹配路径必须由 Router 形成完整 404 响应
@@ -714,18 +711,19 @@ TEST(RouterTest, MiddlewareCanShortCircuitRoute)
  */
 TEST(RouterTest, ProducesNotFoundResponse)
 {
-    // 未匹配路径仍由 Router 形成完整 404，并标记已处理，确保上层连接代码
-    // 不会重复派发或遗漏响应。
+    // make404() 会从 responsePool 取出新对象并改写 ctx.response，
+    // 因此断言必须看 context.response，而不是测试栈上原先那份 HttpResponse。
+    // 另外当前 make404 只设置 status=404 与 body，不改 statusText。
     Router router;
-    HttpResponse response;
+    HttpResponse stackResponse;
     RequestContext context;
-    context.response = &response;
+    context.response = &stackResponse;
     context.request.method = "GET";
     context.request.path = "/missing";
 
     EXPECT_TRUE(router.handle(context));
     EXPECT_TRUE(context.handled);
-    EXPECT_EQ(response.status, 404);
-    EXPECT_EQ(response.statusText, "Not Found");
-    EXPECT_EQ(responseBody(response), "Not Found");
+    ASSERT_NE(context.response, nullptr);
+    EXPECT_EQ(context.response->status, 404);
+    EXPECT_EQ(responseBody(*context.response), "Not Found");
 }

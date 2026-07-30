@@ -1,0 +1,24 @@
+Running 30s test @ http://127.0.0.1:8080/
+  4 threads and 128 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     4.15ms    4.00ms 106.89ms   92.72%
+    Req/Sec     8.65k     1.63k   14.86k    77.75%
+  Latency Distribution
+     50%    3.22ms
+     75%    4.97ms
+     90%    7.17ms
+     99%   17.85ms
+  1034041 requests in 30.09s, 100.59MB read
+Requests/sec:  34364.42
+Transfer/sec:      3.34MB
+BENCH_REQUESTS=1034041
+BENCH_QPS=34364.424593
+BENCH_LATENCY_AVG_US=4146.633
+BENCH_LATENCY_P95_US=9523.000
+BENCH_LATENCY_P99_US=17846.000
+BENCH_ERRORS_TOTAL=0
+BENCH_ERRORS_CONNECT=0
+BENCH_ERRORS_READ=0
+BENCH_ERRORS_WRITE=0
+BENCH_ERRORS_STATUS=0
+BENCH_ERRORS_TIMEOUT=0

@@ -1,0 +1,2 @@
+current-warmup	wrk --threads 4 --connections 128 --duration 5s --latency --script /home/pikachu/webserver/scripts/wrk_report.lua http://127.0.0.1:8080/ 
+current	wrk --threads 4 --connections 128 --duration 30s --latency --script /home/pikachu/webserver/scripts/wrk_report.lua http://127.0.0.1:8080/ 

@@ -5,7 +5,7 @@
 set -Eeuo pipefail
 
 # 工具与负载参数。TOOL 表示输出语义，TOOL_BIN 允许 wrk2 仍以 “wrk” 文件名安装。
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="${ROOT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 TOOL="${TOOL:-wrk}"
 TOOL_BIN="${TOOL_BIN:-${TOOL}}"
 THREADS="${THREADS:-4}"
@@ -13,16 +13,14 @@ CONNECTIONS="${CONNECTIONS:-128}"
 DURATION="${DURATION:-30s}"
 WARMUP_DURATION="${WARMUP_DURATION:-5s}"
 RATE="${RATE:-}"
-# CURRENT 由脚本负责启动；BASELINE 可指向外部服务，PID 仅用于可选资源采样。
 CURRENT_URL="${CURRENT_URL:-http://127.0.0.1:8080/}"
 BASELINE_URL="${BASELINE_URL:-}"
 BASELINE_PID="${BASELINE_PID:-}"
 SERVER_BIN="${SERVER_BIN:-${ROOT_DIR}/build-release/webserver}"
-# 每次运行使用独立目录，原始输出、机器环境和汇总指标互不覆盖，便于审计回归。
 RESULTS_ROOT="${RESULTS_ROOT:-${ROOT_DIR}/benchmark-results}"
 RUN_ID="${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 RESULT_DIR="${RESULTS_ROOT}/${RUN_ID}"
-LUA_REPORT="${ROOT_DIR}/scripts/wrk_report.lua"
+LUA_REPORT="${LUA_REPORT:-${ROOT_DIR}/scripts/wrk_report.lua}"
 
 server_pid=""
 
@@ -112,6 +110,10 @@ done
 [[ -f "${LUA_REPORT}" ]] || die "missing Lua report script: ${LUA_REPORT}"
 [[ -x "${SERVER_BIN}" ]] || die "server is not executable: ${SERVER_BIN}"
 
+printf 'benchmark: fingerprint=listen-reclaim-20260730\n' >&2
+printf 'benchmark: SERVER_BIN=%s TOOL=%s THREADS=%s CONNECTIONS=%s DURATION=%s\n' \
+    "${SERVER_BIN}" "${TOOL}" "${THREADS}" "${CONNECTIONS}" "${DURATION}" >&2
+
 mkdir -p "${RESULT_DIR}/raw" "${RESULT_DIR}/samples"
 
 # 记录影响性能解释的系统、工具链和二进制身份。报告保留原始文本而非尝试
@@ -155,45 +157,133 @@ record_environment() {
     } >"${output}"
 }
 
-# 通过 bind 检查固定监听端口，而非仅扫描进程列表；这直接验证内核是否允许
-# 服务启动，并防止意外压测占用 8080 的其他实例。
-assert_port_8080_free() {
-    python3 - <<'PY'
-import socket
+# 只关心是否仍有 LISTEN；TIME_WAIT 不阻挡（服务器使用 SO_REUSEADDR）。
+# 若仍有本仓库 webserver 的 LISTEN，先杀掉再测。
+reclaim_our_listener() {
+    python3 - "${SERVER_BIN}" <<'PY'
+import os, signal, subprocess, sys, time
 
-sock = socket.socket()
+PORT = 8080
+hint = os.path.abspath(sys.argv[1])
+
+def listen_inodes():
+    inodes = set()
+    for path in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            lines = open(path, encoding="utf-8").read().splitlines()[1:]
+        except OSError:
+            continue
+        for line in lines:
+            p = line.split()
+            if len(p) < 10 or p[3] != "0A":
+                continue
+            try:
+                lp = int(p[1].rsplit(":", 1)[-1], 16)
+            except ValueError:
+                continue
+            if lp == PORT and p[9] != "0":
+                inodes.add(p[9])
+    return inodes
+
+def has_listen():
+    if listen_inodes():
+        return True
+    try:
+        out = subprocess.check_output(["ss", "-ltn"], text=True, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return any((":%d" % PORT) in ln and "LISTEN" in ln.upper() for ln in out.splitlines())
+
+def pids_for(inodes):
+    found = set()
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        fd_dir = "/proc/%d/fd" % pid
+        try:
+            for fd in os.listdir(fd_dir):
+                try:
+                    t = os.readlink("%s/%s" % (fd_dir, fd))
+                except OSError:
+                    continue
+                if t.startswith("socket:[") and t[8:-1] in inodes:
+                    found.add(pid)
+                    break
+        except OSError:
+            continue
+    return found
+
+if not has_listen():
+    print("benchmark: :%d has no LISTEN (ok)" % PORT, flush=True)
+    raise SystemExit(0)
+
+for sig in (signal.SIGTERM, signal.SIGKILL):
+    for pid in sorted(pids_for(listen_inodes())):
+        try:
+            os.kill(pid, sig)
+        except (ProcessLookupError, PermissionError):
+            pass
+    try:
+        subprocess.run(
+            ["pkill", "-%d" % int(sig), "-f", hint],
+            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        pass
+    for _ in range(50):
+        if not has_listen():
+            print("benchmark: freed LISTEN on :%d" % PORT, flush=True)
+            raise SystemExit(0)
+        time.sleep(0.1)
+
+print("benchmark: LISTEN still on :%d — ss -ltn:" % PORT, flush=True)
 try:
-    sock.bind(("127.0.0.1", 8080))
-except OSError as exc:
-    raise SystemExit(f"127.0.0.1:8080 is already in use: {exc}")
-finally:
-    sock.close()
+    out = subprocess.check_output(["ss", "-ltn"], text=True, stderr=subprocess.DEVNULL)
+    for ln in out.splitlines():
+        if (":%d" % PORT) in ln:
+            print("  " + ln, flush=True)
+except (OSError, subprocess.CalledProcessError):
+    pass
+raise SystemExit(1)
 PY
+}
+
+assert_port_8080_free() {
+    reclaim_our_listener || die "port 8080 still has LISTEN after reclaim; refuse to start second server"
 }
 
 # 在独立会话启动待测服务并轮询真实 URL。就绪探测同时验证监听、HTTP 处理和
 # 路由响应，避免把启动阶段的低吞吐混入预热与正式测量。
 start_server() {
+    printf 'benchmark: starting server %s\n' "${SERVER_BIN}" >&2
     assert_port_8080_free
+    local server_dir
+    server_dir="$(cd "$(dirname "${SERVER_BIN}")" && pwd)"
     (
-        cd "${ROOT_DIR}"
-        # setsid 使清理时可以向整个服务进程组发送信号，覆盖潜在子进程。
+        # 在可执行文件目录启动，保证 ./static 等相对路径与 POST_BUILD 产物一致。
+        cd "${server_dir}"
         exec setsid "${SERVER_BIN}"
     ) >"${RESULT_DIR}/server.log" 2>&1 &
     server_pid=$!
+    printf 'benchmark: server_pid=%s cwd=%s\n' "${server_pid}" "${server_dir}" >&2
 
     local deadline=$((SECONDS + 15))
     while (( SECONDS < deadline )); do
         if ! kill -0 "${server_pid}" 2>/dev/null; then
-            # 早退比等待固定超时更快暴露配置或动态链接错误，日志路径保留现场。
             wait "${server_pid}" 2>/dev/null || true
+            printf 'benchmark: server log ----\n' >&2
+            tail -n 50 "${RESULT_DIR}/server.log" >&2 || true
             die "server exited before becoming ready; inspect ${RESULT_DIR}/server.log"
         fi
         if curl --silent --show-error --fail --max-time 1 "${CURRENT_URL}" >/dev/null 2>&1; then
+            printf 'benchmark: server ready at %s\n' "${CURRENT_URL}" >&2
             return
         fi
         sleep 0.1
     done
+    printf 'benchmark: server log ----\n' >&2
+    tail -n 50 "${RESULT_DIR}/server.log" >&2 || true
     die "server did not become ready at ${CURRENT_URL} within 15 seconds"
 }
 
@@ -202,16 +292,16 @@ start_server() {
 build_command() {
     local duration="$1"
     local url="$2"
+    # 短选项兼容性更好；部分发行版 wrk 对长选项解析更挑剔。
     BENCH_COMMAND=(
         "${TOOL_BIN}"
-        --threads "${THREADS}"
-        --connections "${CONNECTIONS}"
-        --duration "${duration}"
+        -t "${THREADS}"
+        -c "${CONNECTIONS}"
+        -d "${duration}"
         --latency
-        --script "${LUA_REPORT}"
+        -s "${LUA_REPORT}"
     )
     if [[ "${TOOL}" == "wrk2" ]]; then
-        # 仅 wrk2 支持恒定请求速率，避免将不兼容参数传给标准 wrk。
         BENCH_COMMAND+=(--rate "${RATE}")
     fi
     BENCH_COMMAND+=("${url}")
@@ -269,12 +359,17 @@ run_one() {
     local samples="${RESULT_DIR}/samples/${label}.tsv"
 
     if [[ "${WARMUP_DURATION}" != "0" && "${WARMUP_DURATION}" != "0s" ]]; then
-        # 预热不进入 summary，用于稳定代码页、缓存和连接建立成本；原始输出
-        # 仍保留，以便预热失败或异常时追溯。
         build_command "${WARMUP_DURATION}" "${url}"
         write_command "${label}-warmup" "${BENCH_COMMAND[@]}"
-        "${BENCH_COMMAND[@]}" >"${RESULT_DIR}/raw/${label}-warmup.txt" 2>&1 ||
-            die "${label} warm-up failed; inspect raw output"
+        set +e
+        "${BENCH_COMMAND[@]}" >"${RESULT_DIR}/raw/${label}-warmup.txt" 2>&1
+        local warm_status=$?
+        set -e
+        if [[ ${warm_status} -ne 0 ]]; then
+            printf 'benchmark: warm-up returned %s (continue); see %s\n' \
+                "${warm_status}" "${RESULT_DIR}/raw/${label}-warmup.txt" >&2
+            tail -n 30 "${RESULT_DIR}/raw/${label}-warmup.txt" >&2 || true
+        fi
     fi
 
     build_command "${DURATION}" "${url}"

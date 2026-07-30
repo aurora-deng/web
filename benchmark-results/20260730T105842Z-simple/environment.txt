@@ -1,0 +1,7 @@
+tool=wrk (simple embedded runner; wrk2 not required)
+threads=4
+connections=128
+duration=10s
+url=http://127.0.0.1:8080/
+server_bin=/home/pikachu/webserver/build-release/webserver
+2026-07-30T10:58:53+00:00
