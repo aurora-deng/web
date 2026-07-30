@@ -42,7 +42,7 @@ private:
     // chunked 与 Content-Length 互斥，避免请求边界歧义带来的请求走私风险。
     bool chunked_ = false;
     bool hasContentLength_ = false;
-    bool hasHost_ = false;
+    bool hasHost_ = false;                  //用于和前端请求是否合法做判断
     size_t headerBytes_ = 0;
 };
 

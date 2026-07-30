@@ -159,8 +159,11 @@ if(BUILD_TESTING)
     if(NOT GTest_FOUND)
         message(FATAL_ERROR
             "BUILD_TESTING=ON requires a system-installed GoogleTest. "
-            "Install it (for example: apt install libgtest-dev) or configure "
-            "with -DBUILD_TESTING=OFF. This project never downloads test dependencies.")
+            "Install it, for example:\n"
+            "  Debian/Ubuntu: sudo apt install libgtest-dev\n"
+            "  CentOS/RHEL:   sudo dnf install gtest-devel\n"
+            "Or configure with -DBUILD_TESTING=OFF. "
+            "This project never downloads test dependencies.")
     endif()
 
     # 兼容不同系统GTest导出target名称差异：部分环境目标名为GTest::Main而非gtest_main
@@ -171,14 +174,26 @@ if(BUILD_TESTING)
             message(FATAL_ERROR "GoogleTest was found, but no gtest_main CMake target is available.")
         endif()
     endif()
+    if(NOT TARGET GTest::gtest AND TARGET GTest::GTest)
+        add_library(GTest::gtest ALIAS GTest::GTest)
+    endif()
 
     # 单元测试可执行程序
     add_executable(webserver_unit_tests tests/unit_tests.cpp)
-    target_link_libraries(webserver_unit_tests PRIVATE webserver_core GTest::gtest_main)
-
+    # 部分发行版的 gtest_main 不会自动带上 gtest 本体，显式链接更稳妥。
+    if(TARGET GTest::gtest)
+        target_link_libraries(webserver_unit_tests PRIVATE webserver_core GTest::gtest GTest::gtest_main)
+    else()
+        target_link_libraries(webserver_unit_tests PRIVATE webserver_core GTest::gtest_main)
+    endif()
     # 自动扫描所有TEST宏，注册测试用例，不需要手动add_test
     include(GoogleTest)
-    gtest_discover_tests(webserver_unit_tests)
+    # PRE_TEST：避免在构建阶段执行测试二进制做用例发现（全局线程等可能导致 POST_BUILD 失败）。
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.18")
+        gtest_discover_tests(webserver_unit_tests DISCOVERY_MODE PRE_TEST)
+    else()
+        gtest_discover_tests(webserver_unit_tests)
+    endif()
 
     # ==========================================================================
     # 集成黑盒测试：Python脚本启动真实服务，发送网络请求测试完整链路

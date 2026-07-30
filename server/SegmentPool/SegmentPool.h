@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstring>
 #include <mutex>
-#include <bits/types/struct_iovec.h>
+#include <sys/uio.h>
 
 // 引入segmentview模型，统一发送信息内存，
 // 为后续内存池做铺垫,彻底落实零拷贝的内存指向,抽象类型发送，有利于可扩展性

@@ -142,7 +142,6 @@ void ServerRuntime::setupListener()
     std::cout << "server started..." << std::endl;
 }
 
-
 void ServerRuntime::requestStop()
 {
     running_.store(false, std::memory_order_release);
@@ -152,7 +151,6 @@ void ServerRuntime::requestStop()
         (void)write(wakeFd_, &one, sizeof(one));
     }
 }
-
 
 void ServerRuntime::releaseListener()
 {
@@ -185,8 +183,10 @@ void ServerRuntime::acceptLoop()
 {
     // 开始接收来自reactor发送或者触发的信息给到reactors
     epoll_event events[1024];
+    // running_ 原子标记，控制服务启停，acquire保证内存可见,使得安全退出
     while (running_.load(std::memory_order_acquire))
     {
+        // 正常监听
         int n = epoll_wait(epfd_, events, 1024, -1);
         if (n < 0)
         {
@@ -194,20 +194,26 @@ void ServerRuntime::acceptLoop()
                 continue;
             throw std::runtime_error(std::string("acceptor epoll_wait: ") + strerror(errno));
         }
-
+        // 收到事件后再次检查停止标记，防止shutdown竞争
         if (!running_.load(std::memory_order_acquire))
             break;
-        
+
         for (int i = 0; i < n; i++)
         {
             int fd = events[i].data.fd;
+            // ========== 1. 唤醒管道 wakeFd_ ==========
             if (fd == wakeFd_)
             {
                 uint64_t cnt = 0;
+                //  排空缓冲区，避免多次唤醒堆积
+                // 服务执行shutdown()的时候，
+                // 向 wakeFd 写入数据，唤醒阻塞在epoll_wait的 accept 线程，
+                // 让循环感知running_=false正常退出。，用于退出处理，防止强制退出导致重启失败
                 while (read(wakeFd_, &cnt, sizeof(cnt)) > 0)
                     ;
                 continue;
             }
+            // 正常监听套字节
             if (fd == listenFd_)
             {
                 struct sockaddr_in cin{};
@@ -229,7 +235,7 @@ void ServerRuntime::acceptLoop()
                         LOG_ERROR(std::string("accept error") + strerror(errno));
                         break;
                     }
-                   
+
                     // 关闭 Nagle，避免小响应头/体分写触发 Delayed ACK ~40ms 地板。
                     int yes = 1;
                     if (setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) == -1)
@@ -238,7 +244,7 @@ void ServerRuntime::acceptLoop()
                         close(newfd);
                         continue;
                     }
-
+                    // 全局最大连接数限流
                     if (maxConnections_ > 0 &&
                         reactorGroup_->activeConnections() >= maxConnections_)
                     {
@@ -248,18 +254,19 @@ void ServerRuntime::acceptLoop()
                     }
 
                     LOG_INFO(std::string("new connection fd=") + std::to_string(newfd));
+                    // 分发fd到Reactor线程池
                     reactorGroup_->dispatch(newfd);
-                }
-            }
-        }
-    }
+                } // end while accept4
+            } // end listenFd
+        } // end for events
+    } // end while running
 }
 
 void ServerRuntime::start()
 {
     setupListener();
     createReactors();
-     g_runtime.store(this, std::memory_order_release);
+    g_runtime.store(this, std::memory_order_release);
     std::signal(SIGINT, handleStopSignal);
     std::signal(SIGTERM, handleStopSignal);
 
@@ -267,7 +274,7 @@ void ServerRuntime::start()
 
     // Ctrl+C 路径：立刻释放监听端口，再回收 Reactor，避免 join 期间端口仍被占用。
     releaseListener();
-    
+
     // 停止接受后回收 Reactor，再返回；Executor 随成员析构 drain。
     if (reactorGroup_)
     {

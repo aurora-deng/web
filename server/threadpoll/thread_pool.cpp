@@ -62,6 +62,7 @@ bool ThreadPool::addTask(std::function<void()> task)
         {
             return false;
         }
+        // 后续扩展任务主要就是放到去多态化task即可
         tasks.push(task);
     }   
 

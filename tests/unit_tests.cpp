@@ -18,16 +18,26 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <vector>
 
 #include "server/Buffer/Buffer.h"
 #include "server/Repsonse/FileBody.h"
 #include "server/Repsonse/StringBody.h"
 #include "server/Route/Router.h"
+#include "server/http/http.h"
 #include "server/http/HttpParser/HttpParser.h"
 #include "server/http/ResponseSender/ResponseSender.h"
+#include "server/http/RequestContext/RequestContext.h"
+#include "server/SegmentPool/SegmentPool.h"
+#include "server/timer/TimeWheel.h"
+
+#include <utility>
 
 namespace {
 
@@ -47,6 +57,15 @@ std::string responseBody(const HttpResponse& response)
         return {};
     return std::string(body->buffer_->peek(), body->buffer_->readableBytes());
 }
+
+// 非 const 对象上存在 void buildHeader() 重载时会优先于返回 string 的 const 版本；
+// 单测需要检查首部文本，必须走 const 重载。
+std::string headerText(const HttpResponse& response)
+{
+    return response.buildHeader();
+}
+
+} // namespace
 
 // ============================================================================
 // Buffer 测试
@@ -511,32 +530,32 @@ TEST(HttpRangeTest, ResolvesClosedOpenSuffixAndInvalidRanges)
 
     // 闭区间直接映射，验证 HTTP 的包含式 end 语义没有被误作半开区间。
     RangeInfo closed{true, 10, false, 19};
-    EXPECT_TRUE(resolveByteRange(closed, 100, begin, end));
+    EXPECT_TRUE(::resolveByteRange(closed, 100, begin, end));
     EXPECT_EQ(begin, 10U);
     EXPECT_EQ(end, 19U);
 
     // 省略结尾时应延伸到资源末尾，为断点续传提供符合规范的长度计算。
     RangeInfo open{true, 25, false, SIZE_MAX};
-    EXPECT_TRUE(resolveByteRange(open, 100, begin, end));
+    EXPECT_TRUE(::resolveByteRange(open, 100, begin, end));
     EXPECT_EQ(begin, 25U);
     EXPECT_EQ(end, 99U);
 
     // 后缀范围从总长度反推起点；请求长度超过资源时应退化为整个资源，
     // 避免 size_t 下溢并保持客户端可预测行为。
     RangeInfo suffix{true, 0, true, 10};
-    EXPECT_TRUE(resolveByteRange(suffix, 100, begin, end));
+    EXPECT_TRUE(::resolveByteRange(suffix, 100, begin, end));
     EXPECT_EQ(begin, 90U);
     EXPECT_EQ(end, 99U);
 
     suffix.end = 200;
-    EXPECT_TRUE(resolveByteRange(suffix, 100, begin, end));
+    EXPECT_TRUE(::resolveByteRange(suffix, 100, begin, end));
     EXPECT_EQ(begin, 0U);
     EXPECT_EQ(end, 99U);
 
     // 起点等于资源长度及空资源均不可满足，覆盖最容易出现越界的边界条件。
     RangeInfo outOfRange{true, 100, false, SIZE_MAX};
-    EXPECT_FALSE(resolveByteRange(outOfRange, 100, begin, end));
-    EXPECT_FALSE(resolveByteRange(closed, 0, begin, end));
+    EXPECT_FALSE(::resolveByteRange(outOfRange, 100, begin, end));
+    EXPECT_FALSE(::resolveByteRange(closed, 0, begin, end));
 }
 
 /**
@@ -565,7 +584,7 @@ TEST(HttpRangeTest, PreservesContentRangeForMemoryAndFileBodies)
     memoryResponse.text("0123456789");
     memoryResponse.setHeader("Content-Range", "bytes 10-19/100");
     EXPECT_NE(
-        memoryResponse.buildHeader().find("Content-Range: bytes 10-19/100\r\n"),
+        headerText(memoryResponse).find("Content-Range: bytes 10-19/100\r\n"),
         std::string::npos);
 
     // 文件正文走独立的发送路径；除验证保留外，还检查只出现一次，避免框架
@@ -577,7 +596,7 @@ TEST(HttpRangeTest, PreservesContentRangeForMemoryAndFileBodies)
     fileBody->remain_ = 10;
     fileResponse.body = fileBody;
     fileResponse.setHeader("Content-Range", "bytes 10-19/100");
-    const std::string fileHeader = fileResponse.buildHeader();
+    const std::string fileHeader = headerText(fileResponse);
     EXPECT_NE(
         fileHeader.find("Content-Range: bytes 10-19/100\r\n"),
         std::string::npos);
@@ -710,5 +729,3 @@ TEST(RouterTest, ProducesNotFoundResponse)
     EXPECT_EQ(response.statusText, "Not Found");
     EXPECT_EQ(responseBody(response), "Not Found");
 }
-
-}  // namespace

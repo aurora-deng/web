@@ -7,11 +7,16 @@
 #include <cstdint>
 #include <string>
 
+// 作为统一的工具栏文件
+
+// 可以使用命名空间来对其进行详细空间管束，效果和类差不多，不过实现不了多态
+
 // 解析器各阶段的大小上限：在分配大对象前拒绝异常输入，约束单连接资源占用。
 // HttpParser.h 中的 MAX_* 静态常量引用这些值，保持对外接口不变。
 inline constexpr size_t kMaxRequestLineBytes = 8 * 1024;
 inline constexpr size_t kMaxHeaderBytes = 64 * 1024;
 inline constexpr size_t kMaxBodyBytes = 1024 * 1024;
+
 
 // 统一小写
 inline std::string toLower(std::string s)
