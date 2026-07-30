@@ -1,0 +1,115 @@
+第一阶段
+✓ Reactor
+✓ ThreadPool
+✓ TimerWheel
+✓ Router
+✓ HTTP Parser
+✓ Buffer
+✓ Response
+
+↓
+
+第二阶段
+✓ Coroutine Runtime（刚完成）
+
+↓
+
+第三阶段（下一步）
+□ Session状态机
+□ Parser对象化
+□ Sender对象化
+□ Executor对象化
+□ Runtime独立
+
+↓
+
+第四阶段
+□ WebSocket
+□ SSE
+□ HTTP2
+□ gRPC
+
+↓
+
+第五阶段
+□ io_uring
+□ SSL/TLS
+□ NUMA
+□ 零拷贝优化
+
+
+3.6.1 统一错误处理系统
+3.6.2 连接生命周期管理
+3.6.3 日志系统完善
+3.6.4 性能指标统计
+日志系统完善
+
+目前：
+
+你已经从：
+
+cout
+
+
+改：
+
+LOG_ERROR
+
+
+很好。
+
+但是第三阶段标准：
+
+需要结构化日志。
+
+增加：
+
+enum class LogLevel
+{
+
+DEBUG,
+
+INFO,
+
+WARN,
+
+ERROR
+
+};
+
+
+日志：
+
+LOG_INFO(
+"connection accepted",
+fd
+);
+
+
+输出：
+
+[INFO]
+time=12:20:01
+thread=reactor-1
+fd=25
+event=accept
+
+增加RequestID
+
+
+
+Session/Parser
+→ Executor/Runtime 边界
+→ 取消、背压、优雅退出、测试
+→ Sanitizer 与故障注入
+→ 压测、P99、火焰图、竞品对比
+→ 完成设计文档
+→ Web 项目停止扩张
+→ gRPC/ROS2/DDS/实时 Linux
+
+Benchmark 压测：制造高并发流量；
+故障注入：在压测中叠加网络 / 资源故障；
+Sanitizer(ASan/TSan)：压测 + 故障场景下抓内存、并发 Bug；
+Metrics 监控：观测故障下 QPS、延迟、错误率指标；
+火焰图：故障高负载时采样，定位 CPU 阻塞、慢函数；
+这是一套完整的服务稳定性 & 性能闭环测试链路
