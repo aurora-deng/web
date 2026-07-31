@@ -274,6 +274,9 @@ stackcollapse-perf.pl out.perf > out.folded
 flamegraph.pl --title "webserver CPU" out.folded > cpu-flamegraph.svg
 ```
 
+**读图教学与本仓实战解读**（含样本图）：  
+[../testing/learning/测试学习综合讲义和笔记/火焰图生成命令流与读图教学.md](../testing/learning/测试学习综合讲义和笔记/火焰图生成命令流与读图教学.md)
+
 若调用栈大量为 `[unknown]`，用 `RelWithDebInfo` 重建并保留 frame pointer：
 
 ```bash

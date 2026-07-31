@@ -103,7 +103,7 @@ void SubReactor::wakeWriteCoroutine(int fd)
 }
 
 // 由于在io端的线程和在业务端的线程分离，所以协程唤醒需要有单独的函数来实现唤醒
-// 唤醒执行完成的协程：Worker 线程完成 handler 后通过 processComplete 调用。
+// 唤醒执行完成的协程：Worker 线程完成 handler 后通过 processComplete 调用，唤醒协程继续进行下一步操作。
 void SubReactor::wakeExecuteCoroutine(int fd)
 {
     auto it = conns.find(fd);
@@ -149,6 +149,7 @@ void SubReactor::processComplete()
         std::lock_guard<std::mutex> lock(completeMtx);
         local.swap(completeQueue);
     }
+    // 将队列交换回来，开始继续执行
     while (!local.empty())
     {
         auto [fd, connId] = local.front();
@@ -157,6 +158,7 @@ void SubReactor::processComplete()
         auto it = conns.find(fd);
         if (it != conns.end() && it->second->id == connId)
         {
+            // 唤醒继续持续
             wakeExecuteCoroutine(fd);
             continue;
         }
@@ -377,7 +379,9 @@ void SubReactor::loop()
 
                 // 段错误修复处：先处理待添加的 fd，再处理任务结果
                 // 确保所有对 conns/wheel/epoll_ctl 的操作都在 SubReactor 线程中完成
+                // 派发任务
                 processPendingFds();
+                // 处理已完成任务并唤醒协程（请求解析）
                 processComplete();
             }
             else

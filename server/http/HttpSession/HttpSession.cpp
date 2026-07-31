@@ -317,10 +317,10 @@ Task<void> HttpSession::run()
             // 2. 连接已销毁：通过僵尸连接队列标记，协程唤醒后安全退出无段错误
             reactor->notifyExecuteComplete(this->fd, connId);
         });
-
+        // 若遇到/slow
         if (submitted)
         {
-            // 任务提交成功，挂起协程等待线程池完成通知
+            // 任务提交成功，挂起协程等待线程池完成通知,交出协程序权柄，等待线程池完成通知,回复/fast
             co_await ExecuteAwaiter(reactor, fd);
         }
         else

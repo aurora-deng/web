@@ -1,5 +1,8 @@
 # 第三阶段：Server Framework Architecture Upgrade
 
+> **配套重要知识点笔记（思想补齐）**：[phase3/README.md](phase3/README.md)  
+> 含 Reactor / Runtime / Async Runtime / Pipeline / 背压 / 所有权 / Completion / 验收 / 第四阶段桥。
+
 ## 一、升级概述
 
 ### 1.1 升级目标

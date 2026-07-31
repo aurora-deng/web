@@ -38,6 +38,50 @@
 #include "server/timer/TimeWheel.h"
 
 #include <utility>
+// 单元测试 = 预先定义“程序应该产生什么行为”，然后自动验证实际行为是否符合预期。
+// 4. 单元测试其实更像“自动化断点”
+
+// 你的理解：
+
+// 单元测试就是预判输出结果然后看输出对吧
+
+// 可以理解成：
+
+// 低级阶段：
+
+// 输入
+//  |
+// 程序
+//  |
+// 打印结果
+//  |
+// 人工判断
+
+// 升级：
+
+// 输入
+//  |
+// 程序
+//  |
+// EXPECT判断
+//  |
+// 自动告诉你
+// // EXPECT 失败不终止
+// EXPECT_EQ(a,b);   // a == b
+// EXPECT_NE(a,b);   // a != b
+// EXPECT_LT(a,b);   // a < b
+// EXPECT_LE(a,b);   // a <= b
+// EXPECT_GT(a,b);   // a > b
+// EXPECT_GE(a,b);   // a >= b
+
+// // ASSERT 失败直接终止当前用例
+// ASSERT_EQ(a,b);
+// ASSERT_NE(a,b);
+// ASSERT_LT(a,b);
+// ASSERT_LE(a,b);
+// ASSERT_GT(a,b);
+// ASSERT_GE(a,b);
+
 
 namespace {
 
@@ -73,7 +117,7 @@ std::string headerText(const HttpResponse& response)
 
 /**
  * @test BufferTest.AppendsCompactsAndFindsDelimiters
- * @brief 验证 Buffer 的追加、压缩和分隔符查找功能。
+ * @brief 验证  er 的追加、压缩和分隔符查找功能。
  *
  * 测试步骤：
  *   1. 创建初始容量为 8 的小 Buffer，迫使后续操作触发压缩或扩容
@@ -91,7 +135,9 @@ TEST(BufferTest, AppendsCompactsAndFindsDelimiters)
     // 小初始容量会迫使 Buffer 在已消费前缀存在时压缩或扩容，验证数据搬移后
     // 可读区仍连续且内容不丢失，这是分包解析能够安全追加数据的基础。
     Buffer buffer(8);
+    // 测试连续append，和超容量测试
     buffer.append("abcd", 4);
+    // 剩余检查
     buffer.retrieve(3);
     buffer.append("efghij", 6);
 
@@ -102,8 +148,10 @@ TEST(BufferTest, AppendsCompactsAndFindsDelimiters)
     // 同时检查行结束符和首部结束符的相对位置，防止查找函数越过可读边界，
     // 或在多段协议分隔符中返回错误位置。
     buffer.append("one\r\ntwo\r\n\r\n", 12);
+    // 失败立即停止：
     ASSERT_NE(buffer.findCRLF(), buffer.beginWrite());
     ASSERT_NE(buffer.findCRLFCRLF(), nullptr);
+    // 失败后继续
     EXPECT_EQ(buffer.findCRLF() - buffer.peek(), 3);
     EXPECT_EQ(buffer.findCRLFCRLF() - buffer.peek(), 8);
 }
@@ -127,6 +175,7 @@ TEST(BufferTest, AppendsCompactsAndFindsDelimiters)
  *   - 解析器必须保持跨多次调用的状态上下文
  *   - Content-Length 正文必须完整组装后才能交付
  */
+// 测试根据程序跑到流程去你要测试的去测试
 TEST(HttpParserTest, WaitsForHalfPacketAndContentLengthBody)
 {
     HttpParser parser;

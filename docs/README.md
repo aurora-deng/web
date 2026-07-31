@@ -7,8 +7,9 @@
 ```text
 docs/
   closeout/       收口总述、清单、阶段 A 改动说明
-  architecture/   架构、请求流、阶段升级与对照
-  testing/        测试说明；learning/ 为学习材料（等你下令再开课）
+  architecture/   架构、请求流、阶段升级、对照
+    phase3/       ★ 第三阶段重要知识点（Reactor/Runtime/Pipeline/背压/所有权…）
+  testing/        测试说明；learning/ 学习材料
   performance/    压测方法
   roadmap/        机器人 / 后续方向
   ops/            环境与运维备忘
@@ -22,12 +23,16 @@ docs/
 | **收尾总述（先读）** | [closeout/CLOSEOUT_NARRATIVE.md](closeout/CLOSEOUT_NARRATIVE.md) |
 | 收口清单 | [closeout/CLOSEOUT.md](closeout/CLOSEOUT.md) |
 | 阶段 A（NODELAY/停服） | [closeout/closeout-A_tcp_nodelay_graceful_shutdown.md](closeout/closeout-A_tcp_nodelay_graceful_shutdown.md) |
-| 架构 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) |
+| 架构总览 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) |
+| **第三阶段重要知识点** | [architecture/phase3/README.md](architecture/phase3/README.md) |
 | 请求流 | [architecture/request_flow.md](architecture/request_flow.md) |
-| 第三阶段升级 | [architecture/phase3_architecture_upgrade.md](architecture/phase3_architecture_upgrade.md) |
+| 第三阶段升级记录 | [architecture/phase3_architecture_upgrade.md](architecture/phase3_architecture_upgrade.md) |
 | 代码对照 | [architecture/code_diff_comparison.md](architecture/code_diff_comparison.md) |
 | 测试入口 | [testing/TESTING.md](testing/TESTING.md) |
-| 测试学习范围（未开课） | [testing/LEARNING_SCOPE.md](testing/LEARNING_SCOPE.md) |
+| 测试学习范围 | [testing/LEARNING_SCOPE.md](testing/LEARNING_SCOPE.md) |
+| **测试学习综合讲义和笔记** | [testing/learning/测试学习综合讲义和笔记/README.md](testing/learning/测试学习综合讲义和笔记/README.md) |
+| 我对各层测试的理解 | [testing/learning/测试学习综合讲义和笔记/我对各层测试的理解.md](testing/learning/测试学习综合讲义和笔记/我对各层测试的理解.md) |
+| 火焰图命令流与读图 | [testing/learning/测试学习综合讲义和笔记/火焰图生成命令流与读图教学.md](testing/learning/测试学习综合讲义和笔记/火焰图生成命令流与读图教学.md) |
 | 学习笔记速查 | [testing/learning/学习笔记速查.md](testing/learning/学习笔记速查.md) |
 | 压测方法 | [performance/BENCHMARK.md](performance/BENCHMARK.md) |
 | 机器人路线 | [roadmap/ROBOTICS_ROADMAP.md](roadmap/ROBOTICS_ROADMAP.md) |

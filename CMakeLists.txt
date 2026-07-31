@@ -48,7 +48,7 @@ add_library(webserver_sanitizers INTERFACE)
 
 # 启用AddressSanitizer配置
 if(WEBSERVER_ENABLE_ASAN)
-    # 编译参数：开启asan，保留调用栈信息方便定位崩溃位置
+    # 编译参数：INTERFACE 开启asan，保留调用栈信息,方便定位崩溃位置
     target_compile_options(webserver_sanitizers INTERFACE -fsanitize=address -fno-omit-frame-pointer)
     # 链接参数：链接asan运行时库
     target_link_options(webserver_sanitizers INTERFACE -fsanitize=address)
