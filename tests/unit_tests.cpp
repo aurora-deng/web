@@ -1,20 +1,37 @@
-/**
- * @file unit_tests.cpp
- * @brief 质量回归单元测试：直接覆盖缓冲区、HTTP 解析、字节范围和路由等基础组件。
- *
- * 这些测试刻意使用小而确定的输入定位协议边界，既为框架重构提供快速反馈，
- * 也避免只依赖端到端测试时难以区分解析、响应构造和路由层故障。
- *
- * 测试框架：Google Test (gtest)
- * 运行方式：ctest --test-dir build-tests --output-on-failure
- *
- * 测试覆盖：
- *   - Buffer          : 追加、压缩、分隔符查找
- *   - HttpParser      : 半包/粘包/chunked/range/长度限制/请求走私/reset
- *   - ResponseSender  : 独立于 SubReactor 的发送验证
- *   - HttpRange       : 通过 HttpParser 验证 Range 首部；Content-Range 保留
- *   - Router          : 动态路由/中间件短路/404
- */
+// ============================================================
+// 文件名：unit_tests.cpp
+// ------------------------------------------------------------
+// 【职责比喻：质检车间】
+//   服务器是一座工厂，本文件就是工厂的"质检车间"——把每个零件单独拿到
+//   显微镜下检查。如果直接组装完再测试，出了问题很难定位是哪个零件坏了。
+//   所以质检员会用确定的小输入逐一验证每个基础组件：
+//   "这个齿轮（Buffer）转 10 圈会不会卡？""发条（HttpParser）上紧后能跑多久？"
+//   "表盘指针（Router）指对了吗？"这就是单元测试——用最小的、确定性的输入，
+//   验证每个基础组件的行为符合预期。
+//
+//   这些测试刻意使用小而确定的输入定位协议边界，既为框架重构提供快速反馈，
+//   也避免只依赖端到端测试时难以区分解析、响应构造和路由层故障。
+//
+// 关键技术点（初学者重点理解）：
+//   1. EXPECT vs ASSERT：EXPECT_EQ 失败后继续执行当前用例（适合非关键断言），
+//      ASSERT_EQ 失败立即终止当前用例（适合后续依赖此断言的场景，如指针非空）。
+//   2. 半包/粘包测试：模拟 TCP 分片到达，验证解析器能跨多次 parse 调用保持状态。
+//   3. 边界值测试：恰好填满上限（合法）vs 超出上限一个字节（非法），验证边界判断。
+//   4. 安全测试：请求走私（Content-Length + chunked 冲突）、超长请求行内存耗尽攻击。
+//   5. RFC 黄金对照：WebSocket 握手用 RFC 6455 官方示例做"黄金对照"，
+//      确保协议实现与标准完全一致。
+//
+// 测试框架：Google Test (gtest)
+// 运行方式：ctest --test-dir build-tests --output-on-failure
+//
+// 测试覆盖：
+//   - Buffer          : 追加、压缩、分隔符查找
+//   - HttpParser      : 半包/粘包/chunked/range/长度限制/请求走私/reset
+//   - TransportWriter : 独立于 SubReactor 的发送验证（见 transport_tests.cpp）
+//   - HttpRange       : 通过 HttpParser 验证 Range 首部；Content-Range 保留
+//   - Router          : 动态路由/中间件短路/404
+//   - WebSocket       : 握手密钥计算/编解码往返/掩码校验/半包解析（第四阶段新增）
+// ============================================================
 
 #include <gtest/gtest.h>
 
@@ -27,60 +44,29 @@
 #include <vector>
 
 #include "server/Buffer/Buffer.h"
-#include "server/Repsonse/FileBody.h"
-#include "server/Repsonse/StringBody.h"
+#include "server/response/FileBody.h"
+#include "server/response/StringBody.h"
 #include "server/Route/Router.h"
 #include "server/http/http.h"
 #include "server/http/HttpParser/HttpParser.h"
-#include "server/http/ResponseSender/ResponseSender.h"
 #include "server/http/RequestContext/RequestContext.h"
 #include "server/SegmentPool/SegmentPool.h"
 #include "server/timer/TimeWheel.h"
 
 #include <utility>
-// 单元测试 = 预先定义“程序应该产生什么行为”，然后自动验证实际行为是否符合预期。
-// 4. 单元测试其实更像“自动化断点”
-
-// 你的理解：
-
-// 单元测试就是预判输出结果然后看输出对吧
-
-// 可以理解成：
-
-// 低级阶段：
-
-// 输入
-//  |
-// 程序
-//  |
-// 打印结果
-//  |
-// 人工判断
-
-// 升级：
-
-// 输入
-//  |
-// 程序
-//  |
-// EXPECT判断
-//  |
-// 自动告诉你
-// // EXPECT 失败不终止
-// EXPECT_EQ(a,b);   // a == b
-// EXPECT_NE(a,b);   // a != b
-// EXPECT_LT(a,b);   // a < b
-// EXPECT_LE(a,b);   // a <= b
-// EXPECT_GT(a,b);   // a > b
-// EXPECT_GE(a,b);   // a >= b
-
-// // ASSERT 失败直接终止当前用例
-// ASSERT_EQ(a,b);
-// ASSERT_NE(a,b);
-// ASSERT_LT(a,b);
-// ASSERT_LE(a,b);
-// ASSERT_GT(a,b);
-// ASSERT_GE(a,b);
+// ----------------------------------------------------------------------------
+// gtest 断言宏速查（初学者重点理解）
+//   单元测试 = 预先定义"程序应该产生什么行为"，然后自动验证实际行为是否符合预期。
+//   - EXPECT_* 失败后继续执行当前用例（适合非关键断言，收集更多失败信息）
+//   - ASSERT_* 失败立即终止当前用例（适合后续逻辑依赖此断言的场景，如指针非空）
+//
+//   EXPECT_EQ(a,b) / ASSERT_EQ(a,b)   ——  等于
+//   EXPECT_NE(a,b) / ASSERT_NE(a,b)   ——  不等于
+//   EXPECT_LT(a,b) / ASSERT_LT(a,b)   ——  小于
+//   EXPECT_LE(a,b) / ASSERT_LE(a,b)   ——  小于等于
+//   EXPECT_GT(a,b) / ASSERT_GT(a,b)   ——  大于
+//   EXPECT_GE(a,b) / ASSERT_GE(a,b)   ——  大于等于
+// ----------------------------------------------------------------------------
 
 
 namespace {
@@ -502,56 +488,6 @@ TEST(HttpParserTest, RequiresResetAfterDeliveryAndParsesConnectionTokens)
 }
 
 // ============================================================================
-// ResponseSender 测试
-// ============================================================================
-
-/**
- * @test ResponseSenderTest.SendsWithoutSubReactor
- * @brief 验证 ResponseSender 可以独立于 SubReactor 工作。
- *
- * 测试步骤：
- *   1. 创建 socketpair（本地回环对），模拟客户端/服务端连接
- *   2. 创建独立的 SegmentPool、TimerWheel、ResponseSender
- *   3. 构造简单响应 "standalone sender"
- *   4. 调用 sender.send() 发送到 socket[0]
- *   5. 从 socket[1] 读取数据，验证包含状态行和响应体
- *
- * 为什么重要：
- *   - 验证 ResponseSender 完成对象化后，可以脱离 SubReactor 独立使用
- *   - 为单元测试和未来的非 Reactor 发送场景提供验证
- *   - socketpair 模拟真实 TCP 链路，验证 writev/sendfile 等系统调用
- */
-TEST(ResponseSenderTest, SendsWithoutSubReactor)
-{
-    int sockets[2]{-1, -1};
-    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets), 0);
-
-    SegmentPool segments;
-    TimerWheel wheel(16, 5);
-    ResponseSender sender(segments, wheel);
-    HttpResponse response;
-    response.keepAlive = false;
-    response.text("standalone sender");
-    response.buildHeader();
-
-    EXPECT_EQ(sender.send(sockets[0], response), SEND_OK);
-    ASSERT_EQ(shutdown(sockets[0], SHUT_WR), 0);
-
-    std::string wire;
-    char received[512]{};
-    while (const ssize_t size = read(sockets[1], received, sizeof(received)))
-    {
-        ASSERT_GT(size, 0);
-        wire.append(received, static_cast<size_t>(size));
-    }
-    EXPECT_NE(wire.find("HTTP/1.1 200 OK\r\n"), std::string::npos);
-    EXPECT_NE(wire.find("standalone sender"), std::string::npos);
-
-    close(sockets[0]);
-    close(sockets[1]);
-}
-
-// ============================================================================
 // HttpRange 测试
 // ============================================================================
 
@@ -775,4 +711,710 @@ TEST(RouterTest, ProducesNotFoundResponse)
     ASSERT_NE(context.response, nullptr);
     EXPECT_EQ(context.response->status, 404);
     EXPECT_EQ(responseBody(*context.response), "Not Found");
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket 测试（第四阶段新增）
+// ---------------------------------------------------------------------------
+// WebSocket 是独立于 HTTP 的二进制帧协议（RFC 6455）。以下测试覆盖握手、
+// 编解码、增量解析、消息分发和升级标志五个层面，与 HttpParser 测试对称。
+// 注意：WebSocket 的 include 集中放在此处而非文件头，是为了让上面的 HTTP
+// 测试区在阅读时不被 WebSocket 头文件干扰，体现"按协议分块"的组织方式。
+#include "server/websocket/WebSocketHandshake/WebSocketHandshake.h"
+#include "server/websocket/WebSocketCodec/WebSocketCodec.h"
+#include "server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h"
+#include "server/websocket/WebSocketParser/WebSocketParser.h"
+#include "server/websocket/WebSocketMessageAssembler/WebSocketMessageAssembler.h"
+#include "server/websocket/WebSocketValidation/WebSocketValidation.h"
+#include "server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
+#include "server/websocket/WebSocketSession/WebSocketSession.h"
+#include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
+
+/**
+ * @test WebSocketHandshakeTest.AcceptKeyMatchesRfc6455Example
+ * @brief 用 RFC 6455 第 4.2.2 节的官方示例验证 Sec-WebSocket-Accept 计算正确。
+ *
+ * 测试步骤：
+ *   1. 取 RFC 6455 §1.3 / §4.2.2 给出的官方示例客户端密钥 "dGhlIHNhbXBsZSBub25jZQ=="
+ *   2. 调用 WebSocketHandshake::computeAcceptKey() 计算 Accept 密钥
+ *   3. 验证结果等于 RFC 文档给出的固定值 "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="
+ *
+ * 为什么重要：
+ *   - RFC 6455 §1.3 规定 Accept 计算公式：Base64(SHA1(key + GUID))
+ *   - GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" 是固定魔法值，所有实现必须一致
+ *   - 用官方示例做"黄金对照"，确保握手实现与协议标准完全一致
+ *   - 任何字节级偏差都会导致浏览器拒绝握手（101 响应被判定非法）
+ */
+TEST(WebSocketHandshakeTest, AcceptKeyMatchesRfc6455Example)
+{
+    // RFC 6455 §1.3 / §4.2.2 示例
+    const std::string key = "dGhlIHNhbXBsZSBub25jZQ==";
+    EXPECT_EQ(WebSocketHandshake::computeAcceptKey(key),
+              "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=");
+}
+
+/**
+ * @test WebSocketHandshakeTest.ValidateRequiresVersion13
+ * @brief 验证握手必须要求 Sec-WebSocket-Version: 13。
+ *
+ * 测试步骤：
+ *   1. 构造完整握手请求，但 version=12（非 13），期望 validate() 返回 ok=false
+ *   2. 改 version=13，期望 validate() 返回 ok=true 且 acceptKey 正确
+ *
+ * 为什么重要：
+ *   - RFC 6455 §4.1 规定：Sec-WebSocket-Version 必须为 13，其他版本必须拒绝
+ *   - 接受错误版本会导致协议不兼容（如旧版 Hixie-76 有完全不同的帧格式）
+ *   - 同时验证合法路径下 acceptKey 与上一个测试的黄金对照值一致
+ */
+TEST(WebSocketHandshakeTest, ValidateRequiresVersion13)
+{
+    HttpRequest req;
+    req.method = "GET";
+    req.version = "HTTP/1.1";
+    req.headers["upgrade"] = "websocket";
+    req.headers["connection"] = "Upgrade";
+    req.headers["sec-websocket-key"] = "dGhlIHNhbXBsZSBub25jZQ==";
+    req.headers["sec-websocket-version"] = "12";
+    auto bad = WebSocketHandshake::validate(req);
+    EXPECT_FALSE(bad.ok);
+
+    req.headers["sec-websocket-version"] = "13";
+    auto ok = WebSocketHandshake::validate(req);
+    EXPECT_TRUE(ok.ok);
+    EXPECT_EQ(ok.acceptKey, "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=");
+}
+
+/**
+ * @test WebSocketCodecTest.EncodeDecodeTextRoundTrip
+ * @brief 文本帧编解码往返测试：服务端编码 → 客户端掩码帧 → 解码还原。
+ *
+ * 测试步骤：
+ *   1. 调用 encodeText() 编码 "hello-ws"，验证 opcode=Text 且服务端帧无 mask
+ *   2. 手工构造带掩码的客户端帧（FIN=1, opcode=Text, MASK=1）写入 Buffer
+ *   3. 调用 codec.decode() 解码，验证还原出原始 payload "hello-ws"
+ *   4. 验证 Buffer 被完全消费（readableBytes()==0）
+ *
+ * 为什么重要：
+ *   - RFC 6455 §5.3 规定帧格式：FIN+opcode+MASK+payload_len+mask_key+payload
+ *   - RFC 6455 §5.1 规定：客户端→服务端的帧必须掩码，服务端→客户端必须不掩码
+ *   - 往返测试同时覆盖编码（服务端侧）和解码（客户端侧）两个方向
+ *   - 掩码算法 payload[i] ^= mask[i % 4] 必须验证解掩码后内容正确
+ */
+TEST(WebSocketCodecTest, EncodeDecodeTextRoundTrip)
+{
+    // 服务端编码（无 mask）；解码侧模拟客户端掩码帧。
+    const std::string payload = "hello-ws";
+    auto encoded = WebSocketCodec::encodeText(payload);
+    ASSERT_GE(encoded.size(), 2u);
+    EXPECT_EQ(static_cast<uint8_t>(encoded[0]) & 0x0F, 0x01); // text
+    EXPECT_EQ(static_cast<uint8_t>(encoded[1]) & 0x80, 0);     // server unmasked
+
+    // 构造带 mask 的客户端帧塞进 Buffer
+    Buffer buf;
+    const uint8_t mask[4] = {0x01, 0x02, 0x03, 0x04};
+    std::string masked = payload;
+    for (size_t i = 0; i < masked.size(); ++i)
+        masked[i] = static_cast<char>(static_cast<uint8_t>(masked[i]) ^ mask[i % 4]);
+
+    char header[2] = {static_cast<char>(0x81), static_cast<char>(0x80 | payload.size())};
+    buf.append(header, 2);
+    buf.append(reinterpret_cast<const char *>(mask), 4);
+    buf.append(masked.data(), masked.size());
+
+    WebSocketDispatcher dispatcher;
+    WebSocketCodec codec(dispatcher);
+    WebSocketParser parser;
+    WsFrame frame;
+    EXPECT_EQ(codec.decode(buf, parser, frame), WsDecodeResult::Ok);
+    EXPECT_TRUE(frame.fin);
+    EXPECT_EQ(frame.opcode, WsOpcode::Text);
+    EXPECT_EQ(frame.payload, payload);
+    EXPECT_EQ(buf.readableBytes(), 0u);
+}
+
+/**
+ * @test WebSocketCodecTest.RejectUnmaskedClientFrame
+ * @brief 验证服务端拒绝未加掩码的客户端帧（RFC 6455 5.1 强制要求客户端必须掩码）。
+ *
+ * 测试步骤：
+ *   1. 构造一个 FIN=1, opcode=Text, MASK=0 的"客户端帧"（未掩码）
+ *   2. 调用 codec.decode()，期望返回 WsDecodeResult::Error
+ *
+ * 为什么重要：
+ *   - RFC 6455 §5.1 强制要求：客户端发送的每一帧都必须加掩码（MASK 位=1）
+ *   - 接受未掩码的客户端帧是协议违规，可能导致中间代理缓存污染攻击
+ *   - 这是 WebSocket 安全性的基础检查，防止恶意客户端绕过掩码保护
+ */
+TEST(WebSocketCodecTest, RejectUnmaskedClientFrame)
+{
+    Buffer buf;
+    char raw[] = {static_cast<char>(0x81), 0x05, 'h', 'e', 'l', 'l', 'o'};
+    buf.append(raw, sizeof(raw));
+    WebSocketDispatcher dispatcher;
+    WebSocketCodec codec(dispatcher);
+    WebSocketParser parser;
+    WsFrame frame;
+    EXPECT_EQ(codec.decode(buf, parser, frame), WsDecodeResult::Error);
+}
+
+/**
+ * @test WebSocketParserTest.NeedMoreThenComplete
+ * @brief 增量解析测试：半包 → 补齐 → 完成。
+ *
+ * 测试步骤：
+ *   1. 构造一个完整的带掩码文本帧（payload="ab"）
+ *   2. 第一次只写入 1 字节（基础头的第一字节），期望返回 NeedMore
+ *   3. 追加剩余字节（第二字节 + 4 字节 mask + 掩码后 payload）
+ *   4. 期望返回 Ok，且 frame.payload == "ab"
+ *
+ * 为什么重要：
+ *   - TCP 是字节流，帧可能跨多次 read 到达（半包）
+ *   - 解析器必须能"暂停"在半包状态，等数据补齐后继续推进状态机
+ *   - 这与 HttpParser 的半包处理对称，是增量解析的核心能力
+ *   - WebSocketParser 的状态机（BASE_HEADER→EXT_LENGTH→MASK_KEY→PAYLOAD→COMPLETE）
+ *     使得半包恢复成为可能
+ */
+TEST(WebSocketParserTest, NeedMoreThenComplete)
+{
+    const std::string payload = "ab";
+    const uint8_t mask[4] = {0x11, 0x22, 0x33, 0x44};
+    std::string masked = payload;
+    for (size_t i = 0; i < masked.size(); ++i)
+        masked[i] = static_cast<char>(static_cast<uint8_t>(masked[i]) ^ mask[i % 4]);
+
+    Buffer buf;
+    char header[2] = {static_cast<char>(0x81), static_cast<char>(0x80 | payload.size())};
+    buf.append(header, 1); // 半包：仅首字节
+
+    WebSocketDispatcher dispatcher;
+    WebSocketCodec codec(dispatcher);
+    WebSocketParser parser;
+    WsFrame frame;
+    EXPECT_EQ(codec.decode(buf, parser, frame), WsDecodeResult::NeedMore);
+
+    buf.append(header + 1, 1);
+    buf.append(reinterpret_cast<const char *>(mask), 4);
+    buf.append(masked.data(), masked.size());
+    EXPECT_EQ(codec.decode(buf, parser, frame), WsDecodeResult::Ok);
+    EXPECT_EQ(frame.payload, payload);
+}
+
+/**
+ * @test WebSocketParserTest.RejectsReservedOpcodeAndFragmentedControl
+ * @brief 帧头一到齐就拒绝保留 opcode，以及 FIN=0 的控制帧。
+ */
+TEST(WebSocketParserTest, RejectsReservedOpcodeAndFragmentedControl)
+{
+    {
+        Buffer buf;
+        const char reserved[] = {
+            static_cast<char>(0x83), // FIN=1, opcode=0x3（保留）
+            static_cast<char>(0x80)  // MASK=1, payload=0
+        };
+        buf.append(reserved, sizeof(reserved));
+        WebSocketParser parser;
+        WsFrame frame;
+        EXPECT_EQ(parser.parse(buf, frame), WsDecodeResult::Error);
+    }
+    {
+        Buffer buf;
+        const char fragmentedPing[] = {
+            static_cast<char>(0x09), // FIN=0, opcode=Ping
+            static_cast<char>(0x80)  // MASK=1, payload=0
+        };
+        buf.append(fragmentedPing, sizeof(fragmentedPing));
+        WebSocketParser parser;
+        WsFrame frame;
+        EXPECT_EQ(parser.parse(buf, frame), WsDecodeResult::Error);
+    }
+}
+
+/**
+ * @test WebSocketParserTest.RejectsNonCanonicalExtendedLengths
+ * @brief 长度必须使用最短编码：125 不能伪装成 126，65535 不能伪装成 127。
+ */
+TEST(WebSocketParserTest, RejectsNonCanonicalExtendedLengths)
+{
+    {
+        Buffer buf;
+        const char nonCanonical126[] = {
+            static_cast<char>(0x81), static_cast<char>(0xFE),
+            0x00, 0x7D // 扩展值 125，本应直接写在 7 位长度中
+        };
+        buf.append(nonCanonical126, sizeof(nonCanonical126));
+        WebSocketParser parser;
+        WsFrame frame;
+        EXPECT_EQ(parser.parse(buf, frame), WsDecodeResult::Error);
+    }
+    {
+        Buffer buf;
+        const char nonCanonical127[] = {
+            static_cast<char>(0x81), static_cast<char>(0xFF),
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            static_cast<char>(0xFF), static_cast<char>(0xFF)
+        };
+        buf.append(nonCanonical127, sizeof(nonCanonical127));
+        WebSocketParser parser;
+        WsFrame frame;
+        EXPECT_EQ(parser.parse(buf, frame), WsDecodeResult::Error);
+    }
+}
+
+/**
+ * @test WebSocketMessageAssemblerTest.EmptyFirstFragmentIsStillActive
+ * @brief 空 payload 的首片仍然开启了一条分片消息，不能用 string::empty 判断状态。
+ */
+TEST(WebSocketMessageAssemblerTest, EmptyFirstFragmentIsStillActive)
+{
+    WebSocketMessageAssembler assembler;
+    WsFrame complete;
+
+    WsFrame first;
+    first.fin = false;
+    first.opcode = WsOpcode::Text;
+    EXPECT_EQ(assembler.consume(std::move(first), complete),
+              WsAssemblyResult::Incomplete);
+    EXPECT_TRUE(assembler.hasPendingMessage());
+    EXPECT_EQ(assembler.pendingBytes(), 0U);
+
+    WsFrame last;
+    last.fin = true;
+    last.opcode = WsOpcode::Continuation;
+    last.payload = "done";
+    EXPECT_EQ(assembler.consume(std::move(last), complete),
+              WsAssemblyResult::Complete);
+    EXPECT_EQ(complete.opcode, WsOpcode::Text);
+    EXPECT_EQ(complete.payload, "done");
+    EXPECT_FALSE(assembler.hasPendingMessage());
+}
+
+/**
+ * @test WebSocketMessageAssemblerTest.RejectsInterleavingAndCapsWholeMessage
+ * @brief 分片未结束不能插入新数据首帧，且总消息大小不能靠拆帧绕过。
+ */
+TEST(WebSocketMessageAssemblerTest, RejectsInterleavingAndCapsWholeMessage)
+{
+    WsFrame complete;
+    {
+        WebSocketMessageAssembler assembler;
+        WsFrame first{false, WsOpcode::Text, true, "part"};
+        EXPECT_EQ(assembler.consume(std::move(first), complete),
+                  WsAssemblyResult::Incomplete);
+        WsFrame interleaved{true, WsOpcode::Binary, true, "new"};
+        EXPECT_EQ(assembler.consume(std::move(interleaved), complete),
+                  WsAssemblyResult::ProtocolError);
+    }
+    {
+        WebSocketMessageAssembler assembler(5);
+        WsFrame first{false, WsOpcode::Text, true, "abc"};
+        EXPECT_EQ(assembler.consume(std::move(first), complete),
+                  WsAssemblyResult::Incomplete);
+        WsFrame overflow{true, WsOpcode::Continuation, true, "def"};
+        EXPECT_EQ(assembler.consume(std::move(overflow), complete),
+                  WsAssemblyResult::MessageTooBig);
+        EXPECT_FALSE(assembler.hasPendingMessage());
+    }
+}
+
+/**
+ * @test WebSocketValidationTest.ValidatesCompleteUtf8IncludingSplitCodePoint
+ * @brief UTF-8 应在完整消息上校验；一个中文字的三个字节允许跨两个 WS 分片。
+ */
+TEST(WebSocketValidationTest, ValidatesCompleteUtf8IncludingSplitCodePoint)
+{
+    EXPECT_TRUE(isValidWebSocketUtf8("plain ASCII"));
+    EXPECT_TRUE(isValidWebSocketUtf8(std::string("\xE4\xB8\xAD", 3)));
+
+    EXPECT_FALSE(isValidWebSocketUtf8(std::string("\xC0\xAF", 2)));       // 过长编码
+    EXPECT_FALSE(isValidWebSocketUtf8(std::string("\xED\xA0\x80", 3))); // surrogate
+    EXPECT_FALSE(isValidWebSocketUtf8(std::string("\xF4\x90\x80\x80", 4))); // > U+10FFFF
+    EXPECT_FALSE(isValidWebSocketUtf8(std::string("\xE2\x82", 2)));      // 截断
+
+    WebSocketMessageAssembler assembler;
+    WsFrame complete;
+    WsFrame first{false, WsOpcode::Text, true, std::string("\xE4", 1)};
+    WsFrame last{true, WsOpcode::Continuation, true, std::string("\xB8\xAD", 2)};
+    EXPECT_EQ(assembler.consume(std::move(first), complete),
+              WsAssemblyResult::Incomplete);
+    EXPECT_EQ(assembler.consume(std::move(last), complete),
+              WsAssemblyResult::Complete);
+    EXPECT_TRUE(isValidWebSocketUtf8(complete.payload));
+}
+
+/**
+ * @test WebSocketValidationTest.ParsesClosePayloadByFailureKind
+ * @brief Close 的结构/状态码错误属于 1002，reason 的 UTF-8 错误属于 1007。
+ */
+TEST(WebSocketValidationTest, ParsesClosePayloadByFailureKind)
+{
+    WsCloseInfo info;
+    EXPECT_EQ(parseWebSocketClosePayload({}, info), WsClosePayloadResult::Ok);
+    EXPECT_FALSE(info.hasCode);
+
+    EXPECT_EQ(parseWebSocketClosePayload(std::string("\x03", 1), info),
+              WsClosePayloadResult::ProtocolError);
+    EXPECT_EQ(parseWebSocketClosePayload(std::string("\x03\xED", 2), info), // 1005
+              WsClosePayloadResult::ProtocolError);
+
+    EXPECT_EQ(parseWebSocketClosePayload(std::string("\x03\xF6ok", 4), info), // 1014
+              WsClosePayloadResult::Ok);
+    EXPECT_TRUE(info.hasCode);
+    EXPECT_EQ(info.code, 1014);
+    EXPECT_EQ(info.reason, "ok");
+
+    EXPECT_EQ(parseWebSocketClosePayload(std::string("\x0F\xA0", 2), info), // 4000
+              WsClosePayloadResult::Ok);
+    EXPECT_EQ(info.code, 4000);
+
+    std::string invalidReason("\x03\xE8", 2); // 1000
+    invalidReason.append("\xC0\xAF", 2);
+    EXPECT_EQ(parseWebSocketClosePayload(invalidReason, info),
+              WsClosePayloadResult::InvalidUtf8);
+}
+
+/**
+ * @test WebSocketValidationTest.AcceptsOnlyWireCloseCodeRanges
+ * @brief 把标准码、内部保留码、注册区间与私有区间的边界固定为回归测试。
+ */
+TEST(WebSocketValidationTest, AcceptsOnlyWireCloseCodeRanges)
+{
+    EXPECT_FALSE(isValidWebSocketCloseCode(999));
+    EXPECT_TRUE(isValidWebSocketCloseCode(1000));
+    EXPECT_FALSE(isValidWebSocketCloseCode(1004));
+    EXPECT_FALSE(isValidWebSocketCloseCode(1005));
+    EXPECT_FALSE(isValidWebSocketCloseCode(1006));
+    EXPECT_TRUE(isValidWebSocketCloseCode(1014));
+    EXPECT_FALSE(isValidWebSocketCloseCode(1015));
+    EXPECT_FALSE(isValidWebSocketCloseCode(2999));
+    EXPECT_TRUE(isValidWebSocketCloseCode(3000));
+    EXPECT_TRUE(isValidWebSocketCloseCode(4999));
+    EXPECT_FALSE(isValidWebSocketCloseCode(5000));
+}
+
+/**
+ * @test WebSocketCodecTest.RejectsInvalidOutboundTextAndControlFrames
+ * @brief 编码器是出站闸门，不能由本服务器制造非法控制帧或非法完整文本消息。
+ */
+TEST(WebSocketCodecTest, RejectsInvalidOutboundTextAndControlFrames)
+{
+    EXPECT_TRUE(WebSocketCodec::encodeText(std::string("\xC0\xAF", 2)).empty());
+    EXPECT_TRUE(WebSocketCodec::encodePing(std::string(126, 'p')).empty());
+    EXPECT_TRUE(WebSocketCodec::encodeClose(1005).empty());
+    EXPECT_TRUE(WebSocketCodec::encodeClose(1000, std::string(124, 'r')).empty());
+
+    WsFrame fragmentedPing{false, WsOpcode::Ping, false, "ping"};
+    EXPECT_TRUE(WebSocketCodec::encode(fragmentedPing).empty());
+    WsFrame invalidClose{true, WsOpcode::Close, false, std::string("\x03\xED", 2)};
+    EXPECT_TRUE(WebSocketCodec::encode(invalidClose).empty());
+
+    const auto emptyClose = WebSocketCodec::encodeClose();
+    ASSERT_EQ(emptyClose.size(), 2U);
+    EXPECT_EQ(static_cast<uint8_t>(emptyClose[0]), 0x88);
+    EXPECT_EQ(static_cast<uint8_t>(emptyClose[1]), 0x00);
+}
+
+/**
+ * @test WebSocketCodecTest.ApplicationEnvelopeRoundTripsEscapedFields
+ * @brief 验证业务信封与 RFC 帧相互独立，JSON 转义和关联字段不会在往返中丢失。
+ */
+TEST(WebSocketCodecTest, ApplicationEnvelopeRoundTripsEscapedFields)
+{
+    WebSocketMessage outbound;
+    outbound.version = 2;
+    outbound.type = "chat";
+    outbound.messageId = "server-\"42\"";
+    outbound.replyTo = "client\\7";
+    outbound.status = "accepted";
+    outbound.text = "line one\nline two: \xE4\xBD\xA0\xE5\xA5\xBD";
+    outbound.fromUserId = 41;
+    outbound.toUserId = 42;
+    outbound.ackRequested = true;
+
+    WebSocketDispatcher dispatcher;
+    WebSocketCodec codec(dispatcher);
+    WsFrame frame;
+    frame.opcode = WsOpcode::Text;
+    frame.payload = WebSocketCodec::serializeApplicationMessage(outbound);
+    const auto inbound = codec.messageFromFrame(frame);
+
+    EXPECT_EQ(inbound.version, 2U);
+    EXPECT_EQ(inbound.type, "chat");
+    EXPECT_EQ(inbound.messageId, outbound.messageId);
+    EXPECT_EQ(inbound.replyTo, outbound.replyTo);
+    EXPECT_EQ(inbound.status, "accepted");
+    EXPECT_EQ(inbound.text, outbound.text);
+    EXPECT_EQ(inbound.fromUserId, 41U);
+    EXPECT_EQ(inbound.toUserId, 42U);
+    EXPECT_TRUE(inbound.ackRequested);
+
+    frame.payload =
+        "{\"type\":\"chat\",\"id\":\"unicode\","
+        "\"to\":42,\"content\":\"\\u4f60\\u597d\"}";
+    const auto escapedUnicode = codec.messageFromFrame(frame);
+    EXPECT_EQ(escapedUnicode.text, std::string("\xE4\xBD\xA0\xE5\xA5\xBD"));
+
+    frame.payload = "{\"type\":\"chat\",\"type\":\"ack\"}";
+    EXPECT_EQ(codec.messageFromFrame(frame).type, "echo");
+    frame.payload = "{\"type\":\"chat\"} trailing";
+    EXPECT_EQ(codec.messageFromFrame(frame).type, "echo");
+    frame.payload = "{\"type\":\"chat\"";
+    EXPECT_EQ(codec.messageFromFrame(frame).type, "echo");
+    frame.payload = "{\"type\":\"chat\",}";
+    EXPECT_EQ(codec.messageFromFrame(frame).type, "echo");
+}
+
+/**
+ * @test WebSocketDeliveryTrackerTest.DeduplicatesAndValidatesAckOwner
+ * @brief 同一发送者重用 client id 时只能重复同一请求，且只有真实收件人能 ACK。
+ */
+TEST(WebSocketDeliveryTrackerTest, DeduplicatesAndValidatesAckOwner)
+{
+    WebSocketDeliveryTracker tracker;
+    const auto now = WebSocketDeliveryTracker::TimePoint{};
+
+    const auto created = tracker.begin(10, 20, "client-1", "hello", now);
+    ASSERT_EQ(created.status, DeliveryBeginStatus::Created);
+    EXPECT_FALSE(created.serverMessageId.empty());
+    EXPECT_EQ(created.state, DeliveryState::AwaitingAck);
+
+    const auto duplicate = tracker.begin(10, 20, "client-1", "hello", now);
+    EXPECT_EQ(duplicate.status, DeliveryBeginStatus::Duplicate);
+    EXPECT_EQ(duplicate.serverMessageId, created.serverMessageId);
+    EXPECT_EQ(tracker.recordCount(), 1U);
+
+    const auto conflict = tracker.begin(10, 21, "client-1", "changed", now);
+    EXPECT_EQ(conflict.status, DeliveryBeginStatus::Conflict);
+
+    const auto forged = tracker.acknowledge(99, created.serverMessageId, now);
+    EXPECT_EQ(forged.status, DeliveryAckStatus::WrongRecipient);
+    EXPECT_EQ(tracker.pendingCount(), 1U);
+
+    const auto accepted = tracker.acknowledge(20, created.serverMessageId, now);
+    EXPECT_EQ(accepted.status, DeliveryAckStatus::Acknowledged);
+    EXPECT_EQ(accepted.sender, 10U);
+    EXPECT_EQ(accepted.recipient, 20U);
+    EXPECT_EQ(accepted.clientMessageId, "client-1");
+    EXPECT_EQ(tracker.pendingCount(), 0U);
+
+    const auto duplicateAck = tracker.acknowledge(20, created.serverMessageId, now);
+    EXPECT_EQ(duplicateAck.status, DeliveryAckStatus::Duplicate);
+}
+
+/**
+ * @test WebSocketDeliveryTrackerTest.BoundsWindowAndPrunesTerminalRecords
+ * @brief 终态在保留期内继续承担去重，期满后释放容量。
+ */
+TEST(WebSocketDeliveryTrackerTest, BoundsWindowAndPrunesTerminalRecords)
+{
+    WebSocketDeliveryConfig config;
+    config.maxRecords = 1;
+    config.terminalRetention = std::chrono::milliseconds{10};
+    WebSocketDeliveryTracker tracker(config);
+    const auto start = WebSocketDeliveryTracker::TimePoint{};
+
+    const auto first = tracker.begin(1, 2, "first", "one", start);
+    ASSERT_EQ(first.status, DeliveryBeginStatus::Created);
+    ASSERT_EQ(
+        tracker.acknowledge(2, first.serverMessageId, start).status,
+        DeliveryAckStatus::Acknowledged);
+
+    EXPECT_EQ(
+        tracker.begin(1, 2, "second", "two",
+                      start + std::chrono::milliseconds{9}).status,
+        DeliveryBeginStatus::Capacity);
+    EXPECT_EQ(
+        tracker.begin(1, 2, "second", "two",
+                      start + std::chrono::milliseconds{10}).status,
+        DeliveryBeginStatus::Created);
+    EXPECT_EQ(tracker.recordCount(), 1U);
+}
+
+TEST(WebSocketDeliveryTrackerTest, KeepsClientAndServerIdLimitsIndependent)
+{
+    WebSocketDeliveryConfig config;
+    config.maxClientMessageIdBytes = 1;
+    WebSocketDeliveryTracker tracker(config);
+    const auto now = WebSocketDeliveryTracker::TimePoint{};
+
+    const auto created = tracker.begin(1, 2, "x", "payload", now);
+    ASSERT_EQ(created.status, DeliveryBeginStatus::Created);
+    EXPECT_EQ(
+        tracker.acknowledge(2, created.serverMessageId, now).status,
+        DeliveryAckStatus::Acknowledged);
+    EXPECT_EQ(
+        tracker.begin(1, 2, "too-long", "payload", now).status,
+        DeliveryBeginStatus::Invalid);
+}
+
+/**
+ * @test WebSocketDeliveryTrackerTest.EmitsBoundedRetryDecisionsThenFails
+ * @brief maxAttempts 包含首次投递；三次上限意味着首次发送加两次重发。
+ */
+TEST(WebSocketDeliveryTrackerTest, EmitsBoundedRetryDecisionsThenFails)
+{
+    WebSocketDeliveryConfig config;
+    config.maxAttempts = 3;
+    config.ackTimeout = std::chrono::milliseconds{10};
+    WebSocketDeliveryTracker tracker(config);
+    const auto start = WebSocketDeliveryTracker::TimePoint{};
+
+    const auto created = tracker.begin(7, 8, "client-7", "payload", start);
+    ASSERT_EQ(created.status, DeliveryBeginStatus::Created);
+
+    const auto early = tracker.collectDue(start + std::chrono::milliseconds{9});
+    EXPECT_TRUE(early.retries.empty());
+    EXPECT_TRUE(early.failures.empty());
+
+    const auto second = tracker.collectDue(start + std::chrono::milliseconds{10});
+    ASSERT_EQ(second.retries.size(), 1U);
+    EXPECT_EQ(second.retries[0].attempt, 2U);
+    EXPECT_EQ(second.retries[0].serverMessageId, created.serverMessageId);
+
+    const auto third = tracker.collectDue(start + std::chrono::milliseconds{20});
+    ASSERT_EQ(third.retries.size(), 1U);
+    EXPECT_EQ(third.retries[0].attempt, 3U);
+
+    const auto exhausted = tracker.collectDue(start + std::chrono::milliseconds{30});
+    EXPECT_TRUE(exhausted.retries.empty());
+    ASSERT_EQ(exhausted.failures.size(), 1U);
+    EXPECT_EQ(exhausted.failures[0].serverMessageId, created.serverMessageId);
+    EXPECT_EQ(tracker.pendingCount(), 0U);
+    EXPECT_EQ(
+        tracker.acknowledge(8, created.serverMessageId,
+                            start + std::chrono::milliseconds{30}).status,
+        DeliveryAckStatus::TooLate);
+}
+
+/**
+ * @test WebSocketDispatcherTest.RoutesByTypeAndEchoDefault
+ * @brief 验证 WebSocket 消息按 type 字段路由，未匹配时走默认 echo。
+ *
+ * 测试步骤：
+ *   1. 注册 "chat" 类型的处理器，验证能收到消息
+ *   2. 注册 onDefault 处理器，将未匹配消息原样回显为 "echo" 类型
+ *   3. 发送 "@1002:hello" 帧，验证 messageFromFrame 解析出 type="chat"
+ *   4. 验证 chat 处理器被调用，且 toUserId=1002, text="hello"
+ *   5. 发送 "ping" 帧（无 @ 前缀），验证 type="echo"
+ *   6. 验证 onDefault 被调用，且编码后的 outbound 与 encodeText("ping") 一致
+ *
+ * 为什么重要：
+ *   - WebSocket 业务层路由按消息 type 字段分发，类似 HTTP 的 path 路由
+ *   - "@uid:text" 是简写协议：@ 前缀表示点对点聊天消息，由 messageFromFrame 解析
+ *   - onDefault 兜底确保未识别消息类型也有响应，不会静默丢弃
+ */
+TEST(WebSocketDispatcherTest, RoutesByTypeAndEchoDefault)
+{
+    WebSocketDispatcher dispatcher;
+    bool chatCalled = false;
+    dispatcher.on("chat", [&](WsMessageContext &ctx) -> bool
+                   {
+        chatCalled = true;
+        EXPECT_EQ(ctx.inbound.toUserId, 1002u);
+        EXPECT_EQ(ctx.inbound.text, "hello");
+        return true;
+    });
+    dispatcher.onDefault([&](WsMessageContext &ctx) -> bool
+                         {
+        ctx.outbound = ctx.inbound;
+        ctx.outbound.type = "echo";
+        ctx.hasOutbound = true;
+        return true;
+    });
+
+    WebSocketCodec codec(dispatcher);
+    WsFrame frame;
+    frame.opcode = WsOpcode::Text;
+    frame.payload = "@1002:hello";
+    auto msg = codec.messageFromFrame(frame);
+    EXPECT_EQ(msg.type, "chat");
+
+    WsMessageContext ctx;
+    ctx.inbound = msg;
+    EXPECT_TRUE(codec.dispatch(ctx));
+    EXPECT_TRUE(chatCalled);
+    EXPECT_FALSE(ctx.hasOutbound);
+
+    frame.payload = "ping";
+    msg = codec.messageFromFrame(frame);
+    EXPECT_EQ(msg.type, "echo");
+    ctx = WsMessageContext{};
+    ctx.inbound = msg;
+    EXPECT_TRUE(codec.dispatch(ctx));
+    EXPECT_TRUE(ctx.hasOutbound);
+    EXPECT_EQ(codec.encode(ctx.outbound), WebSocketCodec::encodeText("ping"));
+}
+
+/**
+ * @test RequestContextTest.AcceptWebSocketFlag
+ * @brief 验证 RequestContext::acceptWebSocket() 标志位。
+ *
+ * 测试步骤：
+ *   1. 创建 RequestContext，初始 webSocketAccepted 应为 false
+ *   2. 调用 ctx.acceptWebSocket()
+ *   3. 验证 webSocketAccepted 变为 true
+ *
+ * 为什么重要：
+ *   - acceptWebSocket() 是 /ws 路由 handler 告知框架"此连接要升级为 WebSocket"的标志
+ *   - 框架在 handler 返回后检查此标志：若为 true 则走 WebSocket 握手流程
+ *   - 标志位是 HTTP→WebSocket 协议切换的"信号灯"，必须可靠
+ *   - 这是 main.cpp 中 /ws 路由调用的核心 API 的契约测试
+ */
+TEST(RequestContextTest, AcceptWebSocketFlag)
+{
+    RequestContext ctx;
+    EXPECT_FALSE(ctx.webSocketAccepted);
+    ctx.acceptWebSocket();
+    EXPECT_TRUE(ctx.webSocketAccepted);
+}
+
+/**
+ * @test WebSocketSessionManagerTest.OldConnectionCannotUnregisterReplacement
+ * @brief 验证同 uid 重连时，旧连接不能误删新连接的目录项。
+ *
+ * 房号 fd 可能被复用，uid 也会被新登录覆盖；Manager 必须比较完整的
+ * ConnectionKey。只有当前目录项仍属于发起注销的连接时，erase 才能发生。
+ */
+TEST(WebSocketSessionManagerTest, OldConnectionCannotUnregisterReplacement)
+{
+    WebSocketDispatcher dispatcher;
+    WebSocketSessionManager manager;
+    constexpr UserId uid = 42;
+    const ConnectionKey oldKey{17, 1001};
+    const ConnectionKey newKey{17, 1002};
+
+    auto oldSession = std::make_shared<WebSocketSession>(
+        oldKey, nullptr, uid, &manager, dispatcher);
+    auto newSession = std::make_shared<WebSocketSession>(
+        newKey, nullptr, uid, &manager, dispatcher);
+
+    EXPECT_FALSE(manager.registerSession(uid, oldSession, 0, {}));
+    ASSERT_TRUE(manager.registerSession(
+        uid, oldSession, 0, oldKey));
+    ASSERT_TRUE(manager.registerSession(
+        uid, newSession, 0, newKey));
+
+    EXPECT_FALSE(manager.unregister(uid, oldKey));
+    EXPECT_EQ(manager.onlineCount(), 1U);
+    EXPECT_TRUE(manager.unregister(uid, newKey));
+    EXPECT_EQ(manager.onlineCount(), 0U);
+}
+
+TEST(WebSocketSessionManagerTest, PreservesOutboundRejectionReason)
+{
+    WebSocketSessionManager manager;
+    EXPECT_EQ(manager.sendText(42, "hello"), EnqueueResult::Closed);
+    EXPECT_EQ(
+        manager.sendText(42, std::string("\xC0\xAF", 2)),
+        EnqueueResult::Invalid);
+
+    const auto offline = manager.sendTextTracked(42, "hello");
+    ASSERT_TRUE(offline.receipt);
+    EXPECT_EQ(offline.admission, EnqueueResult::Closed);
+    EXPECT_EQ(offline.receipt->outcome(), OutboundOutcome::Closed);
+
+    const auto invalid =
+        manager.sendTextTracked(42, std::string("\xC0\xAF", 2));
+    ASSERT_TRUE(invalid.receipt);
+    EXPECT_EQ(invalid.admission, EnqueueResult::Invalid);
+    EXPECT_EQ(invalid.receipt->outcome(), OutboundOutcome::Invalid);
 }

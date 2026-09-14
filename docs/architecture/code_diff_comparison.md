@@ -1,7 +1,10 @@
 # 原型 vs 最新版本：代码差异对比文档
 
+> 本文档对比原型与 2.0（第四阶段完成）的代码差异。第四阶段的出站体系重构、Session 基类与
+> SessionFactory 依赖倒置见 [`phase4_upgrade.md`](phase4_upgrade.md)。
+
 > 原型目录: `e:\虚拟机高级web开发\orign`（仅含 `.gitignore` 和 `LICENSE`，源代码已不在）  
-> 最新版本: `e:\虚拟机高级web开发\web`  
+> 最新版本: 2.0（第四阶段完成，`OutboundQueue` + `SessionFactory` + `Session` 基类）  
 > 本文档基于会话历史中记录的原型架构与当前代码的实际差异编写。
 
 ---
@@ -37,21 +40,35 @@ SubReactor (上帝类)
 main.cpp (~110行，仅路由注册)
   └── ServerRuntime                          server/Runtime/ServerRuntime.h
         ├── Router (owned)
-        ├── HttpCodec (owned，共享给所有 SubReactor)
         ├── Executor (owned，共享给所有 SubReactor)
-        └── ReactorGroup                    server/Reactor/ReactorGroup.h
-              └── SubReactor[]              server/SubReactor/SubReactor.h
+        ├── WebSocketDispatcher (owned)      server/websocket/WebSocketDispatcher/
+        ├── WebSocketSessionManager (owned)  server/websocket/WebSocketSessionManager/
+        ├── WebSocketSessionFactory (owned)  server/websocket/WebSocketSessionFactory.h
+        └── ReactorGroup                     server/Reactor/ReactorGroup.h
+              │   构造: ReactorGroup(Router&, Executor&, SessionFactory&)
+              └── SubReactor[]               server/SubReactor/SubReactor.h
                     ├── Connection (分层)
                     │     ├── ConnTransport   传输层: fd, readBuffer, state
-                    │     └── ConnTimer       定时器层: expireSlot
-                    ├── HttpSession           server/http/HttpSession/HttpSession.h
-                    │     ├── HttpCodec&      (借用)
-                    │     ├── ResponseSender  (依赖注入)
-                    │     └── CoroutineScheduler
-                    │           ├── ReadAwaiter
-                    │           ├── WriteAwaiter
-                    │           └── ExecuteAwaiter  ← 新增
+                    │     ├── ConnTimer       定时器层: expireSlot
+                    │     └── shared_ptr<Session>  协议生命周期所有者
+                    ├── Session 基类          server/session/Session/Session.h
+                    │     └── run() 纯虚 + onTimeout()/onClose() 钩子（无 protocol()）
+                    ├── HttpSession : Session  server/http/HttpSession/HttpSession.h
+                    │     ├── HttpCodec codec_ (owned，自带编解码器)
+                    │     └── 出站走 OutboundTask + enqueueOutbound（无 sender_ 成员）
+                    ├── WebSocketSession : Session  server/websocket/WebSocketSession/
+                    │     └── WebSocketCodec + WebSocketParser（自带）
+                    ├── OutboundQueue outbound_       server/transport/OutboundQueue.h
+                    ├── TransportWriter transportWriter server/transport/TransportWriter.h
+                    ├── writerLoop 协程（每连接一个，串行化出站 I/O）
+                    ├── SessionFactory* sessionFactory_  (依赖倒置，由 ReactorGroup 注入)
+                    ├── CoroutineScheduler
+                    │     ├── ReadAwaiter
+                    │     ├── ExecuteAwaiter  ← 新增
+                    │     ├── TransportWriteAwaiter
+                    │     └── SendCompletionAwaiter
                     ├── Executor&             (借用)
+                    ├── Router&               (借用，协议无关)
                     ├── TimerWheel
                     ├── SegmentPool
                     └── Buffer
@@ -289,27 +306,33 @@ main.cpp (~110行，仅路由注册)
 
 ---
 
-### 2.10 HttpCodec 依赖注入
+### 2.10 HttpCodec 下沉到 Session（第四阶段重构）
 
-**文件**: [server/http/HttpCodec/HttpCodec.h](file:///e:/虚拟机高级web开发/web/server/http/HttpCodec/HttpCodec.h)
+**文件**: [server/http/HttpCodec/HttpCodec.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/http/HttpCodec/HttpCodec.h)
 
-| 原型 | 最新版本 |
+| 原型 | 2.0（第四阶段） |
 |------|----------|
-| SubReactor 直接持有 Router | HttpCodec 持有 Router 引用，SubReactor 借用 HttpCodec |
+| SubReactor 直接持有 Router | SubReactor 持有 `Router&`（协议无关）；`HttpCodec` 下沉到每个 `HttpSession` 内部自持 |
 
-**为什么**：原型中 SubReactor 直接接触 Router，违反单一职责。HttpCodec 作为传输层与 HTTP 语义之间的适配层，集中管理解析和分发。后续增加协议版本或替换分发策略时有明确扩展点。
+**为什么**：原型中 SubReactor 直接接触 Router，违反单一职责。第三阶段曾让 SubReactor 借用共享的 HttpCodec；
+第四阶段引入 WebSocket 后，不同连接可能是 HTTP 或 WS 两种协议，共享一个 codec 会串扰。故 codec 下沉到
+每个 Session 内部：`HttpSession` 自持 `HttpCodec`，`WebSocketSession` 自持 `WebSocketCodec`，每条连接独立
+编解码互不干扰。SubReactor 改持协议无关的 `Router&`，通过 `Session` 基类指针统一唤醒，不关心协议类型。
 
 ---
 
-### 2.11 ResponseSender 依赖注入
+### 2.11 出站任务体系取代旧版 HTTP 发送器（第四阶段）
 
-**文件**: [server/http/ResponseSender/ResponseSender.h](file:///e:/虚拟机高级web开发/web/server/http/ResponseSender/ResponseSender.h)
+**文件**: [server/transport/OutboundTask.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/transport/OutboundTask.h) · [OutboundQueue.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/transport/OutboundQueue.h) · [TransportWriter.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/transport/TransportWriter.h)
 
-| 原型 | 最新版本 |
+| 原型 | 2.0（第四阶段） |
 |------|----------|
-| 依赖全局 `wheel` / `segPool` | 构造函数注入 `SegmentPool&` 和 `TimerWheel&` |
+| 旧版 HTTP 发送器（HTTP 专用，依赖全局 `wheel`/`segPool`） | `OutboundTask` + `OutboundQueue` + `TransportWriter` + `writerLoop` 协程（统一出站） |
 
-**为什么**：原型中 ResponseSender 依赖全局变量，无法独立测试。依赖注入后，`ResponseSender sender(segPool, wheel); sender.send(fd, response);` 不依赖 SubReactor，可独立单元测试。
+**为什么**：旧版发送器是 HTTP 专用的同步发送器，引入 WebSocket 后出站需求变多（WS 帧、HTTP 响应、广播），
+还需要 `writev` 聚集和 `sendfile` 零拷贝。`OutboundTask` 用 `variant` 统一封装三种货
+（已编码 WS 帧 / HTTP 响应 / 广播共享帧），`TransportWriter` 统一冲刷，`writerLoop` 协程串行化出站 I/O——
+一套体系服务 HTTP 和 WS，避免协议分叉。跨 Reactor 投递由 `postOutbound` + eventfd 唤醒实现。
 
 ---
 
@@ -339,6 +362,24 @@ main.cpp (~110行，仅路由注册)
 | 无 `reap()` | 新增 `reap()` | 回收已完成协程帧 |
 
 **为什么**：协程完成后需要安全清理 `coroutine_context`（handle、state、waiting），但不能误清后续协程的句柄。CompletionCallback 通过地址比对确保只清理匹配的句柄。
+
+---
+
+### 2.14 Session 基类 + SessionFactory 依赖倒置（第四阶段新增）
+
+**文件**: [server/session/Session/Session.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/session/Session/Session.h) · [server/session/SessionFactory.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/session/SessionFactory.h) · [server/websocket/WebSocketSessionFactory.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/websocket/WebSocketSessionFactory.h)
+
+| 原型 | 2.0（第四阶段） |
+|------|----------|
+| 无协议抽象，HttpSession 直接写 | `Session` 基类（`run()` 纯虚 + `onTimeout()`/`onClose()` 钩子，**无 `protocol()`**） |
+| 协议升级硬编码在 SubReactor | `SessionFactory` 抽象工厂 + `WebSocketSessionFactory` 实现，依赖倒置 |
+
+**为什么**：第四阶段引入 WebSocket 后，HTTP 与 WS 是两种对称的"住客"。抽出 `Session` 基类后，
+`HttpSession` 和 `WebSocketSession` 各自管自己的对话循环，SubReactor 通过基类指针统一唤醒，
+不用 if 判断协议类型。协议升级（HTTP→WS）所需的子类创建通过 `SessionFactory` 注入——
+SubReactor 只持有 `SessionFactory*` 抽象指针（`sessionFactory_`），不直接依赖 WebSocket 具体类型，
+这是依赖倒置的体现。`SessionFactory` 由 `ServerRuntime` 创建，经 `ReactorGroup`（构造三参：
+`Router&`/`Executor&`/`SessionFactory&`）注入到每个 SubReactor。
 
 ---
 
@@ -397,7 +438,7 @@ main.cpp (~110行，仅路由注册)
 | 标准 | 原型 | 最新版本 | 验证方式 |
 |------|------|----------|----------|
 | HTTP 解析独立 | ❌ 依赖 SubReactor | ✅ `HttpParser parser; parser.parse();` | 单元测试 |
-| Response 发送独立 | ❌ 依赖全局变量 | ✅ `ResponseSender sender(segPool, wheel);` | 单元测试 |
+| Response 发送独立 | ❌ 依赖全局变量 | ✅ `OutboundTask` + `OutboundQueue` + `TransportWriter`（统一出站，HTTP/WS 共用） | 单元测试 |
 | Handler 不在 Reactor 线程 | ❌ 同步调用 | ✅ Executor + ExecuteAwaiter | `/slow` + `/fast` 并发 |
 | 一个 TCP 多个请求 | ⚠️ 未验证 | ✅ keep-alive 黑盒测试 | 3 请求一次 TCP |
 | 文件发送 | ⚠️ 基本支持 | ✅ sendfile + Range 206/304 | `/logo` + `/large` |

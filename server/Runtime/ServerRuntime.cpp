@@ -1,3 +1,39 @@
+// =============================================================================
+// 文件名：ServerRuntime.cpp
+// ------------------------------------------------------------
+// 【职责比喻：工厂总装线 / 酒店总经理的"工作手册"】
+// 实现服务器运行时——信号处理、监听套接字建立、acceptor 事件循环、
+// SubReactor 创建与优雅退出。本文件是"总经理"的完整工作手册：
+// 开店前布置前台（setupListener 创建监听 socket 和 epoll），招楼层经理（createReactors
+// 启动 SubReactor 组），登记信号处理（Ctrl+C 触发优雅退出），自己坐前台 acceptLoop 等客人
+// 来——每来一位客人 accept4 接进来，分给下一位楼层经理（dispatch）。接到 Ctrl+C 信号后
+// 先放掉前台端口（releaseListener），再通知各楼层经理收工（stop+join）。
+//
+// 【第四阶段重构在 cpp 中的体现】
+// 构造函数初始化列表删除了 codec_(*router_) 一项；构造 ReactorGroup 时改传 *router_
+// 而非 codec_。第四阶段前 Runtime 持有 HttpCodec codec_ 成员，并下传给所有 SubReactor
+// 共享——那时只有 HTTP 一种协议没问题。引入 WebSocket 后 HTTP/WS 编解码互不兼容，
+// 共享 codec 会串扰；故删除 codec_ 成员，codec 下沉到各 Session 子类内部，
+// Runtime 只装配协议无关的 Router、Executor、wsManager、wsDispatcher，外加 SessionFactory
+// 实现 wsFactory_（WebSocketSessionFactory）——后者经 ReactorGroup::start 注入每个
+// SubReactor，用于 HTTP→WebSocket 协议升级时创建 WebSocketSession，是依赖倒置的关键。
+//
+// 关键技术点（初学者重点理解）：
+// 1. acceptor 用 epoll + 非阻塞 listenFd：让 acceptLoop 能被 wakeFd_ 唤醒退出，
+//    而不是死卡在 accept() 里；同时多核能并行 accept（虽然本实现单 acceptor）。
+// 2. SIGPIPE 必须忽略：向已断开的 socket 写会触发 SIGPIPE，默认杀进程，要 SIG_IGN。
+// 3. SO_REUSEADDR：服务重启时端口可能还在 TIME_WAIT 状态，不设这个会 bind 失败。
+// 4. TCP_NODELAY：禁用 Nagle 算法，避免小响应（如 HTTP 头）被攒 40ms 才发，
+//    对 HTTP 响应延迟极其关键。
+// 5. maxConnections_ 软限流：accept 时检查总连接数，超额直接 close 新 fd，
+//    避免无界接入撑爆 fd/内存。
+// 6. 优雅退出顺序：stop() 置 running_=false + 写 wakeFd_ → acceptLoop 醒来退出 →
+//    releaseListener 关 listenFd（端口立即归还）→ reactorGroup_->stop+join 等所有
+//    SubReactor 收工 → 析构时 executor_ drain Worker 线程池。
+// 7. 组件装配顺序：构造期 ①make_shared<Router> 建路由表；②按 CPU 核数建 Executor；
+//    ③make_unique<WebSocketSessionFactory> + ReactorGroup(*router_, executor_, *wsFactory_)；
+//    ④start() 时 setupListener + createReactors，再 wsManager_.bind(reactorGroup_)。
+// =============================================================================
 #include "ServerRuntime.h"
 #include "server/Reactor/ReactorGroup.h"
 
@@ -21,10 +57,22 @@
 #include "log/logger/logger.h"
 #include "server/http/RequestContext/RequestContext.h"
 
+// 匿名命名空间：内部链接，只在本文件可见
 namespace
 {
+    // 全局 ServerRuntime 指针，供信号处理函数访问
+    // 用 atomic 保证信号处理函数与主线程的访问是线程安全的
     std::atomic<ServerRuntime *> g_runtime{nullptr};
 
+    /**
+     * @brief SIGINT/SIGTERM 信号处理函数
+     *
+     * 【通俗解释】
+     * 收到 Ctrl+C 或 kill 信号时被调用。信号处理函数有严格限制——只能做
+     * async-signal-safe 的操作（不能调 malloc/printf/锁等），所以这里只做两件事：
+     * ①取 g_runtime 指针；②调 requestStop()（内部是 atomic store + write eventfd，
+     * 都是 async-signal-safe）。剩下的退出流程交给主循环自己处理。
+     */
     void handleStopSignal(int)
     {
         // 仅做 async-signal-safe 操作：置位并由 eventfd 唤醒 accept 循环。
@@ -33,15 +81,44 @@ namespace
     }
 } // namespace
 
+/**
+ * @brief 构造函数：创建 Router 和 Executor，初始化 ReactorGroup（总装线第一步）
+ *
+ * 【通俗解释】
+ * 总经理上任：①建一本菜谱（Router）；②按 CPU 核数招后厨厨师
+ * （hardware_concurrency 限幅在 2~32 之间，避免太少饿死或太多竞争）；
+ * ③建一个楼层经理组（ReactorGroup），暂未启动——等 createReactors 时再招人。
+ *
+ * @note 第四阶段重构前初始化列表里有 codec_(*router_) 一项（用 router 构造共享 HttpCodec），
+ *       构造 ReactorGroup 时传的是 codec_。第四阶段删除了 codec_ 成员——codec 下沉到各
+ *       Session 子类内部，Runtime 不再创建 codec 实例；构造 ReactorGroup 改传 *router_
+ *       （路由器协议无关，HTTP/WS 共用）。这样同一套 Runtime 可同时承载 HTTP 与 WS 协议。
+ */
 ServerRuntime::ServerRuntime()
     : router_(std::make_shared<Router>()),
-      codec_(*router_),
       executor_(std::clamp(
           std::thread::hardware_concurrency() == 0 ? 4u : std::thread::hardware_concurrency(), 2u, 32u))
 {
-    reactorGroup_ = std::make_unique<ReactorGroup>(codec_, executor_);
+    // ---- SessionFactory 依赖注入 ----
+    // ①创建 WebSocketSessionFactory（SessionFactory 抽象的具体实现），内部封装
+    //   wsManager_/wsDispatcher_ 两个 WS 相关依赖——这样 SubReactor/ReactorGroup
+    //   后续只看 SessionFactory* 抽象指针，不直接依赖 WebSocket 具体类型。
+    // ②把 *wsFactory_ 引用传给 ReactorGroup 构造，ReactorGroup::start 时会调
+    //   每个 SubReactor::setSessionFactory(&sessionFactory_) 完成注入。后续 SubReactor
+    //   收到 HTTP Upgrade: websocket 时通过 sessionFactory_ 创建 WebSocketSession。
+    wsFactory_ = std::make_unique<WebSocketSessionFactory>(wsManager_, wsDispatcher_);
+    reactorGroup_ = std::make_unique<ReactorGroup>(*router_, executor_, *wsFactory_);
 }
 
+/**
+ * @brief 析构函数：请求停止 + 关闭所有 fd + 清全局指针
+ *
+ * 【通俗解释】
+ * 总经理离职：①requestStop 通知 acceptLoop 退出；②关 listenFd/wakeFd_/epfd_;
+ * ③清 g_runtime 全局指针（防止信号处理函数访问已析构对象）。
+ * 注意 reactorGroup_ 和 executor_ 的析构由成员析构自动完成——
+ * 声明顺序保证 reactorGroup_ 先析构（先停 Reactor 线程），executor_ 后析构（再 drain Worker）。
+ */
 ServerRuntime::~ServerRuntime()
 {
     requestStop();
@@ -62,11 +139,21 @@ ServerRuntime::~ServerRuntime()
         close(epfd_);
         epfd_ = -1;
     }
+    // 清全局指针，防止信号处理函数访问已析构对象
     if (g_runtime.load(std::memory_order_acquire) == this)
         g_runtime.store(nullptr, std::memory_order_release);
 }
 
 // 由于本次架构实现的是一io接受+多reactor组，所以每个reactor组也需要有对应的监听
+/**
+ * @brief 建立监听套接字：socket→setsockopt→bind→listen→epoll 注册
+ *
+ * 【通俗解释】
+ * 总经理布置前台：①忽略 SIGPIPE（向断开 socket 写不再杀进程）；
+ * ②建一个非阻塞监听 socket；③SO_REUSEADDR 允许端口复用（重启不卡 TIME_WAIT）；
+ * ④bind 到 0.0.0.0:8080；⑤listen 开始接客；⑥建 epoll 并注册 listenFd + wakeFd_。
+ * 失败任何一步都抛异常终止启动。
+ */
 void ServerRuntime::setupListener()
 {
     // 忽略管道破裂信号SIGPIPE
@@ -119,6 +206,7 @@ void ServerRuntime::setupListener()
         throw std::runtime_error(std::string("epoll_create1: ") + strerror(errno));
     }
 
+    // wakeFd_ 用于优雅退出：stop() 写 wakeFd_ 唤醒阻塞在 epoll_wait 的 acceptLoop
     wakeFd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
     if (wakeFd_ < 0)
         throw std::runtime_error(std::string("eventfd wake: ") + strerror(errno));
@@ -133,6 +221,7 @@ void ServerRuntime::setupListener()
     if (epoll_ctl(epfd_, EPOLL_CTL_ADD, listenFd_, &ev) == -1)
         throw std::runtime_error(std::string("epoll_ctl listener: ") + strerror(errno));
 
+    // wakeFd_ 用水平触发，避免漏唤醒
     ev.events = EPOLLIN;
     ev.data.fd = wakeFd_;
     if (epoll_ctl(epfd_, EPOLL_CTL_ADD, wakeFd_, &ev) == -1)
@@ -142,6 +231,14 @@ void ServerRuntime::setupListener()
     std::cout << "server started..." << std::endl;
 }
 
+/**
+ * @brief 请求服务器停止（线程安全，可由信号处理函数调用）
+ *
+ * 【通俗解释】
+ * 给前台发"打烊"信号：①running_=false（主循环看见就退出）；
+ * ②写 wakeFd_ 把可能阻塞在 epoll_wait 的 acceptLoop 立即唤醒。
+ * 这两步都是 async-signal-safe，可在信号处理函数里直接调。
+ */
 void ServerRuntime::requestStop()
 {
     running_.store(false, std::memory_order_release);
@@ -152,6 +249,13 @@ void ServerRuntime::requestStop()
     }
 }
 
+/**
+ * @brief 立即释放监听套接字（不阻塞）
+ *
+ * 【通俗解释】
+ * 把 8080 端口还给系统，不必等 Reactor 全部 join 完。这样重启服务时能立即绑定端口，
+ * 避免 TIME_WAIT 等待。从 epoll 注销 listenFd 后 close 它。
+ */
 void ServerRuntime::releaseListener()
 {
     // 尽早关闭 listen，把 8080 还给系统；不必等 Reactor join 结束。
@@ -164,21 +268,48 @@ void ServerRuntime::releaseListener()
     }
 }
 
+/**
+ * @brief 创建并启动 SubReactor 组
+ *
+ * 【通俗解释】
+ * 决定招多少楼层经理：①若用户没指定（reactorCount_==0），按 CPU 核数取值，
+ * 限幅在 1~32 之间；②调 reactorGroup_->start(n) 一次性招 n 个并启动各自的事件循环线程。
+ */
 void ServerRuntime::createReactors()
 {
     // 确定reactor数组大小
     size_t n = reactorCount_;
     if (n == 0)
     {
+        // 默认按 CPU 核数（hardware_concurrency），取不到则用 4
         n = std::thread::hardware_concurrency();
         if (n == 0)
             n = 4;
+        // 限幅 1~32：太少不够用，太多线程切换开销大
         n = std::clamp<size_t>(n, 1, 32);
     }
     // 启动
     reactorGroup_->start(n);
+    // 绑定发生在 Runtime：ReactorGroup 保持协议无关
+    wsManager_.bind(reactorGroup_.get());
 }
 
+/**
+ * @brief acceptor 事件循环：accept 新连接并 dispatch 到 SubReactor
+ *
+ * 【通俗解释】
+ * 总经理坐前台值班：
+ *   while (running) {
+ *     ①epoll_wait 永久阻塞等事件（-1 超时）；
+ *     ②wakeFd_ 触发 → 排空 wakeFd_，回到循环顶检查 running 退出；
+ *     ③listenFd_ 触发 → while accept4 接所有积压连接：
+ *        - 设 TCP_NODELAY（禁 Nagle，避免 40ms 延迟）；
+ *        - 检查全局连接数限流，超额直接 close；
+ *        - reactorGroup_->dispatch(newfd) 轮询分给下一个 SubReactor。
+ *   }
+ * 关键点：accept4 用 SOCK_NONBLOCK 直接返回非阻塞 fd，省一次 fcntl；
+ * EAGAIN 表示暂无更多连接，break 内层 while 继续 epoll_wait。
+ */
 void ServerRuntime::acceptLoop()
 {
     // 开始接收来自reactor发送或者触发的信息给到reactors
@@ -218,7 +349,8 @@ void ServerRuntime::acceptLoop()
             {
                 struct sockaddr_in cin{};
                 socklen_t socklen = sizeof(cin);
-                while (running_.load(std::memory_order_acquire))
+                // 边缘触发模式下必须循环 accept 直到 EAGAIN，否则会漏接
+                while (running.load(std::memory_order_acquire))
                 {
                     int newfd = accept4(
                         listenFd_,
@@ -229,7 +361,7 @@ void ServerRuntime::acceptLoop()
                     if (newfd == -1)
                     {
                         if (errno == EAGAIN || errno == EWOULDBLOCK)
-                            break;
+                            break; // 暂无更多连接，回到 epoll_wait
                         if (errno == EINTR)
                             continue;
                         LOG_ERROR(std::string("accept error") + strerror(errno));
@@ -237,6 +369,7 @@ void ServerRuntime::acceptLoop()
                     }
 
                     // 关闭 Nagle，避免小响应头/体分写触发 Delayed ACK ~40ms 地板。
+                    // 这是 HTTP 响应延迟优化的关键——Nagle 会让小包攒着等 ACK，导致 40ms 延迟
                     int yes = 1;
                     if (setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) == -1)
                     {
@@ -255,6 +388,7 @@ void ServerRuntime::acceptLoop()
 
                     LOG_INFO(std::string("new connection fd=") + std::to_string(newfd));
                     // 分发fd到Reactor线程池
+                    // dispatch 内部轮询分给下一个 SubReactor，SubReactor::addFd 投递到自己的待处理队列
                     reactorGroup_->dispatch(newfd);
                 } // end while accept4
             } // end listenFd
@@ -262,14 +396,31 @@ void ServerRuntime::acceptLoop()
     } // end while running
 }
 
+/**
+ * @brief 启动服务器：建监听→建 Reactor→装信号→跑 acceptLoop→优雅退出
+ *
+ * 【通俗解释】
+ * 总经理开店全流程：
+ *   ①setupListener 布置前台（建 listenFd/epfd/wakeFd）；
+ *   ②createReactors 招楼层经理（启动 SubReactor 组）；
+ *   ③登记 SIGINT/SIGTERM 信号处理（Ctrl+C 触发 handleStopSignal→requestStop）；
+ *   ④acceptLoop 阻塞等客人（直到 running_=false 退出）；
+ *   ⑤releaseListener 立即释放 8080 端口（重启不用等 TIME_WAIT）；
+ *   ⑥reactorGroup_->stop+join 通知各楼层经理收工并等他们真正下班；
+ *   ⑦清 g_runtime 全局指针，打印 "server stopped"。
+ * 整个 start 是阻塞的——只有完全退出后才返回，调用方一般是 main 函数。
+ */
 void ServerRuntime::start()
 {
     setupListener();
     createReactors();
+    // 登记 g_runtime 让信号处理函数能找到本对象
     g_runtime.store(this, std::memory_order_release);
+    // 注册信号处理：Ctrl+C 或 kill 触发优雅退出
     std::signal(SIGINT, handleStopSignal);
     std::signal(SIGTERM, handleStopSignal);
 
+    // 阻塞在 acceptor loop，直到 running_=false
     acceptLoop();
 
     // Ctrl+C 路径：立刻释放监听端口，再回收 Reactor，避免 join 期间端口仍被占用。

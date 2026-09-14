@@ -1,6 +1,7 @@
 # HTTP 请求处理完整流程
 
 > 本文档梳理从 Accept 到 Send 的完整 HTTP 请求处理流程，包含所有关键节点、函数调用链和文件索引。
+> 出站发送阶段（⑤）走 2.0 的 `OutboundTask` + `OutboundQueue` + `TransportWriter` + `writerLoop` 体系，详见 [`phase4_upgrade.md`](phase4_upgrade.md)。
 
 ---
 
@@ -233,64 +234,58 @@ HttpSession::run() 协程恢复
     │
     ├─ response->buildHeader()           ← 构建响应头
     ├─ state = WRITING
-    ├─ 进入发送循环
+    ├─ reserveOutboundTicket(fd)          ← 预约发送顺序票据（保证 HTTP 响应按请求序发出）
+    ├─ enqueueOutbound(fd, OutboundTask::http(response, ticket))   ← ★ 入站出站任务
+    │     │
+    │     │  （任务进入本连接的 OutboundQueue，唤醒 writerLoop 发件员协程）
+    │     │
+    │     └─ writerLoop 协程串行化冲刷 TransportWriter：
+    │         ├─ transportWriter.flush(fd)
+    │         │   ├─ writev() 聚集发送 header + 内存 body
+    │         │   └─ sendfile() 零拷贝发送文件 body
+    │         │
+    │         ├─ EAGAIN → updateEvent(EPOLLOUT) + co_await TransportWriteAwaiter
+    │         │   │
+    │         │   │  ... epoll_wait 收到 EPOLLOUT ...
+    │         │   │
+    │         │   └─ wakeWriteCoroutine(fd, Writer) → 协程恢复续发
+    │         │
+    │         └─ 出错 → fd_close
+    │
+    ├─ co_await SendCompletionAwaiter(ticket)   ← 等待本张票据发完（保证顺序）
+    │
+    ├─ 发送完成 → responsePool.release() + afterSend()
     │   │
-    │   ├─ sender.send(fd, *response)    ← ★ 发送入口
-    │   │   │
-    │   │   ├─ sendHeader(fd, resp)
-    │   │   │   └─ writev() + consume()
-    │   │   │
-    │   │   ├─ 如果有 Body：
-    │   │   │   ├─ sendFileBody() → sendfile()    ← 零拷贝
-    │   │   │   └─ sendMemoryBody() → writev()    ← 内存正文
-    │   │   │
-    │   │   └─ 返回 SendState:
-    │   │       ├─ SEND_OK    → 发送完成
-    │   │       ├─ SEND_AGAIN → EAGAIN，等待 EPOLLOUT
-    │   │       └─ SEND_CLOSED → 连接关闭
-    │   │
-    │   ├─ SEND_AGAIN → co_await WriteAwaiter(reactor, fd)
-    │   │   │
-    │   │   │  ... epoll_wait 收到 EPOLLOUT ...
-    │   │   │
-    │   │   ├─ wakeWriteCoroutine(fd)
-    │   │   │   └─ scheduler.schedule(h)
-    │   │   │
-    │   │   └─ 协程恢复 → continue 续发
-    │   │
-    │   ├─ SEND_OK → responsePool.release() + afterSend()
-    │   │   │
-    │   │   └─ afterSend()
-    │   │       ├─ 恢复读事件（keep-alive）
-    │   │       └─ fd_close（非 keep-alive）
-    │   │
-    │   └─ SEND_CLOSED → fd_close + co_return
+    │   └─ afterSend()
+    │       ├─ 恢复读事件（keep-alive）
+    │       └─ fd_close（非 keep-alive）
     │
     └─ 回到主循环开头 → 读下一个请求（keep-alive）
 ```
 
 ### 关键文件与函数
 
-| 文件 | 函数 | 行号 | 作用 |
-|------|------|------|------|
-| `server/http/HttpSession/HttpSession.cpp` | `sender.send()` | L240 | 发送入口 |
-| `server/http/ResponseSender/ResponseSender.cpp` | `send()` | L3-L19 | 协调 header + body 发送 |
-| `server/http/ResponseSender/ResponseSender.cpp` | `sendHeader()` | L21-L57 | 发送响应头（writev） |
-| `server/http/ResponseSender/ResponseSender.cpp` | `sendFileBody()` | L120-L146 | 发送文件正文（sendfile 零拷贝） |
-| `server/http/ResponseSender/ResponseSender.cpp` | `sendMemoryBody()` | L59-L118 | 发送内存正文（writev） |
-| `server/http/HttpSession/HttpSession.cpp` | `afterSend()` | L14-L41 | 发送完成后恢复/关闭连接 |
-| `server/SubReactor/SubReactor.cpp` | `wakeWriteCoroutine()` | L81-L98 | 唤醒写协程 |
-| `server/CoroutineScheduler/AWaiter.h` | `WriteAwaiter` | — | 写等待器 |
+| 文件 | 函数 | 作用 |
+|------|------|------|
+| `server/http/HttpSession/HttpSession.cpp` | `enqueueOutbound()` | 入站 OutboundTask（HTTP 响应） |
+| `server/transport/OutboundTask.h` | `OutboundTask::http()` | 封装 HTTP 响应出站任务（variant） |
+| `server/transport/OutboundQueue.h` | `enqueueOutbound()` / `reserveOutboundTicket()` | 本线程入队 + 预约顺序票据 |
+| `server/transport/TransportWriter.h` | `flush()` | writev 聚集 / sendfile 零拷贝冲刷 |
+| `server/SubReactor/SubReactor.h` | `writerLoop()` | 每连接专职发件员协程，串行化出站 I/O |
+| `server/http/HttpSession/HttpSession.cpp` | `afterSend()` | 发送完成后恢复/关闭连接 |
+| `server/SubReactor/SubReactor.cpp` | `wakeWriteCoroutine()` | 唤醒写协程（Main + Writer 两个角色） |
+| `server/CoroutineScheduler/AWaiter.h` | `TransportWriteAwaiter` / `SendCompletionAwaiter` | 写等待器 / 发送完成等待器 |
 
 ### 关键设计
 
 | 设计点 | 说明 |
 |--------|------|
-| **三态驱动** | SEND_OK / SEND_AGAIN / SEND_CLOSED 驱动发送循环 |
-| **协程挂起** | SEND_AGAIN 时 co_await WriteAwaiter，让出 Reactor |
-| **续发安全** | Body 保存消费偏移，SEND_AGAIN 后从断点续发 |
+| **统一出站体系** | OutboundTask 用 variant 统一 WS 帧 / HTTP 响应 / 广播共享帧，共用一套冲刷逻辑 |
+| **writerLoop 串行化** | 每连接单 writerLoop 协程，避免多协程并发写破坏帧边界 |
+| **续发安全** | Body 保存消费偏移，EAGAIN 后从断点续发 |
+| **顺序票据** | reserveOutboundTicket 保证 HTTP 响应按请求顺序发出 |
+| **背压** | TransportWriter 高低水位线（4MB/2MB）触发读暂停/恢复；kMaxOutboundTasks 防 OOM |
 | **零拷贝** | 文件正文走 sendfile()，不经用户态 |
-| **公平预算** | sendFileBody 4MB 预算，防止大文件独占 Reactor |
 | **对象池** | Response 从对象池借出/归还，避免频繁分配 |
 
 ---
@@ -327,13 +322,14 @@ Reactor:                     epoll_wait 唤醒
                               response->buildHeader()
                                       │
                      ┌──────── 写循环 ────────┐
-                     │  sender.send()          │
-                     │  sendHeader()→writev    │
-                     │  sendFileBody→sendfile  │
-                     │  SEND_AGAIN?           │
-                     │  co_await WriteAwaiter  │
+                     │  enqueueOutbound        │
+                     │  OutboundTask::http     │
+                     │  writerLoop→flush       │
+                     │  writev/sendfile        │
+                     │  EAGAIN?               │
+                     │  co_await TransportWrite│
                      │  ↑ 被 EPOLLOUT 唤醒     │
-                     │  SEND_OK→release+after │
+                     │  发完→release+after    │
                      └─────────────────────────┘
                                       │
                               keep-alive?
@@ -381,34 +377,36 @@ Reactor:                     epoll_wait 唤醒
 ### Connection
 
 ```cpp
-// server/SubReactor/SubReactor.h
+// server/transport/Connection.h
 struct Connection {
-    int fd;
-    uint64_t id;                    // 唯一标识，防竞态
-    ConnState state;                // closed/peerClosed/pauseByMemory/wantWrite
-    Buffer readBuffer;              // 读缓冲区
-    size_t pendingBytes;            // 未消费字节数（背压）
-    std::shared_ptr<HttpSession> session;  // 所属 Session
+    ConnTransport transport;        // 传输层: fd, readBuffer, state
+    ConnTimer timer;                // 定时器层: expireSlot
+    uint64_t id;                    // 唯一标识，防竞态（fd 复用认对人）
+    std::shared_ptr<Session> session;  // 所属 Session（HttpSession / WebSocketSession）
 };
 ```
 
-### HttpSession
+### Session / HttpSession
 
 ```cpp
-// server/http/HttpSession/HttpSession.h
-class HttpSession {
-    int fd;
-    SubReactor *reactor;
-    HttpParser parser_;              // 增量解析器（有状态）
+// server/session/Session/Session.h —— 协议抽象基类
+class Session {
+  public:
+    virtual Task<void> run() = 0;           // 协程入口（纯虚）
+    virtual bool onTimeout() { return true; } // 超时钩子
+    virtual void onClose() {}               // 关闭前清理钩子
+    // 无 protocol() —— 子类自持 Codec
+};
+
+// server/http/HttpSession/HttpSession.h —— 继承 Session
+class HttpSession : public Session {
+    int fd_;
+    SubReactor *reactor_;
+    HttpCodec codec_;               // 自持编解码器（含 HttpParser）
     RequestContext context_;         // 请求上下文
     SessionState state;             // READING/PARSING/EXECUTING/WRITING/CLOSED
     bool keepAlive_;
-    
-    struct CoroutineContext {
-        std::coroutine_handle<> handle;
-        AwaitType state;            // NONE/READ/EXECUTE/WRITE
-        bool waiting;
-    } coroutine_context;
+    // 无 sender_ 成员 —— 出站走 OutboundTask + enqueueOutbound
 };
 ```
 
@@ -420,12 +418,17 @@ class SubReactor {
     int epfd;
     int event_fd;
     std::unordered_map<int, std::unique_ptr<Connection>> conns;
-    CoroutineScheduler scheduler;
-    Executor executor;
-    ResponseSender sender;
-    HttpCodec codec;
-    TimeWheel wheel;
-    
+    CoroutineScheduler scheduler_;
+    TimerWheel wheel;
+    SegmentPool segPool;
+    TransportWriter transportWriter;   // writev/sendfile 冲刷
+    OutboundQueue outbound_;           // 出站任务队列（每连接 outboundQueue + ticket）
+
+    Router &router_;                   // 协议无关路由表（HTTP/WS 共用）
+    Executor &executor_;               // 业务线程池（借用）
+    SessionFactory *sessionFactory_ = nullptr;  // 协议升级工厂（依赖倒置，由 ReactorGroup 注入）
+    size_t reactorIndex_ = 0;          // 本 Reactor 下标（跨 Reactor postOutbound 寻址）
+
     // 跨线程通信
     std::queue<int> pendingFds;           // 新 fd 队列
     std::queue<std::pair<int,uint64_t>> completeQueue;  // 完成通知队列
@@ -460,7 +463,7 @@ class SubReactor {
 | `server/SubReactor/` | `SubReactor.h/cpp` | 核心 Reactor，epoll 事件循环 + 协程调度 |
 | `server/Executor/` | `Executor.h` | 业务执行器，封装 ThreadPool |
 | `server/CoroutineScheduler/` | `CoroutineScheduler.h/cpp` | 协程调度器，adopt/schedule/runReady/reap |
-| `server/CoroutineScheduler/` | `AWaiter.h/cpp` | ReadAwaiter/WriteAwaiter/ExecuteAwaiter |
+| `server/CoroutineScheduler/` | `AWaiter.h/cpp` | ReadAwaiter/ExecuteAwaiter/TransportWriteAwaiter/SendCompletionAwaiter |
 | `server/CoroutineScheduler/` | `Task.h` | Task 协程包装器，suspend_never |
 | `server/http/HttpSession/` | `HttpSession.h/cpp` | HTTP 会话协程，读→执行→写循环 |
 | `server/http/HttpCodec/` | `HttpCodec.h/cpp` | Codec 层，decode + dispatch 包装 |
@@ -468,18 +471,24 @@ class SubReactor {
 | `server/http/HttpParser/` | `RequestLineParser.h` | 请求行解析 |
 | `server/http/HttpParser/` | `HeaderParser.h` | 首部解析 |
 | `server/http/HttpParser/` | `BodyParser.h` | 正文/chunked 解析 |
-| `server/http/ResponseSender/` | `ResponseSender.h/cpp` | 响应发送器，header→body 发送 |
+| `server/transport/` | `OutboundTask.h` | 出站任务（variant 统一 WS 帧/HTTP 响应/广播） |
+| `server/transport/` | `OutboundQueue.h/cpp` | 出站队列（本线程入队 + 跨线程投递 + ticket） |
+| `server/transport/` | `TransportWriter.h/cpp` | writev 聚集 / sendfile 零拷贝冲刷 |
+| `server/transport/` | `Connection.h` | 连接分层（ConnTransport + ConnTimer + session） |
+| `server/session/Session/` | `Session.h` | 协议抽象基类（run() + onTimeout/onClose） |
+| `server/session/` | `SessionFactory.h` | 协议升级工厂抽象（依赖倒置） |
+| `server/websocket/` | `WebSocketSessionFactory.h/cpp` | SessionFactory 实现，创建 WebSocketSession |
 | `server/http/RequestContext/` | `RequestContext.h/cpp` | 请求上下文，请求+响应+参数 |
 | `server/Route/` | `Router.h/cpp` | 路由匹配 + 中间件链 |
 | `server/Buffer/` | `Buffer.h/cpp` | 缓冲区，append/retrieve/find |
-| `server/BufferPoll/` | `BufferPoll.h/cpp` | 缓冲区池 |
-| `server/SegmentPool/` | `SegmentPool.h/cpp` | 段池，ResponseSender 借用 |
+| `server/buffer_pool/` | `BufferPoll.h/cpp` | 缓冲区池 |
+| `server/SegmentPool/` | `SegmentPool.h/cpp` | 段池，TransportWriter 借用 |
 | `server/ObjectPool/` | `ObjectPool.h/cpp` | 对象池，HttpResponse 复用 |
 | `server/timer/` | `TimeWheel.h/cpp` | 时间轮，连接超时管理 |
-| `server/Repsonse/` | `RespBody.h` | 响应体抽象基类 |
-| `server/Repsonse/` | `StringBody.h/cpp` | 字符串正文 |
-| `server/Repsonse/` | `FileBody.h/cpp` | 文件正文（sendfile） |
-| `server/Repsonse/` | `ChunkedBody.h/cpp` | chunked 正文 |
-| `server/Repsonse/` | `HeaderBody.h/cpp` | 响应头 |
-| `server/threadpoll/` | `thread_pool.h/cpp` | 线程池（Executor 底层） |
+| `server/response/` | `RespBody.h` | 响应体抽象基类 |
+| `server/response/` | `StringBody.h/cpp` | 字符串正文 |
+| `server/response/` | `FileBody.h/cpp` | 文件正文（sendfile） |
+| `server/response/` | `ChunkedBody.h/cpp` | chunked 正文 |
+| `server/response/` | `HeaderBody.h/cpp` | 响应头 |
+| `server/thread_pool/` | `thread_pool.h/cpp` | 线程池（Executor 底层） |
 | `log/logger/` | `logger.h/cpp` | 日志系统 |

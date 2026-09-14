@@ -50,11 +50,11 @@
 | 缺 Host、畸形、歧义定界等拒绝 | `RejectsAmbiguousRequestFramingAndMissingHost` |
 | 交付后必须 reset；Connection token 可解析 | `RequiresResetAfterDeliveryAndParsesConnectionTokens` |
 
-### Sender / Range / Router
+### 出站 / Range / Router
 
 | 不变量 | 用例 |
 |--------|------|
-| ResponseSender 可不依赖 SubReactor 发完 | `SendsWithoutSubReactor` |
+| TransportWriter 入队后按 FIFO 冲刷到 fd（enqueue→flush→writev） | `TransportWriterTest.PreservesEncodedTaskFifo` |
 | 闭 / 开 / 后缀 Range 经 Parser 可识别 | `HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser` |
 | `buildHeader` 不抹掉业务已设 Content-Range | `PreservesContentRangeForMemoryAndFileBodies` |
 | `/user/:id` 匹配并抽参 | `MatchesDynamicRouteAndExtractsParameter` |

@@ -1,5 +1,11 @@
 # Web 收口清单
 
+> **历史文档说明**：本结项文档记录的是项目演进历史，表中条目反映当时的对象化进度。
+> 当前 2.0 架构已演进到**第四阶段**：出站统一走 **OutboundTask + OutboundQueue + TransportWriter + writerLoop**
+> （`OutboundQueue` 类管理每连接出站队列 + ticket，由 SubReactor 驱动 writerLoop 冲刷），**已无 `ResponseSender`**
+> （该类在第四阶段重构中删除，出站发送不在 Session 层抽象 sender）。表中
+> `Sender 对象化 | ResponseSender` 一行作为历史记录保留，请勿当作当前架构事实。
+
 按既定链路推进；**已完成的对象化不再重做**，只补验证与停扩。
 
 - **收尾总述（推荐先读）**：[CLOSEOUT_NARRATIVE.md](CLOSEOUT_NARRATIVE.md)  

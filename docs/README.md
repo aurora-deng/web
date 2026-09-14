@@ -9,6 +9,7 @@ docs/
   closeout/       收口总述、清单、阶段 A 改动说明
   architecture/   架构、请求流、阶段升级、对照
     phase3/       ★ 第三阶段重要知识点（Reactor/Runtime/Pipeline/背压/所有权…）
+    phase4_upgrade.md  ★ 第四阶段升级文档（WebSocket 介入与改动路径）
   testing/        测试说明；learning/ 学习材料
   performance/    压测方法
   roadmap/        机器人 / 后续方向
@@ -25,6 +26,7 @@ docs/
 | 阶段 A（NODELAY/停服） | [closeout/closeout-A_tcp_nodelay_graceful_shutdown.md](closeout/closeout-A_tcp_nodelay_graceful_shutdown.md) |
 | 架构总览 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) |
 | **第三阶段重要知识点** | [architecture/phase3/README.md](architecture/phase3/README.md) |
+| **第四阶段升级文档（WebSocket）** | [architecture/第四阶段升级文档.md](architecture/第四阶段升级文档.md) · [phase4_upgrade.md](architecture/phase4_upgrade.md) |
 | 请求流 | [architecture/request_flow.md](architecture/request_flow.md) |
 | 第三阶段升级记录 | [architecture/phase3_architecture_upgrade.md](architecture/phase3_architecture_upgrade.md) |
 | 代码对照 | [architecture/code_diff_comparison.md](architecture/code_diff_comparison.md) |

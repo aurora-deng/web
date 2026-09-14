@@ -47,7 +47,7 @@ ctest --test-dir build-tests --output-on-failure
 ```
 
 CTest registers the GoogleTest cases and, on Linux with Python 3 available, the
-`http_blackbox` integration test. The integration script starts the built
+`http_blackbox` and `websocket_blackbox` integration tests. Each integration script starts the built
 server in its own process group, waits for port 8080, checks the HTTP behavior,
 and always terminates the process group. Port 8080 must be free.
 
@@ -55,11 +55,18 @@ To run only the black-box test against an existing build:
 
 ```sh
 python3 tests/integration/http_blackbox.py --server ./build-tests/webserver
+python3 tests/integration/websocket_blackbox.py --server ./build-tests/webserver
 ```
 
 The black-box checks cover the root and dynamic user routes, authorization
 short-circuiting, connection reuse, a chunked response, malformed protocol
 input, and the 1 MiB pending-input limit.
+
+The WebSocket black-box test covers upgrade, masking, fragmentation, UTF-8,
+Close semantics, cross-Reactor delivery, the application envelope, ACK
+correlation, and duplicate suppression. DeliveryTracker unit tests use an
+explicit monotonic time point to verify ACK ownership, retention, capacity,
+and the exact retry-attempt boundary without sleeping.
 
 ## Sanitizers
 

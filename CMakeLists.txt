@@ -1,3 +1,27 @@
+# ============================================================
+# 文件名：CMakeLists.txt
+# ------------------------------------------------------------
+# 【职责比喻：工厂图纸 / 装配清单】
+#   本文件是整座工厂的"施工图纸"和"装配清单"——它告诉构建系统 CMake：
+#   要生产哪些产品（target）、每个产品需要哪些原料（源文件）、用什么工艺
+#   （编译选项）、装配顺序（依赖链接）。图纸写好后，一句 cmake -B build
+#   就能自动调度编译器、链接器把整座工厂搭起来。
+#
+# 关键技术点（初学者重点理解）：
+#   1. C++20 标准：项目大量使用协程（std::coroutine_handle）、concept 等
+#      C++20 特性，必须强制要求 C++20 且关闭编译器扩展。
+#   2. 核心库分离（webserver_core）：业务逻辑全部收敛进静态库，主程序和
+#      测试程序都链接它，避免源码重复。
+#   3. Sanitizer 可选开关：ASan/UBSan/TSan 是内存与线程安全检查工具，
+#      INTERFACE 库统一承载编译/链接选项，按需启用。
+#   4. 三层测试：GTest 单元测试 + Python 黑盒测试 + libFuzzer 模糊测试，
+#      从单元到协议到漏洞挖掘全覆盖。
+#   5. WebSocket 模块：握手 / 编解码 / 单帧解析 / 消息组装 / 会话 / 会话工厂 / 管理器 /
+#      分发器分层；出站体系使用 OutboundTask + OutboundQueue + TransportWriter，
+#      HTTP->WS 协议升级经 SessionFactory 依赖倒置。
+#      webserver_core，标志项目从纯 HTTP 扩展到 HTTP+WebSocket 双协议。
+# ============================================================
+
 # ==============================================================================
 # CMake 最低版本约束
 # 项目中用到的 CMake 特性（INTERFACE 库、生成器表达式、gtest_discover_tests 等）要求至少3.16
@@ -71,51 +95,58 @@ endif()
 # 架构设计分离：业务逻辑全部收敛进库，main.cpp只负责组装逻辑、启动服务
 # 优势：单元测试、模糊测试、主程序可以复用同一套源码，避免代码重复；便于模块化拆分
 # ==============================================================================
-add_library(
-    webserver_core
-    # 对象池
+add_library(webserver_core)
+
+target_sources(webserver_core PRIVATE
+    # core：调度、Reactor、内存与基础设施
     server/ObjectPool/ObjectPool.cpp
-
-    # HTTP协议基础模块
-    server/http/http.cpp
-    server/http/HttpCodec/HttpCodec.cpp
-    server/http/HttpParser/HttpParser.cpp
-    server/http/ResponseSender/ResponseSender.cpp
-    server/http/HttpSession/HttpSession.cpp
-    server/http/RequestContext/RequestContext.cpp
-
-    # 路由模块
     server/Route/Router.cpp
-
-    # 缓冲区模块
     server/Buffer/Buffer.cpp
-    server/BufferPoll/BufferPoll.cpp
-
-    # 普通线程池
-    server/threadpoll/thread_pool.cpp
-
-    # 日志模块
+    server/buffer_pool/BufferPoll.cpp
+    server/thread_pool/thread_pool.cpp
     log/logger/logger.cpp
-
-    # HTTP响应体实现：多种body类型
-    server/Repsonse/ChunkedBody.cpp
-    server/Repsonse/FileBody.cpp
-    server/Repsonse/StringBody.cpp
-    server/Repsonse/HeaderBody.cpp
-
-    # Reactor IO多路复用框架
     server/SubReactor/SubReactor.cpp
     server/Reactor/ReactorGroup.cpp
     server/Runtime/ServerRuntime.cpp
-
-    # 时间轮定时器
     server/timer/TimeWheel.cpp
-    # 内存分段池
     server/SegmentPool/SegmentPool.cpp
-
-    # C++20协程调度模块
     server/CoroutineScheduler/CoroutineScheduler.cpp
     server/CoroutineScheduler/AWaiter.cpp
+)
+
+target_sources(webserver_core PRIVATE
+    # transport：协议无关出站队列与唯一 socket 写入口
+    server/transport/OutboundTask.cpp
+    server/transport/OutboundAdmission.cpp
+    server/transport/TransportWriter.cpp
+    server/transport/OutboundQueue.cpp
+)
+
+target_sources(webserver_core PRIVATE
+    # http：协议、会话和响应体
+    server/http/http.cpp
+    server/http/HttpCodec/HttpCodec.cpp
+    server/http/HttpParser/HttpParser.cpp
+    server/http/HttpSession/HttpSession.cpp
+    server/http/RequestContext/RequestContext.cpp
+    server/response/ChunkedBody.cpp
+    server/response/FileBody.cpp
+    server/response/StringBody.cpp
+    server/response/HeaderBody.cpp
+)
+
+target_sources(webserver_core PRIVATE
+    # websocket：握手、编解码、分发、会话、会话工厂与跨 Reactor 定位
+    server/websocket/WebSocketHandshake/WebSocketHandshake.cpp
+    server/websocket/WebSocketCodec/WebSocketCodec.cpp
+    server/websocket/WebSocketParser/WebSocketParser.cpp
+    server/websocket/WebSocketMessageAssembler/WebSocketMessageAssembler.cpp
+    server/websocket/WebSocketValidation/WebSocketValidation.cpp
+    server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp
+    server/websocket/WebSocketSession/WebSocketSession.cpp
+    server/websocket/WebSocketSessionFactory.cpp
+    server/websocket/WebSocketSessionManager/WebSocketSessionManager.cpp
+    server/websocket/WebSocketDispatcher/WebSocketDispatcher.cpp
 )
 
 # 设置头文件搜索路径：项目根目录对外暴露
@@ -179,7 +210,12 @@ if(BUILD_TESTING)
     endif()
 
     # 单元测试可执行程序
-    add_executable(webserver_unit_tests tests/unit_tests.cpp)
+    add_executable(
+        webserver_unit_tests
+        tests/unit_tests.cpp
+        tests/transport_tests.cpp
+        tests/coroutine_lifecycle_tests.cpp
+    )
     # 部分发行版的 gtest_main 不会自动带上 gtest 本体，显式链接更稳妥。
     if(TARGET GTest::gtest)
         target_link_libraries(webserver_unit_tests PRIVATE webserver_core GTest::gtest GTest::gtest_main)
@@ -207,8 +243,17 @@ if(BUILD_TESTING)
                     ${PROJECT_SOURCE_DIR}/tests/integration/http_blackbox.py
                     --server $<TARGET_FILE:webserver>
         )
+        add_test(
+            NAME websocket_blackbox
+            COMMAND ${Python3_EXECUTABLE}
+                    ${PROJECT_SOURCE_DIR}/tests/integration/websocket_blackbox.py
+                    --server $<TARGET_FILE:webserver>
+        )
         # 设置测试超时时间90秒，防止测试卡死阻塞CI
-        set_tests_properties(http_blackbox PROPERTIES TIMEOUT 90)
+        set_tests_properties(
+            http_blackbox websocket_blackbox
+            PROPERTIES TIMEOUT 90 RUN_SERIAL TRUE
+        )
     else()
         message(STATUS "http_blackbox test disabled (requires Linux and Python 3)")
     endif()
@@ -229,4 +274,9 @@ if(WEBSERVER_BUILD_FUZZER)
     # 开启libFuzzer编译与链接标志
     target_compile_options(http_parser_fuzz PRIVATE -fsanitize=fuzzer)
     target_link_options(http_parser_fuzz PRIVATE -fsanitize=fuzzer)
+
+    add_executable(websocket_parser_fuzz fuzz/websocket_parser_fuzz.cpp)
+    target_link_libraries(websocket_parser_fuzz PRIVATE webserver_core)
+    target_compile_options(websocket_parser_fuzz PRIVATE -fsanitize=fuzzer)
+    target_link_options(websocket_parser_fuzz PRIVATE -fsanitize=fuzzer)
 endif()

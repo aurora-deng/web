@@ -1,411 +1,498 @@
+// ============================================================
+// 文件名：HttpSession.cpp
+// 所属模块：server/http/HttpSession —— HTTP 会话主协程实现
+// ------------------------------------------------------------
+// 【生活比喻：车间主任的一天工作日志】
+// 本文件是 HttpSession 的实现，把 HTTP 请求-响应的完整生命周期串成协程。
+// run() 是唯一根协程，直接掌管 READ / EXECUTE / SENT 三类挂起点；
+// readRequest / startHandler / queueResponse 只同步推进状态，不再返回嵌套 Task。
+// 出站发送走 OutboundTask + OutboundQueue 体系，Session 不持有 sender。
+// ------------------------------------------------------------
+// 关键技术点（初学者重点理解）：
+//   1. 【协程挂起恢复】读不够 co_await ReadAwaiter，执行 handler co_await ExecuteAwaiter，
+//      发响应 co_await SendCompletionAwaiter——每次挂起都让出线程，事件就绪后恢复。
+//   2. 【出站零 sender】queueResponse 把响应包成 OutboundTask::http 入 OutboundQueue，
+//      由 SubReactor 的 writerLoop + TransportWriter 搬运字节，协程只等完成通知。
+//   3. 【WebSocket 交接】升级时 handoffWebSocket 创建 WebSocketSession 并 adopt 进调度器，
+//      旧 HTTP 协程 co_return 退出，新 WS 协程接管 fd。
+// ============================================================
 #include "HttpSession.h"
+#include "server/CoroutineScheduler/AWaiter.h"
 #include "server/SubReactor/SubReactor.h"
+#include "server/Executor/Executor.h"
+#include "server/Route/Router.h"
+#include "server/session/SessionFactory.h"
+#include "server/websocket/WebSocketHandshake/WebSocketHandshake.h"
 
 /**
- * @brief 通过fd安全查找当前连接对象
- * @return 存在返回Connection裸指针，连接已销毁返回nullptr
- * @note 核心协程安全逻辑：
- * 协程挂起(co_await)期间，其他线程/协程可能执行fd_close销毁Connection；
- * 不能跨co_await缓存Connection指针，每次恢复执行必须重新查表，防止野指针段错误
+ * @brief 构造函数：绑定连接身份、所属 reactor，并用 router 初始化 codec_
+ * @param key 连接身份（fd + connId）
+ * @param r 所属 SubReactor
+ * @param router 路由表，传给 codec_ 供 dispatch 时路由分发
+ */
+HttpSession::HttpSession(ConnectionKey key, SubReactor *r, Router &router)
+    : reactor(r),
+      key_(key),
+      codec_(router)
+{
+}
+
+HttpSession::~HttpSession()
+{
+    releasePendingResponse();
+}
+
+/**
+ * @brief 通过 ConnectionKey 安全查找当前连接对象
+ * @return 存在返回 Connection 指针；连接已销毁返回 nullptr
+ * @note 协程挂起期间 fd 可能被关闭并复用，每次恢复都要用 fd+connId 重新查表。
  */
 Connection *HttpSession::getConn()
 {
-    // fd仅作为哈希表查询key，无法保证当前Connection对象存活
-    auto it = reactor->conns.find(fd);
-    // 找不到代表连接已被关闭并从map移除
-    if (it == reactor->conns.end())
-        return nullptr;
+    return reactor->findConnection(key_.fd, key_.connId);
+}
 
-    // 返回智能指针管理的裸指针，仅当前作用域临时使用
-    return it->second.get();
+void HttpSession::releasePendingResponse() noexcept
+{
+    if (!context_.response)
+        return;
+    responsePool.release(context_.response);
+    context_.response = nullptr;
 }
 
 /**
- * @brief 单次HTTP响应发送完成后的后置处理函数
- * @note 解决两大问题：1. 野指针段错误 2. 内存背压限流恢复读事件
+ * @brief 发送完成后的收尾：更新事件、Keep-Alive 续连或关连接
+ * @note 出站发送由 writerLoop 完成后回调到这里。Keep-Alive 则更新事件继续读，
+ *       否则直接 fd_close 关连接。同时检查内存水位，解除读暂停。
  */
-void HttpSession::afterSend()
+bool HttpSession::afterSend()
 {
-    // 协程等待写事件后，连接可能已被销毁，必须重新查表获取连接
-    auto it = reactor->conns.find(fd);
-    // 连接不存在直接退出，不执行后续逻辑
-    if (it == reactor->conns.end())
-        return;
-    // 本次循环全新的连接引用，规避旧指针悬空问题
-    auto &conn_after_loop = *it->second;
+    auto *connPtr = getConn();
+    if (!connPtr)
+        return false;
+    auto &conn_after_loop = *connPtr;
 
-    // ========== 内存背压限流恢复逻辑 ==========
-    // 内存限流标记开启时，若读缓冲区剩余可读数据低于阈值，解除限流，恢复epoll读监听
-    // MAX_PENDING_BYTES：全局最大待处理缓存阈值；阈值一半作为恢复水位，防止频繁开关读事件
+    // ---- 内存水位检查：积压数据已降到一半以下，解除读暂停 ----
     if (conn_after_loop.state.pauseByMemory &&
-        conn_after_loop.readBuffer.readableBytes() < MAX_PENDING_BYTES / 2)
+        conn_after_loop.readBuffer.readableBytes() < kMaxPendingReadBytes / 2)
     {
-        // 关闭内存限流标记，允许继续读取客户端请求
         conn_after_loop.state.pauseByMemory = false;
     }
 
-    // 清空写事件标记，当前响应发送完毕，无剩余数据待发送
     conn_after_loop.state.wantWrite = false;
     if (keepAlive_)
     {
-        // 长连接：更新epoll监听事件，继续监听下一次客户端读事件
-        reactor->updateEvent(fd);
+        reactor->updateEvent(key_.fd);   // Keep-Alive：重新注册读事件，继续下一轮
+        return true;
     }
-    else
-    {
-        // 短连接：响应发送完成直接关闭fd，断开TCP连接
-        reactor->fd_close(fd, "keepalive false", true);
-    }
+    reactor->fd_close(key_.fd, "keepalive false", CoroutineRole::Main);
+    state = SessionState::CLOSED;
+    return false;
 }
 
-// 【协程发送响应函数，当前注释封存】
-// bool HttpSession::sendResponse(HttpResponse &resp)
-// {
-//     while (true)
-//     {
-//         // 每次循环先安全获取连接，防止协程唤醒后连接已销毁
-//         auto conn = getConn();
-//         if (!conn || conn->state.closed)
-//         {
-//             // 连接失效，归还响应对象到内存池，避免内存泄漏
-//             responsePool.release(&resp);
-//             co_return false;
-//         }
-//         // 调用底层reactor发送响应体数据
-//         auto state = reactor->sendBody(fd, resp);
-//         switch (state)
-//         {
-//         case SEND_OK:
-//             // 数据全部发送完成，归还响应对象，执行发送后置逻辑
-//             responsePool.release(&resp);
-//             afterSend();
-//             co_return true;
-
-//         case SEND_AGAIN:
-//             // 非阻塞socket缓冲区满，发送被截断；挂起协程等待EPOLLOUT可写事件
-//             co_await WriteAwaiter(reactor, fd);
-//             // 等待唤醒后重新进入循环，继续发送剩余数据
-//             break;
-
-//         default:
-//             // 发送出现IO错误，释放响应资源，关闭TCP连接
-//             responsePool.release(&resp);
-//             reactor->fd_close(fd, "send error", true);
-//             co_return false;
-//         }
-//     }
-// }
-
-// 【HTTP请求执行业务逻辑，当前注释封存】
-// bool HttpSession::execute(RequestContext &ctx)
-// {
-//     // 安全获取连接，连接销毁直接返回失败
-//     auto conn = getConn();
-//     if (!conn)
-//         return false;
-
-//     // 从内存池创建空响应对象，复用内存减少分配开销
-//     ctx.response = std::make_shared<HttpResponse>();
-//     // 路由处理器执行业务逻辑
-//     bool ok = reactor->router.handle(ctx);
-//     // 路由处理失败且无响应，默认返回500服务端错误
-//     if (!ok && !ctx.response)
-//     {
-//         ctx.response->status = 500;
-//     }
-//     // 将当前响应存入连接响应队列
-//     conn->responses.push_back(*ctx.response);
-
-//     return true;
-// }
-
 /**
- * @brief 读取并解析客户端HTTP请求
- * @return RequestReadResult 读取解析结果枚举
- * CLOSED：对端关闭连接 / 连接已销毁
- * ERROR：HTTP报文格式错误
- * COMPLETE：完整HTTP请求解析成功
- * TOO_LARGE：缓冲区堆积数据超限，触发内存限流
- * NEED_MORE：缓冲区数据不足，需要继续recv读取数据
- * @note 分层设计：优先解析现有缓冲区，减少系统recv调用；粘包自动处理
+ * @brief 读取并尝试解析一个请求（两段式：先解析已有缓冲，不够再 recv）
+ * @return 读取结果（COMPLETE/NEED_MORE/CLOSED/ERROR/TOO_LARGE）
+ *
+ * 通俗解释：车间主任先看传送带上有没有完整包裹（解析已有缓冲），没有就让卡车再送一车
+ *   （recv），再试一次。两段式提高半包命中效率，避免无谓的系统调用。
  */
 RequestReadResult HttpSession::readRequest()
 {
-    // 第一步安全校验连接状态
     auto conn = getConn();
     if (!conn || conn->state.closed)
         return RequestReadResult::CLOSED;
-    // 更新会话状态：当前正在解析HTTP报文
+
+    // ---- 第一段：先尝试解析缓冲区里已有的数据 ----
     state = SessionState::PARSING;
-    // 调用HTTP编解码器解析读缓冲区数据
-    auto parseState = reactor->codec.decode(
+    auto parseState = codec_.decode(
         conn->readBuffer, parser_, context_.request, keepAlive_);
 
-    // 分支1：完整请求解析成功
     if (parseState == PARSE_OK)
     {
-        // 若客户端提前关闭写端，强制关闭长连接
         if (conn->state.peerClosed)
             keepAlive_ = false;
-        // 更新当前缓冲区待处理字节数
         conn->pendingBytes = conn->readBuffer.readableBytes();
-        // 缓冲区数据低于阈值，解除内存限流
-        if (conn->pendingBytes < MAX_PENDING_BYTES)
+        if (conn->pendingBytes < kMaxPendingReadBytes)
             conn->state.pauseByMemory = false;
         return RequestReadResult::COMPLETE;
     }
 
-    // 分支2：报文解析出错（非法HTTP协议）
     if (parseState == PARSE_ERROR)
         return RequestReadResult::ERROR;
 
-    // 分支3：缓冲区数据不足，需要调用recv读取新数据
+    // ---- 第二段：缓冲不够，recv 一批新数据再解析 ----
     state = SessionState::READING;
-    // 底层reactor执行非阻塞recv，填充readBuffer
-    const auto recvState = reactor->recvSocket(fd);
-    // recv检测到TCP连接关闭
+    const auto recvState = reactor->recvSocket(key_.fd);
     if (recvState == RecvState::CLOSED)
         return RequestReadResult::CLOSED;
 
-    // recv完成后协程恢复，必须重新校验连接是否存活
     conn = getConn();
     if (!conn || conn->state.closed)
         return RequestReadResult::CLOSED;
 
-    // 再次解析新增数据后的缓冲区
     state = SessionState::PARSING;
-    parseState = reactor->codec.decode(
+    parseState = codec_.decode(
         conn->readBuffer, parser_, context_.request, keepAlive_);
-    // 二次解析成功
     if (parseState == PARSE_OK)
     {
         if (conn->state.peerClosed)
             keepAlive_ = false;
         conn->pendingBytes = conn->readBuffer.readableBytes();
-        if (conn->pendingBytes < MAX_PENDING_BYTES)
+        if (conn->pendingBytes < kMaxPendingReadBytes)
             conn->state.pauseByMemory = false;
         return RequestReadResult::COMPLETE;
     }
-    
-    // 二次解析报文错误
+
     if (parseState == PARSE_ERROR)
         return RequestReadResult::ERROR;
 
-    // recv触发内存限流：缓冲区数据超限，暂停读事件
+    // 读缓冲被限流暂停（积压太多），返回 TOO_LARGE 让上层关连接
     if (recvState == RecvState::PAUSED)
         return RequestReadResult::TOO_LARGE;
 
-    // 客户端关闭TCP写端，但缓冲区无完整请求，判定为非法断连，关闭fd
     if (conn->state.peerClosed)
     {
-        reactor->fd_close(fd, "peer closed with incomplete request", true);
+        reactor->fd_close(key_.fd, "peer closed with incomplete request", CoroutineRole::Main);
         return RequestReadResult::CLOSED;
     }
 
-    // 数据依旧不足，等待下一次EPOLLIN可读事件
     return RequestReadResult::NEED_MORE;
 }
 
 /**
- * @brief HTTP会话主协程循环
- * @details 单个TCP连接的生命周期全部在此协程内循环处理：
- * 1. 重置请求上下文，隔离keep-alive多请求状态
- * 2. 循环读取、解析客户端HTTP请求
- * 3. 提交业务处理任务至线程池，协程挂起等待处理完成
- * 4. 构建HTTP响应，循环非阻塞发送全部响应数据
- * 5. 根据keep-alive判断是否复用连接，循环处理下一个请求
- * @note 全程不跨co_await缓存Connection*，每次唤醒后重新查表，彻底规避野指针；
- * 内存池复用Request/Response对象，减少频繁内存分配释放；
- * 业务逻辑异步至线程池，不阻塞Reactor事件循环
+ * @brief 构造 WebSocket 升级握手响应（101 Switching Protocols）
+ * @return true 101 响应已装好；false 不是升级请求或握手非法（已装 400 响应）
+ *
+ * 通俗解释：业务 handler 调过 acceptWebSocket() 后，这里校验请求是否符合 WebSocket
+ *   升级规范（Upgrade: websocket + Sec-WebSocket-Key 等）。合法就填 101 响应，
+ *   非法就填 400 错误响应。
+ */
+bool HttpSession::prepareWebSocketUpgrade()
+{
+    if (!context_.webSocketAccepted)
+        return false;
+
+    // ---- 校验是否为 WebSocket 升级请求 ----
+    if (!WebSocketHandshake::isUpgradeRequest(context_.request))
+    {
+        if (context_.response)
+            responsePool.release(context_.response);
+        context_.response = responsePool.acquire();
+        context_.response->status = 400;
+        context_.response->statusText = "Bad Request";
+        context_.response->keepAlive = false;
+        context_.response->text("WebSocket upgrade required");
+        context_.webSocketAccepted = false;
+        return false;
+    }
+
+    // ---- 校验 Sec-WebSocket-Key 等握手字段 ----
+    auto hs = WebSocketHandshake::validate(context_.request);
+    if (!hs.ok)
+    {
+        if (context_.response)
+            responsePool.release(context_.response);
+        context_.response = responsePool.acquire();
+        context_.response->status = 400;
+        context_.response->statusText = "Bad Request";
+        context_.response->keepAlive = false;
+        context_.response->text(hs.failReason.empty() ? "Bad WebSocket handshake" : hs.failReason);
+        context_.webSocketAccepted = false;
+        return false;
+    }
+
+    // ---- 校验通过：填 101 Switching Protocols 响应 ----
+    if (context_.response)
+        responsePool.release(context_.response);
+    context_.response = responsePool.acquire();
+    WebSocketHandshake::fillResponse(*context_.response, hs);
+    return true;
+}
+
+/**
+ * @brief 创建 WebSocketSession 并交接 Connection::session
+ * @return true 交接成功，本 HTTP 协程随后 co_return；false 交接失败
+ *
+ * 通俗解释：101 响应发完后，本 HTTP 车间主任"下班"，把 fd 交给新来的 WebSocket
+ *   车间主任（WebSocketSession）。通过 SessionFactory 创建 WS 会话，启动其 run()
+ *   协程并 adopt 进调度器，旧 HTTP 协程随即退出。
+ */
+bool HttpSession::handoffWebSocket()
+{
+    auto *conn = getConn();
+    if (!conn || conn->state.closed)
+        return false;
+
+    // ---- 从查询参数取 uid（WebSocket 用户标识）----
+    uint64_t wsUid = 0;
+    if (auto it = context_.request.querryParams.find("uid"); it != context_.request.querryParams.end())
+    {
+        try
+        {
+            wsUid = std::stoull(it->second);
+        }
+        catch (...)
+        {
+            wsUid = 0;
+        }
+    }
+
+    // ---- 初始化 WS 心跳计时器，重置事件状态 ----
+    conn->timer.wsHeartbeat = true;
+    conn->timer.waitingPong = false;
+    conn->timer.lastActiveSec = 0;
+    reactor->touchActivity(key_.fd);
+
+    conn->state.wantWrite = false;
+    reactor->updateEvent(key_.fd);
+
+    // ---- 通过 SessionFactory 创建 WebSocketSession ----
+    auto *factory = reactor->sessionFactory();
+    if (!factory)
+        return false;
+
+    auto ws = factory->createWebSocketSession(key_, reactor, wsUid);
+    if (!ws)
+        return false;
+
+    // ---- 交接：替换 Connection::session，启动 WS 协程并 adopt 进调度器 ----
+    conn->session = ws;
+    auto task = ws->run();
+    auto h = task.release();
+    conn->slot(CoroutineRole::Main).handle = h;
+    reactor->scheduler().adopt(
+        key_.fd, key_.connId, CoroutineRole::Main, h, ws);
+    state = SessionState::CLOSED;   // 本 HTTP 协程标记结束，随后 co_return
+    return true;
+}
+
+/**
+ * @brief 检查业务是否请求了 WebSocket 升级，是则准备 101 响应
+ * @return true 业务已接受升级且 101 响应就绪；false 未升级
+ */
+bool HttpSession::handleWebSocketUpgradeIfRequested()
+{
+    if (!context_.webSocketAccepted)
+        return false;
+    return prepareWebSocketUpgrade();
+}
+
+/**
+ * @brief 同步提交业务 handler；等待动作由唯一根协程 run() 执行
+ */
+HandlerStartResult HttpSession::startHandler()
+{
+    state = SessionState::EXECUTING;
+    auto *conn = getConn();
+    if (!conn || conn->state.closed)
+    {
+        state = SessionState::CLOSED;
+        return HandlerStartResult::CLOSED;
+    }
+
+    // ---- 提交到执行器线程池异步跑 handler ----
+    const ConnectionKey key = key_;
+    const bool submitted = reactor->executor().submit([this, key]()
+                                                    {
+        try
+        {
+            bool dispatched = this->codec_.dispatch(context_);
+            if (!dispatched && context_.response)
+            {
+                responsePool.release(context_.response);
+                context_.response = nullptr;
+            }
+        }
+        catch (...)
+        {
+            // handler 抛异常：兜底装 500 响应
+            if (!context_.response)
+                context_.response = responsePool.acquire();
+            context_.response->reset();
+            context_.response->status = 500;
+            context_.response->statusText = "Internal Server Error";
+            context_.response->text("Internal Server Error");
+        }
+        reactor->notifyExecuteComplete(key.fd, key.connId);   // 唤醒主协程
+    });
+    if (submitted)
+        return HandlerStartResult::SUBMITTED;
+
+    // 线程池满：直接装 503 响应，根协程无需等待 Worker。
+    releasePendingResponse();
+    context_.response = responsePool.acquire();
+    context_.response->status = 503;
+    context_.response->statusText = "Service Unavailable";
+    context_.response->keepAlive = false;
+    context_.response->text("Service Unavailable");
+    return HandlerStartResult::READY;
+}
+
+/**
+ * @brief 同步编码并把响应移交给 OutboundTask
+ * @return 非零 ticket；0 表示连接关闭或入队失败
+ */
+uint64_t HttpSession::queueResponse()
+{
+    auto *conn = getConn();
+    if (!conn || conn->state.closed)
+    {
+        releasePendingResponse();
+        state = SessionState::CLOSED;
+        return 0;
+    }
+    auto *response = context_.response;
+    if (!response)
+    {
+        // 没有响应对象说明分发失败，直接关连接
+        reactor->fd_close(key_.fd, "request dispatch failed", CoroutineRole::Main);
+        state = SessionState::CLOSED;
+        return 0;
+    }
+
+    // ---- 合并 keepAlive：业务响应标志 && 当前连接标志 ----
+    if (conn->state.peerClosed)
+        keepAlive_ = false;
+    response->keepAlive = response->keepAlive && keepAlive_;
+    keepAlive_ = response->keepAlive;
+    codec_.encode(*response);   // 序列化响应头进 HeaderBody_
+    state = SessionState::WRITING;
+
+    // ---- 预订出站票据（流量控制：队列满则 ticket==0）----
+    const uint64_t ticket = reactor->reserveOutboundTicket(key_.fd);
+    if (ticket == 0)
+    {
+        releasePendingResponse();
+        state = SessionState::CLOSED;
+        return 0;
+    }
+
+    // ---- 包成 OutboundTask 入 OutboundQueue，由 writerLoop 实际发送 ----
+    auto task = OutboundTask::http(PooledHttpResponse(response), ticket);
+    context_.response = nullptr;
+    if (reactor->enqueueOutbound(key_.fd, std::move(task)) != EnqueueResult::Ok)
+    {
+        reactor->fd_close(
+            key_.fd, "http outbound queue rejected", CoroutineRole::Main);
+        state = SessionState::CLOSED;
+        return 0;
+    }
+    return ticket;
+}
+
+/**
+ * @brief 重置请求上下文与 keepAlive_，为下一轮请求清场
+ * @note 每轮请求开始前调用，把档案袋清空、response 置空、keepAlive_ 复位，
+ *       避免上一轮残留状态污染新请求。
+ */
+void HttpSession::resetRequestContext()
+{
+    releasePendingResponse();
+    context_.request.reset();
+    context_.route = nullptr;
+    context_.params.clear();
+    context_.handled = false;
+    context_.Id = key_.connId;
+    context_.session = this;
+    context_.fd = key_.fd;
+    context_.webSocketAccepted = false;
+    keepAlive_ = true;
+}
+
+/**
+ * @brief 会话主协程：请求-响应循环（override 自 Session 基类纯虚 run()）
+ * @return Task<void>，C++20 协程
+ *
+ * 通俗解释：车间主任的"一天工作流程"——每轮先清场（resetRequestContext），再由同一个
+ *   根协程推进读请求、等待后厨、准备升级、入队响应和等待发送完成。Keep-Alive 就继续
+ *   下一轮，任一步失败就 co_return 收工；所有暂停点都能在 run() 中按顺序看到。
  */
 Task<void> HttpSession::run()
 {
-    // 长连接循环：单个TCP连接持续处理多个HTTP请求，直到短连接/异常关闭
     while (true)
     {
-        // ========== 请求上下文重置 ==========
-        // keep-alive下多个请求共用同一个context，必须完全清空上一轮请求状态
-        // 原位清空复用容器内存容量，避免频繁malloc/free造成性能损耗
-        context_.request.reset();         // 清空上一轮HTTP请求报文
-        context_.response = nullptr;      // 释放上一轮响应智能指针
-        context_.route = nullptr;         // 清空路由匹配记录
-        context_.params.clear();          // 清空URL路由参数
-        context_.handled = false;         // 重置业务处理标记
-        context_.Id = 0;                   // 请求唯一ID清零
-        context_.session = this;           // 绑定当前会话指针
-        context_.fd = fd;                  // 绑定当前连接fd
-        keepAlive_ = true;                 // 默认开启长连接，由报文/业务覆盖
-
-        // 上下文重置完成，校验当前连接是否已销毁
-        auto conn = getConn();
-        if (!conn || conn->state.closed)
+        if (!getConn())
         {
             state = SessionState::CLOSED;
-            co_return; // 连接销毁，退出会话协程
+            co_return;
         }
-        state = SessionState::READING;
 
-        // 内层循环：持续读取数据直到解析出完整HTTP请求
+        resetRequestContext();
+
+        // 阶段一：同一个根协程反复推进解析；数据不足时由它自己等待 READ。
         while (true)
         {
             const auto result = readRequest();
             if (result == RequestReadResult::COMPLETE)
-                break; // 完整请求解析成功，退出读循环执行业务
+                break;
 
-            // TCP连接关闭，直接退出协程
-            if (result == RequestReadResult::CLOSED)
+            if (result == RequestReadResult::NEED_MORE)
             {
-                state = SessionState::CLOSED;
-                co_return;
+                co_await ReadAwaiter(reactor, key_);
+                if (!getConn())
+                {
+                    state = SessionState::CLOSED;
+                    co_return;
+                }
+                continue;
             }
-            // 报文错误 / 缓冲区超限，关闭连接退出协程
+
+            state = SessionState::CLOSED;
             if (result == RequestReadResult::ERROR ||
                 result == RequestReadResult::TOO_LARGE)
             {
-                state = SessionState::CLOSED;
-                // 根据错误类型打印日志，关闭fd
-                reactor->fd_close(fd,
-                                  result == RequestReadResult::ERROR?
-                                   "malformed HTTP request": "request exceeds read buffer limit",
-                                  true);
-                co_return;
+                reactor->fd_close(
+                    key_.fd,
+                    result == RequestReadResult::ERROR
+                        ? "malformed HTTP request"
+                        : "request exceeds read buffer limit",
+                    CoroutineRole::Main);
             }
-            // 数据不足，挂起协程等待EPOLLIN客户端可读事件
-            co_await ReadAwaiter(reactor, fd);
+            co_return;
         }
 
-        // ========== 执行业务路由处理 ==========
-        state = SessionState::EXECUTING;
-        // 协程唤醒后重新校验连接状态
-        conn = getConn();
-        if (!conn || conn->state.closed)
+        // 阶段二：同步提交业务；只有根协程等待 Worker 完成。
+        const auto handlerResult = startHandler();
+        if (handlerResult == HandlerStartResult::CLOSED)
+            co_return;
+        if (handlerResult == HandlerStartResult::SUBMITTED)
+        {
+            co_await ExecuteAwaiter(reactor, key_);
+            if (!getConn())
+            {
+                releasePendingResponse();
+                state = SessionState::CLOSED;
+                co_return;
+            }
+        }
+
+        // 阶段三：业务决定是否升级；响应统一入队后等待 ticket 真正发完。
+        const bool upgrading = handleWebSocketUpgradeIfRequested();
+        const uint64_t ticket = queueResponse();
+        if (ticket == 0)
+            co_return;
+
+        co_await SendCompletionAwaiter(reactor, key_, ticket);
+        if (!getConn())
         {
             state = SessionState::CLOSED;
             co_return;
         }
 
-        // 保存连接唯一ID，用于线程池任务完成唤醒匹配
-        uint64_t connId = conn->id;
-        // 提交业务处理任务至线程池executor
-        const bool submitted = reactor->executor.submit([this, connId]()
-                                                        {
-            try
-            {
-                // 编解码器分发路由，执行业务handler
-                bool dispatched = this->reactor->codec.dispatch(context_);
-                // 路由分发失败且无响应，归还空响应至内存池
-                if (!dispatched && context_.response)
-                {
-                    responsePool.release(context_.response);
-                    context_.response = nullptr;
-                }
-            }
-            catch (...)
-            {
-                // 捕获业务handler所有异常，防止线程池崩溃（std::terminate）
-                // 异常统一封装500错误响应返回客户端
-                if (!context_.response)
-                    context_.response = responsePool.acquire();
-                context_.response->reset();
-                context_.response->status = 500;
-                context_.response->statusText = "Internal Server Error";
-                context_.response->text("Internal Server Error");
-            }
-            // 无论业务处理成功/异常，必须通知Reactor任务执行完成
-            // 两种场景：
-            // 1. 连接存活：唤醒当前HttpSession协程，执行发送响应逻辑
-            // 2. 连接已销毁：通过僵尸连接队列标记，协程唤醒后安全退出无段错误
-            reactor->notifyExecuteComplete(this->fd, connId);
-        });
-        // 若遇到/slow
-        if (submitted)
+        // 101 必须完全写出后才把 Main 槽交给 WebSocket 根协程。
+        if (upgrading)
         {
-            // 任务提交成功，挂起协程等待线程池完成通知,交出协程序权柄，等待线程池完成通知,回复/fast
-            co_await ExecuteAwaiter(reactor, fd);
-        }
-        else
-        {
-            // 线程池任务队列已满，触发过载背压，直接返回503服务不可用
-            context_.response = responsePool.acquire();
-            context_.response->status = 503;
-            context_.response->statusText = "Service Unavailable";
-            context_.response->keepAlive = false; // 过载不保持长连接
-            context_.response->text("Service Unavailable");
-        }
-
-        // ========== 业务处理完成，准备发送响应 ==========
-        // 协程唤醒后再次校验连接
-        conn = getConn();
-        if (!conn || conn->state.closed)
-        {
-            // 连接销毁，归还响应内存池资源防止泄漏
-            if (context_.response)
-                responsePool.release(context_.response);
-            context_.response = nullptr;
-            state = SessionState::CLOSED;
-            co_return;
-        }
-        auto *response = context_.response;
-        // 无有效响应对象，关闭连接
-        if (!response)
-        {
-            reactor->fd_close(fd, "request dispatch failed", true);
+            if (!handoffWebSocket())
+                reactor->fd_close(
+                    key_.fd,
+                    "websocket handoff failed",
+                    CoroutineRole::Main);
             state = SessionState::CLOSED;
             co_return;
         }
 
-        // ========== 长连接协商逻辑 ==========
-        // 三个条件同时满足才保持长连接：
-        // 1. 客户端未提前关闭TCP写端
-        // 2. 业务handler允许长连接
-        // 3. 当前会话标记keepAlive_开启
-        if (conn->state.peerClosed)
-            keepAlive_ = false;
-        response->keepAlive = response->keepAlive && keepAlive_;
-        keepAlive_ = response->keepAlive;
-        // 序列化HTTP响应头部，填充Content-Length等字段
-        response->buildHeader();
-        state = SessionState::WRITING;
-
-        // 内层循环：循环发送响应全部数据，处理非阻塞缓冲区满场景
-        while (true)
-        {
-            // 每次发送前安全校验连接
-            conn = getConn();
-            if (!conn || conn->state.closed)
-            {
-                responsePool.release(response);
-                context_.response=nullptr;
-                state = SessionState::CLOSED;
-                co_return;
-            }
-            // 调用底层发送器发送响应数据,触发发送函数
-            const auto sendState = reactor->sender.send(fd, *response);
-            switch (sendState)
-            {
-            case SEND_OK:
-                // 响应完整发送完毕，释放响应内存，执行发送后置逻辑
-                responsePool.release(response);
-                context_.response = nullptr;
-                afterSend();
-                break;
-
-            case SEND_AGAIN:
-                // socket发送缓冲区已满，非阻塞send返回EAGAIN；
-                // 保留响应发送偏移量，挂起协程等待EPOLLOUT可写事件
-                co_await WriteAwaiter(reactor, fd);
-                continue; // 唤醒后重新进入循环续发剩余数据
-
-            default:
-                // 发送IO异常，释放资源，关闭TCP连接
-                responsePool.release(response);
-                context_.response=nullptr;
-                reactor->fd_close(fd, "send error", true);
-                state = SessionState::CLOSED;
-                co_return;
-            }
-            break;
-        }
-        // 单次请求响应发送完毕，回到外层循环，重置上下文处理下一个请求
+        if (!afterSend())
+            co_return;
     }
 }

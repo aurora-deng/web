@@ -10,7 +10,7 @@
 将"事件驱动 + 线程池 HTTP 服务器"升级为"C++20 Coroutine Reactor 服务器"，实现：
 
 1. **HTTP 解析独立** — `HttpParser` 不依赖 `SubReactor`
-2. **Response 发送独立** — `ResponseSender` 通过依赖注入，不依赖 `SubReactor`
+2. **Response 发送独立** — 旧版 HTTP 发送器通过依赖注入，不依赖 `SubReactor`（第四阶段已由 `OutboundTask` 体系取代）
 3. **Handler 不在 Reactor 线程** — `Executor` 将业务逻辑移到 Worker 线程
 4. **一个 TCP 多个请求** — keep-alive 连接复用，Session 状态机正确切换
 5. **文件发送** — sendfile 零拷贝 + Range 206/304
@@ -31,7 +31,7 @@ SubReactor                           ServerRuntime
                                      │   │   │   ├── HeaderParser
                                      │   │   │   └── BodyParser
                                      │   │   └── dispatch → Executor
-                                     │   ├── ResponseSender (依赖注入)
+                                     │   ├── 旧版 HTTP 发送器 (依赖注入，第四阶段已由 OutboundTask 体系取代)
                                      │   └── CoroutineScheduler
                                      └── Executor (Worker线程池)
 ```
@@ -375,7 +375,7 @@ afterSend (发送完成后):
 | 标准 | 验证方式 | 状态 |
 |------|----------|------|
 | HTTP解析独立 | `HttpParser parser; parser.parse();` 不依赖SubReactor | ✅ |
-| Response发送独立 | `ResponseSender sender(segPool, wheel); sender.send(fd, response);` | ✅ |
+| Response发送独立 | 旧版 HTTP 发送器 `sender(segPool, wheel); sender.send(fd, response);`（第四阶段已由 `OutboundTask` 体系取代） | ✅ |
 | Handler不在Reactor线程 | `/slow` sleep(10) 期间 `/fast` 立即返回 | ✅ |
 | 一个TCP多个请求 | keep-alive黑盒测试: GET /a, /b, /c | ✅ |
 | 文件发送 | `/logo` sendfile + Range 206/304 | ✅ |
@@ -428,14 +428,14 @@ main.cpp
         │     │     │     │     ├── HeaderParser
         │     │     │     │     └── BodyParser
         │     │     │     └── dispatch → Executor
-        │     │     ├── ResponseSender       server/http/ResponseSender/ResponseSender.h
+        │     │     ├── 旧版 HTTP 发送器     (第四阶段已删除，由 OutboundTask+OutboundQueue+TransportWriter 取代)
         │     │     └── CoroutineScheduler   server/CoroutineScheduler/CoroutineScheduler.h
         │     │           ├── Task           server/CoroutineScheduler/Task.h
         │     │           ├── ReadAwaiter    server/CoroutineScheduler/AWaiter.h
         │     │           ├── WriteAwaiter
         │     │           └── ExecuteAwaiter
         ├── Executor（所有 Reactor 共享）     server/Executor/Executor.h
-        │     └── ThreadPool                 server/threadpoll/thread_pool.h
+        │     └── ThreadPool                 server/thread_pool/thread_pool.h
         │     ├── TimerWheel                 server/timer/TimeWheel.h
         │     ├── SegmentPool                server/SegmentPool/SegmentPool.h
         │     ├── ObjectPool                 server/ObjectPool/ObjectPool.h
