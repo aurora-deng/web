@@ -99,30 +99,23 @@ class Logger
 };
 
 
-// #define LOG_INFO(msg)   \
-//     Logger::instance().log(LogLevel::INFO,msg,__FILE__,__LINE__)
+// 恢复日志时可把下方空宏替换成对应的 Logger::instance().log(...) 调用。
+// LOG_INFO    -> Logger::instance().log(LogLevel::INFO,msg,__FILE__,__LINE__)
 
-// #define LOG_ERROR(msg)   \
-//     Logger::instance().log(LogLevel::ERROR,msg,__FILE__,__LINE__)
+// LOG_ERROR   -> Logger::instance().log(LogLevel::ERROR,msg,__FILE__,__LINE__)
 
-// #define LOG_WARN(msg)   \
-//     Logger::instance().log(LogLevel::WARN,msg,__FILE__,__LINE__)
+// LOG_WARN    -> Logger::instance().log(LogLevel::WARN,msg,__FILE__,__LINE__)
 
-// #define LOG_DEBUG(msg)   \
-//     Logger::instance().log(LogLevel::DEBUG,msg,__FILE__,__LINE__)
+// LOG_DEBUG   -> Logger::instance().log(LogLevel::DEBUG,msg,__FILE__,__LINE__)
 
 
-// #define LOG_HTTP(msg)   \
-//     Logger::instance().log(LogLevel::HTTP,msg,__FILE__,__LINE__)
+// LOG_HTTP    -> Logger::instance().log(LogLevel::HTTP,msg,__FILE__,__LINE__)
 
-// #define LOG_REACTOR(msg)   \
-//     Logger::instance().log(LogLevel::REACTOR,msg,__FILE__,__LINE__)
+// LOG_REACTOR -> Logger::instance().log(LogLevel::REACTOR,msg,__FILE__,__LINE__)
 
-// #define LOG_ROUTER(msg)   \
-//     Logger::instance().log(LogLevel::ROUTER,msg,__FILE__,__LINE__)
+// LOG_ROUTER  -> Logger::instance().log(LogLevel::ROUTER,msg,__FILE__,__LINE__)
 
-// #define LOG_DB(msg)   \
-//     Logger::instance().log(LogLevel::DB,msg,__FILE__,__LINE__)
+// LOG_DB      -> Logger::instance().log(LogLevel::DB,msg,__FILE__,__LINE__)
 
 
 // ============================================================

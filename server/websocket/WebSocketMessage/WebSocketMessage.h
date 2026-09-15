@@ -19,7 +19,7 @@
 //   ┌─────────────────┬─────────────────────────────┬──────────────────────────────┐
 //   │                 │ WsFrame（协议层）            │ WebSocketMessage（业务层）     │
 //   ├─────────────────┼─────────────────────────────┼──────────────────────────────┤
-//   │ 关心什么         │ FIN/opcode/mask/payload     │ type/id/replyTo/from/to/text │
+//   │ 关心什么         │ FIN/opcode/mask/payload     │ type/id/replyTo/attempt/text│
 //   │ 谁用             │ Parser/Codec                │ Dispatcher/handler/业务代码  │
 //   │ RFC 6455 字段    │ 是（FIN/opcode/mask 直接对应）│ 否（业务自定义 type 字段）    │
 //   │ payload 形态     │ 原始字节（已解掩码）          │ 业务字符串 text               │
@@ -46,7 +46,7 @@
 //      这是"用户 A 给用户 B 发消息"链路的核心字段。
 //   5. 【值类型 + 简单结构】WebSocketMessage 是普通 struct，inbound/outbound 在
 //      WsMessageContext 中直接持有；其中 std::string 仍可能按内容大小申请堆内存。
-//   6. 【应用层可靠语义】messageId/replyTo/ackRequested 让业务追踪“哪一封信被确认”；
+//   6. 【应用层可靠语义】messageId/replyTo/attempt/ackRequested 让业务追踪“哪一封信被确认”；
 //      TCP/WebSocket 的可靠传输本身并不代表接收方业务已经处理。
 //   7. 【依赖倒置】本文件只依赖 WebSocketTypes 与独立的 UserId 类型定义，
 //      不依赖 SessionManager、Parser 或 Codec。
@@ -79,6 +79,7 @@ struct WebSocketMessage
     std::string messageId;                   // 本消息 id：用于幂等与 ACK 关联，按字符串处理避免 JS 精度问题
     std::string replyTo;                     // 回复的是哪条消息；ACK 必须填写服务端消息 id
     std::string status;                      // delivery/ack_result 等回执的业务状态
+    std::uint32_t attempt = 0;               // 第几次发送；0 表示该消息不参与可靠重试
     std::string text;                        // 消息正文：可装 UTF-8 文本或任意二进制（opcode=Binary 时）
     WsOpcode opcode = WsOpcode::Text;        // payload 类型标记：Text/Binary，业务据此决定怎么解释 text
     UserId toUserId = 0;                     // 收件人 uid（0 表示广播或不指定）——支持私聊/定向推送

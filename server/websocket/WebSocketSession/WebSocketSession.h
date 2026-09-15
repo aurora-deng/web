@@ -34,7 +34,7 @@
 //   5. 【Close 握手】收到对端 Close 帧后回一个 Close（带相同 code/reason），再 co_return
 //      关闭连接——RFC 6455 §7.1.4 的关闭握手流程。
 //   6. 【状态机 WsSessionState】Open（正常收发）→ Closing（已发 Close 等关闭）→ Closed
-//      （协程退出）。onTimeout/handleAppMessage 据此决定是否还允许发数据。
+//      （协程退出）。onTimeout/finishAppMessage 据此决定是否还允许发数据。
 // =============================================================================
 #pragma once
 #ifndef WEBSOCKET_SESSION_H
@@ -52,18 +52,20 @@
 #include "server/websocket/WebSocketTypes/WebSocketTypes.h"
 
 #include <memory>
+#include <stop_token>
 #include <string>
 
 // 前置声明：避免头文件循环依赖，实现在 .cpp 中 #include 真正的定义
 class SubReactor;
 struct Connection;
 class WebSocketDispatcher;
+class Executor;
 
 /**
  * @brief WebSocket 会话状态机阶段
  *
  * 通俗解释：管家黑板上的"当前状态"标签——Open 正常待客、Closing 已发 Close 等
- *   关闭、Closed 协程将退。run() 主循环和 onTimeout/handleAppMessage 都据此判断
+ *   关闭、Closed 协程将退。run() 主循环和 onTimeout/finishAppMessage 都据此判断
  *   是否还允许继续收发数据。
  */
 enum class WsSessionState
@@ -73,13 +75,21 @@ enum class WsSessionState
     Closed    // 会话结束，协程即将 co_return
 };
 
+/** 提交一条 WS 业务消息后的三种确定结果。 */
+enum class WsHandlerStartResult
+{
+    Submitted,  // 已交给 Worker，根协程必须 co_await ExecuteAwaiter
+    Overloaded, // Executor 拒绝，调用方回 Close(1013)
+    Closed      // 连接已失效，直接退出
+};
+
 /**
  * @brief WebSocket 长连接会话——继承 2.0 Session 基类，循环收发帧并对接业务 Dispatcher
  *
  * 【长期管家 通俗解释】
  *   HTTP 握手成功后，HttpSession 把这条 fd 交给 WebSocketSession 接管。此后管家循环干
- *   三件事：① 用 parser_+codec_ 把字节流拆成帧、翻译成业务消息；② 调 dispatcher 路由到
- *   handler；③ 把 handler 的回执组帧后 enqueueOutbound 丢给出站队列。心跳、分片、Close
+ *   三件事：① 用 parser_+codec_ 把字节流拆成帧、翻译成业务消息；② 经 Executor 调
+ *   dispatcher 路由到 handler；③ 回到 Reactor 把回执组帧后 enqueueOutbound。心跳、分片、Close
  *   握手都由管家自理，业务 handler 只需填好 WsMessageContext.outbound。
  *
  * 【为何不持有 sender 通俗解释】
@@ -107,7 +117,8 @@ public:
                      SubReactor *reactor,
                      UserId uid,
                      WebSocketSessionManager *manager,
-                     WebSocketDispatcher &dispatcher);
+                     WebSocketDispatcher &dispatcher,
+                     Executor &executor);
 
     /** @brief 返回当前会话绑定的用户 id（供 handler/manager 使用） */
     UserId userId() const { return uid_; }
@@ -132,6 +143,9 @@ public:
      * @note 向 manager 注销自己（unregisterIfNeeded），避免 SessionManager 留下死指针。
      */
     void onClose() override;
+
+    /** 连接关闭或 Runtime 停机时只发撤单信号，不等待 Worker。 */
+    void requestHandlerStop() noexcept override;
 
 private:
     /**
@@ -162,22 +176,30 @@ private:
     void unregisterIfNeeded();
 
     /**
-     * @brief 处理一条完整的应用消息（Text/Binary/重组后的 Continuation）
+     * @brief 在 Reactor 线程准备工作单，并把业务 handler 提交给 Executor
      * @param opcode 帧类型（Text/Binary）
      * @param payload 已解掩码、已重组的完整 payload
-     * @note 构造 WsMessageContext → codec_.dispatch 路由 → 有 outbound 则组帧入队；
-     *       handler 要求关闭时发 Close 帧（带 CloseConnection 完成回调）。
+     * @note 此方法不等待任务；只有 run() 这条根协程执行 ExecuteAwaiter。
      */
-    void handleAppMessage(WsOpcode opcode, std::string payload);
+    WsHandlerStartResult startAppMessage(WsOpcode opcode, std::string payload);
+
+    /** @brief Worker 完成后回到 Reactor 线程，编码并入队 handler 的结果。 */
+    bool finishAppMessage();
 
     SubReactor *reactor_ = nullptr;               // 所属 SubReactor（事件循环+调度器+OutboundQueue），不持有所有权
     ConnectionKey key_{};                         // fd + connId；升级前后保持同一连接身份
     UserId uid_ = 0;                              // 用户 id（0 表示匿名，匿名不注册到 manager）
     WebSocketSessionManager *manager_ = nullptr;  // 全局会话目录指针（不持有所有权），用于注册/注销
+    Executor &executor_;                          // WS 专用业务线程池边界
     WebSocketParser parser_;                      // 连接私有帧解析器（跨次 recv 保留状态机进度）
     WebSocketCodec codec_;                        // 编解码+分发（持有 dispatcher 引用）
     WsSessionState state_ = WsSessionState::Open; // 当前会话状态机阶段
     WebSocketMessageAssembler messageAssembler_;  // 数据帧顺序校验、分片重组与整条消息限流
+    WsMessageContext messageContext_;             // 一次仅一条：Worker 填写，Reactor 完成阶段消费
+    bool handlerDispatched_ = false;               // Dispatcher 是否命中 handler
+    bool handlerFailed_ = false;                   // handler 是否抛异常
+    bool handlerTimedOut_ = false;                 // Worker 返回时是否已经超过业务截止时间
+    std::stop_source handlerStopSource_;           // 当前在途 handler 的协作式撤单源
 };
 
 #endif

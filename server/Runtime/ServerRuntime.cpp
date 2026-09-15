@@ -14,7 +14,7 @@
 // 而非 codec_。第四阶段前 Runtime 持有 HttpCodec codec_ 成员，并下传给所有 SubReactor
 // 共享——那时只有 HTTP 一种协议没问题。引入 WebSocket 后 HTTP/WS 编解码互不兼容，
 // 共享 codec 会串扰；故删除 codec_ 成员，codec 下沉到各 Session 子类内部，
-// Runtime 只装配协议无关的 Router、Executor、wsManager、wsDispatcher，外加 SessionFactory
+// Runtime 只装配协议无关的 Router、两条 Executor 容量通道、wsManager、wsDispatcher，外加 SessionFactory
 // 实现 wsFactory_（WebSocketSessionFactory）——后者经 ReactorGroup::start 注入每个
 // SubReactor，用于 HTTP→WebSocket 协议升级时创建 WebSocketSession，是依赖倒置的关键。
 //
@@ -28,10 +28,11 @@
 // 5. maxConnections_ 软限流：accept 时检查总连接数，超额直接 close 新 fd，
 //    避免无界接入撑爆 fd/内存。
 // 6. 优雅退出顺序：stop() 置 running_=false + 写 wakeFd_ → acceptLoop 醒来退出 →
-//    releaseListener 关 listenFd（端口立即归还）→ reactorGroup_->stop+join 等所有
-//    SubReactor 收工 → 析构时 executor_ drain Worker 线程池。
-// 7. 组件装配顺序：构造期 ①make_shared<Router> 建路由表；②按 CPU 核数建 Executor；
-//    ③make_unique<WebSocketSessionFactory> + ReactorGroup(*router_, executor_, *wsFactory_)；
+//    wsDelivery_ stop+join → releaseListener → reactorGroup_->stop+join（对象保留）→
+//    HTTP/WS Executor drain Worker → 最后销毁 ReactorGroup。
+// 7. 组件装配顺序：构造期 ①make_shared<Router> 建路由表；②把 4~32 个 Worker
+//    近似均分给 HTTP 与 WS 两个 Executor；③WS 工厂拿 wsExecutor_，ReactorGroup 拿
+//    httpExecutor_；④start() 时 setupListener + createReactors，再绑定 manager。
 //    ④start() 时 setupListener + createReactors，再 wsManager_.bind(reactorGroup_)。
 // =============================================================================
 #include "ServerRuntime.h"
@@ -64,6 +65,18 @@ namespace
     // 用 atomic 保证信号处理函数与主线程的访问是线程安全的
     std::atomic<ServerRuntime *> g_runtime{nullptr};
 
+    // 总 Worker 数限制为 4~32，再均分成两个至少两人的独立容量舱。
+    size_t runtimeWorkerCount()
+    {
+        static const size_t count = std::clamp<size_t>(
+            std::thread::hardware_concurrency() == 0
+                ? 4u
+                : std::thread::hardware_concurrency(),
+            4u,
+            32u);
+        return count;
+    }
+
     /**
      * @brief SIGINT/SIGTERM 信号处理函数
      *
@@ -82,12 +95,11 @@ namespace
 } // namespace
 
 /**
- * @brief 构造函数：创建 Router 和 Executor，初始化 ReactorGroup（总装线第一步）
+ * @brief 构造函数：创建 Router 和两条 Executor 容量通道，初始化 ReactorGroup
  *
  * 【通俗解释】
- * 总经理上任：①建一本菜谱（Router）；②按 CPU 核数招后厨厨师
- * （hardware_concurrency 限幅在 2~32 之间，避免太少饿死或太多竞争）；
- * ③建一个楼层经理组（ReactorGroup），暂未启动——等 createReactors 时再招人。
+ * 总经理上任：①建一本菜谱（Router）；②按 CPU 核数招 4~32 名后厨厨师，
+ * 近似均分到 HTTP 与 WS 两间厨房，避免一类慢任务吃光另一类容量；③建 ReactorGroup。
  *
  * @note 第四阶段重构前初始化列表里有 codec_(*router_) 一项（用 router 构造共享 HttpCodec），
  *       构造 ReactorGroup 时传的是 codec_。第四阶段删除了 codec_ 成员——codec 下沉到各
@@ -96,8 +108,12 @@ namespace
  */
 ServerRuntime::ServerRuntime()
     : router_(std::make_shared<Router>()),
-      executor_(std::clamp(
-          std::thread::hardware_concurrency() == 0 ? 4u : std::thread::hardware_concurrency(), 2u, 32u))
+      wsDelivery_([this](UserId uid, std::string text)
+                  {
+          return wsManager_.sendTextTracked(uid, text);
+      }),
+      httpExecutor_((runtimeWorkerCount() + 1) / 2),
+      wsExecutor_(runtimeWorkerCount() / 2)
 {
     // ---- SessionFactory 依赖注入 ----
     // ①创建 WebSocketSessionFactory（SessionFactory 抽象的具体实现），内部封装
@@ -106,8 +122,10 @@ ServerRuntime::ServerRuntime()
     // ②把 *wsFactory_ 引用传给 ReactorGroup 构造，ReactorGroup::start 时会调
     //   每个 SubReactor::setSessionFactory(&sessionFactory_) 完成注入。后续 SubReactor
     //   收到 HTTP Upgrade: websocket 时通过 sessionFactory_ 创建 WebSocketSession。
-    wsFactory_ = std::make_unique<WebSocketSessionFactory>(wsManager_, wsDispatcher_);
-    reactorGroup_ = std::make_unique<ReactorGroup>(*router_, executor_, *wsFactory_);
+    wsFactory_ = std::make_unique<WebSocketSessionFactory>(
+        wsManager_, wsDispatcher_, wsExecutor_);
+    reactorGroup_ = std::make_unique<ReactorGroup>(
+        *router_, httpExecutor_, *wsFactory_);
 }
 
 /**
@@ -116,19 +134,11 @@ ServerRuntime::ServerRuntime()
  * 【通俗解释】
  * 总经理离职：①requestStop 通知 acceptLoop 退出；②关 listenFd/wakeFd_/epfd_;
  * ③清 g_runtime 全局指针（防止信号处理函数访问已析构对象）。
- * 注意 reactorGroup_ 和 executor_ 的析构由成员析构自动完成——
- * 声明顺序保证 reactorGroup_ 先析构（先停 Reactor 线程），executor_ 后析构（再 drain Worker）。
+ * Reactor 对象必须活到 Executor 排空以后，因此这里显式执行完整关闭顺序。
  */
 ServerRuntime::~ServerRuntime()
 {
-    requestStop();
-    // 先停止并 join Reactor，确保不会再向 Executor 提交任务；成员析构随后先 drain
-    // Executor，再销毁仍持有 Session/协程帧的 Reactor，避免 shutdown 期间悬空访问。
-    if (reactorGroup_)
-    {
-        close(listenFd_);
-        listenFd_ = -1;
-    }
+    shutdownComponents();
     if (wakeFd_ >= 0)
     {
         close(wakeFd_);
@@ -142,6 +152,31 @@ ServerRuntime::~ServerRuntime()
     // 清全局指针，防止信号处理函数访问已析构对象
     if (g_runtime.load(std::memory_order_acquire) == this)
         g_runtime.store(nullptr, std::memory_order_release);
+}
+
+void ServerRuntime::shutdownComponents() noexcept
+{
+    // ①先停所有任务生产者：acceptor、可靠投递重试器与 Reactor 事件线程。
+    wsDelivery_.stop();
+    requestStop();
+    releaseListener();
+    if (reactorGroup_)
+    {
+        reactorGroup_->stop();
+        reactorGroup_->join();
+    }
+
+    // ②Reactor 线程已不再提交业务，但 Reactor 对象/eventfd 仍活着。排空 Worker 时，
+    //   已在途任务仍可安全调用 notifyExecuteComplete/postOutbound。
+    httpExecutor_.shutdown();
+    wsExecutor_.shutdown();
+
+    // ③所有 Worker 都退出后才销毁 Session、协程帧和 Reactor 回调目标。
+    if (reactorGroup_)
+    {
+        wsManager_.bind(nullptr);
+        reactorGroup_.reset();
+    }
 }
 
 // 由于本次架构实现的是一io接受+多reactor组，所以每个reactor组也需要有对应的监听
@@ -350,7 +385,7 @@ void ServerRuntime::acceptLoop()
                 struct sockaddr_in cin{};
                 socklen_t socklen = sizeof(cin);
                 // 边缘触发模式下必须循环 accept 直到 EAGAIN，否则会漏接
-                while (running.load(std::memory_order_acquire))
+                while (running_.load(std::memory_order_acquire))
                 {
                     int newfd = accept4(
                         listenFd_,
@@ -403,35 +438,39 @@ void ServerRuntime::acceptLoop()
  * 总经理开店全流程：
  *   ①setupListener 布置前台（建 listenFd/epfd/wakeFd）；
  *   ②createReactors 招楼层经理（启动 SubReactor 组）；
- *   ③登记 SIGINT/SIGTERM 信号处理（Ctrl+C 触发 handleStopSignal→requestStop）；
- *   ④acceptLoop 阻塞等客人（直到 running_=false 退出）；
- *   ⑤releaseListener 立即释放 8080 端口（重启不用等 TIME_WAIT）；
- *   ⑥reactorGroup_->stop+join 通知各楼层经理收工并等他们真正下班；
- *   ⑦清 g_runtime 全局指针，打印 "server stopped"。
+ *   ③启动 wsDelivery_ 自动重试调度员；
+ *   ④登记 SIGINT/SIGTERM 信号处理（Ctrl+C 触发 handleStopSignal→requestStop）；
+ *   ⑤acceptLoop 阻塞等客人（直到 running_=false 退出）；
+ *   ⑥停任务生产者，stop+join Reactor 线程；⑦保留 Reactor 对象并 drain Executor；
+ *   ⑧销毁 ReactorGroup，清 g_runtime，打印 "server stopped"。
  * 整个 start 是阻塞的——只有完全退出后才返回，调用方一般是 main 函数。
  */
 void ServerRuntime::start()
 {
     setupListener();
-    createReactors();
-    // 登记 g_runtime 让信号处理函数能找到本对象
-    g_runtime.store(this, std::memory_order_release);
-    // 注册信号处理：Ctrl+C 或 kill 触发优雅退出
-    std::signal(SIGINT, handleStopSignal);
-    std::signal(SIGTERM, handleStopSignal);
-
-    // 阻塞在 acceptor loop，直到 running_=false
-    acceptLoop();
-
-    // Ctrl+C 路径：立刻释放监听端口，再回收 Reactor，避免 join 期间端口仍被占用。
-    releaseListener();
-
-    // 停止接受后回收 Reactor，再返回；Executor 随成员析构 drain。
-    if (reactorGroup_)
+    auto shutdown = [this]
     {
-        reactorGroup_->stop();
-        reactorGroup_->join();
+        shutdownComponents();
+        g_runtime.store(nullptr, std::memory_order_release);
+    };
+
+    try
+    {
+        createReactors();
+        wsDelivery_.start();
+        // 登记 g_runtime 让信号处理函数能找到本对象
+        g_runtime.store(this, std::memory_order_release);
+        // 注册信号处理：Ctrl+C 或 kill 触发 handleStopSignal→requestStop
+        std::signal(SIGINT, handleStopSignal);
+        std::signal(SIGTERM, handleStopSignal);
+        // 阻塞在 acceptor loop，直到 running_=false
+        acceptLoop();
     }
-    g_runtime.store(nullptr, std::memory_order_release);
+    catch (...)
+    {
+        shutdown();
+        throw;
+    }
+    shutdown();
     std::cout << "server stopped." << std::endl;
 }

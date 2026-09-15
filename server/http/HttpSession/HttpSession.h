@@ -41,6 +41,8 @@
 #include "server/session/Session/Session.h"
 #include "server/transport/ConnectionKey.h"
 
+#include <stop_token>
+
 class SubReactor;
 class Router;
 
@@ -99,8 +101,8 @@ struct Connection;
  *   统一走协议无关的 OutboundTask + OutboundQueue + TransportWriter + writerLoop 体系。
  *   协程挂起恢复时状态都在成员里，不会丢；连接私有也意味着无需加锁。
  *
- * @note 2.0 的 Session 基类只规定 run() 一个纯虚（协程入口）+ onTimeout/onClose 两个可选钩子，
- *       没有 protocol()；本类也未 override onTimeout/onClose，使用基类默认实现。
+ * @note 2.0 的 Session 基类规定 run() 协程入口及生命周期钩子；本类使用默认
+ *       onTimeout/onClose，并 override requestHandlerStop() 点亮当前工作单的撤单灯。
  */
 class HttpSession : public Session
 {
@@ -112,6 +114,7 @@ private:
     RequestContext context_;        // 本次请求的"档案袋"（请求/响应/连接信息）
     bool keepAlive_ = true;         // 是否保持连接
     SessionState state = SessionState::READING; // 当前会话状态
+    std::stop_source handlerStopSource_; // 当前在途 handler 的协作式撤单源
 
 public:
     /**
@@ -150,6 +153,9 @@ public:
      *       override 自 Session 基类的纯虚 run()。
      */
     Task<void> run() override;
+
+    /** 连接关闭或 Runtime 停机时只发撤单信号，不等待 Worker。 */
+    void requestHandlerStop() noexcept override;
 
 private:
     /** @brief 重置请求上下文与 keepAlive_，为下一轮请求清场 */

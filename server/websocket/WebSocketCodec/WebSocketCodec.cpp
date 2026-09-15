@@ -536,6 +536,9 @@ void parseInboundType(WebSocketMessage &msg)
         msg.messageId = extractJsonString(payload, "id").value_or("");
         msg.replyTo = extractJsonString(payload, "replyTo").value_or("");
         msg.status = extractJsonString(payload, "status").value_or("");
+        if (const auto attempt = extractJsonUint(payload, "attempt");
+            attempt != 0 && attempt <= UINT32_MAX)
+            msg.attempt = static_cast<std::uint32_t>(attempt);
         msg.ackRequested = extractJsonBool(payload, "ack");
         msg.fromUserId = extractJsonUint(payload, "from");
         msg.toUserId = extractJsonUint(payload, "to");
@@ -674,6 +677,8 @@ std::string WebSocketCodec::serializeApplicationMessage(
     addUser("from", message.fromUserId);
     addUser("to", message.toUserId);
     addString("status", message.status);
+    if (message.attempt != 0)
+        json += ",\"attempt\":" + std::to_string(message.attempt);
     if (message.ackRequested)
         json += ",\"ack\":true";
     if (!message.text.empty())

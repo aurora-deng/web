@@ -19,9 +19,12 @@
 // ==============================================================================
 #include "WebSocketDispatcher.h"
 
+#include <mutex>
+
 // ---- 注册某 type 的 handler：写入分机簿 ----
 void WebSocketDispatcher::on(const std::string &type, WsHandler handler)
 {
+    std::unique_lock<std::shared_mutex> lock(mutex_);
     // operator[] 对已存在 key 会覆盖旧值——后注册的 handler 替代之前的
     handlers_[type] = std::move(handler);  // move 转移所有权，避免 function 拷贝
 }
@@ -29,21 +32,24 @@ void WebSocketDispatcher::on(const std::string &type, WsHandler handler)
 // ---- 注册默认 handler：兜底值班分机 ----
 void WebSocketDispatcher::onDefault(WsHandler handler)
 {
+    std::unique_lock<std::shared_mutex> lock(mutex_);
     defaultHandler_ = std::move(handler);  // move 转移所有权
 }
 
 // ---- 派发：按 ctx.inbound.type 查表，未命中走 default ----
 bool WebSocketDispatcher::dispatch(WsMessageContext &ctx)
 {
-    // ---- 第一步：精确 type 匹配（O(1) 哈希查找） ----
-    auto it = handlers_.find(ctx.inbound.type);
-    if (it != handlers_.end())
-        return it->second(ctx);  // 命中：调对应 handler，返回其 bool 结果
+    WsHandler selected;
+    {
+        // 只在“翻分机簿”时持读锁，并复制命中的 function。
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        auto it = handlers_.find(ctx.inbound.type);
+        selected = it != handlers_.end() ? it->second : defaultHandler_;
+    }
 
-    // ---- 第二步：fallback 到 defaultHandler_（兜底值班） ----
-    // operator bool 判空：未调过 onDefault 时 defaultHandler_ 为空，调用会抛异常
-    if (defaultHandler_)
-        return defaultHandler_(ctx);
+    // 任意业务代码都在锁外运行：慢 handler 不会阻塞注册，也允许 handler 内注册新路由。
+    if (selected)
+        return selected(ctx);
 
     // ---- 既没命中 type，也没设 default：让上层决定（通常是 echo 回显） ----
     return false;

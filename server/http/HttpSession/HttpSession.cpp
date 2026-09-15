@@ -39,7 +39,13 @@ HttpSession::HttpSession(ConnectionKey key, SubReactor *r, Router &router)
 
 HttpSession::~HttpSession()
 {
+    requestHandlerStop();
     releasePendingResponse();
+}
+
+void HttpSession::requestHandlerStop() noexcept
+{
+    (void)handlerStopSource_.request_stop();
 }
 
 /**
@@ -291,28 +297,56 @@ HandlerStartResult HttpSession::startHandler()
         return HandlerStartResult::CLOSED;
     }
 
-    // ---- 提交到执行器线程池异步跑 handler ----
+    // 每轮 handler 使用新的撤单源；截止时间使用 Executor 配置的 steady_clock 预算。
+    handlerStopSource_ = std::stop_source{};
+    context_.cancellation = HandlerCancellation{
+        handlerStopSource_.get_token(),
+        reactor->executor().handlerDeadline()};
+
+    // ---- 提交到 HTTP 专用执行器线程池异步跑 handler ----
     const ConnectionKey key = key_;
     const bool submitted = reactor->executor().submit([this, key]()
                                                     {
+        bool dispatched = false;
+        bool failed = false;
         try
         {
-            bool dispatched = this->codec_.dispatch(context_);
-            if (!dispatched && context_.response)
-            {
-                responsePool.release(context_.response);
-                context_.response = nullptr;
-            }
+            // 排队期间若连接已关或截止时间已到，不再进入业务代码。
+            if (!context_.stopRequested())
+                dispatched = this->codec_.dispatch(context_);
         }
         catch (...)
         {
-            // handler 抛异常：兜底装 500 响应
-            if (!context_.response)
-                context_.response = responsePool.acquire();
+            failed = true;
+        }
+
+        auto prepareError = [this](int status,
+                                   const char *statusText,
+                                   const char *body)
+        {
+            releasePendingResponse();
+            context_.response = responsePool.acquire();
             context_.response->reset();
-            context_.response->status = 500;
-            context_.response->statusText = "Internal Server Error";
-            context_.response->text("Internal Server Error");
+            context_.response->status = status;
+            context_.response->statusText = statusText;
+            context_.response->keepAlive = false;
+            // 失败或超时必须取消业务留下的升级意图，否则 504/500 可能被后续 101 覆盖。
+            context_.webSocketAccepted = false;
+            context_.response->text(body);
+        };
+
+        // 截止时间优先于普通业务结果；忽略预算的 handler 返回后仍只能得到 504。
+        if (context_.handlerDeadlineExceeded())
+        {
+            prepareError(504, "Gateway Timeout", "Handler Timeout");
+        }
+        else if (failed)
+        {
+            prepareError(500, "Internal Server Error", "Internal Server Error");
+        }
+        else if (!dispatched && context_.response)
+        {
+            releasePendingResponse();
         }
         reactor->notifyExecuteComplete(key.fd, key.connId);   // 唤醒主协程
     });
@@ -394,9 +428,9 @@ void HttpSession::resetRequestContext()
     context_.params.clear();
     context_.handled = false;
     context_.Id = key_.connId;
-    context_.session = this;
     context_.fd = key_.fd;
     context_.webSocketAccepted = false;
+    context_.cancellation = HandlerCancellation{};
     keepAlive_ = true;
 }
 

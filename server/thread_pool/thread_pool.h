@@ -6,7 +6,7 @@
 // 【生活比喻】
 // 线程池像一家酒店的"厨师班底"：开业时一次招好 N 个厨师（worker 线程），
 // 他们常驻后厨等订单（条件变量 wait）。来订单就 push 进任务队列，唤醒一个厨师
-// 去领做；做完继续等下一单。打烊时（析构）设 stop 标志，唤醒所有厨师一起收工。
+// 去领做；做完继续等下一单。打烊时（shutdown/析构）设 stop 标志，唤醒所有厨师一起收工。
 // 比起每来一单就临时招厨师（new thread）、做完就开除（detach/join），效率高得多。
 //
 // 关键技术点（初学者重点理解）：
@@ -16,7 +16,7 @@
 //    - 消费者（worker）加锁 wait 任务，被唤醒后 pop 出来执行。
 // 3. MAX_THREAD_POOL_QUEUE 限流（背压）：队列满时 addTask 返回 false，
 //    让上层（Executor）据此返回 503，防止任务无限堆积撑爆内存。
-// 4. stop 标志 + notify_all 实现优雅退出：析构时设 stop=true，唤醒所有 worker，
+// 4. stop 标志 + notify_all 实现优雅退出：shutdown 时设 stop=true，唤醒所有 worker，
 //    它们检查到 stop && tasks.empty() 后退出循环，析构 join 等所有线程结束。
 // =============================================================================
 #ifndef THREAD_POOL_H
@@ -48,6 +48,7 @@ class ThreadPool{
     std::queue<std::function<void()>> tasks;   // 待执行任务队列（FIFO）
 
     std::mutex mtx;                            // 保护 tasks 队列的互斥锁
+    std::mutex shutdownMtx;                    // 串行化 shutdown，避免重复 join
     std::condition_variable cv; // 用于通知线程有新任务的条件变量
     bool stop=false;                           // 退出标志：true 时通知所有 worker 收工
 
@@ -63,6 +64,14 @@ class ThreadPool{
      * @brief 析构函数：设 stop、唤醒所有线程、join 等待退出
      */
     ~ThreadPool();
+
+    /**
+     * @brief 停止接单、排空已接任务并等待所有 Worker 退出（幂等）
+     *
+     * shutdown 只关“接单口”，已经进入 tasks 的任务仍会执行完。显式接口让
+     * ServerRuntime 能在依赖对象仍存活时先排空 Worker，而不是把顺序押在成员析构上。
+     */
+    void shutdown() noexcept;
 
     /**
      * @brief 添加任务到队列

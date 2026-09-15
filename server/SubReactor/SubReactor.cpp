@@ -400,6 +400,7 @@ void SubReactor::fd_close(int fd,
                           std::string_view reason,
                           CoroutineRole initiator)
 {
+    (void)reason; // 发布配置可能关闭 LOG_DEBUG，仍保持严格告警构建通过。
     auto it = conns.find(fd);
     if (it == conns.end())
         return;
@@ -415,7 +416,11 @@ void SubReactor::fd_close(int fd,
               " initiator=" + roleName(initiator));
 
     if (it->second->session)
+    {
+        // 先点亮撤单信号，让正在 Worker 中的 handler 尽快停止，再执行协议清理。
+        it->second->session->requestHandlerStop();
         it->second->session->onClose();
+    }
 
     // 连接销毁前给所有尚未写完的任务留下终态，避免回执永久停在 Pending。
     transportWriter.cancelAll(*it->second, OutboundOutcome::Closed);
@@ -497,6 +502,7 @@ void SubReactor::rearm(int fd, uint32_t events)
     {
         LOG_INFO(std::string("epol_ctl MOD failed") + strerror(errno));
     }
+
 }
 
 /**
@@ -712,6 +718,12 @@ void SubReactor::loop()
         scheduler_.runReady(); // 把所有就绪协程挨个 resume 直到队列空
         // currentTick++;
     }
+
+    // Runtime 停机时连接尚未逐个 fd_close；仍需在 Reactor 线程退出前通知在途业务。
+    // 这只发信号，不等待 Worker，真正 drain 由 Runtime 在 join Reactor 后完成。
+    for (auto &[_, conn] : conns)
+        if (conn && conn->session)
+            conn->session->requestHandlerStop();
 }
 
 // 段错误修复处：addFd 改为只将 fd 放入待处理队列，由 SubReactor 线程完成实际注册

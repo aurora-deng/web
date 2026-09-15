@@ -41,6 +41,7 @@
 #include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
 
 #include <functional>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 
@@ -56,7 +57,8 @@ using WsHandler = std::function<bool(WsMessageContext &)>;
  * 总台话务员——每来一条业务消息（WebSocketMessage），看一眼它的 type 字段，
  * 翻 handlers_ 这本分机簿找对应分机（handler）；找不到就转给默认值班（defaultHandler_）。
  *
- * @note 按 message.type 路由（非 HTTP path Router）。无状态，可被多 Session 共享。
+ * @note 按 message.type 路由（非 HTTP path Router）。路由表支持并发读取与动态注册；
+ *       handler 自身捕获的业务状态仍需由业务代码保证线程安全。
  */
 class WebSocketDispatcher
 {
@@ -87,6 +89,7 @@ public:
     bool dispatch(WsMessageContext &ctx);
 
 private:
+    mutable std::shared_mutex mutex_;                      // 保护路由表；调用 handler 时不持锁
     std::unordered_map<std::string, WsHandler> handlers_;  // type → handler 映射表（分机簿）
     WsHandler defaultHandler_;                             // 默认兜底 handler（值班分机）
 };

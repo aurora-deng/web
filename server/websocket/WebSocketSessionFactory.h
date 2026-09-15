@@ -4,7 +4,7 @@
 //
 // 【职责比喻：WebSocket 会话的"专用装配台"】
 //   HTTP 升级 WebSocket 时，HttpSession 自己造不出 WebSocketSession——它得带上
-//   manager / dispatcher / uid 等一坨 WebSocket 专属依赖，这些都在 websocket 模块里，
+//   manager / dispatcher / executor / uid 等依赖，这些都由 Runtime 统一装配，
 //   session 层不该直接 include。于是 SubReactor 持有一个 SessionFactory 抽象装配台，
 //   升级时调 createWebSocketSession 要一个新会话。本类是那个抽象装配台的具体实现：
 //   唯一知道"manager + dispatcher 怎么组装成 WebSocketSession"的地方，构造时把
@@ -19,7 +19,7 @@
 // 【在系统中的角色】
 //   本类是 2.0 依赖倒置的落地点。升级流程：
 //     HttpSession 决定升级 → 调 SubReactor::sessionFactory()->createWebSocketSession(key, reactor, uid)
-//     → 本工厂 make_shared<WebSocketSession>(key, reactor, uid, &manager_, dispatcher_)
+//     → 本工厂把 manager / dispatcher / executor 注入 WebSocketSession
 //     → 返回 shared_ptr<Session>，HttpSession 把它 reset 进 Connection::session
 //     → 旧 HTTP 协程 co_return，调度器启动新 WS 协程接管 fd。
 //
@@ -44,6 +44,7 @@
 // 前置声明：避免头文件循环依赖，.cpp 中才 #include 真正的定义
 class WebSocketSessionManager;
 class WebSocketDispatcher;
+class Executor;
 
 /**
  * @brief WebSocket 会话专用装配台——SessionFactory 的具体实现（2.0 新增）
@@ -66,13 +67,14 @@ class WebSocketSessionFactory : public SessionFactory
 {
 public:
     /**
-     * @brief 构造装配台，绑定 manager / dispatcher 引用
+     * @brief 构造装配台，绑定 manager / dispatcher / executor 引用
      * @param manager 全局 WebSocketSessionManager 引用（用于会话注册/注销/跨 Reactor 寻址）
      * @param dispatcher 全局 WebSocketDispatcher 引用（用于业务消息路由到 handler）
-     * @note manager / dispatcher 由全局单例持有，生命周期长于工厂，用引用表达"不可空"。
+     * @note 三者均由 ServerRuntime 持有，生命周期长于工厂，用引用表达“不可空”。
      */
     WebSocketSessionFactory(WebSocketSessionManager &manager,
-                            WebSocketDispatcher &dispatcher);
+                            WebSocketDispatcher &dispatcher,
+                            Executor &executor);
 
     /**
      * @brief 创建一个 WebSocketSession（override SessionFactory::createWebSocketSession）
@@ -92,6 +94,7 @@ public:
 private:
     WebSocketSessionManager &manager_;   // 全局会话目录引用（不持有所有权，生命周期长于工厂）
     WebSocketDispatcher &dispatcher_;    // 全局业务派发器引用（不持有所有权，生命周期长于工厂）
+    Executor &executor_;                  // WS 专用业务执行器：与 HTTP 容量隔离
 };
 
 #endif

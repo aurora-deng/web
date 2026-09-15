@@ -143,6 +143,7 @@ target_sources(webserver_core PRIVATE
     server/websocket/WebSocketMessageAssembler/WebSocketMessageAssembler.cpp
     server/websocket/WebSocketValidation/WebSocketValidation.cpp
     server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp
+    server/websocket/WebSocketDelivery/WebSocketDeliveryService.cpp
     server/websocket/WebSocketSession/WebSocketSession.cpp
     server/websocket/WebSocketSessionFactory.cpp
     server/websocket/WebSocketSessionManager/WebSocketSessionManager.cpp
@@ -236,6 +237,13 @@ if(BUILD_TESTING)
     # 限制：仅Linux平台启用，依赖Python3解释器
     # ==========================================================================
     find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(
+            NAME reliable_inbox_unit
+            COMMAND ${Python3_EXECUTABLE}
+                    ${PROJECT_SOURCE_DIR}/tests/python/reliable_websocket_consumer_test.py
+        )
+    endif()
     if(Python3_Interpreter_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_test(
             NAME http_blackbox

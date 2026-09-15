@@ -82,6 +82,14 @@ public:
      *   清理业务状态）。默认空操作，子类按需 override。
      */
     virtual void onClose() {}
+
+    /**
+     * @brief 请求正在执行的业务尽快协作退出；不得阻塞，也不会强杀 Worker
+     *
+     * SubReactor 在连接关闭和事件循环停机时调用。子类通常只需对当前 stop_source
+     * 调 request_stop()，实际 handler 必须主动检查 Context::stopRequested()。
+     */
+    virtual void requestHandlerStop() noexcept {}
 };
 
 #endif

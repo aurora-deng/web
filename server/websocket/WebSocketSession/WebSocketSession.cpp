@@ -6,7 +6,7 @@
 //   接 WebSocketSession.h 的管家比喻：本文件是管家的具体工作流程——
 //   怎么构造上岗（构造函数）、怎么查连接表（getConn）、怎么收帧/分流/重组（run）、
 //   怎么处理心跳（onTimeout）、怎么清理退场（onClose）、怎么把字节丢进出站队列
-//   （enqueueOutbound）、怎么把一条业务消息派发给 handler（handleAppMessage）。
+//   （enqueueOutbound）、怎么把一条业务消息交给 Worker 并回到 Reactor 收尾。
 //
 // 【2.0 出站链路（与 1.0 的关键区别）】
 //   出站发送不经过 sender，统一走：
@@ -27,28 +27,31 @@
 //      已发 Ping 且超时未收到 Pong 则返回 true 同意关闭。
 //   5. 【分片重组】数据帧交给 WebSocketMessageAssembler；它用显式 active 状态校验顺序、
 //      限制整条消息大小并完成重组。控制帧在 Session 中旁路，可穿插在分片之间。
-//   6. 【handler 兜底 echo】codec_.dispatch 返回 false（无 handler 命中）时，
-//      把 inbound 拷成 outbound 并标记 type="echo"，保证每条消息都有回执。
+//   6. 【handler 线程隔离】完整消息提交 Executor；根协程在 ExecuteAwaiter 等待，
+//      完成后回所属 Reactor 编码和入队。dispatch 未命中时仍保留 echo 兜底。
 // ==============================================================================
 #include "WebSocketSession.h"
 
 #include "server/CoroutineScheduler/AWaiter.h"
+#include "server/Executor/Executor.h"
 #include "server/SubReactor/SubReactor.h"
 #include "server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
 #include "server/websocket/WebSocketValidation/WebSocketValidation.h"
 
 #include <chrono>
 
-// ---- 构造函数：绑定连接身份 / reactor / uid / manager / dispatcher ----
+// ---- 构造函数：绑定连接身份 / reactor / uid / manager / dispatcher / executor ----
 WebSocketSession::WebSocketSession(ConnectionKey key,
                                    SubReactor *reactor,
                                    UserId uid,
                                    WebSocketSessionManager *manager,
-                                   WebSocketDispatcher &dispatcher)
+                                   WebSocketDispatcher &dispatcher,
+                                   Executor &executor)
     : reactor_(reactor),
       key_(key),
       uid_(uid),
       manager_(manager),
+      executor_(executor),
       codec_(dispatcher)
 {
 }
@@ -76,7 +79,13 @@ void WebSocketSession::unregisterIfNeeded()
 // ---- onClose 钩子：fd_close 前向 manager 注销自己 ----
 void WebSocketSession::onClose()
 {
+    requestHandlerStop();
     unregisterIfNeeded();
+}
+
+void WebSocketSession::requestHandlerStop() noexcept
+{
+    (void)handlerStopSource_.request_stop();
 }
 
 /**
@@ -172,18 +181,19 @@ bool WebSocketSession::enqueueDataOrClose(std::string bytes)
 }
 
 /**
- * @brief 处理一条完整的应用消息（Text/Binary/重组后的 Continuation）
+ * @brief 准备一条完整应用消息并把 handler 提交给 Executor
  * @param opcode 帧类型（Text/Binary）
  * @param payload 已解掩码、已重组的完整 payload
  *
- * 通俗解释：管家拿到一条完整的业务消息后——
- *   ① 把它装进 WsFrame 再翻译成 WebSocketMessage（messageFromFrame）；
- *   ② 填好 WsMessageContext（uid/session/manager/inbound）交给 Dispatcher 路由；
- *   ③ Dispatcher 没命中 handler 时，把 inbound 拷成 outbound 标记 type="echo" 兜底回显；
- *   ④ 有 outbound 就组帧入队；handler 要求关闭（keepConnection=false）就发 Close 帧。
+ * Reactor 像前厅，只负责填单并交给后厨；真正的 handler 在 Worker 执行。Worker 只能
+ * 修改 messageContext_，结束后通过 notifyExecuteComplete 叫醒根协程。
  */
-void WebSocketSession::handleAppMessage(WsOpcode opcode, std::string payload)
+WsHandlerStartResult WebSocketSession::startAppMessage(
+    WsOpcode opcode, std::string payload)
 {
+    if (!getConn())
+        return WsHandlerStartResult::Closed;
+
     // ---- 把 payload 装进 WsFrame（fin=true 表示已是完整消息） ----
     WsFrame frame;
     frame.opcode = opcode;
@@ -191,24 +201,85 @@ void WebSocketSession::handleAppMessage(WsOpcode opcode, std::string payload)
     frame.fin = true;
 
     // ---- 构造消息上下文，填好 inbound + 会话信息 ----
-    WsMessageContext ctx;
-    ctx.uid = uid_;
-    ctx.session = this;
-    ctx.manager = manager_;
-    ctx.inbound = codec_.messageFromFrame(frame);  // 帧翻译成业务消息
-    ctx.inbound.fromUserId = uid_;                  // 标记发件人
+    messageContext_ = WsMessageContext{};
+    messageContext_.uid = uid_;
+    messageContext_.manager = manager_;
+    messageContext_.inbound = codec_.messageFromFrame(frame);
+    messageContext_.inbound.fromUserId = uid_;
+    handlerStopSource_ = std::stop_source{};
+    messageContext_.cancellation = HandlerCancellation{
+        handlerStopSource_.get_token(), executor_.handlerDeadline()};
+    handlerDispatched_ = false;
+    handlerFailed_ = false;
+    handlerTimedOut_ = false;
 
-    // ---- 派发给 Dispatcher 路由；未命中则兜底 echo 回显 ----
-    if (!codec_.dispatch(ctx))
+    const ConnectionKey key = key_;
+    auto self = shared_from_this();
+    const bool submitted = executor_.submit([self = std::move(self), key]
+                                            {
+        try
+        {
+            // 排队期间若连接已关闭或截止时间已到，不再进入业务代码。
+            if (!self->messageContext_.stopRequested())
+                self->handlerDispatched_ =
+                    self->codec_.dispatch(self->messageContext_);
+        }
+        catch (...)
+        {
+            self->handlerFailed_ = true;
+        }
+        self->handlerTimedOut_ =
+            self->messageContext_.handlerDeadlineExceeded();
+
+        // 无论成功还是异常都必须通知；连接已关时该通知会唤醒 zombie coroutine 清理。
+        self->reactor_->notifyExecuteComplete(key.fd, key.connId); });
+
+    return submitted ? WsHandlerStartResult::Submitted
+                     : WsHandlerStartResult::Overloaded;
+}
+
+/**
+ * @brief 在 Worker 完成后，由所属 Reactor 消费工作单并执行协议/出站操作
+ * @return true 可继续读下一条消息；false 已进入关闭流程
+ */
+bool WebSocketSession::finishAppMessage()
+{
+    if (handlerTimedOut_)
     {
-        ctx.outbound = ctx.inbound;     // 回显就是原样返回
+        messageContext_ = WsMessageContext{};
+        state_ = WsSessionState::Closing;
+        (void)enqueueOutbound(
+            WebSocketCodec::encodeClose(
+                WsCloseCode::TryAgainLater, "handler timeout"),
+            OutboundCompletion::CloseConnection);
+        return false;
+    }
+
+    if (handlerFailed_)
+    {
+        messageContext_ = WsMessageContext{};
+        state_ = WsSessionState::Closing;
+        (void)enqueueOutbound(
+            WebSocketCodec::encodeClose(
+                WsCloseCode::InternalError, "handler exception"),
+            OutboundCompletion::CloseConnection);
+        return false;
+    }
+
+    WsMessageContext ctx = std::move(messageContext_);
+    messageContext_ = WsMessageContext{};
+
+    // Dispatcher 没命中 handler 时，保留原有的 echo 兜底语义。
+    if (!handlerDispatched_)
+    {
+        ctx.outbound = ctx.inbound;
         ctx.outbound.type = "echo";
         ctx.hasOutbound = true;
     }
 
     // ---- 有回执就组帧入队（走 OutboundTask 体系） ----
     if (ctx.hasOutbound && !enqueueDataOrClose(codec_.encode(ctx.outbound)))
-        return;
+        return false;
 
     // ---- handler 要求关闭连接：发 Close 帧并标记 CloseConnection ----
     if (!ctx.keepConnection)
@@ -217,7 +288,9 @@ void WebSocketSession::handleAppMessage(WsOpcode opcode, std::string payload)
         enqueueOutbound(
             WebSocketCodec::encodeClose(WsCloseCode::Normal, "handler close"),
             OutboundCompletion::CloseConnection);  // writerLoop 发完即触发 fd_close
+        return false;
     }
+    return true;
 }
 
 /**
@@ -398,11 +471,33 @@ Task<void> WebSocketSession::run()
             co_return;
         }
 
-        // ---- 完整消息到手：刷新活跃时间，交给 handleAppMessage 派发 ----
+        // ---- 完整消息到手：Reactor 填单，Worker 做业务，完成后回 Reactor 发结果 ----
         reactor_->touchActivity(key_.fd);
-        handleAppMessage(frame.opcode, std::move(frame.payload));
-        // handler 可能要求关闭（keepConnection=false），state_ 变 Closing 就退场
-        if (state_ != WsSessionState::Open)
+        const auto handlerStart =
+            startAppMessage(frame.opcode, std::move(frame.payload));
+        if (handlerStart == WsHandlerStartResult::Closed)
+        {
+            state_ = WsSessionState::Closed;
+            co_return;
+        }
+        if (handlerStart == WsHandlerStartResult::Overloaded)
+        {
+            state_ = WsSessionState::Closing;
+            (void)enqueueOutbound(
+                WebSocketCodec::encodeClose(
+                    WsCloseCode::TryAgainLater, "handler queue full"),
+                OutboundCompletion::CloseConnection);
+            co_return;
+        }
+
+        // 一条连接同一时刻只允许一个业务任务：保持消息顺序，也让 Context 无需加锁。
+        co_await ExecuteAwaiter(reactor_, key_);
+        if (!getConn())
+        {
+            state_ = WsSessionState::Closed;
+            co_return;
+        }
+        if (!finishAppMessage())
             co_return;
     }
 }

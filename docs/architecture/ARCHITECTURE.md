@@ -1,10 +1,11 @@
 # 架构说明
 
-> 当前实现以 [`phase4_upgrade.md`](phase4_upgrade.md) 与 [`第四阶段升级文档.md`](第四阶段升级文档.md) 为准。
+> 当前实现以本文为结构基线；阶段演进从 [`phase4_upgrade.md`](phase4_upgrade.md) 延伸到
+> [`phase15_handler_cancellation_and_executor_isolation.md`](phase15_handler_cancellation_and_executor_isolation.md)。
 > 排错入口：[`../debugging/CHEATSHEET.md`](../debugging/CHEATSHEET.md)。
 
 服务面向 Linux/C++20，采用一个 acceptor 加多个
-SubReactor；连接协程负责协议循环，业务 handler 统一投递到 Runtime 共享的 Executor，出站字节统一走
+SubReactor；连接协程负责协议循环，HTTP 与 WebSocket handler 分别投递到独立 Executor，出站字节统一走
 `OutboundTask` + `OutboundQueue` + `TransportWriter` + `writerLoop` 协程这套任务体系。
 
 ## 阅读目标与设计动机
@@ -30,9 +31,10 @@ flowchart LR
     Q1 --> SR
     SR --> Session["每连接 Session 协程<br/>HttpSession / WebSocketSession"]
     Session --> Codec["Codec（子类自持）<br/>HttpCodec / WebSocketCodec"]
-    Codec -->|HTTP| Executor["共享 Executor<br/>有界 Worker 池"]
-    Executor --> Router["Router<br/>中间件 + 静态/动态路由"]
-    Codec -->|WebSocket 短处理| WSD["WebSocketDispatcher<br/>所属 Reactor 线程"]
+    Codec -->|完整 HTTP 请求| HTTPExecutor["HTTP Executor<br/>有界 Worker 池"]
+    Codec -->|完整 WS 消息| WSExecutor["WebSocket Executor<br/>有界 Worker 池"]
+    HTTPExecutor --> Router["Router<br/>中间件 + 静态/动态路由"]
+    WSExecutor --> WSD["WebSocketDispatcher<br/>并发查表，锁外运行 handler"]
     Router --> Response["HttpResponse<br/>对象池借用"]
     Response --> Outbound["OutboundTask + OutboundQueue<br/>+ TransportWriter + writerLoop"]
     Outbound -->|HTTP/1.1 或 WS 帧| Client
@@ -46,14 +48,15 @@ flowchart LR
 
 - 一个 ET + ONESHOT 的 `epoll` 实例及一个 `eventfd`；
 - fd 到 `Connection` 的独占映射；
-- 时间轮（当前连接超时配置 30 秒）、段池、`TransportWriter`、`OutboundQueue`，并借用 Runtime 的 `Router`/`Executor`/`SessionFactory`；
+- 时间轮（当前连接超时配置 30 秒）、段池、`TransportWriter`、`OutboundQueue`，并借用 Runtime 的 `Router`/HTTP `Executor`/`SessionFactory`；
 - 一个协程调度器及其去重后的 ready queue；
 - 协议升级工厂指针 `sessionFactory_`（依赖倒置，由 `ReactorGroup` 注入，不直接依赖 WebSocket 具体类型）。
 
-`ServerRuntime` 持有共享 `Executor`、`Router`、`WebSocketDispatcher`、`WebSocketSessionManager`
-和 `WebSocketSessionFactory`。HTTP handler 在 Worker 上执行；WebSocket handler 当前在所属
-SubReactor 中同步执行，必须保持短小且不能阻塞。文件 mmap 预热另用专用线程池。
-`ReactorGroup` 构造接收 `Router&` / `Executor&` / `SessionFactory&` 三件公共资源，在 `start` 时
+`ServerRuntime` 持有 HTTP/WS 两个 `Executor`、`Router`、`WebSocketDispatcher`、
+`WebSocketSessionManager`、`WebSocketDeliveryService` 和 `WebSocketSessionFactory`。HTTP 与
+WebSocket handler 使用独立 Worker 容量；协议解析、连接状态与出站入队仍回到所属 Reactor。
+文件 mmap 预热另用专用线程池。`ReactorGroup` 接收 `Router&` / HTTP `Executor&` /
+`SessionFactory&`，WS 工厂单独接收 WS `Executor&`；在 `start` 时
 把 `SessionFactory` 注入每个 SubReactor，使其能独立完成 HTTP→WebSocket 协议升级。
 
 ## 从 accept 到响应
@@ -113,8 +116,9 @@ sequenceDiagram
    数据不足时才 `recv`，ET 模式下一直读取到 `EAGAIN`。
 2. `HttpCodec::decode` 只在完整请求后更新 Session keep-alive 并 reset parser。Buffer 已消费部分之外的
    pipeline 数据被保留。
-3. `HttpCodec::dispatch` 在共享 Executor Worker 中从 `responsePool` 获取响应，再调用 Router。
-   队列满时 Session 直接形成 503；handler 异常转换为 500，且完成通知始终回到 Reactor。
+3. `HttpCodec::dispatch` 在 HTTP Executor Worker 中从 `responsePool` 获取响应，再调用 Router。
+   队列满时 Session 形成 503，handler 异常转换为 500；默认 5 秒 deadline 从提交时开始，排队
+   也计入预算，超时结果统一转换为 504。完成通知始终回到 Reactor。
 4. 出站不再由单个发送器类承担，而是 **`OutboundTask` + `OutboundQueue` + `TransportWriter` + `writerLoop` 协程** 这套统一任务体系：
    `OutboundTask` 用 `variant` 统一封装 WS 帧 / HTTP 响应 / 广播共享帧三种货；
    `enqueueOutbound` 把任务入队到本连接的 OutboundQueue；`writerLoop` 协程串行化冲刷
@@ -122,11 +126,13 @@ sequenceDiagram
    每次 flush 最多写 256 KiB，预算耗尽返回 `Yielded` 重新经过 epoll 调度；可选
    `OutboundReceipt` 区分 Written、二次背压、关闭、fd 代际失效和系统写错误。
 
-WebSocket 可靠私聊在传输层之上再增加应用信封和 `WebSocketDeliveryTracker`：客户端 ID 用于请求
-去重，服务端 ID 用于 ACK 关联，只有记录中的真实收件人可以确认。`accepted` 仍只表示跨 Reactor
-邮箱准入，`Written` 只表示写入本机内核，`acknowledged` 才表示接收方应用确认。当前 ACK 与重试
-决策已经实现，周期性调用 `collectDue()` 的自动重发驱动尚未接入；详见
-[`phase10_websocket_application_delivery.md`](phase10_websocket_application_delivery.md)。
+WebSocket 可靠私聊在传输层之上再增加应用信封、`WebSocketDeliveryTracker` 与
+`WebSocketDeliveryService`：客户端 ID 用于请求去重，服务端 ID 用于 ACK 关联，只有记录中的真实
+收件人可以确认。`accepted` 表示跨 Reactor 邮箱准入，`Written` 表示写入本机内核，
+`acknowledged` 表示接收方应用确认。Service 观察最终写回执，从 Written 后开始 ACK 计时，
+并自动执行有界重试和失败通知；详见
+[`phase10_websocket_application_delivery.md`](phase10_websocket_application_delivery.md) 与
+[`phase11_websocket_retry_runtime.md`](phase11_websocket_retry_runtime.md)。
 
 ## 状态机
 
@@ -200,8 +206,9 @@ flowchart TD
   正常发送、发送失败、连接消失和 dispatch 失败分支都显式 release 并置空。
 - `HttpResponse` 自身持有 header/body 的 `shared_ptr`。对象池 reset 时清理这些引用和协议状态。
 
-Worker 只访问 Session 持有的请求上下文；Connection、epoll、时间轮和出站冲刷仍只由所属 Reactor 访问。
-调度器持有 Session 的 shared_ptr，保证连接在 handler 执行期间关闭时上下文仍然存活。
+Worker 只访问 Session 持有的 HTTP 请求上下文或 WS 消息工作单；Connection、epoll、parser、
+Session 状态、时间轮和出站冲刷仍只由所属 Reactor 访问。调度器持有 Session 的 shared_ptr，WS
+Worker 任务也显式捕获 shared_ptr，保证连接在 handler 执行期间关闭时上下文仍然存活。
 
 ## 关闭与取消
 
@@ -217,8 +224,12 @@ Worker 只访问 Session 持有的请求上下文；Connection、epoll、时间�
    可在此向 `WebSocketSessionManager` 注销自己；`onTimeout()` 返回 false 时本轮跳过关闭，
    让 WS 先发 Close/Ping 帧再等下一轮。
 
-这是一种“关闭资源 + 协作式收尾”，不是通用 cancellation token。Runtime 析构时先 stop/join
-Reactor，再 drain Executor，最后销毁协程与连接，线程不再 detach。
+这是一种“关闭资源 + 协作式收尾”。`fd_close` 和 Reactor loop 退出都会先调用
+`Session::requestHandlerStop()`；业务通过 Context 的 `stopRequested()` 在安全边界主动停止。
+Runtime 正常退出时先停止 DeliveryService 与 acceptor，再 stop+join Reactor 线程；此时保留 Reactor
+对象和 eventfd，分别排空 HTTP/WS Executor，最后才 reset ReactorGroup。这样 Worker 的完成通知不会
+回调已销毁对象。线程不使用 detach。详见
+[`phase15_handler_cancellation_and_executor_isolation.md`](phase15_handler_cancellation_and_executor_isolation.md)。
 
 ## 背压
 
@@ -235,6 +246,8 @@ Reactor，再 drain Executor，最后销毁协程与连接，线程不再 detach
   破坏帧边界；读协程与写协程分槽互不干扰。每轮 256 KiB 写预算同时约束 encoded、HTTP 内存体
   和 sendfile；预算耗尽返回 `Yielded`，重新武装 EPOLLOUT 后让出 Reactor。
 - **accept 跨线程传递**：pending fd 队列使用 mutex，`notified` 原子标志合并 eventfd 唤醒。
+- **全局连接数门禁**：accept 后检查 `maxConnections_`（默认 10000），超额连接立即关闭，避免
+  fd 与连接对象无界增长。
 - **跨 Reactor 投递**：`postOutbound` 把任务暂存到目标 SubReactor 的 OutboundQueue pending 队列并
   `write(eventfd)` 唤醒目标线程，所有 conns 表操作集中在本线程，消除数据竞争。邮箱通过
   `OutboundAdmission` 同时限制 Reactor 总任务/字节和单连接任务/字节；`EnqueueResult` 沿
@@ -244,19 +257,32 @@ Reactor，再 drain Executor，最后销毁协程与连接，线程不再 detach
   fd/connId 失效、连接关闭、写错误和完整写入内核都有互斥终态；普通任务不创建回执，避免热路径
   固定承担跟踪成本。`Written` 不代表对端应用已处理。
 - **应用 ACK 与幂等窗口**：`WebSocketDeliveryTracker` 按 `(sender, clientMessageId)` 去重，
-  校验 ACK 的真实收件人，并在有界窗口中保存 AwaitingAck/Acknowledged/Failed 状态。
+  校验 ACK 的真实收件人，并在有界窗口中保存 AwaitingTransport/AwaitingAck/RetryScheduled/
+  Acknowledged/Failed 状态；服务端消息 ID 携带进程实例段，避免重启后序号复用与客户端去重窗碰撞。
+- **自动重试驱动**：`WebSocketDeliveryService` 观察 `OutboundReceipt`，用 attempt 拒绝旧回执，
+  从 Written 后开始 ACK 超时；超时后按指数退避和稳定抖动错峰重发，耗尽次数后通知原发送者。
+- **投递观测面**：Service 用 relaxed atomic 记录提交、attempt、传输结果、超时、ACK 和失败累计值，
+  同时提供 pending/receipt 水位；`/delivery-metrics` 以 JSON 暴露进程内快照。
+- **接收端幂等示例**：`examples/reliable_websocket_consumer.py` 按服务端消息 ID 保存有界消费窗口；
+  首次消息按“业务成功 → 记账 → ACK”处理，重复 attempt 跳过业务但重新 ACK。
+- **WS 业务线程隔离**：完整消息在 Reactor 组装后提交 WS Executor；根协程在 ExecuteAwaiter 等待，
+  Worker 只填写 Context，完成后回 Reactor 编码和入队。Dispatcher 用 shared_mutex 保护动态路由表。
+- **协议容量隔离与协作取消**：HTTP 与 WS 使用独立有界 Worker 池；Context 携带 stop token 和
+  steady-clock deadline。连接关闭或 Runtime 停机发出撤单信号，HTTP 超时映射 504，WS 超时映射 1013。
 
 ### 尚缺
 
 - 没有进程级内存预算；
-- 没有 accept 限流、最大连接数、每 IP 配额或过载拒绝策略；
-- 慢 handler 会占用 Worker 槽位，慢客户端虽能因 EAGAIN 挂起，但其响应对象仍持续占用内存；
-- WebSocket `collectDue()` 尚未接到周期驱动，当前不会自动执行超时重发；
+- 没有 accept 速率限制、每 IP/租户配额或带协议响应的过载拒绝策略；
+- 忽略 `stopRequested()` 的慢 handler 仍会占用本协议 Worker 槽位；同一 WS 连接等待 handler 时也暂不处理自己的 Ping/Close；
+  慢客户端虽能因 EAGAIN 挂起，但其响应对象仍持续占用内存；
+- 可靠投递、消费窗口和累计指标仍是进程内状态，重启后不能恢复；尚无延迟直方图和外部指标后端；
 
 ## 关键权衡
 
-- **多 Reactor + 线程内状态**减少连接热路径上的锁，但连接按 accept 时轮询，无法根据实时负载迁移；
-  阻塞 HTTP handler 会消耗共享 Worker 容量，阻塞 WebSocket handler 会直接卡住所属 Reactor。
+- **多 Reactor + 线程内状态**减少连接热路径上的锁，但连接按 accept 时轮询，无法根据实时负载迁移。
+- **HTTP/WS 独立 Executor**限制跨协议饥饿，但空闲容量不能动态借用；每池队列上限独立，仍无租户
+  配额或优先级。
 - **每连接协程**让非阻塞状态机接近同步代码，但协程帧、调度去重和外部关闭之间需要严格所有权规则。
 - **EPOLLONESHOT + 显式 rearm**避免同一 fd 被重复处理，但每个挂起点必须正确恢复 interest；
   漏 rearm 会造成连接永久沉默。

@@ -1,7 +1,8 @@
 # 第十阶段：WebSocket 应用信封、ACK 与幂等窗口
 
-> 本阶段解决“服务端怎样知道某一条业务消息被正确的接收者确认”。它建立可靠投递的状态核心，
-> 但尚未把 `collectDue()` 接到周期定时器，因此当前已完成 ACK、去重和重试决策，自动重发驱动留到下一阶段。
+> 本阶段解决“服务端怎样知道某一条业务消息被正确的接收者确认”。它建立可靠投递的状态核心；
+> 后续的周期驱动、最终写回执与停机边界已在
+> [`phase11_websocket_retry_runtime.md`](phase11_websocket_retry_runtime.md) 接入。
 
 ## 1. 本课学习目标
 
@@ -54,25 +55,27 @@ flowchart LR
 服务端登记后生成自己的 ID，并转发给接收方：
 
 ```json
-{"v":1,"type":"chat","id":"ws-1001-1","from":1001,"to":1002,"ack":true,"content":"hello"}
+{"v":1,"type":"chat","id":"ws-1001-boot7-1","from":1001,"to":1002,"attempt":1,"ack":true,"content":"hello"}
 ```
+
+ID 格式为 `ws-发送者-服务实例ID-序号`。实例段防止服务重启后序号重新从 1 开始时与旧消息碰撞。
 
 同时，发送方收到准入结果：
 
 ```json
-{"v":1,"type":"delivery","id":"ws-1001-1","replyTo":"client-42","to":1001,"status":"accepted"}
+{"v":1,"type":"delivery","id":"ws-1001-boot7-1","replyTo":"client-42","to":1001,"status":"accepted"}
 ```
 
 接收方业务处理完后确认服务端 ID：
 
 ```json
-{"v":1,"type":"ack","replyTo":"ws-1001-1"}
+{"v":1,"type":"ack","replyTo":"ws-1001-boot7-1"}
 ```
 
 服务端验证 ACK 的连接身份后通知原发送方：
 
 ```json
-{"v":1,"type":"delivery","id":"ws-1001-1","replyTo":"client-42","from":1002,"to":1001,"status":"acknowledged"}
+{"v":1,"type":"delivery","id":"ws-1001-boot7-1","replyTo":"client-42","from":1002,"to":1001,"status":"acknowledged"}
 ```
 
 ### 字段职责
@@ -86,6 +89,7 @@ flowchart LR
 | `from` | 服务端 | 真实发送者；不信任客户端自行填写的值 |
 | `to` | 发送方或服务端 | 目标用户 |
 | `status` | 服务端 | accepted、acknowledged、failed 等结果 |
+| `attempt` | 服务端 | 当前是第几次发送，用于诊断和拒绝旧回执 |
 | `ack` | 服务端 | 接收方是否需要回应用 ACK |
 | `content` | 发送方 | 业务正文 |
 
@@ -96,10 +100,14 @@ flowchart LR
 
 ```mermaid
 stateDiagram-v2
-    [*] --> AwaitingAck: begin / 首次投递算 attempt=1
+    [*] --> AwaitingTransport: begin / 首次投递算 attempt=1
+    AwaitingTransport --> AwaitingAck: OutboundReceipt = Written
+    AwaitingTransport --> RetryScheduled: 可重试传输失败或传输超时
+    AwaitingTransport --> Failed: 永久失败或次数耗尽
     AwaitingAck --> Acknowledged: 正确收件人 ACK
-    AwaitingAck --> AwaitingAck: 到期且仍有次数 / 产生 Retry 决策
-    AwaitingAck --> Failed: 次数耗尽或首次准入失败
+    AwaitingAck --> RetryScheduled: ACK 超时且仍有次数
+    RetryScheduled --> AwaitingTransport: backoff+jitter 到期 / attempt+1
+    AwaitingAck --> Failed: ACK 超时且次数耗尽
     Acknowledged --> Acknowledged: 重复 ACK
     Failed --> Failed: 迟到 ACK
     Acknowledged --> [*]: retention 到期后清理
@@ -115,11 +123,15 @@ stateDiagram-v2
 struct DeliverySweep {
     std::vector<DeliveryRetry> retries;
     std::vector<DeliveryFailure> failures;
+    std::size_t transportTimeouts;
+    std::size_t ackTimeouts;
+    std::size_t retriesScheduled;
 };
 ```
 
-它不访问 socket，也不调用 `SessionManager`。这相当于让“调度员只开任务单，邮递员负责送信”。
-这样做避免状态机在持锁期间执行跨 Reactor 操作，也方便用固定时间点做确定性测试。
+它不访问 socket，也不调用 `SessionManager`。这相当于让“登记员只开任务单，邮递员负责送信”。
+`WebSocketDeliveryService` 领取这些任务单并执行 I/O，从而避免 Tracker 在持锁期间跨 Reactor，
+也方便用固定时间点做确定性测试。
 
 ## 5. 两张索引表为何同时存在
 
@@ -148,8 +160,9 @@ serverMessageId ────────────> 完整 Record
 当前 WebSocket handler 在所属 SubReactor 线程中同步执行；它没有像 HTTP handler 那样投递到
 Executor。因此 `chat` 和 `ack` handler 必须很短，不能做数据库查询、sleep 或复杂计算。
 
-Tracker 被多个 SubReactor 共享，内部用一把 mutex 保护两张表。临界区只做校验、查表和状态修改，
-不做网络 I/O。锁释放后，handler 才通过 `WebSocketSessionManager` 把消息投递到目标 Reactor 邮箱。
+Tracker 由 `WebSocketDeliveryService` 持有并被多个 SubReactor 与重试线程访问，内部用一把 mutex
+保护两张表。临界区只做校验、查表和状态修改，不做网络 I/O。锁释放后，Service 才通过
+`WebSocketSessionManager` 把消息投递到目标 Reactor 邮箱。
 
 这个选择适合当前教学规模，优点是规则集中、容易验证。在线用户和 ACK 吞吐很高时，一把全局锁会
 成为争用点，可以按 sender 或 server ID 分片，但分片前应先用指标确认瓶颈。
@@ -168,7 +181,7 @@ Tracker 被多个 SubReactor 共享，内部用一把 mutex 保护两张表。�
 写入投递登记簿。这个小解析器适合固定教学协议；若业务字段继续增长，应换成成熟 JSON 库和正式
 schema 校验，避免不断扩充手写解析器。
 
-## 8. 当前已完成与尚未完成
+## 8. 当前已完成与后续边界
 
 已完成：
 
@@ -176,16 +189,17 @@ schema 校验，避免不断扩充手写解析器。
 2. 客户端 ID 去重、ID 冲突检测、服务端 ID 分配。
 3. ACK 归属校验、重复 ACK、迟到 ACK 与未知 ACK 分类。
 4. 有界记录数、终态保留与清理。
-5. 固定超时与最大尝试次数下的重发/失败决策。
+5. 分离传输超时、ACK 超时与最大尝试次数下的重发/失败决策。
 6. 原来的 `@uid:text` 无 ID 消息仍走 best-effort 兼容路径。
+7. `WebSocketDeliveryService` 已接入周期线程、`OutboundReceipt`、自动重发和失败通知。
+8. 后续阶段已加入指数退避、确定性抖动、投递指标和客户端幂等示例。
 
 尚未完成：
 
-1. 没有周期任务调用 `collectDue()`，所以服务进程当前不会自动重发。
-2. 重发动作还没有重新调用 `SessionManager`，失败通知也未自动发回发送方。
-3. Tracker 是内存状态，进程重启会丢失；它不适合直接承担支付或订单级持久可靠性。
-4. 当前 `accepted` 只表示邮箱准入。可在下一阶段把 `OutboundReceipt` 接入投递状态，区分
-   “准入后写失败”和“已写但未 ACK”。
+1. Tracker 是内存状态，进程重启会丢失；它不适合直接承担支付或订单级持久可靠性。
+2. 尚无进程级发送速率限制和按租户公平配额。
+3. 内存接收端去重窗口不能跨客户端重启；强业务仍需数据库唯一键。
+4. 指标尚无延迟直方图和外部持久化后端。
 
 ## 9. 与上传版 web-test6.1 的区别
 
@@ -200,7 +214,7 @@ WebSocket 帧、协议升级、会话目录、跨 Reactor 邮箱和统一 Writer
 | 跨用户主动推送 | 无 | SessionManager + Reactor 邮箱 |
 | 业务消息 ID | 无 | client ID + server ID |
 | ACK 与去重 | 无 | 已有内存状态机 |
-| 自动超时重发 | 无 | 决策已实现，定时驱动待接入 |
+| 自动超时重发 | 无 | 已接入 Runtime 生命周期与最终写回执 |
 
 ## 10. 适用场景、优点与代价
 
@@ -242,5 +256,5 @@ WebSocket 帧、协议升级、会话目录、跨 Reactor 邮箱和统一 Writer
 7. 当前 WebSocket handler 跑在哪个线程？在里面执行 `sleep(1)` 会影响谁？
 8. 为什么 WebSocket/TCP 可靠仍不足以表示订单已经被业务处理？
 
-下一阶段将把 `collectDue()` 接到 Runtime 生命周期可控的周期驱动，使用现有
-`OutboundReceipt` 观察重发任务的最终写入结果，并补齐停机、失败通知与相应黑盒测试。
+周期驱动与最终写回执的完整讲解见
+[`phase11_websocket_retry_runtime.md`](phase11_websocket_retry_runtime.md)。

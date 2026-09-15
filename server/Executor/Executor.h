@@ -17,14 +17,16 @@
 //    直接返回 503 Service Unavailable，而不是无限堆积任务把内存撑爆。
 // 3. Executor 是 ThreadPool 的薄封装：只暴露 submit 接口，隐藏线程池细节。
 //    未来若要换成"协程调度器内执行"或"优先级队列"，只需改 Executor 实现。
-// 4. Executor 由 ServerRuntime 持有，所有 SubReactor 共享同一个 Executor——
-//    这样 Worker 线程数全局可控，避免每个 Reactor 各开一组线程导致过度竞争。
+// 4. Executor 由 ServerRuntime 持有：所有 SubReactor 共用 HTTP Executor，所有 WS
+//    Session 共用另一条 WS Executor。两池隔离拥塞，同时避免每个 Reactor 各开一组线程。
+// 5. 每次工作单带 steady-clock deadline；它和 stop_token 都是协作信号，不会强杀线程。
 // =============================================================================
 #pragma once
 #ifndef EXECUTOR_H
 #define EXECUTOR_H
 
 #include <functional>
+#include <chrono>
 #include "server/thread_pool/thread_pool.h"
 /*
  *业务执行器，缓解reactor主线程压力，
@@ -52,11 +54,19 @@ public:
 
     /**
      * @brief 构造函数
-     * @param workerCount Worker 线程数量（默认 4，ServerRuntime 会按 CPU 核数传 2~32）
+     * @param workerCount Worker 线程数量（默认 4；Runtime 把 4~32 的总数近似均分到两池）
      *
      * 【通俗解释】招多少个厨师。一般等于 CPU 核数，多了反而线程切换开销大。
      */
-    explicit Executor(size_t workerCount = 4) : pool(workerCount) {}
+    explicit Executor(
+        size_t workerCount = 4,
+        std::chrono::milliseconds handlerTimeout = std::chrono::seconds{5})
+        : pool(workerCount),
+          handlerTimeout_(handlerTimeout.count() > 0
+                              ? handlerTimeout
+                              : std::chrono::seconds{5})
+    {
+    }
 
     /**
      * @brief 提交任务到 Worker 线程
@@ -73,9 +83,27 @@ public:
         return pool.addTask(std::move(task));
     }
 
+    /** 停止接收新业务，排空已提交业务并等待 Worker 退出；可重复调用。 */
+    void shutdown() noexcept
+    {
+        pool.shutdown();
+    }
+
+    /** 为新业务生成基于 steady_clock 的截止时间，不受系统时钟校准影响。 */
+    std::chrono::steady_clock::time_point handlerDeadline() const noexcept
+    {
+        return std::chrono::steady_clock::now() + handlerTimeout_;
+    }
+
+    std::chrono::milliseconds handlerTimeout() const noexcept
+    {
+        return handlerTimeout_;
+    }
+
 private:
     // 内部持有的线程池实例——Executor 只是它的薄封装
     ThreadPool pool;
+    std::chrono::milliseconds handlerTimeout_;
 };
 
 

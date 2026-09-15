@@ -57,6 +57,9 @@ compile_commands.json
 *.log
 *.bak
 *.swp
+.tmp-*
+__pycache__/
+*.py[cod]
 
 # vcpkg
 vcpkg_installed/
@@ -65,5 +68,9 @@ vcpkg_installed/
 *.dwo
 
 # test output & cache
-Testing/
+/Testing/
 .cache/
+/builde/
+/out.perf
+/perf.data*
+/server/CoroutineScheduler/test

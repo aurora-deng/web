@@ -25,6 +25,7 @@ python3 http_blackbox_test.py --server ./bin/http_server
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import signal
 import socket
@@ -338,7 +339,8 @@ def run_checks() -> None:
     所有回归测试用例入口
     用例设计原则：由基础功能 → 复杂协议特性 → 安全测试 → 架构核心验证
     每条用例对应待测服务约定路由，框架需要预先实现对应接口：
-        /、/user/{id}、/admin、/stream1、/fast、/slow、/logo(静态资源)、/large(超大稀疏文件)
+        /、/user/{id}、/admin、/stream1、/fast、/slow、/delivery-metrics、
+        /logo(静态资源)、/large(超大稀疏文件)
     """
     # ===================== 用例1：Keep-Alive基础验证，同一条TCP连接连续两次请求 =====================
     # 测试目标：验证长连接缓冲区正确清理，两次请求解析互不干扰，无粘包串包
@@ -359,6 +361,27 @@ def run_checks() -> None:
         require(body == b"123", f"/user路由路径参数解析错误:{body}")
     finally:
         connection.close()
+
+    # 投递指标端点：验证累计计数与当前水位采用不同 JSON 分组。
+    metrics_connection = HttpConnection()
+    try:
+        status, headers, body = metrics_connection.request(
+            b"GET /delivery-metrics HTTP/1.1\r\nHost: localhost\r\n\r\n"
+        )
+        require(status == 200, f"投递指标状态码异常:{status}")
+        require(
+            headers.get("content-type") == "application/json; charset=utf-8",
+            f"投递指标Content-Type异常:{headers}",
+        )
+        metrics = json.loads(body)
+        require(isinstance(metrics.get("counters"), dict), metrics)
+        require(isinstance(metrics.get("gauges"), dict), metrics)
+        require("attemptsDispatched" in metrics["counters"], metrics)
+        require("ackTimeouts" in metrics["counters"], metrics)
+        require("pendingMessages" in metrics["gauges"], metrics)
+        require("observedReceipts" in metrics["gauges"], metrics)
+    finally:
+        metrics_connection.close()
 
     # ===================== 用例2：中间件权限拦截测试 /admin未认证访问 =====================
     # 测试目标：路由前置中间件能否正常短路请求，提前返回401，不继续执行业务逻辑
@@ -524,6 +547,24 @@ def run_checks() -> None:
     # 核心断言：slow任务运行时fast必须正常响应
     require(fast_ok.is_set(), "/fast 被/slow阻塞！耗时任务占用Reactor主线程")
     slow_sock.close()
+
+    # ===================== 用例10：协作式 handler deadline =====================
+    # /slow 原本需要 10 秒；框架给 handler 5 秒预算。业务循环观察 stopRequested()
+    # 后主动收尾，HttpSession 丢弃业务结果并统一返回 504。
+    timeout_connection = HttpConnection()
+    timeout_connection.socket.settimeout(7)
+    started_at = time.monotonic()
+    try:
+        status, headers, body = timeout_connection.request(
+            b"GET /slow HTTP/1.1\r\nHost: localhost\r\n\r\n"
+        )
+        elapsed = time.monotonic() - started_at
+        require(status == 504, f"/slow 超时未返回504，实际状态:{status}")
+        require(body == b"Handler Timeout", f"504响应体异常:{body!r}")
+        require(headers.get("connection") == "close", f"504后应关闭连接:{headers}")
+        require(4.5 <= elapsed <= 6.5, f"handler deadline触发时间异常:{elapsed:.3f}s")
+    finally:
+        timeout_connection.close()
 
 
 def stop_server(process: subprocess.Popen[bytes]) -> None:

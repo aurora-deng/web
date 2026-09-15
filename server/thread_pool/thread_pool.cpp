@@ -5,7 +5,7 @@
 // 【生活比喻】
 // 本文件是"厨师班底"的日常工作手册：开店时招 N 个厨师上岗（startThreadPool），
 // 每个厨师循环 [等铃→领单→炒菜→再等]；新订单来了 push 进队列按铃（addTask）；
-// 打烊时设 stop=true 摇铃叫所有人收工（析构）。所有厨师共享一个订单队列，
+// 打烊时设 stop=true 摇铃叫所有人收工（shutdown/析构）。所有厨师共享一个订单队列，
 // 通过一把锁（mtx）和一只铃铛（cv）协调谁领哪一单。
 //
 // 关键技术点（初学者重点理解）：
@@ -50,7 +50,7 @@ ThreadPool::ThreadPool(int threadPoolSize):stop(false)
 void ThreadPool::startThreadPool(size_t numThreads)
 {
     // 循环创建线程
-    for(int i=0;i<numThreads;i++)
+    for (size_t i = 0; i < numThreads; ++i)
     {
         // 创建线程并放到对应容器
         workers.emplace_back([this]
@@ -92,6 +92,13 @@ void ThreadPool::startThreadPool(size_t numThreads)
  */
 ThreadPool::~ThreadPool()
 {
+    shutdown();
+}
+
+void ThreadPool::shutdown() noexcept
+{
+    // shutdown 可能由正常退出路径和析构各调用一次；只允许一方执行 join。
+    std::lock_guard<std::mutex> shutdownLock(shutdownMtx);
     {
         // 锁内设置 stop，保证 worker 的 wait 能看到 stop 变化
         std::unique_lock<std::mutex> lock(mtx);
@@ -104,7 +111,8 @@ ThreadPool::~ThreadPool()
     // 将所有的工作线程回收
     for(auto &worker: workers)
     {
-        worker.join();
+        if (worker.joinable())
+            worker.join();
     }
 }
 
@@ -123,12 +131,13 @@ bool ThreadPool::addTask(std::function<void()> task)
     {
         std::unique_lock<std::mutex> lock(mtx); // 获取锁资源，保护条件变量
         // ----- 背压检查：队列满则拒单，避免 OOM -----
-        if (tasks.size() >= MAX_THREAD_POOL_QUEUE)
+        // shutdown 开始后不再接新任务，否则 join 的任务集合没有稳定边界。
+        if (stop || !task || tasks.size() >= MAX_THREAD_POOL_QUEUE)
         {
             return false;
         }
         // 后续扩展任务主要就是放到去多态化task即可
-        tasks.push(task);
+        tasks.push(std::move(task));
     }   
 
       // 唤醒一个等待的线程开始工作

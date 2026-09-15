@@ -104,13 +104,11 @@ Accept → SubReactor::addFd → epoll_ctl(ADD, EPOLLIN|ONESHOT)
               ├─ Ping → enqueueOutbound(OutboundTask::encoded(encodePong))
               ├─ Pong → touchActivity → continue
               ├─ Continuation → 累积 fragmentBuf_（FIN=1 时重组走下方处理）
-              └─ Text/Binary → handleAppMessage()
-                      ├─ messageFromFrame（帧→WebSocketMessage）
-                      ├─ 构造 WsMessageContext{inbound, outbound, uid, session, manager}
-                      ├─ codec_.dispatch(ctx)
-                      │     ├─ 命中 handler → 执行（返回 false 则关闭）
-                      │     ├─ 未命中 → defaultHandler_（echo 回显）
-                      │     └─ 都无 → echo 回显
+              └─ Text/Binary → startAppMessage()
+                      ├─ messageFromFrame + 构造成员 WsMessageContext
+                      ├─ submit Executor → co_await ExecuteAwaiter
+                      ├─ Worker: codec_.dispatch(ctx)
+                      ├─ 完成通知后回 Reactor: finishAppMessage()
                       └─ ctx.hasOutbound → enqueueOutbound(OutboundTask::encoded(outbound.payload()))
 ```
 
@@ -118,7 +116,7 @@ Accept → SubReactor::addFd → epoll_ctl(ADD, EPOLLIN|ONESHOT)
 
 ```text
 A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
-   WebSocketSession[0]::handleAppMessage
+   WebSocketSession[0]::startAppMessage → Executor Worker
       └─ codec_.dispatch(ctx)
             └─ 命中 "chat" handler
                   └─ ctx.manager->sendText(B_uid, text)
@@ -201,17 +199,18 @@ A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
 
 | 路径 | 作用 |
 |------|------|
-| [`websocket/WebSocketMessage/WebSocketMessage.h`](../../server/websocket/WebSocketMessage/WebSocketMessage.h) | 应用信封：`v/type/id/replyTo/status/text/from/to/ack` + `payload()` / `isBinary()` |
+| [`websocket/WebSocketMessage/WebSocketMessage.h`](../../server/websocket/WebSocketMessage/WebSocketMessage.h) | 应用信封：`v/type/id/replyTo/status/attempt/text/from/to/ack` + `payload()` / `isBinary()` |
 | [`websocket/WebSocketDispatcher/WebSocketDispatcher.{h,cpp}`](../../server/websocket/WebSocketDispatcher/WebSocketDispatcher.h) | `WsHandler = function<bool(WsMessageContext&)>`；`on(type, handler)` / `onDefault(handler)` / `dispatch(ctx)`（先精确 type，再 fallback default） |
 | [`websocket/WebSocketDispatcher/WsMessageContext.h`](../../server/websocket/WebSocketDispatcher/WsMessageContext.h) | `struct WsMessageContext { inbound; outbound; hasOutbound; keepConnection; uid; session*; manager*; }` |
 | [`websocket/WebSocketSessionManager/WebSocketSessionManager.{h,cpp}`](../../server/websocket/WebSocketSessionManager/WebSocketSessionManager.h) | 全局会话目录 `unordered_map<UserId, Locator>`；`bind` / `registerSession` / `unregister` / `sendEncoded` / `sendText` / `broadcastText`（sharedEncoded 共享帧）/ `onlineCount` |
 | [`websocket/WebSocketDelivery/WebSocketDeliveryTracker.{h,cpp}`](../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h) | 应用层消息 ID、ACK 归属校验、幂等窗口与超时重试决策；不执行 I/O |
+| [`websocket/WebSocketDelivery/WebSocketDeliveryService.{h,cpp}`](../../server/websocket/WebSocketDelivery/WebSocketDeliveryService.h) | 观察最终写回执、周期自动重试、失败通知与 stop/join 生命周期 |
 
 ### 3.5 WebSocket 会话层
 
 | 路径 | 作用 |
 |------|------|
-| [`websocket/WebSocketSession/WebSocketSession.{h,cpp}`](../../server/websocket/WebSocketSession/WebSocketSession.h) | `class WebSocketSession : public Session, public enable_shared_from_this`；`run()` 帧循环；`handleAppMessage` 业务分发；`enqueueOutbound` 出站 |
+| [`websocket/WebSocketSession/WebSocketSession.{h,cpp}`](../../server/websocket/WebSocketSession/WebSocketSession.h) | `run()` 帧循环；`startAppMessage/finishAppMessage` 跨 Executor 两段式业务处理；`enqueueOutbound` 出站 |
 | [`websocket/WebSocketSessionFactory.{h,cpp}`](../../server/websocket/WebSocketSessionFactory.h) | `WebSocketSessionFactory`（2.0 新增）：`SessionFactory` 具体实现，唯一知 manager+dispatcher 装配关系 |
 
 ### 3.6 其它
@@ -403,12 +402,12 @@ std::unordered_map<UserId, Locator> sessions_;
 
 | 步骤 | 位置 | 动作 |
 |------|------|------|
-| 1 | Reactor0 · A 的 WSSession | 收帧→`codec_.decode`→`messageFromFrame`→`handleAppMessage` |
-| 2 | Reactor0 · dispatcher | `dispatch(ctx)`→命中 "chat" handler→`ctx.manager->sendText(B, text)` |
-| 3 | Reactor0 · SessionManager | `sendText`→`sendEncoded`→`WebSocketCodec::encodeText` 编码 |
-| 4 | Reactor0 · SessionManager | 加锁查 `sessions_[B]` 拿 Locator(reactorIndex=2)，检查 weak_ptr 未 expired |
-| 5 | Reactor0 · SessionManager | 释放锁→`reactorGroup_->postOutbound(2, fd, connId, OutboundTask::encoded(bytes))` |
-| 6 | Reactor0 → ReactorGroup | `reactors_[2]->postOutbound(fd, connId, task)` |
+| 1 | Reactor0 · A 的 WSSession | 收帧→`codec_.decode`→`messageFromFrame`→提交 Executor，根协程等待 |
+| 2 | Worker · dispatcher | `dispatch(ctx)`→命中 "chat" handler→`ctx.manager->sendText(B, text)` |
+| 3 | Worker · SessionManager | `sendText`→`sendEncoded`→`WebSocketCodec::encodeText` 编码 |
+| 4 | Worker · SessionManager | 加锁查 `sessions_[B]` 拿 Locator(reactorIndex=2)，检查 weak_ptr 未 expired |
+| 5 | Worker · SessionManager | 释放锁→`reactorGroup_->postOutbound(2, fd, connId, OutboundTask::encoded(bytes))` |
+| 6 | Worker → ReactorGroup | `reactors_[2]->postOutbound(fd, connId, task)` |
 | 7 | Reactor2 · SubReactor::postOutbound | 跨线程→锁 push `pendingOutbound_` + write eventfd |
 | 8 | Reactor2 · loop | eventfd 醒来→`processPendingOutbound`→swap 队列→按 fd+connId 校验→`enqueueOutbound` |
 | 9 | Reactor2 · enqueueOutbound | `transportWriter.enqueue`（挂 outboundQueue）+ `updateEvent` + `wakeCoroutine(Writer, OUTBOUND)` |
@@ -460,7 +459,7 @@ websocat "ws://127.0.0.1:8080/ws?uid=1002"   # B（另一终端）
 # A 发送：{"type":"chat","to":1002,"content":"hello"} → B 收到 "hello"
 # A 发送：@1002:hello                          → B 收到 "hello"
 # 可靠路径：A 发送 {"v":1,"type":"chat","id":"c-1","to":1002,"content":"hello"}
-# B 收到服务端 id 后发送 {"v":1,"type":"ack","replyTo":"ws-1001-1"}
+# B 收到服务端 id 后发送 {"v":1,"type":"ack","replyTo":"ws-1001-boot7-1"}
 # 无 type 匹配 → echo 回显
 ```
 
@@ -475,10 +474,14 @@ websocat "ws://127.0.0.1:8080/ws?uid=1002"   # B（另一终端）
 | 1 | WS 写背压与读暂停策略细化（两级邮箱准入、结果回传、慢连接关闭） | 已完成（第八阶段） | `OutboundAdmission`、`TransportWriter`、`SubReactor` |
 | 1.1 | 异步最终回执与 Writer 每轮公平预算 | 已完成（第九阶段） | `OutboundReceipt`、`TransportWriter`、`ChunkedBody` |
 | 1.2 | WS 应用信封、ACK、幂等窗口与重试决策 | 已完成（第十阶段） | `WebSocketMessage`、`WebSocketCodec`、`WebSocketDeliveryTracker` |
-| 1.3 | 周期驱动自动重发、最终写回执与失败通知 | 待做 | `ServerRuntime`、`WebSocketDeliveryTracker`、`OutboundReceipt` |
+| 1.3 | 周期驱动自动重发、最终写回执与失败通知 | 已完成（第十一阶段） | `ServerRuntime`、`WebSocketDeliveryService`、`OutboundReceipt` |
+| 1.4 | 接收端有界幂等窗口、正确 ACK 顺序与重复包补 ACK | 已完成（第十二阶段） | `examples/reliable_websocket_consumer.py`、Python unit / WS black-box |
+| 1.5 | 指数退避、确定性抖动与投递指标端点 | 已完成（第十三阶段） | `WebSocketDeliveryTracker`、`WebSocketDeliveryService::metrics`、`/delivery-metrics` |
+| 1.6 | 投递持久化、延迟直方图与外部指标后端 | 待做 | durable store、Prometheus / OpenTelemetry |
 | 2 | 子协议 / 扩展协商（permessage-deflate） | 待做 | `WebSocketHandshake`、`RequestContext` |
 | 3 | WSS（TLS 终止或 openssl 接入） | 待做 | `ServerRuntime`、新 `TlsTransport` |
-| 4 | WS 消息处理投递 Executor（重计算场景） | 待做 | `WebSocketSession`、`ExecuteAwaiter` |
+| 4 | WS 消息处理投递 Executor（连接内串行、跨连接并行） | 已完成，见 phase14 | `WebSocketSession`、`ExecuteAwaiter` |
+| 4.1 | handler 协作式取消、5 秒 deadline、HTTP/WS 容量隔离 | 已完成，见 phase15 | `HandlerCancellation`、`ServerRuntime`、HTTP/WS Context |
 | 5 | 指标：握手次数、帧数、关闭码分布、跨 Reactor 投递量 | 待做 | metrics / 日志 |
 | 6 | SessionManager 分片锁（高在线量场景） | 待做 | `WebSocketSessionManager` |
 | 7 | 广播批量编码优化（多 type 合并） | 待做 | `WebSocketSessionManager` |
@@ -508,6 +511,7 @@ web-test6.1/
 │   │   ├── WebSocketCodec/WebSocketCodec.{h,cpp}
 │   │   ├── WebSocketMessage/WebSocketMessage.h
 │   │   ├── WebSocketDelivery/WebSocketDeliveryTracker.{h,cpp}
+│   │   ├── WebSocketDelivery/WebSocketDeliveryService.{h,cpp}
 │   │   ├── WebSocketDispatcher/{WebSocketDispatcher.{h,cpp}, WsMessageContext.h}
 │   │   ├── WebSocketSessionManager/WebSocketSessionManager.{h,cpp}
 │   │   ├── WebSocketSessionFactory.{h,cpp}  # 【2.0 新增】SessionFactory 具体实现

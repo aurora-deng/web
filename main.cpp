@@ -15,8 +15,8 @@
 //      业务 handler；任意一环调用 next() 放行，不调用则短路返回。
 //   2. 动态路由参数："/user/:id" 中的 :id 是占位符，框架自动把 URL 里的实际
 //      值填进 ctx.params，handler 用 ctx.params.at("id") 取出。
-//   3. Executor 异步执行：/slow 里 sleep(10) 不会卡死整个服务器，因为这条
-//      handler 被丢到 Worker 线程池执行，Reactor 主循环可以继续服务 /fast。
+//   3. Executor 异步执行：/slow 的耗时循环不会卡死整个服务器，因为 handler
+//      被丢到 HTTP Worker 池执行；循环还会轮询撤单信号，避免超时后继续白干。
 //   4. WebSocket 升级握手：/ws 是 WebSocket 握手入口。客户端发起 HTTP Upgrade
 //      请求到 /ws，业务层调用 ctx.acceptWebSocket() 标记此连接要升级为
 //      WebSocket；真正的握手应答（101 Switching Protocols + Sec-WebSocket-Accept）
@@ -25,14 +25,52 @@
 #include "server/Runtime/ServerRuntime.h"
 #include "server/http/RequestContext/RequestContext.h"
 #include "server/websocket/WebSocketCodec/WebSocketCodec.h"
-#include "server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h"
+#include "server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
 #include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
 #include "log/logger/logger.h"
 #include <unistd.h>
+#include <cerrno>
+#include <chrono>
+#include <cstdlib>
 #include <iostream>
-#include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
+
+namespace
+{
+std::string serializeDeliveryMetrics(
+    const WebSocketDeliveryMetricsSnapshot &metrics)
+{
+    std::ostringstream out;
+    out << "{\"counters\":{"
+        << "\"submissions\":" << metrics.submissions << ','
+        << "\"newMessages\":" << metrics.newMessages << ','
+        << "\"duplicateSubmissions\":" << metrics.duplicateSubmissions << ','
+        << "\"rejectedSubmissions\":" << metrics.rejectedSubmissions << ','
+        << "\"attemptsDispatched\":" << metrics.attemptsDispatched << ','
+        << "\"retriesDispatched\":" << metrics.retriesDispatched << ','
+        << "\"writtenAttempts\":" << metrics.writtenAttempts << ','
+        << "\"retryableAttemptFailures\":"
+        << metrics.retryableAttemptFailures << ','
+        << "\"permanentAttemptFailures\":"
+        << metrics.permanentAttemptFailures << ','
+        << "\"retrySchedules\":" << metrics.retrySchedules << ','
+        << "\"transportTimeouts\":" << metrics.transportTimeouts << ','
+        << "\"ackTimeouts\":" << metrics.ackTimeouts << ','
+        << "\"ackRequests\":" << metrics.ackRequests << ','
+        << "\"acknowledgedMessages\":" << metrics.acknowledgedMessages << ','
+        << "\"duplicateAcks\":" << metrics.duplicateAcks << ','
+        << "\"rejectedAcks\":" << metrics.rejectedAcks << ','
+        << "\"failedMessages\":" << metrics.failedMessages << ','
+        << "\"ignoredAttemptResults\":" << metrics.ignoredAttemptResults
+        << "},\"gauges\":{"
+        << "\"pendingMessages\":" << metrics.pendingMessages << ','
+        << "\"observedReceipts\":" << metrics.observedReceipts
+        << "}}";
+    return out.str();
+}
+}
 
 /**
  * @brief 服务器主入口：装配路由与中间件，启动事件循环
@@ -51,8 +89,20 @@ int main()
     try
     {
         ServerRuntime server;
-        // 业务级挂号信登记簿：跨 Reactor 共享，内部用短临界区保护；不碰 socket。
-        auto deliveryTracker = std::make_shared<WebSocketDeliveryTracker>();
+        // 可重复的并发测试需要固定 Reactor 数；生产环境不设置时仍按 CPU 自动选择。
+        if (const char *raw = std::getenv("WEB_SERVER_REACTORS"))
+        {
+            char *end = nullptr;
+            errno = 0;
+            const unsigned long count = std::strtoul(raw, &end, 10);
+            if (errno != 0 || end == raw || *end != '\0' ||
+                count == 0 || count > 32)
+                throw std::invalid_argument(
+                    "WEB_SERVER_REACTORS must be an integer in [1, 32]");
+            server.setReactorCount(static_cast<size_t>(count));
+        }
+        // Runtime 持有可靠投递服务：状态机、最终写回执与可停止的周期重试线程共用同一生命周期。
+        auto *deliveryService = &server.wsDelivery();
 
         // ===== 中间件层：请求到达 handler 前的"安检传送带" =====
 
@@ -60,6 +110,7 @@ int main()
         // LOG_HTTP 当前为空操作（压测纯净版），需要日志时改回真正调用
         server.router().use([](RequestContext &ctx, auto next)
                             {
+        (void)ctx; // 压测模式下 LOG_HTTP 是空宏，仍显式标记参数已使用。
         LOG_HTTP(ctx.request.method + " " + ctx.request.path);
         next(); });
 
@@ -109,6 +160,8 @@ int main()
         ctx.response->beginChunked();
         for (int i = 0; i < 10; i++)
         {
+            if (ctx.stopRequested())
+                break;
             ctx.response->writeChunk("hello\n");
             sleep(1);
         }
@@ -129,11 +182,18 @@ int main()
         }
         return true; });
 
-        // /slow: 验证 Executor 异步执行，sleep(10) 不阻塞其他连接
-        // 若此处在 Reactor 线程同步阻塞，/fast 将无法立即返回——这是反例对照
+        // /slow: 验证 Executor 异步执行与协作式超时。
+        // 像后厨每做一小步就看一次撤单灯：超过 handler deadline 后尽快停工，
+        // HttpSession 再把本次结果统一改写成 504；Reactor 仍可同时服务 /fast。
         server.router().GET("/slow", [](RequestContext &ctx) -> bool
                             {
-        sleep(10);
+        const auto finishAt = std::chrono::steady_clock::now() +
+                              std::chrono::seconds(10);
+        while (std::chrono::steady_clock::now() < finishAt &&
+               !ctx.stopRequested())
+        {
+            usleep(10 * 1000);
+        }
         ctx.response->text("slow done");
         return true; });
 
@@ -143,6 +203,19 @@ int main()
                             {
         ctx.response->text("fast");
         return true; });
+
+        // 可靠投递观测面：计数器只增不减，gauges 表示读取瞬间的当前水位。
+        // 生产部署应通过鉴权或仅在管理网络暴露该路由。
+        server.router().GET(
+            "/delivery-metrics",
+            [deliveryService](RequestContext &ctx) -> bool
+            {
+                ctx.response->setHeader(
+                    "Content-Type", "application/json; charset=utf-8");
+                ctx.response->text(
+                    serializeDeliveryMetrics(deliveryService->metrics()));
+                return true;
+            });
 
         // /ws: WebSocket 握手入口（第四阶段新增）。
         // 【握手流程】客户端先发一个 HTTP Upgrade 请求到 /ws（带 Upgrade: websocket、
@@ -166,7 +239,7 @@ int main()
         // 每条文本帧被解析成 WsMessageContext 并按 message.type 分发——这与 HTTP 的
         // path 路由对称，只不过这里路由的是"消息类型"而非"URL 路径"。
         // "chat" 类型：点对点聊天，把消息转发给 toUserId 指定的目标用户。
-        server.wsDispatcher().on("chat", [deliveryTracker](WsMessageContext &ctx) -> bool
+        server.wsDispatcher().on("chat", [deliveryService](WsMessageContext &ctx) -> bool
                                  {
         if (!ctx.manager || ctx.inbound.toUserId == 0 ||
             ctx.inbound.version != 1)
@@ -217,64 +290,29 @@ int main()
             return true;
         }
 
-        const auto started = deliveryTracker->begin(
+        const auto submitted = deliveryService->submit(
             ctx.uid,
             ctx.inbound.toUserId,
             ctx.inbound.messageId,
             ctx.inbound.text);
 
         std::string status;
-        if (started.status == DeliveryBeginStatus::Created)
+        switch (submitted.status)
         {
-            WebSocketMessage forwarded;
-            forwarded.type = "chat";
-            forwarded.messageId = started.serverMessageId;
-            forwarded.fromUserId = ctx.uid;
-            forwarded.toUserId = ctx.inbound.toUserId;
-            forwarded.text = ctx.inbound.text;
-            forwarded.ackRequested = true;
-
-            const auto admission = ctx.manager->sendText(
-                ctx.inbound.toUserId,
-                WebSocketCodec::serializeApplicationMessage(forwarded));
-            switch (admission)
-            {
-            case EnqueueResult::Ok:
-                status = "accepted";
-                break;
-            case EnqueueResult::Backpressure:
-                status = "target_busy";
-                deliveryTracker->markFailed(started.serverMessageId);
-                break;
-            case EnqueueResult::Closed:
-                status = "target_unavailable";
-                deliveryTracker->markFailed(started.serverMessageId);
-                break;
-            case EnqueueResult::Invalid:
-                status = "invalid_outbound";
-                deliveryTracker->markFailed(started.serverMessageId);
-                break;
-            }
+        case DeliverySubmissionStatus::Accepted: status = "accepted"; break;
+        case DeliverySubmissionStatus::RetryScheduled: status = "retry_scheduled"; break;
+        case DeliverySubmissionStatus::DuplicatePending: status = "duplicate_pending"; break;
+        case DeliverySubmissionStatus::Acknowledged: status = "acknowledged"; break;
+        case DeliverySubmissionStatus::Failed: status = "failed"; break;
+        case DeliverySubmissionStatus::Conflict: status = "id_conflict"; break;
+        case DeliverySubmissionStatus::Capacity: status = "delivery_window_full"; break;
+        case DeliverySubmissionStatus::Unavailable: status = "service_unavailable"; break;
+        case DeliverySubmissionStatus::Invalid: status = "invalid_request"; break;
         }
-        else if (started.status == DeliveryBeginStatus::Duplicate)
-        {
-            switch (started.state)
-            {
-            case DeliveryState::AwaitingAck: status = "duplicate_pending"; break;
-            case DeliveryState::Acknowledged: status = "acknowledged"; break;
-            case DeliveryState::Failed: status = "failed"; break;
-            }
-        }
-        else if (started.status == DeliveryBeginStatus::Conflict)
-            status = "id_conflict";
-        else if (started.status == DeliveryBeginStatus::Capacity)
-            status = "delivery_window_full";
-        else
-            status = "invalid_request";
 
         WebSocketMessage response;
         response.type = "delivery";
-        response.messageId = started.serverMessageId;
+        response.messageId = submitted.serverMessageId;
         response.replyTo = ctx.inbound.messageId;
         response.toUserId = ctx.uid;
         response.status = std::move(status);
@@ -286,7 +324,7 @@ int main()
         return true; });
 
         // ACK 必须引用服务端生成的 message id；Tracker 校验 ACK 是否来自真实收件人。
-        server.wsDispatcher().on("ack", [deliveryTracker](WsMessageContext &ctx) -> bool
+        server.wsDispatcher().on("ack", [deliveryService](WsMessageContext &ctx) -> bool
                                  {
         if (ctx.inbound.version != 1)
         {
@@ -302,29 +340,14 @@ int main()
             ctx.hasOutbound = true;
             return true;
         }
-        const auto ack = deliveryTracker->acknowledge(
+        const auto ack = deliveryService->acknowledge(
             ctx.uid, ctx.inbound.replyTo);
         std::string status;
         switch (ack.status)
         {
         case DeliveryAckStatus::Acknowledged:
-        {
             status = "accepted";
-            if (ctx.manager)
-            {
-                WebSocketMessage notice;
-                notice.type = "delivery";
-                notice.messageId = ack.serverMessageId;
-                notice.replyTo = ack.clientMessageId;
-                notice.fromUserId = ack.recipient;
-                notice.toUserId = ack.sender;
-                notice.status = "acknowledged";
-                (void)ctx.manager->sendText(
-                    ack.sender,
-                    WebSocketCodec::serializeApplicationMessage(notice));
-            }
             break;
-        }
         case DeliveryAckStatus::Duplicate: status = "duplicate"; break;
         case DeliveryAckStatus::Unknown: status = "unknown_message"; break;
         case DeliveryAckStatus::WrongRecipient: status = "wrong_recipient"; break;
@@ -343,6 +366,32 @@ int main()
             WebSocketCodec::serializeApplicationMessage(response);
         ctx.hasOutbound = true;
         return true; });
+
+        // 架构探针：配合黑盒测试证明慢 WS handler 在 Worker 执行，而非占住 Reactor。
+        server.wsDispatcher().on("slow_probe", [](WsMessageContext &ctx) -> bool
+                                 {
+        sleep(2);
+        ctx.outbound.type = "probe_result";
+        ctx.outbound.text = "slow done";
+        ctx.hasOutbound = true;
+        return true; });
+        server.wsDispatcher().on("fast_probe", [](WsMessageContext &ctx) -> bool
+                                 {
+        ctx.outbound.type = "probe_result";
+        ctx.outbound.text = "fast done";
+        ctx.hasOutbound = true;
+        return true; });
+        server.wsDispatcher().on("throw_probe", [](WsMessageContext &) -> bool
+                                 {
+        throw std::runtime_error("intentional WebSocket handler failure"); });
+        server.wsDispatcher().on(
+            "cooperative_timeout_probe", [](WsMessageContext &ctx) -> bool
+            {
+                // C++ 不能安全强杀 Worker；耗时业务必须在可中断边界主动看撤单灯。
+                while (!ctx.stopRequested())
+                    usleep(10 * 1000);
+                return true;
+            });
 
         // onDefault：未匹配任何 type 的消息走这里——原样回显为 "echo" 类型，
         // 保证客户端总能收到响应，不会因消息类型未注册而静默丢弃。

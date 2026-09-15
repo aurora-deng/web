@@ -30,15 +30,20 @@
 //   - TransportWriter : 独立于 SubReactor 的发送验证（见 transport_tests.cpp）
 //   - HttpRange       : 通过 HttpParser 验证 Range 首部；Content-Range 保留
 //   - Router          : 动态路由/中间件短路/404
-//   - WebSocket       : 握手密钥计算/编解码往返/掩码校验/半包解析（第四阶段新增）
+//   - WebSocket       : 握手/帧与消息/应用信封/ACK/幂等与自动重试
 // ============================================================
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <vector>
@@ -722,6 +727,7 @@ TEST(RouterTest, ProducesNotFoundResponse)
 // 测试区在阅读时不被 WebSocket 头文件干扰，体现"按协议分块"的组织方式。
 #include "server/websocket/WebSocketHandshake/WebSocketHandshake.h"
 #include "server/websocket/WebSocketCodec/WebSocketCodec.h"
+#include "server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
 #include "server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h"
 #include "server/websocket/WebSocketParser/WebSocketParser.h"
 #include "server/websocket/WebSocketMessageAssembler/WebSocketMessageAssembler.h"
@@ -729,6 +735,8 @@ TEST(RouterTest, ProducesNotFoundResponse)
 #include "server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
 #include "server/websocket/WebSocketSession/WebSocketSession.h"
 #include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
+#include "server/Executor/Executor.h"
+#include "server/Executor/HandlerCancellation.h"
 
 /**
  * @test WebSocketHandshakeTest.AcceptKeyMatchesRfc6455Example
@@ -1129,6 +1137,7 @@ TEST(WebSocketCodecTest, ApplicationEnvelopeRoundTripsEscapedFields)
     outbound.fromUserId = 41;
     outbound.toUserId = 42;
     outbound.ackRequested = true;
+    outbound.attempt = 3;
 
     WebSocketDispatcher dispatcher;
     WebSocketCodec codec(dispatcher);
@@ -1146,6 +1155,7 @@ TEST(WebSocketCodecTest, ApplicationEnvelopeRoundTripsEscapedFields)
     EXPECT_EQ(inbound.fromUserId, 41U);
     EXPECT_EQ(inbound.toUserId, 42U);
     EXPECT_TRUE(inbound.ackRequested);
+    EXPECT_EQ(inbound.attempt, 3U);
 
     frame.payload =
         "{\"type\":\"chat\",\"id\":\"unicode\","
@@ -1175,7 +1185,7 @@ TEST(WebSocketDeliveryTrackerTest, DeduplicatesAndValidatesAckOwner)
     const auto created = tracker.begin(10, 20, "client-1", "hello", now);
     ASSERT_EQ(created.status, DeliveryBeginStatus::Created);
     EXPECT_FALSE(created.serverMessageId.empty());
-    EXPECT_EQ(created.state, DeliveryState::AwaitingAck);
+    EXPECT_EQ(created.state, DeliveryState::AwaitingTransport);
 
     const auto duplicate = tracker.begin(10, 20, "client-1", "hello", now);
     EXPECT_EQ(duplicate.status, DeliveryBeginStatus::Duplicate);
@@ -1198,6 +1208,26 @@ TEST(WebSocketDeliveryTrackerTest, DeduplicatesAndValidatesAckOwner)
 
     const auto duplicateAck = tracker.acknowledge(20, created.serverMessageId, now);
     EXPECT_EQ(duplicateAck.status, DeliveryAckStatus::Duplicate);
+}
+
+TEST(WebSocketDeliveryTrackerTest, NamespacesMessageIdsByServerInstance)
+{
+    WebSocketDeliveryConfig firstConfig;
+    firstConfig.serverInstanceId = "boot-a";
+    WebSocketDeliveryConfig secondConfig;
+    secondConfig.serverInstanceId = "boot-b";
+    WebSocketDeliveryTracker first(firstConfig);
+    WebSocketDeliveryTracker second(secondConfig);
+    const auto now = WebSocketDeliveryTracker::TimePoint{};
+
+    const auto firstMessage = first.begin(10, 20, "client-a", "hello", now);
+    const auto nextMessage = first.begin(10, 20, "client-b", "world", now);
+    const auto afterRestart = second.begin(10, 20, "client-a", "hello", now);
+
+    EXPECT_EQ(firstMessage.serverMessageId, "ws-10-boot-a-1");
+    EXPECT_EQ(nextMessage.serverMessageId, "ws-10-boot-a-2");
+    EXPECT_EQ(afterRestart.serverMessageId, "ws-10-boot-b-1");
+    EXPECT_NE(firstMessage.serverMessageId, afterRestart.serverMessageId);
 }
 
 /**
@@ -1254,35 +1284,418 @@ TEST(WebSocketDeliveryTrackerTest, EmitsBoundedRetryDecisionsThenFails)
 {
     WebSocketDeliveryConfig config;
     config.maxAttempts = 3;
+    config.transportTimeout = std::chrono::milliseconds{10};
     config.ackTimeout = std::chrono::milliseconds{10};
+    config.retryDelay = std::chrono::milliseconds{5};
+    config.maxRetryDelay = std::chrono::milliseconds{10};
+    config.retryJitterPercent = 0;
     WebSocketDeliveryTracker tracker(config);
     const auto start = WebSocketDeliveryTracker::TimePoint{};
 
     const auto created = tracker.begin(7, 8, "client-7", "payload", start);
     ASSERT_EQ(created.status, DeliveryBeginStatus::Created);
+    ASSERT_EQ(
+        tracker.recordAttemptResult(
+            created.serverMessageId,
+            1,
+            DeliveryAttemptOutcome::Written,
+            start).state,
+        DeliveryState::AwaitingAck);
 
     const auto early = tracker.collectDue(start + std::chrono::milliseconds{9});
     EXPECT_TRUE(early.retries.empty());
     EXPECT_TRUE(early.failures.empty());
 
-    const auto second = tracker.collectDue(start + std::chrono::milliseconds{10});
+    const auto firstTimeout = tracker.collectDue(
+        start + std::chrono::milliseconds{10});
+    EXPECT_TRUE(firstTimeout.retries.empty());
+    EXPECT_EQ(firstTimeout.ackTimeouts, 1U);
+    EXPECT_EQ(firstTimeout.retriesScheduled, 1U);
+    ASSERT_TRUE(tracker.snapshot(created.serverMessageId).has_value());
+    EXPECT_EQ(
+        tracker.snapshot(created.serverMessageId)->state,
+        DeliveryState::RetryScheduled);
+
+    const auto second = tracker.collectDue(start + std::chrono::milliseconds{15});
     ASSERT_EQ(second.retries.size(), 1U);
     EXPECT_EQ(second.retries[0].attempt, 2U);
     EXPECT_EQ(second.retries[0].serverMessageId, created.serverMessageId);
+    EXPECT_EQ(
+        tracker.recordAttemptResult(
+            created.serverMessageId,
+            1,
+            DeliveryAttemptOutcome::Written,
+            start + std::chrono::milliseconds{15}).status,
+        DeliveryAttemptUpdateStatus::StaleAttempt);
+    EXPECT_EQ(
+        tracker.recordAttemptResult(
+            created.serverMessageId,
+            2,
+            DeliveryAttemptOutcome::Written,
+            start + std::chrono::milliseconds{15}).state,
+        DeliveryState::AwaitingAck);
 
-    const auto third = tracker.collectDue(start + std::chrono::milliseconds{20});
+    const auto secondTimeout = tracker.collectDue(
+        start + std::chrono::milliseconds{25});
+    EXPECT_TRUE(secondTimeout.retries.empty());
+    EXPECT_EQ(secondTimeout.ackTimeouts, 1U);
+    EXPECT_EQ(secondTimeout.retriesScheduled, 1U);
+
+    const auto third = tracker.collectDue(start + std::chrono::milliseconds{35});
     ASSERT_EQ(third.retries.size(), 1U);
     EXPECT_EQ(third.retries[0].attempt, 3U);
+    EXPECT_EQ(
+        tracker.recordAttemptResult(
+            created.serverMessageId,
+            3,
+            DeliveryAttemptOutcome::Written,
+            start + std::chrono::milliseconds{35}).state,
+        DeliveryState::AwaitingAck);
 
-    const auto exhausted = tracker.collectDue(start + std::chrono::milliseconds{30});
+    const auto exhausted = tracker.collectDue(start + std::chrono::milliseconds{45});
     EXPECT_TRUE(exhausted.retries.empty());
     ASSERT_EQ(exhausted.failures.size(), 1U);
+    EXPECT_EQ(exhausted.ackTimeouts, 1U);
     EXPECT_EQ(exhausted.failures[0].serverMessageId, created.serverMessageId);
     EXPECT_EQ(tracker.pendingCount(), 0U);
     EXPECT_EQ(
         tracker.acknowledge(8, created.serverMessageId,
-                            start + std::chrono::milliseconds{30}).status,
+                            start + std::chrono::milliseconds{45}).status,
         DeliveryAckStatus::TooLate);
+}
+
+TEST(WebSocketDeliveryTrackerTest, BoundsDeterministicRetryJitter)
+{
+    WebSocketDeliveryConfig config;
+    config.serverInstanceId = "jitter-test";
+    config.retryDelay = std::chrono::milliseconds{100};
+    config.maxRetryDelay = std::chrono::milliseconds{1000};
+    config.retryJitterPercent = 20;
+    WebSocketDeliveryTracker tracker(config);
+    const auto now = WebSocketDeliveryTracker::TimePoint{};
+
+    const auto created = tracker.begin(1, 2, "jitter", "payload", now);
+    const auto update = tracker.recordAttemptResult(
+        created.serverMessageId,
+        1,
+        DeliveryAttemptOutcome::RetryableFailure,
+        now);
+    ASSERT_EQ(update.state, DeliveryState::RetryScheduled);
+    const auto snapshot = tracker.snapshot(created.serverMessageId);
+    ASSERT_TRUE(snapshot.has_value());
+    const auto delay = std::chrono::duration_cast<std::chrono::milliseconds>(
+        snapshot->nextActionAt - now);
+    EXPECT_TRUE(delay >= std::chrono::milliseconds{80});
+    EXPECT_TRUE(delay <= std::chrono::milliseconds{120});
+}
+
+/**
+ * @test WebSocketDeliveryServiceTest.ObservesWriteThenAcceptsApplicationAck
+ * @brief 准入后先观察 Written，再开始 ACK 计时；ACK 会清掉回执观察并通知原发送方。
+ */
+TEST(WebSocketDeliveryServiceTest, ObservesWriteThenAcceptsApplicationAck)
+{
+    struct Sent
+    {
+        UserId recipient = 0;
+        std::string payload;
+        std::shared_ptr<OutboundReceipt> receipt;
+    };
+    std::vector<Sent> sent;
+    WebSocketDeliveryService service(
+        [&](UserId recipient, std::string payload)
+        {
+            auto receipt = std::make_shared<OutboundReceipt>();
+            sent.push_back({recipient, std::move(payload), receipt});
+            return OutboundSubmission{EnqueueResult::Ok, receipt};
+        });
+    const auto start = WebSocketDeliveryService::TimePoint{};
+
+    const auto submitted = service.submit(
+        10, 20, "client-10", "hello", start);
+    ASSERT_EQ(submitted.status, DeliverySubmissionStatus::Accepted);
+    ASSERT_EQ(sent.size(), 1U);
+    EXPECT_EQ(service.observedReceiptCount(), 1U);
+
+    WebSocketDispatcher dispatcher;
+    WebSocketCodec codec(dispatcher);
+    WsFrame frame;
+    frame.opcode = WsOpcode::Text;
+    frame.payload = sent[0].payload;
+    const auto first = codec.messageFromFrame(frame);
+    EXPECT_EQ(first.messageId, submitted.serverMessageId);
+    EXPECT_EQ(first.attempt, 1U);
+    EXPECT_TRUE(first.ackRequested);
+
+    ASSERT_TRUE(sent[0].receipt->complete(OutboundOutcome::Written));
+    (void)service.tick(start);
+    EXPECT_EQ(service.observedReceiptCount(), 0U);
+
+    const auto ack = service.acknowledge(20, submitted.serverMessageId, start);
+    EXPECT_EQ(ack.status, DeliveryAckStatus::Acknowledged);
+    EXPECT_EQ(service.pendingCount(), 0U);
+    ASSERT_EQ(sent.size(), 2U);
+    EXPECT_EQ(sent[1].recipient, 10U);
+    frame.payload = sent[1].payload;
+    const auto notice = codec.messageFromFrame(frame);
+    EXPECT_EQ(notice.type, "delivery");
+    EXPECT_EQ(notice.status, "acknowledged");
+    EXPECT_EQ(notice.replyTo, "client-10");
+}
+
+/**
+ * @test WebSocketDeliveryServiceTest.IgnoresLateReceiptAndRetriesWithSameId
+ * @brief 旧 attempt 的迟到回执不能覆盖新 attempt，重发保持 server id 并递增 attempt。
+ */
+TEST(WebSocketDeliveryServiceTest, IgnoresLateReceiptAndRetriesWithSameId)
+{
+    struct Sent
+    {
+        std::string payload;
+        std::shared_ptr<OutboundReceipt> receipt;
+    };
+    std::vector<Sent> sent;
+    WebSocketDeliveryServiceConfig config;
+    config.tracker.maxAttempts = 3;
+    config.tracker.transportTimeout = std::chrono::milliseconds{10};
+    config.tracker.ackTimeout = std::chrono::milliseconds{10};
+    config.tracker.retryDelay = std::chrono::milliseconds{5};
+    config.tracker.maxRetryDelay = std::chrono::milliseconds{5};
+    config.tracker.retryJitterPercent = 0;
+    WebSocketDeliveryService service(
+        [&](UserId, std::string payload)
+        {
+            auto receipt = std::make_shared<OutboundReceipt>();
+            sent.push_back({std::move(payload), receipt});
+            return OutboundSubmission{EnqueueResult::Ok, receipt};
+        },
+        config);
+    const auto start = WebSocketDeliveryService::TimePoint{};
+
+    const auto submitted = service.submit(1, 2, "c-1", "data", start);
+    ASSERT_EQ(submitted.status, DeliverySubmissionStatus::Accepted);
+    const auto timeout = service.tick(start + std::chrono::milliseconds{10});
+    EXPECT_TRUE(timeout.retries.empty());
+    EXPECT_EQ(timeout.transportTimeouts, 1U);
+    const auto retry = service.tick(start + std::chrono::milliseconds{15});
+    ASSERT_EQ(retry.retries.size(), 1U);
+    ASSERT_EQ(sent.size(), 2U);
+    EXPECT_EQ(service.observedReceiptCount(), 2U);
+
+    ASSERT_TRUE(sent[0].receipt->complete(OutboundOutcome::Written));
+    (void)service.tick(start + std::chrono::milliseconds{15});
+    EXPECT_EQ(service.observedReceiptCount(), 1U);
+
+    ASSERT_TRUE(sent[1].receipt->complete(OutboundOutcome::Written));
+    (void)service.tick(start + std::chrono::milliseconds{15});
+    EXPECT_EQ(service.observedReceiptCount(), 0U);
+
+    WebSocketDispatcher dispatcher;
+    WebSocketCodec codec(dispatcher);
+    WsFrame frame;
+    frame.opcode = WsOpcode::Text;
+    frame.payload = sent[0].payload;
+    const auto first = codec.messageFromFrame(frame);
+    frame.payload = sent[1].payload;
+    const auto second = codec.messageFromFrame(frame);
+    EXPECT_EQ(second.messageId, first.messageId);
+    EXPECT_EQ(first.attempt, 1U);
+    EXPECT_EQ(second.attempt, 2U);
+
+    EXPECT_EQ(
+        service.acknowledge(
+            2,
+            submitted.serverMessageId,
+            start + std::chrono::milliseconds{15}).status,
+        DeliveryAckStatus::Acknowledged);
+}
+
+TEST(WebSocketDeliveryServiceTest, StopsWorkerAndRejectsNewSubmissions)
+{
+    WebSocketDeliveryServiceConfig config;
+    config.pollInterval = std::chrono::milliseconds{1};
+    WebSocketDeliveryService service(
+        [](UserId, std::string)
+        {
+            auto receipt = std::make_shared<OutboundReceipt>();
+            receipt->complete(OutboundOutcome::Closed);
+            return OutboundSubmission{EnqueueResult::Closed, receipt};
+        },
+        config);
+
+    service.start();
+    EXPECT_TRUE(service.running());
+    service.stop();
+    EXPECT_FALSE(service.running());
+    EXPECT_EQ(
+        service.submit(1, 2, "after-stop", "data").status,
+        DeliverySubmissionStatus::Unavailable);
+}
+
+TEST(WebSocketDeliveryServiceTest, BackgroundWorkerHonorsRetrySchedule)
+{
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::size_t chatAttempts = 0;
+    WebSocketDeliveryServiceConfig config;
+    config.pollInterval = std::chrono::milliseconds{1};
+    config.tracker.maxAttempts = 2;
+    config.tracker.retryDelay = std::chrono::milliseconds{2};
+    config.tracker.maxRetryDelay = std::chrono::milliseconds{2};
+    config.tracker.retryJitterPercent = 0;
+    WebSocketDeliveryService service(
+        [&](UserId, std::string payload)
+        {
+            if (payload.find("\"type\":\"chat\"") != std::string::npos)
+            {
+                {
+                    std::lock_guard lock(mutex);
+                    ++chatAttempts;
+                }
+                cv.notify_all();
+            }
+            auto receipt = std::make_shared<OutboundReceipt>();
+            receipt->complete(OutboundOutcome::Closed);
+            return OutboundSubmission{EnqueueResult::Closed, receipt};
+        },
+        config);
+
+    service.start();
+    const auto submitted = service.submit(1, 2, "background", "data");
+    bool retried = false;
+    {
+        std::unique_lock lock(mutex);
+        retried = cv.wait_for(
+            lock,
+            std::chrono::milliseconds{500},
+            [&]
+            {
+                return chatAttempts >= 2;
+            });
+    }
+    service.stop();
+
+    EXPECT_EQ(submitted.status, DeliverySubmissionStatus::RetryScheduled);
+    EXPECT_TRUE(retried);
+    EXPECT_EQ(chatAttempts, 2U);
+    EXPECT_EQ(service.metrics().retriesDispatched, 1U);
+    EXPECT_EQ(service.metrics().failedMessages, 1U);
+}
+
+TEST(WebSocketDeliveryServiceTest, RetriesOfflineTargetThenNotifiesFailure)
+{
+    std::vector<std::string> payloads;
+    WebSocketDeliveryServiceConfig config;
+    config.tracker.maxAttempts = 2;
+    config.tracker.retryDelay = std::chrono::milliseconds{5};
+    config.tracker.maxRetryDelay = std::chrono::milliseconds{5};
+    config.tracker.retryJitterPercent = 0;
+    WebSocketDeliveryService service(
+        [&](UserId, std::string payload)
+        {
+            payloads.push_back(std::move(payload));
+            auto receipt = std::make_shared<OutboundReceipt>();
+            receipt->complete(OutboundOutcome::Closed);
+            return OutboundSubmission{EnqueueResult::Closed, receipt};
+        },
+        config);
+    const auto start = WebSocketDeliveryService::TimePoint{};
+
+    const auto submitted = service.submit(
+        3, 4, "offline-1", "message", start);
+    EXPECT_EQ(submitted.status, DeliverySubmissionStatus::RetryScheduled);
+    ASSERT_EQ(payloads.size(), 1U);
+
+    const auto sweep = service.tick(start + std::chrono::milliseconds{5});
+    ASSERT_EQ(sweep.retries.size(), 1U);
+    ASSERT_EQ(sweep.failures.size(), 1U);
+    EXPECT_EQ(service.pendingCount(), 0U);
+    ASSERT_EQ(payloads.size(), 3U);
+
+    WebSocketDispatcher dispatcher;
+    WebSocketCodec codec(dispatcher);
+    WsFrame frame;
+    frame.opcode = WsOpcode::Text;
+    frame.payload = payloads[1];
+    EXPECT_EQ(codec.messageFromFrame(frame).attempt, 2U);
+    frame.payload = payloads[2];
+    const auto notice = codec.messageFromFrame(frame);
+    EXPECT_EQ(notice.type, "delivery");
+    EXPECT_EQ(notice.status, "failed");
+    EXPECT_EQ(notice.replyTo, "offline-1");
+    EXPECT_EQ(notice.toUserId, 3U);
+}
+
+TEST(WebSocketDeliveryServiceTest, ExposesRetryAndAckMetrics)
+{
+    struct Sent
+    {
+        std::shared_ptr<OutboundReceipt> receipt;
+    };
+    std::vector<Sent> sent;
+    WebSocketDeliveryServiceConfig config;
+    config.tracker.serverInstanceId = "metrics-test";
+    config.tracker.maxAttempts = 3;
+    config.tracker.transportTimeout = std::chrono::milliseconds{10};
+    config.tracker.ackTimeout = std::chrono::milliseconds{10};
+    config.tracker.retryDelay = std::chrono::milliseconds{5};
+    config.tracker.maxRetryDelay = std::chrono::milliseconds{5};
+    config.tracker.retryJitterPercent = 0;
+    WebSocketDeliveryService service(
+        [&](UserId, std::string)
+        {
+            auto receipt = std::make_shared<OutboundReceipt>();
+            sent.push_back({receipt});
+            return OutboundSubmission{EnqueueResult::Ok, receipt};
+        },
+        config);
+    const auto start = WebSocketDeliveryService::TimePoint{};
+
+    const auto submitted = service.submit(10, 20, "metric-1", "data", start);
+    ASSERT_EQ(submitted.status, DeliverySubmissionStatus::Accepted);
+    ASSERT_EQ(sent.size(), 1U);
+    ASSERT_TRUE(sent[0].receipt->complete(OutboundOutcome::Written));
+    (void)service.tick(start);
+
+    const auto timeout = service.tick(start + std::chrono::milliseconds{10});
+    EXPECT_EQ(timeout.ackTimeouts, 1U);
+    EXPECT_TRUE(timeout.retries.empty());
+    const auto retry = service.tick(start + std::chrono::milliseconds{15});
+    ASSERT_EQ(retry.retries.size(), 1U);
+    ASSERT_EQ(sent.size(), 2U);
+    ASSERT_TRUE(sent[1].receipt->complete(OutboundOutcome::Closed));
+    (void)service.tick(start + std::chrono::milliseconds{15});
+
+    EXPECT_EQ(
+        service.acknowledge(99, submitted.serverMessageId, start).status,
+        DeliveryAckStatus::WrongRecipient);
+    EXPECT_EQ(
+        service.acknowledge(20, submitted.serverMessageId, start).status,
+        DeliveryAckStatus::Acknowledged);
+    EXPECT_EQ(
+        service.acknowledge(20, submitted.serverMessageId, start).status,
+        DeliveryAckStatus::Duplicate);
+    EXPECT_EQ(
+        service.submit(0, 20, "invalid", "data", start).status,
+        DeliverySubmissionStatus::Invalid);
+
+    const auto metrics = service.metrics();
+    EXPECT_EQ(metrics.submissions, 2U);
+    EXPECT_EQ(metrics.newMessages, 1U);
+    EXPECT_EQ(metrics.rejectedSubmissions, 1U);
+    EXPECT_EQ(metrics.attemptsDispatched, 2U);
+    EXPECT_EQ(metrics.retriesDispatched, 1U);
+    EXPECT_EQ(metrics.writtenAttempts, 1U);
+    EXPECT_EQ(metrics.retryableAttemptFailures, 1U);
+    EXPECT_EQ(metrics.retrySchedules, 2U);
+    EXPECT_EQ(metrics.ackTimeouts, 1U);
+    EXPECT_EQ(metrics.ackRequests, 3U);
+    EXPECT_EQ(metrics.acknowledgedMessages, 1U);
+    EXPECT_EQ(metrics.duplicateAcks, 1U);
+    EXPECT_EQ(metrics.rejectedAcks, 1U);
+    EXPECT_EQ(metrics.failedMessages, 0U);
+    EXPECT_EQ(metrics.pendingMessages, 0U);
+    EXPECT_EQ(metrics.observedReceipts, 0U);
 }
 
 /**
@@ -1378,14 +1791,15 @@ TEST(WebSocketSessionManagerTest, OldConnectionCannotUnregisterReplacement)
 {
     WebSocketDispatcher dispatcher;
     WebSocketSessionManager manager;
+    Executor executor(1);
     constexpr UserId uid = 42;
     const ConnectionKey oldKey{17, 1001};
     const ConnectionKey newKey{17, 1002};
 
     auto oldSession = std::make_shared<WebSocketSession>(
-        oldKey, nullptr, uid, &manager, dispatcher);
+        oldKey, nullptr, uid, &manager, dispatcher, executor);
     auto newSession = std::make_shared<WebSocketSession>(
-        newKey, nullptr, uid, &manager, dispatcher);
+        newKey, nullptr, uid, &manager, dispatcher, executor);
 
     EXPECT_FALSE(manager.registerSession(uid, oldSession, 0, {}));
     ASSERT_TRUE(manager.registerSession(
@@ -1417,4 +1831,175 @@ TEST(WebSocketSessionManagerTest, PreservesOutboundRejectionReason)
     ASSERT_TRUE(invalid.receipt);
     EXPECT_EQ(invalid.admission, EnqueueResult::Invalid);
     EXPECT_EQ(invalid.receipt->outcome(), OutboundOutcome::Invalid);
+}
+
+/**
+ * 多个 WebSocketSession 会在不同 Worker 上同时 dispatch；动态换 handler 时也不能
+ * 让 unordered_map 发生读写竞争。Dispatcher 只在查表时持锁，业务回调在锁外执行。
+ */
+TEST(WebSocketDispatcherTest, SupportsConcurrentDispatchAndRegistration)
+{
+    WebSocketDispatcher dispatcher;
+    std::atomic<int> calls{0};
+    auto handler = [&calls](WsMessageContext &) -> bool
+    {
+        calls.fetch_add(1, std::memory_order_relaxed);
+        return true;
+    };
+    dispatcher.on("work", handler);
+
+    std::atomic<bool> go{false};
+    std::vector<std::thread> readers;
+    for (int reader = 0; reader < 4; ++reader)
+    {
+        readers.emplace_back([&]
+                             {
+            while (!go.load(std::memory_order_acquire))
+                std::this_thread::yield();
+            for (int i = 0; i < 500; ++i)
+            {
+                WsMessageContext ctx;
+                ctx.inbound.type = "work";
+                EXPECT_TRUE(dispatcher.dispatch(ctx));
+            } });
+    }
+    std::thread registrar([&]
+                          {
+        while (!go.load(std::memory_order_acquire))
+            std::this_thread::yield();
+        for (int i = 0; i < 500; ++i)
+            dispatcher.on("work", handler); });
+
+    go.store(true, std::memory_order_release);
+    for (auto &reader : readers)
+        reader.join();
+    registrar.join();
+    EXPECT_EQ(calls.load(std::memory_order_relaxed), 2000);
+}
+
+/**
+ * Runtime 关闭依赖显式 drain：shutdown 之后不再接单，但关闭前已经接下的任务必须全部完成。
+ */
+TEST(ExecutorTest, ShutdownDrainsAcceptedTasksAndRejectsNewTasks)
+{
+    Executor executor(2);
+    std::mutex gateMutex;
+    std::condition_variable gateCv;
+    bool release = false;
+    std::atomic<int> started{0};
+    std::atomic<int> finished{0};
+
+    auto blockingTask = [&]
+    {
+        started.fetch_add(1, std::memory_order_relaxed);
+        gateCv.notify_all();
+        std::unique_lock<std::mutex> lock(gateMutex);
+        gateCv.wait(lock, [&] { return release; });
+        finished.fetch_add(1, std::memory_order_relaxed);
+    };
+
+    const bool first = executor.submit(blockingTask);
+    const bool second = executor.submit(blockingTask);
+    bool bothStarted = false;
+    {
+        std::unique_lock<std::mutex> lock(gateMutex);
+        bothStarted = gateCv.wait_for(
+            lock, std::chrono::seconds(1),
+            [&] { return started.load(std::memory_order_relaxed) == 2; });
+    }
+    const bool queued = executor.submit(
+        [&] { finished.fetch_add(1, std::memory_order_relaxed); });
+    {
+        std::lock_guard<std::mutex> lock(gateMutex);
+        release = true;
+    }
+    gateCv.notify_all();
+    executor.shutdown();
+
+    EXPECT_TRUE(first);
+    EXPECT_TRUE(second);
+    EXPECT_TRUE(bothStarted);
+    EXPECT_TRUE(queued);
+    EXPECT_EQ(finished.load(std::memory_order_relaxed), 3);
+    EXPECT_FALSE(executor.submit([] {}));
+}
+
+TEST(HandlerCancellationTest, DistinguishesCancellationFromDeadline)
+{
+    using Clock = HandlerCancellation::Clock;
+    std::stop_source source;
+    HandlerCancellation cancelled{
+        source.get_token(), Clock::now() + std::chrono::hours(1)};
+    EXPECT_FALSE(cancelled.stopRequested());
+    EXPECT_TRUE(source.request_stop());
+    EXPECT_TRUE(cancelled.stopRequested());
+    EXPECT_EQ(cancelled.reason(), HandlerStopReason::Cancelled);
+
+    HandlerCancellation expired{
+        {}, Clock::now() - std::chrono::milliseconds(1)};
+    EXPECT_TRUE(expired.stopRequested());
+    EXPECT_TRUE(expired.deadlineExceeded());
+    EXPECT_EQ(expired.reason(), HandlerStopReason::Deadline);
+}
+
+TEST(HandlerCancellationTest, CooperativeLoopObservesExecutorDeadline)
+{
+    Executor executor(1, std::chrono::milliseconds(20));
+    HandlerCancellation budget{{}, executor.handlerDeadline()};
+    std::atomic<bool> observed{false};
+    const bool submitted = executor.submit([budget, &observed]
+                                            {
+        while (!budget.stopRequested())
+            std::this_thread::yield();
+        observed.store(
+            budget.reason() == HandlerStopReason::Deadline,
+            std::memory_order_release); });
+    executor.shutdown();
+    EXPECT_TRUE(submitted);
+    EXPECT_TRUE(observed.load(std::memory_order_acquire));
+}
+
+TEST(ExecutorTest, SeparateHttpAndWebSocketLanesDoNotStarveEachOther)
+{
+    Executor httpLane(1);
+    Executor wsLane(1);
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool releaseHttp = false;
+    bool httpStarted = false;
+    bool wsFinished = false;
+
+    const bool httpAccepted = httpLane.submit([&]
+                                               {
+        std::unique_lock<std::mutex> lock(mutex);
+        httpStarted = true;
+        cv.notify_all();
+        cv.wait(lock, [&] { return releaseHttp; }); });
+
+    bool sawHttpStart = false;
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        sawHttpStart = cv.wait_for(
+            lock, std::chrono::seconds(1), [&] { return httpStarted; });
+    }
+    const bool wsAccepted = wsLane.submit([&]
+                                           {
+        std::lock_guard<std::mutex> lock(mutex);
+        wsFinished = true;
+        cv.notify_all(); });
+    bool wsCompletedWhileHttpBlocked = false;
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        wsCompletedWhileHttpBlocked = cv.wait_for(
+            lock, std::chrono::seconds(1), [&] { return wsFinished; });
+        releaseHttp = true;
+    }
+    cv.notify_all();
+    httpLane.shutdown();
+    wsLane.shutdown();
+
+    EXPECT_TRUE(httpAccepted);
+    EXPECT_TRUE(sawHttpStart);
+    EXPECT_TRUE(wsAccepted);
+    EXPECT_TRUE(wsCompletedWhileHttpBlocked);
 }

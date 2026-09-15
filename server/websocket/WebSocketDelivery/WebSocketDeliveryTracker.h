@@ -15,13 +15,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 enum class DeliveryState
 {
+    AwaitingTransport,
     AwaitingAck,
+    RetryScheduled,
     Acknowledged,
     Failed
 };
@@ -61,6 +64,38 @@ struct DeliveryAckResult
     UserId recipient = 0;
 };
 
+enum class DeliveryAttemptOutcome
+{
+    Written,
+    RetryableFailure,
+    PermanentFailure
+};
+
+enum class DeliveryAttemptUpdateStatus
+{
+    Applied,
+    StaleAttempt,
+    Unknown,
+    Terminal,
+    Invalid
+};
+
+struct DeliveryAttemptUpdate
+{
+    DeliveryAttemptUpdateStatus status = DeliveryAttemptUpdateStatus::Invalid;
+    DeliveryState state = DeliveryState::Failed;
+    std::string clientMessageId;
+    UserId sender = 0;
+    UserId recipient = 0;
+};
+
+struct DeliverySnapshot
+{
+    DeliveryState state = DeliveryState::Failed;
+    std::size_t attempts = 0;
+    std::chrono::steady_clock::time_point nextActionAt{};
+};
+
 struct DeliveryRetry
 {
     std::string serverMessageId;
@@ -83,16 +118,25 @@ struct DeliverySweep
 {
     std::vector<DeliveryRetry> retries;
     std::vector<DeliveryFailure> failures;
+    std::size_t transportTimeouts = 0;
+    std::size_t ackTimeouts = 0;
+    std::size_t retriesScheduled = 0;
 };
 
 struct WebSocketDeliveryConfig
 {
+    // 为空时 Tracker 生成进程实例 ID；测试或多实例部署可显式注入稳定的实例标识。
+    std::string serverInstanceId;
     std::size_t maxRecords = 65536;
     std::size_t maxClientMessageIdBytes = 128;
     std::size_t maxServerMessageIdBytes = 128;
     std::size_t maxContentBytes = 1024 * 1024;
     std::size_t maxAttempts = 3;
+    std::chrono::milliseconds transportTimeout{5000};
     std::chrono::milliseconds ackTimeout{5000};
+    std::chrono::milliseconds retryDelay{500};       // attempt 2 前的初始退避
+    std::chrono::milliseconds maxRetryDelay{30000};  // 指数退避上限
+    std::uint32_t retryJitterPercent = 20;            // 确定性 ± 抖动，0 表示关闭
     std::chrono::milliseconds terminalRetention{60000};
 };
 
@@ -114,6 +158,15 @@ public:
                                   const std::string &serverMessageId,
                                   TimePoint now = Clock::now());
 
+    /**
+     * @brief 回填某次发送的最终传输结果；attempt 防止旧回执覆盖较新的发送尝试
+     */
+    DeliveryAttemptUpdate recordAttemptResult(
+        const std::string &serverMessageId,
+        std::size_t attempt,
+        DeliveryAttemptOutcome outcome,
+        TimePoint now = Clock::now());
+
     bool markFailed(const std::string &serverMessageId,
                     TimePoint now = Clock::now());
 
@@ -124,6 +177,8 @@ public:
 
     std::size_t recordCount() const;
     std::size_t pendingCount() const;
+    std::optional<DeliverySnapshot> snapshot(
+        const std::string &serverMessageId) const;
 
 private:
     struct ClientKey
@@ -150,13 +205,16 @@ private:
         std::string content;
         UserId sender = 0;
         UserId recipient = 0;
-        DeliveryState state = DeliveryState::AwaitingAck;
+        DeliveryState state = DeliveryState::AwaitingTransport;
         std::size_t attempts = 1;
         TimePoint nextAttempt{};
         TimePoint removeAfter = TimePoint::max();
     };
 
     void pruneTerminals(TimePoint now);
+    std::chrono::milliseconds retryDelayFor(
+        const Record &record,
+        std::size_t nextAttempt) const;
     std::string nextServerMessageId(UserId sender);
     static DeliveryAckResult ackResult(DeliveryAckStatus status,
                                        const Record *record);

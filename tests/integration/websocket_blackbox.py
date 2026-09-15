@@ -8,9 +8,15 @@ import os
 import signal
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT / "examples"))
+
+from reliable_websocket_consumer import ConsumeStatus, ReliableInbox
 
 HOST = "127.0.0.1"
 PORT = 8080
@@ -116,6 +122,57 @@ def run_check() -> None:
         _, close_opcode, close_payload = receive_frame(sock)
         if close_opcode != 0x8 or close_code(close_payload) != 1000:
             raise AssertionError("server did not drain close frame")
+
+    # 固定为单 Reactor 后，慢 handler 与快 handler 分属两条连接。如果业务仍在 Reactor
+    # 同步执行，slow_probe 会让 fast_probe 接近等待 2 秒；移交 Executor 后应迅速返回。
+    with open_websocket(9020) as slow, open_websocket(9021) as fast:
+        slow.sendall(masked_frame(
+            0x1, json.dumps({"type": "slow_probe"}).encode()
+        ))
+        time.sleep(0.25)
+        started = time.monotonic()
+        fast.sendall(masked_frame(
+            0x1, json.dumps({"type": "fast_probe"}).encode()
+        ))
+        fast.settimeout(1.0)
+        try:
+            fin, opcode, payload = receive_frame(fast)
+        except socket.timeout as exc:
+            raise AssertionError(
+                "fast WebSocket handler was blocked by slow handler on one Reactor"
+            ) from exc
+        finally:
+            fast.settimeout(TIMEOUT)
+        elapsed = time.monotonic() - started
+        if not fin or opcode != 0x1 or payload != b"fast done" or elapsed >= 1.0:
+            raise AssertionError(("WebSocket handler offload failed", elapsed, payload))
+
+        _, opcode, payload = receive_frame(slow)
+        if opcode != 0x1 or payload != b"slow done":
+            raise AssertionError(("slow handler result was lost", opcode, payload))
+
+    # Worker 中的业务异常必须回到 Reactor 形成明确的 1011 Close，而非杀死线程池进程。
+    with open_websocket(9022) as sock:
+        sock.sendall(masked_frame(
+            0x1, json.dumps({"type": "throw_probe"}).encode()
+        ))
+        _, opcode, payload = receive_frame(sock)
+        if opcode != 0x8 or close_code(payload) != 1011:
+            raise AssertionError("handler exception did not close with 1011")
+
+    # 协作式 handler 主动检查 Context 截止时间；预算到期后回到 Reactor，以 1013 收敛。
+    with open_websocket(9023) as sock:
+        sock.settimeout(7.0)
+        started = time.monotonic()
+        sock.sendall(masked_frame(
+            0x1, json.dumps({"type": "cooperative_timeout_probe"}).encode()
+        ))
+        _, opcode, payload = receive_frame(sock)
+        elapsed = time.monotonic() - started
+        if opcode != 0x8 or close_code(payload) != 1013:
+            raise AssertionError("cooperative handler timeout did not close with 1013")
+        if elapsed < 4.5 or elapsed > 6.5:
+            raise AssertionError(("handler deadline drifted", elapsed))
 
     # 空首分片也会开启消息；Ping 可穿插其中，Continuation 完成后再派发。
     with open_websocket(9002) as sock:
@@ -235,6 +292,7 @@ def run_check() -> None:
             "id": server_id,
             "from": 9013,
             "to": 9014,
+            "attempt": 1,
             "ack": True,
             "content": request["content"],
         }:
@@ -284,6 +342,98 @@ def run_check() -> None:
         finally:
             receiver.settimeout(TIMEOUT)
 
+    # Written 后才开始 ACK 超时；模拟“业务完成后 ACK 丢失”，验证客户端幂等消费。
+    with open_websocket(9015) as sender, open_websocket(9016) as receiver:
+        receiver.sendall(masked_frame(0x9, b"ready"))
+        _, opcode, payload = receive_frame(receiver)
+        if opcode != 0xA or payload != b"ready":
+            raise AssertionError("retry target session was not ready")
+
+        request = {
+            "v": 1,
+            "type": "chat",
+            "id": "client-retry",
+            "to": 9016,
+            "content": "retry-me",
+        }
+        encoded = json.dumps(request, separators=(",", ":")).encode()
+        sender.sendall(masked_frame(0x1, encoded))
+        _, opcode, payload = receive_frame(receiver)
+        first = json.loads(payload)
+        if opcode != 0x1 or first.get("attempt") != 1:
+            raise AssertionError(("missing first delivery attempt", first))
+
+        processed = []
+        inbox = ReliableInbox()
+
+        def process_chat(message):
+            processed.append(message["content"])
+
+        def lose_first_ack(_message_id):
+            raise OSError("simulated connection loss before ACK")
+
+        first_result = inbox.consume(first, process_chat, lose_first_ack)
+        if first_result.status != ConsumeStatus.ACK_FAILED:
+            raise AssertionError(("first ACK was not simulated lost", first_result))
+        _, opcode, payload = receive_frame(sender)
+        admission = json.loads(payload)
+        if opcode != 0x1 or admission.get("status") != "accepted":
+            raise AssertionError(("retry case was not admitted", admission))
+
+        receiver.settimeout(7.0)
+        try:
+            _, opcode, payload = receive_frame(receiver)
+        finally:
+            receiver.settimeout(TIMEOUT)
+        second = json.loads(payload)
+        if opcode != 0x1 or second.get("attempt") != 2:
+            raise AssertionError(("ACK timeout did not trigger retry", second))
+        if second.get("id") != first.get("id") or second.get("content") != "retry-me":
+            raise AssertionError(("retry changed message identity", first, second))
+
+        def send_ack(message_id):
+            ack = {"v": 1, "type": "ack", "replyTo": message_id}
+            receiver.sendall(masked_frame(
+                0x1,
+                json.dumps(ack, separators=(",", ":")).encode(),
+            ))
+
+        retry_result = inbox.consume(second, process_chat, send_ack)
+        if retry_result.status != ConsumeStatus.DUPLICATE_ACKED:
+            raise AssertionError(("retry was not deduplicated", retry_result))
+        if processed != ["retry-me"]:
+            raise AssertionError(("business ran more than once", processed))
+        _, opcode, payload = receive_frame(sender)
+        if opcode != 0x1 or json.loads(payload).get("status") != "acknowledged":
+            raise AssertionError("retry ACK did not reach original sender")
+        _, opcode, payload = receive_frame(receiver)
+        if opcode != 0x1 or json.loads(payload).get("status") != "accepted":
+            raise AssertionError("retry recipient did not receive ACK result")
+
+    # 离线属于可重试传输失败：达到三次上限后，后台服务主动通知发送方 failed。
+    with open_websocket(9017) as sender:
+        request = {
+            "v": 1,
+            "type": "chat",
+            "id": "client-offline",
+            "to": 999999,
+            "content": "offline",
+        }
+        sender.sendall(masked_frame(
+            0x1,
+            json.dumps(request, separators=(",", ":")).encode(),
+        ))
+        _, opcode, payload = receive_frame(sender)
+        scheduled = json.loads(payload)
+        if opcode != 0x1 or scheduled.get("status") != "retry_scheduled":
+            raise AssertionError(("offline delivery did not schedule retry", scheduled))
+        _, opcode, payload = receive_frame(sender)
+        failed = json.loads(payload)
+        if opcode != 0x1 or failed.get("status") != "failed":
+            raise AssertionError(("retry exhaustion was not reported", failed))
+        if failed.get("id") != scheduled.get("id"):
+            raise AssertionError(("failure notice changed message identity", scheduled, failed))
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -293,6 +443,7 @@ def main() -> int:
         process = subprocess.Popen(
             [str(server)],
             cwd=server.parent,
+            env={**os.environ, "WEB_SERVER_REACTORS": "1"},
             stdout=log,
             stderr=subprocess.STDOUT,
             start_new_session=True,

@@ -10,7 +10,7 @@
 //   ③别的线程/别的 Reactor 想给某连接发数据时，按 reactorIndex 路由到对应 SubReactor
 //     的 postOutbound（跨 Reactor 出站投递）；
 //   ④统一 stop/join 全部 SubReactor，保证析构时干净退出；
-//   ⑤持有协议无关的 Router&、Executor&、SessionFactory&，在 start 时把 SessionFactory
+//   ⑤持有协议无关的 Router&、HTTP Executor&、SessionFactory&，在 start 时把 SessionFactory
 //     注入到每个 SubReactor，让协议升级在 SubReactor 内部就能完成，本类不出现 WebSocket
 //     具体类型——这是依赖倒置的关键一环。
 //
@@ -51,7 +51,7 @@ class SessionFactory;
  * 酒店所有楼层经理的班组——总管自己不接客，只负责：①给每位经理分配楼层（start）；
  * ②新客人来了轮流派给某位经理（dispatch）；③别的部门想给某客房送东西，按房号找到
  * 对应经理转交（postOutbound）；④打烊时统一通知所有经理下班（stop+join）。
- * 总管手里握着 Router&（路由表）、Executor&（后厨线程池）、SessionFactory&（协议升级工厂）
+ * 总管手里握着 Router&（路由表）、HTTP Executor&（HTTP 后厨）、SessionFactory&（协议升级工厂）
  * 三件公共资源，在 start 时把 SessionFactory 派发给每位经理，让他们能独立处理协议升级。
  *
  * @note 本类对协议无关——不出现 WebSocket 类型，只通过 SessionFactory 抽象指针解耦。
@@ -151,7 +151,7 @@ public:
 
 private:
     Router &router_;                                       // 协议无关路由表引用：所有 SubReactor 共享，按 URL 分发 handler
-    Executor &executor_;                                   // 业务线程池引用：所有 SubReactor 共享，跑重计算的 handler
+    Executor &executor_;                                   // HTTP Worker 池：所有 SubReactor 共用；WS 使用独立池
     SessionFactory &sessionFactory_;                       // 协议升级工厂引用：start 时注入每个 SubReactor，让其能创建 WebSocketSession 等子类
     std::vector<std::unique_ptr<SubReactor>> reactors_;    // SubReactor 持有数组：每个 unique_ptr 独占一个 SubReactor 及其线程
     size_t next_ = 0;                                      // 轮询游标：dispatch 时按 (next_+1)%size 拨动，实现 round-robin 均衡

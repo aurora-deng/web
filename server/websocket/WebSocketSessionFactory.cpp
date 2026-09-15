@@ -4,13 +4,13 @@
 //
 // 【职责比喻：装配台的实际操作手册】
 //   接 WebSocketSessionFactory.h 的装配台比喻：本文件是装配台的具体操作步骤——
-//   构造时把 manager / dispatcher 引用绑好（构造函数），升级时 make_shared<WebSocketSession>
+//   构造时把 manager / dispatcher / executor 引用绑好，升级时 make_shared<WebSocketSession>
 //   把这些依赖注入进新会话（createWebSocketSession）。逻辑极薄，因为"装配"本身就是
 //   把依赖传进去再 new 一个对象的事——真正的复杂性在 WebSocketSession 内部。
 //
 // 【2.0 依赖倒置的落地】
 //   本文件是 websocket 模块向 session/transport 层提供的"唯一具体实现入口"。
-//   ReactorGroup 初始化时构造 WebSocketSessionFactory（绑定全局 manager / dispatcher），
+//   ReactorGroup 初始化时构造 WebSocketSessionFactory（绑定 manager / dispatcher / executor），
 //   再把工厂指针注入给每个 SubReactor。之后 SubReactor 只通过 SessionFactory* 抽象指针
 //   调 createWebSocketSession，不再出现 WebSocketSessionManager / WebSocketDispatcher
 //   具体类型——依赖方向单向干净。
@@ -30,11 +30,12 @@
 
 #include "server/websocket/WebSocketSession/WebSocketSession.h"
 
-// ---- 构造装配台：绑定全局 manager / dispatcher 引用（生命周期长于工厂） ----
+// ---- 构造装配台：绑定 Runtime 所有的 manager / dispatcher / executor 引用 ----
 WebSocketSessionFactory::WebSocketSessionFactory(
     WebSocketSessionManager &manager,
-    WebSocketDispatcher &dispatcher)
-    : manager_(manager), dispatcher_(dispatcher)
+    WebSocketDispatcher &dispatcher,
+    Executor &executor)
+    : manager_(manager), dispatcher_(dispatcher), executor_(executor)
 {
 }
 
@@ -55,5 +56,5 @@ std::shared_ptr<Session> WebSocketSessionFactory::createWebSocketSession(
 {
     // make_shared 一次分配对象+控制块；manager_ / dispatcher_ 是工厂绑定的全局引用
     return std::make_shared<WebSocketSession>(
-        key, reactor, uid, &manager_, dispatcher_);
+        key, reactor, uid, &manager_, dispatcher_, executor_);
 }
