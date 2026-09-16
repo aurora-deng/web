@@ -4,7 +4,7 @@
 // 【职责比喻：工厂总装线 / 酒店总经理】
 // 声明服务器运行时 ServerRuntime——整个服务器的"总指挥"（工厂总装线/酒店总经理），
 // 统一管理生命周期：监听套接字、MainReactor 的 epoll、ReactorGroup（一组 SubReactor）、
-// Router、HTTP/WS 两个 Executor。所有组件在这里装配、启动、退出。
+// Router、HTTP/WS 两个 Executor以及 WebSocket/SSE 长会话组件。所有组件在这里装配、启动、退出。
 //
 // 【生活比喻】
 // ServerRuntime 是酒店"总经理"：手底下管着前台接待（acceptLoop）、一群楼层经理
@@ -21,7 +21,7 @@
 //   - 构造 ReactorGroup 时改传 *router_（路由器协议无关，HTTP/WS 共用）；
 //   - codec 下沉到各 Session 子类内部（HttpSession 自带 HttpCodec，
 //     WebSocketSession 自带 WebSocketCodec），每条连接独立编解码互不干扰；出站发送统一走 OutboundTask，不在 Session 抽象 sender。
-//   - Runtime 创建 WebSocketSessionFactory（即 SessionFactory 的具体实现）wsFactory_，
+//   - Runtime 创建 ProtocolSessionFactory（即 SessionFactory 的具体实现），
 //     经 ReactorGroup::start → SubReactor::setSessionFactory 注入到每个 SubReactor——
 //     SubReactor 收到 HTTP Upgrade: websocket 时通过它创建 WebSocketSession，本类与
 //     SubReactor 都不直接 new WebSocketSession，依赖倒置到 SessionFactory 抽象。
@@ -39,8 +39,8 @@
 //    超额直接 close 新 fd，避免无界占满 fd/内存。
 // 5. 组件装配点：本类是整个服务器的"总装线"——构造期建 router_/httpExecutor_/
 //    wsExecutor_/wsManager_/
-//    wsDispatcher_/wsDelivery_/wsFactory_/reactorGroup_，start() 时再 setupListener + createReactors
-//    把监听端和反应器组拉起，最后 acceptLoop 阻塞接客。其中 wsFactory_（SessionFactory
+//    wsDispatcher_/wsDelivery_/sessionFactory_/reactorGroup_，start() 时再 setupListener + createReactors
+//    把监听端和反应器组拉起，最后 acceptLoop 阻塞接客。其中 sessionFactory_（SessionFactory
 //    实现）在构造 ReactorGroup 时引用传入，由 ReactorGroup::start 注入每个 SubReactor。
 // 6. wsDelivery_ 是可靠消息的生命周期边界：Reactor 启动后启动，退出时先 stop+join，
 //    防止后台重试线程向正在销毁的 Reactor 投递任务。
@@ -57,20 +57,22 @@
 #include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
 #include "server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
 #include "server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
-#include "server/websocket/WebSocketSessionFactory.h"
+#include "server/sse/SseSessionManager.h"
+
+class ProtocolSessionFactory;
 
 class ReactorGroup;
 /**
  * @brief 服务器运行时（工厂总装线），封装所有基础设施生命周期
  *
- * 管理：监听套接字、epoll、SubReactor 组、Router 和 HTTP/WS 独立 Executor。
+ * 管理：监听套接字、epoll、SubReactor 组、Router、HTTP/WS 独立 Executor和 SSE 会话目录。
  * 协议 Codec 由各 Session 自持，不再在 Runtime 层持有 HttpCodec；出站发送由 OutboundTask + TransportWriter 体系承担。
  *
  * 【通俗解释】
  * 本类是整个服务器的"总装线"——所有组件在这里装配、启动、退出：
- * 构造期建 router_/httpExecutor_/wsExecutor_/wsManager_/wsDispatcher_/wsDelivery_/wsFactory_/reactorGroup_，
+ * 构造期建 router_/httpExecutor_/wsExecutor_/wsManager_/sseManager_/wsDelivery_/sessionFactory_/reactorGroup_，
  * start() 时 setupListener + createReactors 拉起监听端和反应器组，最后 acceptLoop 阻塞接客。
- * 其中 wsFactory_（WebSocketSessionFactory，即 SessionFactory 实现）经 ReactorGroup
+ * 其中 sessionFactory_（ProtocolSessionFactory，即 SessionFactory 实现）经 ReactorGroup
  * 注入到每个 SubReactor，让协议升级在 SubReactor 内部就能完成。
  *
  * 使用方式：
@@ -81,7 +83,7 @@ class ReactorGroup;
  * @endcode
  *
  * @note 第四阶段重构后，本类不再持有 HttpCodec codec_ 成员——codec 已下沉到各 Session
- *       子类内部（HttpSession/WebSocketSession 各自持有），Runtime 只装配协议无关组件。
+ *       子类内部（HttpSession/WebSocketSession/SseSession 各自负责协议语义），Runtime 只装配组件。
  */
 class ServerRuntime
 {
@@ -134,6 +136,8 @@ public:
     WebSocketSessionManager &wsManager() { return wsManager_; }
     /** @return 可靠 WS 投递服务；业务 handler 用它提交带 ID/ACK 的消息。 */
     WebSocketDeliveryService &wsDelivery() { return wsDelivery_; }
+    /** @return SSE 订阅目录与跨 Reactor 发布入口。 */
+    SseSessionManager &sseManager() { return sseManager_; }
 
 private:
     // 路由表（协议无关）：第四阶段前 Runtime 还持有一个 HttpCodec codec_ 成员，
@@ -141,12 +145,13 @@ private:
     std::shared_ptr<Router> router_;
     WebSocketDispatcher wsDispatcher_;
     WebSocketSessionManager wsManager_;
+    SseSessionManager sseManager_;
     WebSocketDeliveryService wsDelivery_;
     // 析构前由 shutdownComponents 显式排空两个 Executor，再 reset ReactorGroup；不能只依赖
     // 成员逆序析构，因为 Worker 完成时仍要调用 Reactor 的完成通知入口。
     Executor httpExecutor_;                          // HTTP 业务舱：不会被 WS 慢任务占满
     Executor wsExecutor_;                            // WebSocket 业务舱：独立容量与截止时间
-    std::unique_ptr<WebSocketSessionFactory> wsFactory_;  // SessionFactory 具体实现：构造期创建，经 ReactorGroup::start 注入每个 SubReactor，用于 HTTP→WebSocket 协议升级时 new WebSocketSession
+    std::unique_ptr<ProtocolSessionFactory> sessionFactory_; // 统一创建 WebSocket/SSE 长会话
     std::unique_ptr<ReactorGroup> reactorGroup_;
     int port_ = 8080;                                // 监听端口
     size_t reactorCount_ = 0;                        // SubReactor 数量（0=自动）

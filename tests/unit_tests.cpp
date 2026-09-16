@@ -55,6 +55,7 @@
 #include "server/http/http.h"
 #include "server/http/HttpParser/HttpParser.h"
 #include "server/http/RequestContext/RequestContext.h"
+#include "server/sse/SseCodec.h"
 #include "server/SegmentPool/SegmentPool.h"
 #include "server/timer/TimeWheel.h"
 
@@ -2002,4 +2003,75 @@ TEST(ExecutorTest, SeparateHttpAndWebSocketLanesDoNotStarveEachOther)
     EXPECT_TRUE(sawHttpStart);
     EXPECT_TRUE(wsAccepted);
     EXPECT_TRUE(wsCompletedWhileHttpBlocked);
+}
+
+TEST(SseCodecTest, EncodesFieldsMultilineDataAndRetry)
+{
+    SseEvent event;
+    event.id = "42";
+    event.eventName = "notice";
+    event.retryMilliseconds = 1500;
+    event.data = "first\r\nsecond\rempty\n";
+
+    EXPECT_EQ(
+        SseCodec::encodeEvent(event),
+        "id: 42\n"
+        "event: notice\n"
+        "retry: 1500\n"
+        "data: first\n"
+        "data: second\n"
+        "data: empty\n"
+        "data: \n"
+        "\n");
+}
+
+TEST(SseCodecTest, PreventsFieldInjection)
+{
+    SseEvent event;
+    event.id = "safe\nid: forged";
+    event.eventName = "notice\r\nevent: forged";
+    event.data = "payload";
+    const auto encoded = SseCodec::encodeEvent(event);
+
+    EXPECT_EQ(encoded.find("\nid: forged\n"), std::string::npos);
+    EXPECT_EQ(encoded.find("\nevent: forged\n"), std::string::npos);
+    EXPECT_NE(encoded.find("data: payload\n\n"), std::string::npos);
+}
+
+TEST(SseCodecTest, WrapsEventTextAsOneHttpChunk)
+{
+    EXPECT_EQ(
+        SseCodec::encodeChunk("data: hi\n\n"),
+        "a\r\ndata: hi\n\n\r\n");
+    EXPECT_EQ(
+        SseCodec::encodeComment("heartbeat"),
+        ": heartbeat\n\n");
+}
+
+TEST(SseHandshakeTest, UsesHeaderOnlyChunkedResponse)
+{
+    HttpResponse response;
+    response.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    response.beginChunkedStream();
+
+    const auto header =
+        static_cast<const HttpResponse &>(response).buildHeader();
+    EXPECT_EQ(response.body, nullptr);
+    EXPECT_NE(header.find("HTTP/1.1 200 OK\r\n"), std::string::npos);
+    EXPECT_NE(header.find("Content-Type: text/event-stream; charset=utf-8\r\n"),
+              std::string::npos);
+    EXPECT_NE(header.find("Transfer-Encoding: chunked\r\n"), std::string::npos);
+    EXPECT_EQ(header.find("Content-Length:"), std::string::npos);
+}
+
+TEST(RequestContextTest, LongProtocolAcceptFlagsAreMutuallyExclusive)
+{
+    RequestContext context;
+    context.acceptWebSocket();
+    EXPECT_TRUE(context.webSocketAccepted);
+    EXPECT_FALSE(context.sseAccepted);
+
+    context.acceptSse();
+    EXPECT_FALSE(context.webSocketAccepted);
+    EXPECT_TRUE(context.sseAccepted);
 }

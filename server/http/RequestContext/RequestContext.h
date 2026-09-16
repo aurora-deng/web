@@ -54,9 +54,21 @@ struct RequestContext
     // 默认 false：每轮请求默认不升级，业务需主动调 acceptWebSocket() 表达意愿——
     // 这样普通 HTTP 请求完全不受 WebSocket 逻辑影响。
     bool webSocketAccepted = false;
+    bool sseAccepted = false;
 
     /** @brief 业务侧调用，表示接受 WebSocket 升级 */
-    void acceptWebSocket() { webSocketAccepted = true; }
+    void acceptWebSocket()
+    {
+        webSocketAccepted = true;
+        sseAccepted = false;
+    }
+
+    /** @brief 业务侧调用，表示发送 SSE 首部后把连接交给 SseSession */
+    void acceptSse()
+    {
+        sseAccepted = true;
+        webSocketAccepted = false;
+    }
 
     /** 耗时 handler 应在循环、分批 I/O 或重计算边界调用。 */
     bool stopRequested() const noexcept

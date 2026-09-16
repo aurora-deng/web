@@ -226,6 +226,20 @@ void HttpResponse::beginChunked()
 }
 
 /**
+ * @brief 只建立 chunked 响应首部，后续数据由接管连接的长会话逐块发送
+ *
+ * 普通 beginChunked() 把一个 ChunkedBody 挂在当前 HttpResponse 上，适合一次 handler
+ * 内生产完的流。SSE 的生命周期远长于这次 HTTP handler，因此这里只发送首部；
+ * HttpSession 等首部写完后把连接交给 SseSession，事件块继续走 OutboundTask。
+ */
+void HttpResponse::beginChunkedStream()
+{
+    chunked = true;
+    body.reset();
+    headers["Transfer-Encoding"] = "chunked";
+}
+
+/**
  * @brief 追加一个分块到 chunked 响应体
  * @param s 这一帧的数据内容
  * @note 自动生成 "十六进制长度\r\n" + 数据 + "\r\n" 的 chunk 格式，业务侧无需关心协议细节。

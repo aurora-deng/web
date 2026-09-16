@@ -24,6 +24,7 @@
 // ============================================================
 #include "server/Runtime/ServerRuntime.h"
 #include "server/http/RequestContext/RequestContext.h"
+#include "server/sse/SseEvent.h"
 #include "server/websocket/WebSocketCodec/WebSocketCodec.h"
 #include "server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
 #include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
@@ -214,6 +215,73 @@ int main()
                     "Content-Type", "application/json; charset=utf-8");
                 ctx.response->text(
                     serializeDeliveryMetrics(deliveryService->metrics()));
+                return true;
+            });
+
+        // SSE 订阅入口：HTTP handler 只表达“接受流”，首部写完后由 SseSession 接管连接。
+        // 浏览器可使用 new EventSource('/events?uid=1001') 建立订阅。
+        server.router().GET("/events", [](RequestContext &ctx) -> bool
+                            {
+        ctx.acceptSse();
+        return true; });
+
+        // SSE 发布入口：示例使用查询参数，便于直接用 curl 观察完整跨 Reactor 推送链路。
+        // POST /events/1001?event=notice&id=42&data=hello
+        auto *sseManager = &server.sseManager();
+        server.router().POST(
+            "/events/:uid",
+            [sseManager](RequestContext &ctx) -> bool
+            {
+                SseClientId clientId = 0;
+                try
+                {
+                    std::size_t parsed = 0;
+                    const auto &raw = ctx.params.at("uid");
+                    clientId = std::stoull(raw, &parsed);
+                    if (parsed != raw.size())
+                        clientId = 0;
+                }
+                catch (...)
+                {
+                    clientId = 0;
+                }
+
+                if (clientId == 0)
+                {
+                    ctx.response->status = 400;
+                    ctx.response->statusText = "Bad Request";
+                    ctx.response->json("{\"error\":\"uid must be a positive integer\"}");
+                    return true;
+                }
+
+                SseEvent event;
+                event.eventName = ctx.querry("event");
+                if (event.eventName.empty())
+                    event.eventName = "message";
+                event.id = ctx.querry("id");
+                event.data = ctx.querry("data");
+                if (event.data.empty())
+                    event.data = "hello from the SSE publisher";
+
+                const auto accepted = sseManager->publish(clientId, event);
+                if (accepted == 0)
+                {
+                    ctx.response->status = 404;
+                    ctx.response->statusText = "Not Found";
+                }
+                ctx.response->json(
+                    "{\"acceptedConnections\":" +
+                    std::to_string(accepted) + "}");
+                return true;
+            });
+
+        server.router().GET(
+            "/events-status",
+            [sseManager](RequestContext &ctx) -> bool
+            {
+                ctx.response->json(
+                    "{\"onlineConnections\":" +
+                    std::to_string(sseManager->onlineCount()) + "}");
                 return true;
             });
 

@@ -167,6 +167,7 @@ struct HttpResponse
     void buildHeader();               // 把响应头序列化进 HeaderBody_（生产路径，零拷贝友好）
 // 流式发送chunk
     void beginChunked();              // 开启分块传输模式，写入 Transfer-Encoding 头
+    void beginChunkedStream();        // 只发送 chunked 首部；后续块由长连接 Session 入队
     void writeChunk(const std::string &s); // 追加一个分块（自动加 chunk-size 前缀和 CRLF 后缀）
     void endChunked();                // 结束分块流（写入终止 0 长度块）
     // 完善response函数

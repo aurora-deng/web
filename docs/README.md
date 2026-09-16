@@ -1,47 +1,22 @@
-# 文档索引
+# 文档导航
 
-按主题分目录。收尾从 **closeout** 读起。
+文档分为「当前架构」「课程演进」「验证与运维」。`phase5.md` 是本次 SSE 接入，旧 WebSocket 课程的阶段 5–15 统一改名为 `lesson05`–`lesson15`，放在 `websocket-lessons/`，避免与后续接入阶段撞名。
 
-## 目录结构
-
-```text
-docs/
-  closeout/       收口总述、清单、阶段 A 改动说明
-  architecture/   架构、请求流、阶段升级、对照
-    phase3/       ★ 第三阶段重要知识点（Reactor/Runtime/Pipeline/背压/所有权…）
-    phase4_upgrade.md  ★ 第四阶段升级文档（WebSocket 介入与改动路径）
-  testing/        测试说明；learning/ 学习材料
-  performance/    压测方法
-  roadmap/        机器人 / 后续方向
-  ops/            环境与运维备忘
-  archive/        历史阶段材料
-```
-
-## 速查
-
-| 主题 | 文档 |
-|------|------|
-| **收尾总述（先读）** | [closeout/CLOSEOUT_NARRATIVE.md](closeout/CLOSEOUT_NARRATIVE.md) |
-| 收口清单 | [closeout/CLOSEOUT.md](closeout/CLOSEOUT.md) |
-| 阶段 A（NODELAY/停服） | [closeout/closeout-A_tcp_nodelay_graceful_shutdown.md](closeout/closeout-A_tcp_nodelay_graceful_shutdown.md) |
+| 主题 | 入口 |
+|---|---|
+| 当前系统和版本对比 | [项目 README](../README.md) |
 | 架构总览 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) |
-| **第三阶段重要知识点** | [architecture/phase3/README.md](architecture/phase3/README.md) |
-| **第四阶段升级文档（WebSocket）** | [architecture/第四阶段升级文档.md](architecture/第四阶段升级文档.md) · [phase4_upgrade.md](architecture/phase4_upgrade.md) |
-| 请求流 | [architecture/request_flow.md](architecture/request_flow.md) |
-| 第三阶段升级记录 | [architecture/phase3_architecture_upgrade.md](architecture/phase3_architecture_upgrade.md) |
-| 代码对照 | [architecture/code_diff_comparison.md](architecture/code_diff_comparison.md) |
-| 测试入口 | [testing/TESTING.md](testing/TESTING.md) |
-| 测试学习范围 | [testing/LEARNING_SCOPE.md](testing/LEARNING_SCOPE.md) |
-| **测试学习综合讲义和笔记** | [testing/learning/测试学习综合讲义和笔记/README.md](testing/learning/测试学习综合讲义和笔记/README.md) |
-| 我对各层测试的理解 | [testing/learning/测试学习综合讲义和笔记/我对各层测试的理解.md](testing/learning/测试学习综合讲义和笔记/我对各层测试的理解.md) |
-| 火焰图命令流与读图 | [testing/learning/测试学习综合讲义和笔记/火焰图生成命令流与读图教学.md](testing/learning/测试学习综合讲义和笔记/火焰图生成命令流与读图教学.md) |
-| 学习笔记速查 | [testing/learning/学习笔记速查.md](testing/learning/学习笔记速查.md) |
-| 压测方法 | [performance/BENCHMARK.md](performance/BENCHMARK.md) |
-| 机器人路线 | [roadmap/ROBOTICS_ROADMAP.md](roadmap/ROBOTICS_ROADMAP.md) |
-| 环境备忘 | [ops/environment.md](ops/environment.md) |
+| 一次请求的路径 | [architecture/request_flow.md](architecture/request_flow.md) |
+| SSE 接入（Phase 5） | [architecture/phase5.md](architecture/phase5.md) |
+| WebSocket 课程演进 | [architecture/websocket-lessons/README.md](architecture/websocket-lessons/README.md) |
+| Reactor 基础课程 | [architecture/phase3/README.md](architecture/phase3/README.md) |
+| WebSocket 初次接入 | [architecture/phase4_upgrade.md](architecture/phase4_upgrade.md) |
+| 测试说明 | [testing/TESTING.md](testing/TESTING.md) |
+| 测试学习材料 | [testing/learning/测试学习综合讲义和笔记/README.md](testing/learning/测试学习综合讲义和笔记/README.md) |
+| 性能 | [performance/BENCHMARK.md](performance/BENCHMARK.md) |
+| 调试 | [debugging/CHEATSHEET.md](debugging/CHEATSHEET.md) |
+| 部署环境 | [ops/environment.md](ops/environment.md) |
+| 停机与收尾 | [closeout/CLOSEOUT.md](closeout/CLOSEOUT.md) |
+| 历史材料 | [archive/](archive/) |
 
-## 一键验证
-
-```bash
-bash scripts/gen_report.sh
-```
+学习顺序建议：先看项目 README 的整体图，再读架构总览；已掌握旧版的读者可直接进入 Phase 5，遇到连接代际、出站队列、协程交接时回查 WebSocket 课程。

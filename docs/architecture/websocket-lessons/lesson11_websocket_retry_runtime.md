@@ -243,13 +243,13 @@ Written 后，观察表数量为什么依次是 2、1、0。
 
 建议依次阅读：
 
-1. [`WebSocketDeliveryTracker.h`](../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h)：五态状态机和 attempt 回填接口。
-2. [`WebSocketDeliveryService.h`](../../server/websocket/WebSocketDelivery/WebSocketDeliveryService.h)：驱动器公开边界和所有权。
-3. [`WebSocketDeliveryService.cpp`](../../server/websocket/WebSocketDelivery/WebSocketDeliveryService.cpp)：`submit → dispatchAttempt → harvestReceipts → tick`。
-4. [`ServerRuntime.cpp`](../../server/Runtime/ServerRuntime.cpp)：启动和统一 shutdown 顺序。
-5. [`main.cpp`](../../main.cpp)：业务 handler 已缩减为调用 Service 和转换状态。
-6. [`unit_tests.cpp`](../../tests/unit_tests.cpp)：人为时间和可控 Receipt 怎样测试异步状态机。
-7. [`websocket_blackbox.py`](../../tests/integration/websocket_blackbox.py)：真实连接的 ACK 超时重发与离线失败。
+1. [`WebSocketDeliveryTracker.h`](../../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h)：五态状态机和 attempt 回填接口。
+2. [`WebSocketDeliveryService.h`](../../../server/websocket/WebSocketDelivery/WebSocketDeliveryService.h)：驱动器公开边界和所有权。
+3. [`WebSocketDeliveryService.cpp`](../../../server/websocket/WebSocketDelivery/WebSocketDeliveryService.cpp)：`submit → dispatchAttempt → harvestReceipts → tick`。
+4. [`ServerRuntime.cpp`](../../../server/Runtime/ServerRuntime.cpp)：启动和统一 shutdown 顺序。
+5. [`main.cpp`](../../../main.cpp)：业务 handler 已缩减为调用 Service 和转换状态。
+6. [`unit_tests.cpp`](../../../tests/unit_tests.cpp)：人为时间和可控 Receipt 怎样测试异步状态机。
+7. [`websocket_blackbox.py`](../../../tests/integration/websocket_blackbox.py)：真实连接的 ACK 超时重发与离线失败。
 
 理解检查：
 
@@ -262,7 +262,7 @@ Written 后，观察表数量为什么依次是 2、1、0。
 7. 哪些 OutboundOutcome 适合重试，哪个应直接失败？
 
 接收端的具体实现、ACK 顺序与跨重启边界见
-[`phase12_websocket_receiver_idempotency.md`](phase12_websocket_receiver_idempotency.md)。
+[`lesson12_websocket_receiver_idempotency.md`](lesson12_websocket_receiver_idempotency.md)。
 
 指数退避、抖动和投递指标见
-[`phase13_websocket_backoff_and_metrics.md`](phase13_websocket_backoff_and_metrics.md)。
+[`lesson13_websocket_backoff_and_metrics.md`](lesson13_websocket_backoff_and_metrics.md)。

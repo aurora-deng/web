@@ -113,6 +113,7 @@ private:
     HttpCodec codec_;               // 编解码+分发
     RequestContext context_;        // 本次请求的"档案袋"（请求/响应/连接信息）
     bool keepAlive_ = true;         // 是否保持连接
+    uint64_t sseClientId_ = 0;      // SSE 握手校验后的客户端标识
     SessionState state = SessionState::READING; // 当前会话状态
     std::stop_source handlerStopSource_; // 当前在途 handler 的协作式撤单源
 
@@ -189,6 +190,13 @@ private:
      * @note 通过 SessionFactory 创建 WebSocketSession，adopt 进调度器，旧 HTTP 协程退出。
      */
     bool handoffWebSocket();
+
+    /** 准备 200 text/event-stream 首部；失败时准备普通 400 响应。 */
+    bool prepareSseStream();
+    /** 检查业务是否调用 acceptSse()。 */
+    bool handleSseIfRequested();
+    /** 首部写完后创建 SseSession 并替换 Connection::session。 */
+    bool handoffSse();
 };
 
 #endif

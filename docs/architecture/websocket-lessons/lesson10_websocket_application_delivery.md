@@ -2,7 +2,7 @@
 
 > 本阶段解决“服务端怎样知道某一条业务消息被正确的接收者确认”。它建立可靠投递的状态核心；
 > 后续的周期驱动、最终写回执与停机边界已在
-> [`phase11_websocket_retry_runtime.md`](phase11_websocket_retry_runtime.md) 接入。
+> [`lesson11_websocket_retry_runtime.md`](lesson11_websocket_retry_runtime.md) 接入。
 
 ## 1. 本课学习目标
 
@@ -237,13 +237,13 @@ WebSocket 帧、协议升级、会话目录、跨 Reactor 邮箱和统一 Writer
 
 ## 11. 本课代码阅读顺序
 
-1. [`WebSocketMessage.h`](../../server/websocket/WebSocketMessage/WebSocketMessage.h)：先看业务信封字段。
-2. [`WebSocketCodec.cpp`](../../server/websocket/WebSocketCodec/WebSocketCodec.cpp)：看扁平 JSON 的完整验证、提取与序列化。
-3. [`WebSocketDeliveryTracker.h`](../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h)：只看公开状态和动作。
-4. [`WebSocketDeliveryTracker.cpp`](../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp)：沿 `begin → acknowledge → collectDue → pruneTerminals` 阅读。
-5. [`main.cpp`](../../main.cpp)：看 chat/ack handler 如何把 Codec、Tracker 和 SessionManager 串起来。
-6. [`unit_tests.cpp`](../../tests/unit_tests.cpp)：用边界测试反推契约。
-7. [`websocket_blackbox.py`](../../tests/integration/websocket_blackbox.py)：看两个真实客户端怎样完成投递、ACK 和重复请求。
+1. [`WebSocketMessage.h`](../../../server/websocket/WebSocketMessage/WebSocketMessage.h)：先看业务信封字段。
+2. [`WebSocketCodec.cpp`](../../../server/websocket/WebSocketCodec/WebSocketCodec.cpp)：看扁平 JSON 的完整验证、提取与序列化。
+3. [`WebSocketDeliveryTracker.h`](../../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h)：只看公开状态和动作。
+4. [`WebSocketDeliveryTracker.cpp`](../../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp)：沿 `begin → acknowledge → collectDue → pruneTerminals` 阅读。
+5. [`main.cpp`](../../../main.cpp)：看 chat/ack handler 如何把 Codec、Tracker 和 SessionManager 串起来。
+6. [`unit_tests.cpp`](../../../tests/unit_tests.cpp)：用边界测试反推契约。
+7. [`websocket_blackbox.py`](../../../tests/integration/websocket_blackbox.py)：看两个真实客户端怎样完成投递、ACK 和重复请求。
 
 ## 12. 理解检查
 
@@ -257,4 +257,4 @@ WebSocket 帧、协议升级、会话目录、跨 Reactor 邮箱和统一 Writer
 8. 为什么 WebSocket/TCP 可靠仍不足以表示订单已经被业务处理？
 
 周期驱动与最终写回执的完整讲解见
-[`phase11_websocket_retry_runtime.md`](phase11_websocket_retry_runtime.md)。
+[`lesson11_websocket_retry_runtime.md`](lesson11_websocket_retry_runtime.md)。

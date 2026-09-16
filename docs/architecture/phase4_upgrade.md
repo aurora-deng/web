@@ -2,7 +2,7 @@
 
 > **阶段定位**：在第三阶段对象化 Runtime / Session 完成的基础上，**不推倒 Reactor**，换会话语义与帧模型，介入 WebSocket（RFC 6455），并引入统一的出站任务体系（OutboundTask + OutboundQueue + TransportWriter + writerLoop）替代旧版 HTTP 专用发送器。
 > **文档职责**：记录本阶段架构演进的全部技术决策、控制流与跨 Reactor 投递链路；面向需要理解第四阶段架构的工程师。
-> **差异清单见 → [update_guide.md](../../../../update_guide.md)**，中文教学版见 → [第四阶段升级文档.md](第四阶段升级文档.md)。
+> **当前版本差异见 → [项目 README](../../README.md)**，中文教学版见 → [第四阶段升级文档.md](第四阶段升级文档.md)。
 
 ---
 
@@ -211,7 +211,7 @@ A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
 | 路径 | 作用 |
 |------|------|
 | [`websocket/WebSocketSession/WebSocketSession.{h,cpp}`](../../server/websocket/WebSocketSession/WebSocketSession.h) | `run()` 帧循环；`startAppMessage/finishAppMessage` 跨 Executor 两段式业务处理；`enqueueOutbound` 出站 |
-| [`websocket/WebSocketSessionFactory.{h,cpp}`](../../server/websocket/WebSocketSessionFactory.h) | `WebSocketSessionFactory`（2.0 新增）：`SessionFactory` 具体实现，唯一知 manager+dispatcher 装配关系 |
+| [`session/ProtocolSessionFactory.{h,cpp}`](../../server/session/ProtocolSessionFactory.h) | 本阶段曾使用 `WebSocketSessionFactory`；接入 SSE 后改为 `ProtocolSessionFactory`，继续承担 `SessionFactory` 的具体装配 |
 
 ### 3.6 其它
 

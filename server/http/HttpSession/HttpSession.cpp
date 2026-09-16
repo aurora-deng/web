@@ -284,6 +284,90 @@ bool HttpSession::handleWebSocketUpgradeIfRequested()
     return prepareWebSocketUpgrade();
 }
 
+bool HttpSession::prepareSseStream()
+{
+    if (!context_.sseAccepted)
+        return false;
+
+    sseClientId_ = 0;
+    const auto found = context_.request.querryParams.find("uid");
+    if (found != context_.request.querryParams.end())
+    {
+        try
+        {
+            std::size_t parsed = 0;
+            const auto value = std::stoull(found->second, &parsed);
+            if (parsed == found->second.size() && value != 0)
+                sseClientId_ = value;
+        }
+        catch (...)
+        {
+            sseClientId_ = 0;
+        }
+    }
+
+    releasePendingResponse();
+    context_.response = responsePool.acquire();
+    context_.response->reset();
+    if (sseClientId_ == 0)
+    {
+        context_.response->status = 400;
+        context_.response->statusText = "Bad Request";
+        context_.response->keepAlive = false;
+        context_.response->text("SSE requires a positive uid query parameter");
+        context_.sseAccepted = false;
+        return false;
+    }
+
+    context_.response->status = 200;
+    context_.response->statusText = "OK";
+    context_.response->keepAlive = true;
+    context_.response->setHeader(
+        "Content-Type", "text/event-stream; charset=utf-8");
+    context_.response->setHeader("Cache-Control", "no-cache");
+    context_.response->setHeader("X-Accel-Buffering", "no");
+    context_.response->beginChunkedStream();
+    keepAlive_ = true;
+    return true;
+}
+
+bool HttpSession::handleSseIfRequested()
+{
+    if (!context_.sseAccepted)
+        return false;
+    return prepareSseStream();
+}
+
+bool HttpSession::handoffSse()
+{
+    auto *conn = getConn();
+    if (!conn || conn->state.closed || sseClientId_ == 0)
+        return false;
+
+    conn->timer.wsHeartbeat = false;
+    conn->timer.waitingPong = false;
+    conn->state.wantWrite = false;
+    reactor->touchActivity(key_.fd);
+    reactor->updateEvent(key_.fd);
+
+    auto *factory = reactor->sessionFactory();
+    if (!factory)
+        return false;
+    auto sse = factory->createSseSession(
+        key_, reactor, sseClientId_);
+    if (!sse)
+        return false;
+
+    conn->session = sse;
+    auto task = sse->run();
+    auto handle = task.release();
+    conn->slot(CoroutineRole::Main).handle = handle;
+    reactor->scheduler().adopt(
+        key_.fd, key_.connId, CoroutineRole::Main, handle, sse);
+    state = SessionState::CLOSED;
+    return true;
+}
+
 /**
  * @brief 同步提交业务 handler；等待动作由唯一根协程 run() 执行
  */
@@ -332,6 +416,7 @@ HandlerStartResult HttpSession::startHandler()
             context_.response->keepAlive = false;
             // 失败或超时必须取消业务留下的升级意图，否则 504/500 可能被后续 101 覆盖。
             context_.webSocketAccepted = false;
+            context_.sseAccepted = false;
             context_.response->text(body);
         };
 
@@ -430,6 +515,8 @@ void HttpSession::resetRequestContext()
     context_.Id = key_.connId;
     context_.fd = key_.fd;
     context_.webSocketAccepted = false;
+    context_.sseAccepted = false;
+    sseClientId_ = 0;
     context_.cancellation = HandlerCancellation{};
     keepAlive_ = true;
 }
@@ -503,6 +590,7 @@ Task<void> HttpSession::run()
 
         // 阶段三：业务决定是否升级；响应统一入队后等待 ticket 真正发完。
         const bool upgrading = handleWebSocketUpgradeIfRequested();
+        const bool streamingSse = !upgrading && handleSseIfRequested();
         const uint64_t ticket = queueResponse();
         if (ticket == 0)
             co_return;
@@ -521,6 +609,17 @@ Task<void> HttpSession::run()
                 reactor->fd_close(
                     key_.fd,
                     "websocket handoff failed",
+                    CoroutineRole::Main);
+            state = SessionState::CLOSED;
+            co_return;
+        }
+
+        if (streamingSse)
+        {
+            if (!handoffSse())
+                reactor->fd_close(
+                    key_.fd,
+                    "sse handoff failed",
                     CoroutineRole::Main);
             state = SessionState::CLOSED;
             co_return;

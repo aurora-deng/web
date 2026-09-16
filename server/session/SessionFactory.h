@@ -3,24 +3,23 @@
 // 所属模块：server/session —— 协议会话的"装配台"接口（2.0 新增）
 //
 // 【职责比喻：协议会话的"装配台"】
-//   HTTP 升级 WebSocket 时，HttpSession 自己造不出 WebSocketSession（它得带上 manager /
-//   dispatcher / uid 等一堆 WebSocket 协议依赖，这些都在 websocket 模块里，HttpSession 不该
-//   直接 include）。于是 SubReactor 持有一个 SessionFactory 装配台，HttpSession 升级时向它
-//   要一个新会话，工厂内部把 manager/dispatcher 等依赖组装好再交出 WebSocketSession。
-//   SubReactor 只持有本抽象接口，不直接依赖 WebSocket 具体类型——是 2.0 依赖倒置的关键。
+//   HttpSession 自己造不出 WebSocketSession 或 SseSession：它们各自需要 manager、dispatcher、
+//   uid/clientId 等协议依赖，而 HTTP 层不该直接 include 这些具体类型。于是 SubReactor 持有一个
+//   SessionFactory 装配台，HttpSession 交接长连接时向它要新会话，具体工厂负责组装依赖。
+//   SubReactor 只持有本抽象接口，不依赖 WS/SSE 具体类型——是 2.0 依赖倒置的关键。
 //
 // 关键技术点（初学者重点理解）：
 //   1. 【依赖倒置】SubReactor 持有 SessionFactory* 抽象指针而非 WebSocketSessionManager /
-//       WebSocketDispatcher 具体类型，切断 transport/session 层对 websocket 模块的直接依赖。
-//       具体工厂实现住在 websocket 模块里，构造时注入给 SubReactor。
-//   2. 【抽象接口】纯虚 createWebSocketSession = 0，不同实现可造不同配置的 WS 会话；
+//       SseSessionManager 等具体类型，切断事件循环层对上层协议模块的直接依赖。
+//       ProtocolSessionFactory 在 Runtime 装配时注入给 SubReactor。
+//   2. 【抽象接口】两个纯虚 create 方法分别创建 WS/SSE 会话；
 //       虚析构保证通过基类指针销毁子类工厂时正确析构。
-//   3. 【升级交接点】HTTP→WebSocket 升级时，HttpSession 调本工厂 createWebSocketSession 拿到
-//       新会话，reset 进 Connection::session，旧 HTTP 协程 co_return，新 WS 协程接管 fd。
+//   3. 【交接点】HTTP 101 或 SSE 200 首部发完后，HttpSession 调工厂拿到新会话，放进
+//       Connection::session；旧 HTTP 协程退出，新长会话协程接管同一个 fd。
 //   4. 【返回 shared_ptr<Session>】工厂返回基类指针，让 Connection::session 多态持有，与
 //       HttpSession 共享同一基类接口，升级时无缝替换。
-//   5. 【2.0 出站配合】升级后的 WebSocketSession 出站同样走 OutboundTask + TransportWriter +
-//       writerLoop 体系，与 HttpSession 一致；工厂只负责"装配会话"，不掺和出站发送。
+//   5. 【2.0 出站配合】WS 帧和 SSE chunk 都走 OutboundTask + TransportWriter + writerLoop；
+//       工厂只负责"装配会话"，不掺和出站发送。
 // =============================================================================
 #pragma once
 #ifndef SESSION_FACTORY_H
@@ -28,6 +27,7 @@
 
 #include "server/websocket/WebSocketTypes/UserId.h"
 
+#include <cstdint>
 #include <memory>
 #include "server/transport/ConnectionKey.h"
 
@@ -38,15 +38,13 @@ class SubReactor;
  * @brief 协议会话装配台抽象接口
  *
  * 【装配台 通俗解释】
- *   一个"造会话"的接口：你说要一个 WebSocket 会话（给 fd / reactor / uid），它就内部组装好
- *   manager / dispatcher 等依赖，交回一个造好的 WebSocketSession。SubReactor 只认这个接口，
- *   不认 WebSocket 具体类型，从而把 session 层与 websocket 模块解耦。
+ *   一个"造会话"的接口：你提供连接身份、Reactor 和业务身份，它就组装好所需依赖，
+ *   交回 WebSocketSession 或 SseSession。SubReactor 只认这个接口，不认具体协议类型。
  *
  * 【为何用抽象工厂而非直接 new 通俗解释】
- *   WebSocketSession 构造需要一坨 WebSocket 专属依赖（manager 管 uid 映射、dispatcher 分发
- *   消息），这些依赖都在 websocket 模块里。若让 HttpSession 直接 new WebSocketSession，
- *   就得在 session 层 include websocket 头，依赖方向乱了。用工厂：websocket 模块提供工厂
- *   实现，构造时注入给 SubReactor，HttpSession 只调抽象接口，依赖方向单向干净。
+ *   长会话构造需要协议专属依赖。若让 HttpSession 直接 new 具体 Session，HTTP 层就会反向
+ *   依赖 websocket/sse 模块。ProtocolSessionFactory 集中在 Runtime 装配这些依赖，
+ *   HttpSession 只调用抽象接口，依赖方向保持单向。
  *
  * @note 2.0 新增：SubReactor 持有 sessionFactory_ 而非直接依赖 wsManager_/wsDispatcher_。
  *       配合 OutboundQueue，SubReactor 对外只暴露两个抽象：会话工厂 + 出站队列，协议相关
@@ -59,7 +57,7 @@ public:
 
     /**
      * @brief 创建一个 WebSocketSession
-     * @param fd 连接的 socket fd
+     * @param key 连接身份（fd + connId）
      * @param reactor 所属 SubReactor（事件循环 + 调度器 + 出站队列）
      * @param uid WebSocket 用户标识（用于 manager 注册与广播寻址）
      * @return 装配好的 WebSocketSession，以 Session 基类指针返回供多态持有
@@ -70,6 +68,12 @@ public:
      */
     virtual std::shared_ptr<Session> createWebSocketSession(
         ConnectionKey key, SubReactor *reactor, UserId uid) = 0;
+
+    /** 创建一个在 HTTP 200 首部发完后接管连接的 SSE 长会话。 */
+    virtual std::shared_ptr<Session> createSseSession(
+        ConnectionKey key,
+        SubReactor *reactor,
+        std::uint64_t clientId) = 0;
 };
 
 #endif

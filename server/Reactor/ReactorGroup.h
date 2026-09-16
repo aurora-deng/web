@@ -19,9 +19,9 @@
 //    next_ = (next_ + 1) % size()。这是无锁、O(1)、负载最均衡的简单分配策略；
 //    SubReactor 之间互不知道彼此，互不抢锁，各自独立事件循环。
 // 2. 【SessionFactory 注入】本类只持有 SessionFactory& 抽象引用，不直接依赖
-//    WebSocketSessionFactory 具体类型。start() 里对每个新建的 SubReactor 调
-//    setSessionFactory(&sessionFactory_)，把协议升级能力注入下去——SubReactor 在
-//    收到 HTTP Upgrade: websocket 时通过这个 factory 创建 WebSocketSession。
+//    ProtocolSessionFactory 具体类型。start() 里对每个新建的 SubReactor 调
+//    setSessionFactory(&sessionFactory_)，把协议交接能力注入下去——HTTP 首部发完后可通过
+//    同一个 factory 创建 WebSocketSession 或 SseSession。
 // 3. 【跨 Reactor postOutbound】某条连接的 Session 协程可能在 Worker 线程跑业务，
 //    想发数据时不能直接摸目标 SubReactor 的 conns（线程不安全）。本类提供
 //    postOutbound(reactorIndex, fd, connId, task)，按 reactorIndex 找到目标 SubReactor

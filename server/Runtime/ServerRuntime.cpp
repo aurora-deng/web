@@ -14,9 +14,9 @@
 // 而非 codec_。第四阶段前 Runtime 持有 HttpCodec codec_ 成员，并下传给所有 SubReactor
 // 共享——那时只有 HTTP 一种协议没问题。引入 WebSocket 后 HTTP/WS 编解码互不兼容，
 // 共享 codec 会串扰；故删除 codec_ 成员，codec 下沉到各 Session 子类内部，
-// Runtime 只装配协议无关的 Router、两条 Executor 容量通道、wsManager、wsDispatcher，外加 SessionFactory
-// 实现 wsFactory_（WebSocketSessionFactory）——后者经 ReactorGroup::start 注入每个
-// SubReactor，用于 HTTP→WebSocket 协议升级时创建 WebSocketSession，是依赖倒置的关键。
+// Runtime 只装配协议无关的 Router、两条 Executor 容量通道、WS/SSE 管理器，外加
+// SessionFactory 实现 sessionFactory_（ProtocolSessionFactory）——后者经 ReactorGroup::start
+// 注入每个 SubReactor，用于在 HTTP 首部发完后创建 WebSocketSession 或 SseSession。
 //
 // 关键技术点（初学者重点理解）：
 // 1. acceptor 用 epoll + 非阻塞 listenFd：让 acceptLoop 能被 wakeFd_ 唤醒退出，
@@ -52,11 +52,11 @@
 #include <iostream>
 #include <stdexcept>
 #include <algorithm>
-#include <netinet/tcp.h>
 #include <atomic>
 
 #include "log/logger/logger.h"
 #include "server/http/RequestContext/RequestContext.h"
+#include "server/session/ProtocolSessionFactory.h"
 
 // 匿名命名空间：内部链接，只在本文件可见
 namespace
@@ -116,16 +116,16 @@ ServerRuntime::ServerRuntime()
       wsExecutor_(runtimeWorkerCount() / 2)
 {
     // ---- SessionFactory 依赖注入 ----
-    // ①创建 WebSocketSessionFactory（SessionFactory 抽象的具体实现），内部封装
-    //   wsManager_/wsDispatcher_ 两个 WS 相关依赖——这样 SubReactor/ReactorGroup
-    //   后续只看 SessionFactory* 抽象指针，不直接依赖 WebSocket 具体类型。
-    // ②把 *wsFactory_ 引用传给 ReactorGroup 构造，ReactorGroup::start 时会调
+    // ①创建 ProtocolSessionFactory（SessionFactory 抽象的具体实现），内部封装
+    //   WebSocket 与 SSE 的会话依赖——这样 SubReactor/ReactorGroup
+    //   后续只看 SessionFactory* 抽象指针，不直接依赖 WebSocket/SSE 具体类型。
+    // ②把 *sessionFactory_ 引用传给 ReactorGroup 构造，ReactorGroup::start 时会调
     //   每个 SubReactor::setSessionFactory(&sessionFactory_) 完成注入。后续 SubReactor
-    //   收到 HTTP Upgrade: websocket 时通过 sessionFactory_ 创建 WebSocketSession。
-    wsFactory_ = std::make_unique<WebSocketSessionFactory>(
-        wsManager_, wsDispatcher_, wsExecutor_);
+    //   在 HTTP 首部发完后通过同一接口创建 WebSocketSession 或 SseSession。
+    sessionFactory_ = std::make_unique<ProtocolSessionFactory>(
+        wsManager_, wsDispatcher_, wsExecutor_, sseManager_);
     reactorGroup_ = std::make_unique<ReactorGroup>(
-        *router_, httpExecutor_, *wsFactory_);
+        *router_, httpExecutor_, *sessionFactory_);
 }
 
 /**
@@ -175,6 +175,7 @@ void ServerRuntime::shutdownComponents() noexcept
     if (reactorGroup_)
     {
         wsManager_.bind(nullptr);
+        sseManager_.bind(nullptr);
         reactorGroup_.reset();
     }
 }
@@ -327,6 +328,7 @@ void ServerRuntime::createReactors()
     reactorGroup_->start(n);
     // 绑定发生在 Runtime：ReactorGroup 保持协议无关
     wsManager_.bind(reactorGroup_.get());
+    sseManager_.bind(reactorGroup_.get());
 }
 
 /**

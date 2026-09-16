@@ -2,7 +2,7 @@
 
 > 本文记录第十四阶段完成时的结构。第十五阶段已把共享 Worker 池拆成 HTTP/WS 两条容量通道，
 > 并加入协作式取消与 deadline；当前结构以
-> [`phase15_handler_cancellation_and_executor_isolation.md`](phase15_handler_cancellation_and_executor_isolation.md) 为准。
+> [`lesson15_handler_cancellation_and_executor_isolation.md`](lesson15_handler_cancellation_and_executor_isolation.md) 为准。
 
 ## 1. 本阶段解决什么问题
 

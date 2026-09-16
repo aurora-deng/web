@@ -231,7 +231,7 @@ Linux 构建环境执行。
 
 ## 13. 后续阶段进展
 
-上述两项限制已在[第九阶段](phase9_outbound_completion_and_fairness.md)处理：可选
+上述两项限制已在[第九阶段](lesson09_outbound_completion_and_fairness.md)处理：可选
 `OutboundReceipt` 保存任务离开邮箱后的最终状态，Writer 使用每轮 256 KiB 的统一写预算约束
 WebSocket、HTTP 内存体和 sendfile 路径。
 

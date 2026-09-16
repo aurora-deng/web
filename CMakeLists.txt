@@ -19,7 +19,7 @@
 #   5. WebSocket 模块：握手 / 编解码 / 单帧解析 / 消息组装 / 会话 / 会话工厂 / 管理器 /
 #      分发器分层；出站体系使用 OutboundTask + OutboundQueue + TransportWriter，
 #      HTTP->WS 协议升级经 SessionFactory 依赖倒置。
-#      webserver_core，标志项目从纯 HTTP 扩展到 HTTP+WebSocket 双协议。
+#      webserver_core，标志项目已从纯 HTTP 扩展到 HTTP、WebSocket、SSE 三种会话。
 # ============================================================
 
 # ==============================================================================
@@ -133,6 +133,11 @@ target_sources(webserver_core PRIVATE
     server/response/FileBody.cpp
     server/response/StringBody.cpp
     server/response/HeaderBody.cpp
+    # sse：事件编码、长会话和跨 Reactor 订阅目录
+    server/sse/SseCodec.cpp
+    server/sse/SseSession.cpp
+    server/sse/SseSessionManager.cpp
+    server/session/ProtocolSessionFactory.cpp
 )
 
 target_sources(webserver_core PRIVATE
@@ -145,7 +150,6 @@ target_sources(webserver_core PRIVATE
     server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp
     server/websocket/WebSocketDelivery/WebSocketDeliveryService.cpp
     server/websocket/WebSocketSession/WebSocketSession.cpp
-    server/websocket/WebSocketSessionFactory.cpp
     server/websocket/WebSocketSessionManager/WebSocketSessionManager.cpp
     server/websocket/WebSocketDispatcher/WebSocketDispatcher.cpp
 )
@@ -257,13 +261,19 @@ if(BUILD_TESTING)
                     ${PROJECT_SOURCE_DIR}/tests/integration/websocket_blackbox.py
                     --server $<TARGET_FILE:webserver>
         )
+        add_test(
+            NAME sse_blackbox
+            COMMAND ${Python3_EXECUTABLE}
+                    ${PROJECT_SOURCE_DIR}/tests/integration/sse_blackbox.py
+                    --server $<TARGET_FILE:webserver>
+        )
         # 设置测试超时时间90秒，防止测试卡死阻塞CI
         set_tests_properties(
-            http_blackbox websocket_blackbox
+            http_blackbox websocket_blackbox sse_blackbox
             PROPERTIES TIMEOUT 90 RUN_SERIAL TRUE
         )
     else()
-        message(STATUS "http_blackbox test disabled (requires Linux and Python 3)")
+        message(STATUS "HTTP/WebSocket/SSE blackbox tests disabled (require Linux and Python 3)")
     endif()
 endif()
 

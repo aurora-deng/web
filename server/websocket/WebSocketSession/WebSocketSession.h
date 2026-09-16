@@ -15,7 +15,7 @@
 //   - 出站不抽象 sender：调 enqueueOutbound → SubReactor::enqueueOutbound →
 //     OutboundQueue → writerLoop（由 TransportWriter 冲刷到 socket）。Session 层只
 //     交付"已编码字节 + 完成回调"，不直接写 fd，也不持有任何发送器成员。
-//   - 由 WebSocketSessionFactory 装配：SubReactor 持有 sessionFactory_ 抽象指针，
+//   - 由 ProtocolSessionFactory 装配：SubReactor 持有 sessionFactory_ 抽象指针，
 //     升级时调 createWebSocketSession 把 manager/dispatcher 等依赖注入进 WebSocketSession，
 //     SubReactor 自身不直接持有 wsManager_/wsDispatcher_。
 //   - shared_from_this：继承 enable_shared_from_this，run() 注册到 SessionManager 时
@@ -111,7 +111,7 @@ public:
      * @param uid 用户 id（0 表示匿名，匿名不注册到 manager）
      * @param manager 全局 WebSocketSessionManager 指针（用于注册/注销/跨 Reactor 寻址）
      * @param dispatcher 业务派发器引用（codec_ 内部用它路由消息到 handler）
-     * @note 由 WebSocketSessionFactory::createWebSocketSession 调用，外部不直接 new。
+     * @note 由 ProtocolSessionFactory::createWebSocketSession 调用，外部不直接 new。
      */
     WebSocketSession(ConnectionKey key,
                      SubReactor *reactor,
