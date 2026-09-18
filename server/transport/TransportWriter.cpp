@@ -208,10 +208,14 @@ FlushResult TransportWriter::flush(Connection &conn, std::size_t byteBudget)
                 initialBudget};
 
         FlushStatus status;
-        if (isEncodedTask(conn.transport.outboundQueue.front()))
-            status = flushEncoded(conn, closeRequested, byteBudget);
+        if (conn.tls)
+            status = isEncodedTask(conn.transport.outboundQueue.front())
+                ? flushTlsEncoded(conn, closeRequested, byteBudget)
+                : flushTlsHttp(conn, closeRequested, byteBudget);
         else
-            status = flushHttp(conn, closeRequested, byteBudget);
+            status = isEncodedTask(conn.transport.outboundQueue.front())
+                ? flushEncoded(conn, closeRequested, byteBudget)
+                : flushHttp(conn, closeRequested, byteBudget);
 
         if (status != FlushStatus::Drained || closeRequested)
             return {
@@ -304,6 +308,100 @@ FlushStatus TransportWriter::flushEncoded(Connection &conn,
     }
 
     return FlushStatus::Drained;
+}
+
+// TLS 字节串：一次只取队首最多 16 KiB，保持 SSL_write_ex 的重试字节不变。
+FlushStatus TransportWriter::flushTlsEncoded(Connection &conn,
+                                               bool &closeRequested,
+                                               std::size_t &byteBudget)
+{
+    auto cursor = encodedCursor(conn.transport.outboundQueue.front());
+    if (!cursor.offset)
+        return FlushStatus::Error;
+    const auto remaining = cursor.size - *cursor.offset;
+    if (remaining == 0) {
+        completeFront(conn, closeRequested);
+        return FlushStatus::Drained;
+    }
+    const auto offered = std::min({remaining, byteBudget, std::size_t{16 * 1024}});
+    std::size_t accepted = 0;
+    const auto result = conn.tls->write(cursor.data + *cursor.offset,
+                                        offered, accepted);
+    if (result == TlsIo::WantRead || result == TlsIo::WantWrite)
+        return FlushStatus::Blocked;
+    if (result != TlsIo::Done || accepted == 0 || accepted > remaining)
+        return FlushStatus::Error;
+    *cursor.offset += accepted;
+    byteBudget -= accepted;
+    consumeBufferedBytes(conn, accepted);
+    wheel_.refresh(conn.fd);
+    if (*cursor.offset == cursor.size)
+        completeFront(conn, closeRequested);
+    return FlushStatus::Drained;
+}
+
+// TLS 响应体先变成明文片段再加密。sendfile 只适用于明文 socket，
+// 因此文件型 body 用 pread 分块读取，成功写入 TLS 后才推进 FileBody 游标。
+FlushStatus TransportWriter::flushTlsHttp(Connection &conn,
+                                            bool &closeRequested,
+                                            std::size_t &byteBudget)
+{
+    auto &task = std::get<HttpStreamTask>(conn.transport.outboundQueue.front().payload);
+    auto *response = task.response.get();
+    if (!response) {
+        completeFront(conn, closeRequested);
+        return FlushStatus::Drained;
+    }
+    while (byteBudget > 0) {
+        RespBody *body = nullptr;
+        if (response->HeaderBody_ && !response->HeaderBody_->finished())
+            body = response->HeaderBody_.get();
+        else if (response->body && !response->body->finished())
+            body = response->body.get();
+        else {
+            completeFront(conn, closeRequested);
+            return FlushStatus::Drained;
+        }
+
+        const auto offer = std::min<std::size_t>(16 * 1024, byteBudget);
+        std::string plain;
+        if (body->useSendfile()) {
+            auto *file = dynamic_cast<FileBody *>(body);
+            if (!file || !file->file)
+                return FlushStatus::Error;
+            plain.resize(std::min(offer, file->remain()));
+            ssize_t n;
+            do {
+                n = ::pread(file->file->fd, plain.data(), plain.size(), file->offset);
+            } while (n < 0 && errno == EINTR);
+            if (n <= 0)
+                return FlushStatus::Error;
+            plain.resize(static_cast<std::size_t>(n));
+        } else {
+            Block block{};
+            if (body->buildSegments(&block, offer) <= 0)
+                return FlushStatus::Blocked;
+            for (int i = 0; i < block.idx && plain.size() < offer; ++i) {
+                const auto &segment = block.segs[i];
+                const auto take = std::min(segment.len, offer - plain.size());
+                if (take)
+                    plain.append(segment.data, take);
+            }
+            if (plain.empty())
+                return FlushStatus::Blocked;
+        }
+
+        std::size_t accepted = 0;
+        const auto result = conn.tls->write(plain.data(), plain.size(), accepted);
+        if (result == TlsIo::WantRead || result == TlsIo::WantWrite)
+            return FlushStatus::Blocked;
+        if (result != TlsIo::Done || accepted == 0 || accepted > plain.size())
+            return FlushStatus::Error;
+        body->consume(accepted);
+        byteBudget -= accepted;
+        wheel_.refresh(conn.fd);
+    }
+    return FlushStatus::Yielded;
 }
 
 // Http 单：取队首 HttpStreamTask，调 writeHttpResponse 整体写

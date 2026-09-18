@@ -19,7 +19,7 @@
 #   5. WebSocket 模块：握手 / 编解码 / 单帧解析 / 消息组装 / 会话 / 会话工厂 / 管理器 /
 #      分发器分层；出站体系使用 OutboundTask + OutboundQueue + TransportWriter，
 #      HTTP->WS 协议升级经 SessionFactory 依赖倒置。
-#      webserver_core，标志项目已从纯 HTTP 扩展到 HTTP、WebSocket、SSE 三种会话。
+#      webserver_core；后续又加入 HTTP/2 与可选 TLS/ALPN 传输层。
 # ============================================================
 
 # ==============================================================================
@@ -47,6 +47,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(CTest)
 # 查找系统线程库，Linux下封装pthread，必须依赖
 find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+find_path(NGHTTP2_INCLUDE_DIR nghttp2/nghttp2.h)
+find_library(NGHTTP2_LIBRARY NAMES nghttp2)
+if(NOT NGHTTP2_INCLUDE_DIR OR NOT NGHTTP2_LIBRARY)
+    message(FATAL_ERROR "Native HTTP/2 requires libnghttp2-dev (Debian/Ubuntu: sudo apt install libnghttp2-dev).")
+endif()
 
 # ==============================================================================
 # 可选编译选项：各类Sanitizer内存/线程检查工具
@@ -128,6 +134,11 @@ target_sources(webserver_core PRIVATE
     server/http/HttpCodec/HttpCodec.cpp
     server/http/HttpParser/HttpParser.cpp
     server/http/HttpSession/HttpSession.cpp
+    server/http2/Http2Codec.cpp
+    server/http2/Http2Session.cpp
+    server/tls/TlsContext.cpp
+    server/tls/TlsTransport.cpp
+    server/tls/TlsSession.cpp
     server/http/RequestContext/RequestContext.cpp
     server/response/ChunkedBody.cpp
     server/response/FileBody.cpp
@@ -157,9 +168,10 @@ target_sources(webserver_core PRIVATE
 # 设置头文件搜索路径：项目根目录对外暴露
 # PUBLIC：链接这个库的可执行文件，也会继承该头文件路径
 target_include_directories(webserver_core PUBLIC ${PROJECT_SOURCE_DIR})
+target_include_directories(webserver_core PUBLIC ${NGHTTP2_INCLUDE_DIR})
 
 # 链接依赖：系统线程库 + sanitizer编译选项接口库
-target_link_libraries(webserver_core PUBLIC Threads::Threads webserver_sanitizers)
+target_link_libraries(webserver_core PUBLIC Threads::Threads webserver_sanitizers ${NGHTTP2_LIBRARY} OpenSSL::SSL OpenSSL::Crypto)
 
 # ==============================================================================
 # 主程序可执行文件 webserver
@@ -185,6 +197,13 @@ add_custom_command(
 # 策略：只寻找系统预装GTest，不自动下载源码编译，保证构建环境可控、支持离线编译
 # ==============================================================================
 if(BUILD_TESTING)
+    add_executable(http2_codec_roundtrip
+        tests/http2_codec_roundtrip.cpp server/http2/Http2Codec.cpp)
+    target_include_directories(http2_codec_roundtrip PRIVATE
+        ${PROJECT_SOURCE_DIR} ${NGHTTP2_INCLUDE_DIR})
+    target_link_libraries(http2_codec_roundtrip PRIVATE ${NGHTTP2_LIBRARY})
+    add_test(NAME http2_codec_roundtrip COMMAND http2_codec_roundtrip)
+
     # 优先寻找CONFIG模式GTest（现代系统cmake包），找不到再使用旧版模块模式查找
     find_package(GTest CONFIG QUIET)
     if(NOT GTest_FOUND)
@@ -249,6 +268,16 @@ if(BUILD_TESTING)
         )
     endif()
     if(Python3_Interpreter_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_program(OPENSSL_COMMAND openssl)
+        if(OPENSSL_COMMAND)
+            add_test(
+                NAME tls_blackbox
+                COMMAND ${Python3_EXECUTABLE}
+                        ${PROJECT_SOURCE_DIR}/tests/integration/tls_blackbox.py
+                        --server $<TARGET_FILE:webserver>
+            )
+            set_tests_properties(tls_blackbox PROPERTIES TIMEOUT 90 RUN_SERIAL TRUE)
+        endif()
         add_test(
             NAME http_blackbox
             COMMAND ${Python3_EXECUTABLE}

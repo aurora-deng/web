@@ -305,6 +305,8 @@ bool Router::matchDynamic(RequestContext &ctx)
  */
 void Router::make404(RequestContext &ctx)
 {
+    if (ctx.response)
+        responsePool.release(ctx.response);
     ctx.response = responsePool.acquire();   // 从对象池获取响应对象
 
     ctx.response->status = 404;

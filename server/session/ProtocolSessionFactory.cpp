@@ -1,6 +1,7 @@
 #include "server/session/ProtocolSessionFactory.h"
 
 #include "server/sse/SseSession.h"
+#include "server/http2/Http2Session.h"
 #include "server/websocket/WebSocketSession/WebSocketSession.h"
 
 ProtocolSessionFactory::ProtocolSessionFactory(
@@ -29,4 +30,10 @@ std::shared_ptr<Session> ProtocolSessionFactory::createSseSession(
 {
     return std::make_shared<SseSession>(
         key, reactor, clientId, &sseManager_);
+}
+
+std::shared_ptr<Session> ProtocolSessionFactory::createHttp2Session(
+    ConnectionKey key, SubReactor *reactor)
+{
+    return std::make_shared<Http2Session>(key, reactor);
 }

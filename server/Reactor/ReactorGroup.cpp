@@ -80,6 +80,7 @@ void ReactorGroup::start(size_t count)
     {
         reactors_.push_back(std::make_unique<SubReactor>(router_, executor_));
         reactors_.back()->setSessionFactory(&sessionFactory_); // 协议升级工厂注入——SubReactor 据此创建 WebSocketSession
+        reactors_.back()->setTlsContext(tlsContext_);
         reactors_.back()->setReactorIndex(i);
         reactors_.back()->run();
     }
@@ -93,12 +94,12 @@ void ReactorGroup::start(size_t count)
  * 前台 accept 到一个新 fd，按 next_ 游标轮流派给下一位经理（addFd），再把游标拨一位。
  * 这样负载在所有经理间均匀分布，无需锁，O(1)。
  */
-void ReactorGroup::dispatch(int fd)
+void ReactorGroup::dispatch(int fd, bool tls)
 {
     if (reactors_.empty())
         throw std::logic_error("cannot dispatch before ReactorGroup::start");
 
-    reactors_[next_]->addFd(fd);
+    reactors_[next_]->addFd(fd, tls);
     next_ = (next_ + 1) % reactors_.size();
 }
 

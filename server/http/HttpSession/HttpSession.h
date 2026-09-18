@@ -74,7 +74,8 @@ enum class RequestReadResult
     NEED_MORE,
     CLOSED,
     ERROR,
-    TOO_LARGE
+    TOO_LARGE,
+    HTTP2
 };
 
 enum class HandlerStartResult
@@ -197,6 +198,7 @@ private:
     bool handleSseIfRequested();
     /** 首部写完后创建 SseSession 并替换 Connection::session。 */
     bool handoffSse();
+    bool handoffHttp2();
 };
 
 #endif

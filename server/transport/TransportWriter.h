@@ -4,8 +4,9 @@
 //
 // 【职责比喻：发货部的"发货员"】
 //   出站队列（ConnTransport.outboundQueue）里堆着一张张 OutboundTask 运单，TransportWriter
-//   就是真正把货送上车（写 socket）的发货员。它只认两种货：编好的字节串（encoded）用 writev
-//   聚集写、Http 响应（http）用 writev + sendfile 混合写。写不动了（EAGAIN）就回来报告
+//   就是真正把货送上车（写 socket）的发货员。明文连接的编码字节走 writev，
+//   Http 响应可走 writev + sendfile；TLS 连接改由 SSL_write_ex 加密，文件用 pread 分块。
+//   写不动了（EAGAIN 或 TLS WANT_READ/WANT_WRITE）就回来报告
 //   Blocked，让 writerLoop 去 rearm EPOLLOUT 等下次可写；写完了就 completeFront 弹单、
 //   回填票据。所有写 socket 的系统调用都收口在这里，Session / OutboundQueue 都不直接 send。
 //
@@ -99,6 +100,13 @@ private:
     FlushStatus flushHttp(Connection &conn,
                           bool &closeRequested,
                           std::size_t &byteBudget);
+    // TLS 不能使用 writev/sendfile；先取明文字节，再由 OpenSSL 加密写入。
+    FlushStatus flushTlsEncoded(Connection &conn,
+                                bool &closeRequested,
+                                std::size_t &byteBudget);
+    FlushStatus flushTlsHttp(Connection &conn,
+                             bool &closeRequested,
+                             std::size_t &byteBudget);
     void completeFront(Connection &conn, bool &closeRequested);         // 弹队首 + 回填 ticket + 检 CloseConnection
     void consumeBufferedBytes(Connection &conn, std::size_t bytes);     // 扣减待写计数 + 低水位恢复读
 

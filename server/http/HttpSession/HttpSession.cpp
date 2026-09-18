@@ -22,6 +22,7 @@
 #include "server/Executor/Executor.h"
 #include "server/Route/Router.h"
 #include "server/session/SessionFactory.h"
+#include "server/http2/Http2Preface.h"
 #include "server/websocket/WebSocketHandshake/WebSocketHandshake.h"
 
 /**
@@ -111,8 +112,14 @@ RequestReadResult HttpSession::readRequest()
 
     // ---- 第一段：先尝试解析缓冲区里已有的数据 ----
     state = SessionState::PARSING;
-    auto parseState = codec_.decode(
-        conn->readBuffer, parser_, context_.request, keepAlive_);
+    // 明文端口才靠 client preface 探测 h2c；TLS 端口必须按 ALPN 结果分派。
+    auto preface = conn->tls ? Http2PrefaceMatch::None : matchHttp2Preface(
+        conn->readBuffer.peek(), conn->readBuffer.readableBytes());
+    if (preface == Http2PrefaceMatch::Full)
+        return RequestReadResult::HTTP2;
+    auto parseState = preface == Http2PrefaceMatch::Partial
+                          ? PARSE_NEED_MORE
+                          : codec_.decode(conn->readBuffer, parser_, context_.request, keepAlive_);
 
     if (parseState == PARSE_OK)
     {
@@ -138,8 +145,13 @@ RequestReadResult HttpSession::readRequest()
         return RequestReadResult::CLOSED;
 
     state = SessionState::PARSING;
-    parseState = codec_.decode(
-        conn->readBuffer, parser_, context_.request, keepAlive_);
+    preface = conn->tls ? Http2PrefaceMatch::None : matchHttp2Preface(
+        conn->readBuffer.peek(), conn->readBuffer.readableBytes());
+    if (preface == Http2PrefaceMatch::Full)
+        return RequestReadResult::HTTP2;
+    parseState = preface == Http2PrefaceMatch::Partial
+                     ? PARSE_NEED_MORE
+                     : codec_.decode(conn->readBuffer, parser_, context_.request, keepAlive_);
     if (parseState == PARSE_OK)
     {
         if (conn->state.peerClosed)
@@ -368,6 +380,25 @@ bool HttpSession::handoffSse()
     return true;
 }
 
+bool HttpSession::handoffHttp2()
+{
+    auto *conn = getConn();
+    auto *factory = reactor->sessionFactory();
+    if (!conn || !factory)
+        return false;
+    auto http2 = factory->createHttp2Session(key_, reactor);
+    if (!http2)
+        return false;
+    conn->session = http2;
+    auto task = http2->run();
+    auto handle = task.release();
+    conn->slot(CoroutineRole::Main).handle = handle;
+    reactor->scheduler().adopt(
+        key_.fd, key_.connId, CoroutineRole::Main, handle, http2);
+    state = SessionState::CLOSED;
+    return true;
+}
+
 /**
  * @brief 同步提交业务 handler；等待动作由唯一根协程 run() 执行
  */
@@ -547,6 +578,13 @@ Task<void> HttpSession::run()
             const auto result = readRequest();
             if (result == RequestReadResult::COMPLETE)
                 break;
+
+            if (result == RequestReadResult::HTTP2)
+            {
+                if (!handoffHttp2())
+                    reactor->fd_close(key_.fd, "HTTP/2 handoff failed", CoroutineRole::Main);
+                co_return;
+            }
 
             if (result == RequestReadResult::NEED_MORE)
             {

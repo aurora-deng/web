@@ -25,6 +25,7 @@
 // =============================================================================
 #ifndef ROUTER_H
 #define ROUTER_H
+#include <cstdint>
 #include <functional>
 #include <unordered_map>
 #include <utility>
@@ -62,7 +63,7 @@ using Handler = std::function<bool(RequestContext &)>;
 // =============================================================================
 struct RouteEntry
 {
-    uint64_t id;                    // 路由 ID（预留，调试/统计用）
+    uint64_t id = 0;                // 路由 ID（预留，调试/统计用）；默认初始化避免复制未定义值
     std::string method;             // HTTP 方法："GET" / "POST"
 
     std::string path;               // 原始路径模板，如 "/api/users/:id"

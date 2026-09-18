@@ -91,6 +91,9 @@ public:
      * 调 request_stop()，实际 handler 必须主动检查 Context::stopRequested()。
      */
     virtual void requestHandlerStop() noexcept {}
+
+    /** HTTP/2 can have several Workers per connection; completion wakes its read loop. */
+    virtual bool wakeReadOnExecuteComplete() const { return false; }
 };
 
 #endif

@@ -50,6 +50,8 @@
 #define SERVER_RUNTIME_H
 
 #include <memory>
+#include <string>
+#include <utility>
 #include <cstddef>
 #include <atomic>
 #include "server/Route/Router.h"
@@ -62,6 +64,7 @@
 class ProtocolSessionFactory;
 
 class ReactorGroup;
+class TlsContext;
 /**
  * @brief 服务器运行时（工厂总装线），封装所有基础设施生命周期
  *
@@ -99,6 +102,12 @@ public:
 
     /** @brief 设置监听端口，默认 8080 */
     void setPort(int port) { port_ = port; }
+    // 证书和私钥均提供时启用独立 HTTPS 监听端口；明文端口继续服务 h1/h2c。
+    void setTls(std::string certificate, std::string privateKey, int port = 8443) {
+        tlsCertificate_ = std::move(certificate);
+        tlsPrivateKey_ = std::move(privateKey);
+        tlsPort_ = port;
+    }
 
     /** @brief 设置 SubReactor 数量，0=按 CPU 核数自动（默认） */
     void setReactorCount(size_t n) { reactorCount_ = n; }
@@ -157,6 +166,11 @@ private:
     size_t reactorCount_ = 0;                        // SubReactor 数量（0=自动）
     size_t maxConnections_ = 10000;                  // 全局最大连接数（限流）
     int listenFd_ = -1;                              // 监听套接字 fd
+    int tlsListenFd_ = -1;                           // 可选 HTTPS 监听端口
+    int tlsPort_ = 8443;
+    std::string tlsCertificate_;
+    std::string tlsPrivateKey_;
+    std::shared_ptr<TlsContext> tlsContext_;
     int epfd_ = -1;                                  // 主 acceptor 的 epoll fd
     int wakeFd_ = -1;                                // 用于唤醒 acceptor 退出的 eventfd
     std::atomic<bool> running_{true};                // 运行标志，控制 acceptLoop 退出

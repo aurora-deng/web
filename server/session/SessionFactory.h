@@ -74,6 +74,10 @@ public:
         ConnectionKey key,
         SubReactor *reactor,
         std::uint64_t clientId) = 0;
+
+    /** Create a native HTTP/2 session after the prior-knowledge preface. */
+    virtual std::shared_ptr<Session> createHttp2Session(
+        ConnectionKey key, SubReactor *reactor) = 0;
 };
 
 #endif

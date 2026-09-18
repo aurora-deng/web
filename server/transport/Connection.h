@@ -37,6 +37,7 @@
 #include "server/session/Session/Session.h"
 #include "server/transport/ConnectionKey.h"
 #include "server/transport/OutboundTask.h"
+#include "server/tls/TlsTransport.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -111,6 +112,7 @@ struct Connection
     ConnTransport transport;                // 传输层状态
     ConnTimer timer;                        // 定时器状态
     std::shared_ptr<Session> session;       // 多协议会话基类指针：HttpSession 或 WebSocketSession
+    std::unique_ptr<TlsTransport> tls;      // 可选 TLS 包装；明文连接保持空指针
     CoroutineSlots coroutineSlots{};        // 读/写/执行三路协程句柄槽
 
     // ---- 引用别名：把内层字段扁平化暴露，外层 conn.fd 等价于 conn.transport.fd ----

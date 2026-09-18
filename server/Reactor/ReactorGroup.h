@@ -35,6 +35,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <utility>
 #include <vector>
 #include "server/transport/EnqueueResult.h"
 #include "server/transport/OutboundTask.h"
@@ -43,6 +44,7 @@ class Executor;
 class Router;
 class SubReactor;
 class SessionFactory;
+class TlsContext;
 
 /**
  * @brief Reactor 组：管理一组 SubReactor 的车间集群调度
@@ -95,12 +97,14 @@ public:
     /**
      * @brief 轮询派发新连接给下一个 SubReactor
      * @param fd 新接受的 socket
+     * @param tls 是否来自 HTTPS 监听端口；只传递监听来源，不解析密文
      *
      * 【通俗解释】
      * 前台 accept 到一个新 fd，按 next_ 游标轮流派给下一位经理（addFd），再把游标拨一位。
      * 这样负载在所有经理间均匀分布，无需锁，O(1)。
      */
-    void dispatch(int fd);
+    void dispatch(int fd, bool tls = false);
+    void setTlsContext(std::shared_ptr<TlsContext> context) { tlsContext_ = std::move(context); }
 
     /**
      * @brief 通知所有 SubReactor 打烊
@@ -155,4 +159,5 @@ private:
     SessionFactory &sessionFactory_;                       // 协议升级工厂引用：start 时注入每个 SubReactor，让其能创建 WebSocketSession 等子类
     std::vector<std::unique_ptr<SubReactor>> reactors_;    // SubReactor 持有数组：每个 unique_ptr 独占一个 SubReactor 及其线程
     size_t next_ = 0;                                      // 轮询游标：dispatch 时按 (next_+1)%size 拨动，实现 round-robin 均衡
+    std::shared_ptr<TlsContext> tlsContext_;
 };

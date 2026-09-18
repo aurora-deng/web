@@ -77,6 +77,7 @@
 class Executor;
 class Router;
 class SessionFactory;
+class TlsContext;
 
 inline constexpr int kMaxEvents = 1024;
 
@@ -174,7 +175,9 @@ public:
      * 用 atomic exchange 合并 eventfd 写入只唤醒一次本 Reactor 线程。真正的
      * epoll 注册与 Connection 创建由本线程在 processPendingFds 里完成，避免数据竞争。
      */
-    void addFd(int fd);
+    // acceptor 把监听来源一并传入；TLS fd 会先创建 TlsSession 做握手。
+    void addFd(int fd, bool tls = false);
+    void setTlsContext(std::shared_ptr<TlsContext> context) { tlsContext_ = std::move(context); }
 
     /**
      * @brief 统一套接字关闭流程（仅本 Reactor 线程调用）
@@ -256,7 +259,8 @@ private:
     size_t slotNum = 60;          // 时间轮格子数
     int timeout = 30;             // 连接空闲超时秒数
 
-    std::queue<int> pendingFds;   // 待添加 fd 队列（跨线程入口，受 pending_mtx 保护）
+    struct PendingFd { int fd; bool tls; };
+    std::queue<PendingFd> pendingFds; // fd 与监听来源一起传递，不能靠连接字节猜 TLS
     std::mutex pending_mtx;       // 保护 pendingFds 的锁
 
     TimerWheel wheel;             // 时间轮：连接超时管理
@@ -268,6 +272,7 @@ private:
     Executor &executor_;          // 业务执行器引用（线程池封装）
     size_t reactorIndex_ = 0;     // 本 Reactor 在 ReactorGroup 中的下标
     SessionFactory *sessionFactory_ = nullptr; // 协议升级工厂（依赖倒置，由 ReactorGroup 注入）
+    std::shared_ptr<TlsContext> tlsContext_; // TLS 配置共享到连接，Reactor 关闭前有效
 
     std::mutex completeMtx;       // 保护 completeQueue 的锁
     std::queue<std::pair<int, uint64_t>> completeQueue; // Worker 完成通知队列（fd, connId）

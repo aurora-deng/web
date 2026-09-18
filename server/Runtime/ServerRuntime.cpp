@@ -57,6 +57,7 @@
 #include "log/logger/logger.h"
 #include "server/http/RequestContext/RequestContext.h"
 #include "server/session/ProtocolSessionFactory.h"
+#include "server/tls/TlsContext.h"
 
 // 匿名命名空间：内部链接，只在本文件可见
 namespace
@@ -257,6 +258,26 @@ void ServerRuntime::setupListener()
     if (epoll_ctl(epfd_, EPOLL_CTL_ADD, listenFd_, &ev) == -1)
         throw std::runtime_error(std::string("epoll_ctl listener: ") + strerror(errno));
 
+    if (tlsContext_) {
+        if (tlsPort_ <= 0 || tlsPort_ > 65535 || tlsPort_ == port_)
+            throw std::runtime_error("TLS port must be distinct and in 1..65535");
+        tlsListenFd_ = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        if (tlsListenFd_ < 0)
+            throw std::runtime_error("TLS listener socket failed");
+        setsockopt(tlsListenFd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        sockaddr_in tlsAddr{};
+        tlsAddr.sin_family = AF_INET;
+        tlsAddr.sin_addr.s_addr = INADDR_ANY;
+        tlsAddr.sin_port = htons(tlsPort_);
+        if (bind(tlsListenFd_, reinterpret_cast<sockaddr *>(&tlsAddr), sizeof(tlsAddr)) < 0 ||
+            listen(tlsListenFd_, SOMAXCONN) < 0)
+            throw std::runtime_error(std::string("TLS bind/listen: ") + strerror(errno));
+        ev.events = EPOLLIN | EPOLLET;
+        ev.data.fd = tlsListenFd_;
+        if (epoll_ctl(epfd_, EPOLL_CTL_ADD, tlsListenFd_, &ev) < 0)
+            throw std::runtime_error("epoll_ctl TLS listener failed");
+    }
+
     // wakeFd_ 用水平触发，避免漏唤醒
     ev.events = EPOLLIN;
     ev.data.fd = wakeFd_;
@@ -302,6 +323,12 @@ void ServerRuntime::releaseListener()
         close(listenFd_);
         listenFd_ = -1;
     }
+    if (tlsListenFd_ >= 0) {
+        if (epfd_ >= 0)
+            (void)epoll_ctl(epfd_, EPOLL_CTL_DEL, tlsListenFd_, nullptr);
+        close(tlsListenFd_);
+        tlsListenFd_ = -1;
+    }
 }
 
 /**
@@ -325,6 +352,7 @@ void ServerRuntime::createReactors()
         n = std::clamp<size_t>(n, 1, 32);
     }
     // 启动
+    reactorGroup_->setTlsContext(tlsContext_);
     reactorGroup_->start(n);
     // 绑定发生在 Runtime：ReactorGroup 保持协议无关
     wsManager_.bind(reactorGroup_.get());
@@ -382,7 +410,7 @@ void ServerRuntime::acceptLoop()
                 continue;
             }
             // 正常监听套字节
-            if (fd == listenFd_)
+            if (fd == listenFd_ || fd == tlsListenFd_)
             {
                 struct sockaddr_in cin{};
                 socklen_t socklen = sizeof(cin);
@@ -390,7 +418,7 @@ void ServerRuntime::acceptLoop()
                 while (running_.load(std::memory_order_acquire))
                 {
                     int newfd = accept4(
-                        listenFd_,
+                        fd,
                         reinterpret_cast<sockaddr *>(&cin),
                         &socklen,
                         SOCK_NONBLOCK | SOCK_CLOEXEC);
@@ -426,7 +454,7 @@ void ServerRuntime::acceptLoop()
                     LOG_INFO(std::string("new connection fd=") + std::to_string(newfd));
                     // 分发fd到Reactor线程池
                     // dispatch 内部轮询分给下一个 SubReactor，SubReactor::addFd 投递到自己的待处理队列
-                    reactorGroup_->dispatch(newfd);
+                    reactorGroup_->dispatch(newfd, fd == tlsListenFd_);
                 } // end while accept4
             } // end listenFd
         } // end for events
@@ -449,6 +477,10 @@ void ServerRuntime::acceptLoop()
  */
 void ServerRuntime::start()
 {
+    if (tlsCertificate_.empty() != tlsPrivateKey_.empty())
+        throw std::runtime_error("TLS requires both certificate and private key");
+    if (!tlsCertificate_.empty())
+        tlsContext_ = TlsContext::create(tlsCertificate_, tlsPrivateKey_);
     setupListener();
     auto shutdown = [this]
     {

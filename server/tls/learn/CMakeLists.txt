@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.16)
+project(tls_learn LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+add_executable(tls_learn main.cpp)
+target_link_libraries(tls_learn PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+add_executable(tls_record_learn record_main.cpp)

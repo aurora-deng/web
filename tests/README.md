@@ -5,7 +5,7 @@
 | unit | `unit_tests.cpp` | Buffer / Parser / Router / WS 消息组装、Dispatcher 并发、Executor drain、取消/deadline 与双池隔离 | 不起 epoll、不起完整服务器 |
 | component | `transport_tests.cpp` | OutboundTask / TransportWriter（socketpair） | 不起完整 SubReactor |
 | lifecycle | `coroutine_lifecycle_tests.cpp` | 协程槽、关闭路径 | 不做全链路业务 |
-| integration | `integration/*.py` | HTTP / WS / SSE 黑盒端到端 | 不测内部私有符号 |
+| integration | `integration/*.py` | HTTP / WS / SSE / 可选 TLS-ALPN 黑盒端到端 | 不测内部私有符号；TLS 测试需 Linux 与 openssl 命令 |
 | client unit | `python/reliable_websocket_consumer_test.py` | 接收端幂等、ACK 丢失与有界窗口 | 不启动服务器 |
 
 事实源与排错：

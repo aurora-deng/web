@@ -50,6 +50,7 @@
 #include "server/Executor/Executor.h"
 #include "server/Route/Router.h"
 #include "server/http/HttpSession/HttpSession.h"
+#include "server/tls/TlsSession.h"
 #include "server/session/Session/Session.h"
 #include <cctype>
 #include <chrono>
@@ -203,10 +204,16 @@ void SubReactor::updateEvent(int fd)
     it->second->state.readPaused =
         it->second->state.pauseByMemory ||
         it->second->transport.pauseByWrite;
-    if (!it->second->state.readPaused)
+    // SSL_read 可能需要可写；SSL_write 也可能需要可读。TLS 重试事件优先于
+    // 应用层读背压，否则握手/写入可能永久停住。
+    if (!(it->second->tls && it->second->tls->writeWantsWrite()) &&
+        (!it->second->state.readPaused ||
+         (it->second->tls && it->second->tls->writeWantsRead())))
         ev |= EPOLLIN;
 
-    if (it->second->state.wantWrite)
+    if ((it->second->state.wantWrite &&
+         !(it->second->tls && it->second->tls->writeWantsRead())) ||
+        (it->second->tls && it->second->tls->readWantsWrite()))
     {
         ev |= EPOLLOUT;
     }
@@ -337,8 +344,13 @@ void SubReactor::processComplete()
         auto it = conns.find(fd);
         if (it != conns.end() && it->second->id == connId)
         {
-            // 连接仍存活且 id 匹配：唤醒协程继续端菜
-            wakeExecuteCoroutine(fd);
+            // HTTP/2 has many concurrent stream Workers. Its root waits for
+            // either socket input or a completion, while HTTP/1 waits EXECUTE.
+            if (it->second->session &&
+                it->second->session->wakeReadOnExecuteComplete())
+                wakeCoroutine(fd, CoroutineRole::Main, AwaitType::READ);
+            else
+                wakeExecuteCoroutine(fd);
             continue;
         }
         // 连接已关闭：检查僵尸唤醒表，防止协程泄漏
@@ -452,6 +464,8 @@ void SubReactor::fd_close(int fd,
 
     it->second->state.closed = true;
 
+    if (it->second->tls)
+        it->second->tls->bestEffortShutdown();
     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
     conns.erase(it);
@@ -550,6 +564,13 @@ RecvState SubReactor::recvSocket(int fd)
 
     auto &conn = *it->second;
 
+    // OpenSSL 在 SSL_write_ex(WANT_WRITE) 后要求优先重试同一写操作；
+    // 此时暂不发起新的 SSL_read，待 Writer 成功后再恢复读关注。
+    if (conn.tls && conn.tls->writeWantsWrite()) {
+        updateEvent(fd);
+        return RecvState::READY;
+    }
+
     // 背压修复处：使用 readableBytes() 代替 buf.size() 判断内存水位
     // readableBytes() 是未读数据大小，buf.size() 是 vector 总容量（含已读和空闲）
     // 原代码用 buf.size() 导致已解析数据仍计入水位，背压判断不准确
@@ -567,11 +588,33 @@ RecvState SubReactor::recvSocket(int fd)
         // 64KB 接近 TCP 默认窗口规模，单次 recv 即可读完一个典型请求
         char buffer[65536];
         // 接收消息
-        int res = recv(fd, buffer, sizeof(buffer), 0);
+        std::size_t tlsReceived = 0;
+        TlsIo tlsResult = TlsIo::Done;
+        int res = 0;
+        if (conn.tls) {
+            // TLS 层解密后才交给原有 HttpSession/Http2Session 的 readBuffer。
+            // 握手阶段由 TlsSession 单独推进，此处只处理应用数据。
+            tlsResult = conn.tls->read(buffer, sizeof(buffer), tlsReceived);
+            res = tlsResult == TlsIo::Done ? static_cast<int>(tlsReceived) : -1;
+        } else {
+            res = recv(fd, buffer, sizeof(buffer), 0);
+        }
 
         // 进行分类处理判断
         if (res == -1)
         {
+            if (conn.tls) {
+                if (tlsResult == TlsIo::WantRead || tlsResult == TlsIo::WantWrite) {
+                    updateEvent(fd);
+                    break;
+                }
+                if (tlsResult == TlsIo::Closed) {
+                    conn.state.peerClosed = true;
+                    break;
+                }
+                fd_close(fd, "TLS read failure", CoroutineRole::Main);
+                return RecvState::CLOSED;
+            }
             if (errno == EAGAIN || errno == EWOULDBLOCK)
             {
                 // printf("数据已经读完\n");
@@ -695,11 +738,24 @@ void SubReactor::loop()
                 if (events[i].events & EPOLLOUT) //-------处理write-send发出
                 {
                     wakeWriteCoroutine(fd);
+                    auto it = conns.find(fd);
+                    if (it != conns.end() && it->second->tls &&
+                        it->second->tls->readWantsWrite())
+                        wakeReadCoroutine(fd);
                 }
 
                 if (events[i].events & (EPOLLIN | EPOLLHUP | EPOLLRDHUP)) // 处理监听接受/半关闭
                 {
-                    wakeReadCoroutine(fd);
+                    auto it = conns.find(fd);
+                    const bool writerNeedsRead = it != conns.end() &&
+                        it->second->tls && it->second->tls->writeWantsRead();
+                    // 读已因应用背压暂停时，EPOLLIN 只用来恢复 TLS 写操作，
+                    // 不能顺手唤醒业务读协程继续扩大 readBuffer。
+                    if (it != conns.end() &&
+                        !(it->second->state.readPaused && writerNeedsRead))
+                        wakeReadCoroutine(fd);
+                    if (writerNeedsRead)
+                        wakeCoroutine(fd, CoroutineRole::Writer, AwaitType::WRITE);
                 }
                 // scheduler.runReady();
             }
@@ -739,7 +795,7 @@ void SubReactor::loop()
  * 注意：这里只投递队列，不直接操作 epoll/conns——那些必须由本 Reactor 自己的线程
  * 在 processPendingFds 里完成，否则会与事件循环竞争导致段错误。
  */
-void SubReactor::addFd(int fd)
+void SubReactor::addFd(int fd, bool tls)
 {
     // 判断当前线程是否已经运行
     if (!running.load(std::memory_order_acquire))
@@ -753,7 +809,7 @@ void SubReactor::addFd(int fd)
     // 将 fd 放入待处理队列
     {
         std::lock_guard<std::mutex> lock(pending_mtx);
-        pendingFds.push(fd);
+        pendingFds.push({fd, tls});
     }
 
     // eventfd 优化处：使用 atomic<bool> + exchange 合并唤醒
@@ -785,14 +841,15 @@ void SubReactor::addFd(int fd)
 void SubReactor::processPendingFds()
 {
     // 直接交换获得所有数据到本地来慢慢处理
-    std::queue<int> local;
+    std::queue<PendingFd> local;
     {
         std::lock_guard<std::mutex> lock(pending_mtx);
         local.swap(pendingFds);
     }
     while (!local.empty())
     {
-        int fd = local.front();
+        const int fd = local.front().fd;
+        const bool useTls = local.front().tls;
         local.pop();
 
         if (!running.load(std::memory_order_acquire))
@@ -814,6 +871,17 @@ void SubReactor::processPendingFds()
         conn->fd = fd;
         conn->id = ++global_conn_id; // 全局唯一递增 id，用于 processComplete 识别 fd 复用
         conn->state.readPaused = false;
+        if (useTls) {
+            try {
+                if (!tlsContext_)
+                    throw std::runtime_error("TLS context missing");
+                conn->tls = std::make_unique<TlsTransport>(tlsContext_, fd);
+            } catch (...) {
+                epoll_ctl(epfd, EPOLL_CTL_DEL, fd, nullptr);
+                close(fd);
+                continue;
+            }
+        }
 
         auto *raw = conn.get();
         conns.emplace(fd, std::move(conn));
@@ -827,7 +895,9 @@ void SubReactor::processPendingFds()
         // router 来：①内部自建 HttpCodec（每条连接独立，互不干扰）；②按 URL 分发到 handler。
         // 赋值给 raw->session（shared_ptr<Session> 基类指针）——这样后续若升级为 WebSocket，
         // 可平滑替换为 WebSocketSession 实例，无需改 Connection 结构。
-        raw->session = std::make_shared<HttpSession>(raw->key(), this, router_);
+        raw->session = useTls
+            ? std::static_pointer_cast<Session>(std::make_shared<TlsSession>(raw->key(), this))
+            : std::static_pointer_cast<Session>(std::make_shared<HttpSession>(raw->key(), this, router_));
         // conns[fd] = conn;
         // 启动会话协程：调 run() 返回 Task（lazy，未实际执行）
         auto task = raw->session->run();
@@ -1019,6 +1089,8 @@ Task<void> SubReactor::writerLoop(int fd, uint64_t connId)
             wakeCoroutine(fd, CoroutineRole::Main, AwaitType::SENT);
 
         updateEvent(fd);
+        if (conn.tls && !conn.tls->writeWantsWrite())
+            wakeReadCoroutine(fd);
         if (result.closeRequested)
         {
             fd_close(fd, "outbound close completed", CoroutineRole::Writer);

@@ -8,6 +8,8 @@
 | 架构总览 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) |
 | 一次请求的路径 | [architecture/request_flow.md](architecture/request_flow.md) |
 | SSE 接入（Phase 5） | [architecture/phase5.md](architecture/phase5.md) |
+| HTTP/2 接入与手写教学对照（Phase 6，test8.0） | [architecture/phase6.md](architecture/phase6.md) |
+| TLS/ALPN 接入与教学版（Phase 7，test8.0） | [architecture/phase7.md](architecture/phase7.md) |
 | WebSocket 课程演进 | [architecture/websocket-lessons/README.md](architecture/websocket-lessons/README.md) |
 | Reactor 基础课程 | [architecture/phase3/README.md](architecture/phase3/README.md) |
 | WebSocket 初次接入 | [architecture/phase4_upgrade.md](architecture/phase4_upgrade.md) |
