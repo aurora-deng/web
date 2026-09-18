@@ -27,6 +27,8 @@ HTTP/2 不只是“HTTP/1.1 长连接”。它还规定连接前言、二进制�
 | 全流程演示 | 独立 codec 往返覆盖拆包、HPACK、多 stream、POST DATA 和 RST | 教学双端程序还演示 SETTINGS/ACK、PING、GOAWAY、DATA 分帧与逆序响应 | 演示覆盖增加，不代表吞吐或延迟提升 |
 | 验证 | 本机 codec 往返通过；Linux 完整服务待验收 | 教学版 C++20 直接编译运行通过 | 真实 Linux h2c/SSE 共存和性能仍待验证 |
 
+`test8.0` 后续补充了**生产业务流协程**：每个 Job 持有一个 `Task<bool>`，Worker 完成后由 Reactor 恢复，响应逻辑写在 `runStream()` 的挂起点之后。协议层仍由 nghttp2 负责，也没有把业务 handler 改成协程；独立的 `learn/stream_coroutine_main.cpp` 只演示该调度机制。这是对上表“业务与出站保持原样”的后续增量，不改变原先的连接级单写者和背压边界。
+
 可以把它们想成一台分拣机：HTTP/2 规范规定包裹格式，nghttp2 是生产分拣机的协议内核，`Http2Codec`/`Http2Session` 是接入本项目业务的线路，`learn` 则是拆开齿轮供学习的透明模型。教学版有自己的协议状态，不被根 `CMakeLists.txt` 编进 `webserver_core`。
 
 ## 4. 生产架构接线图
@@ -38,24 +40,26 @@ flowchart LR
     H -->|HTTP/1.1| OLD[原 HTTP / SSE / WS 流程]
     H -->|h2 preface| S[Http2Session 根协程]
     S --> CO[Http2Codec / nghttp2]
-    CO -->|stream 1, 3, 5...| EX[HTTP Executor]
+    CO -->|stream 1, 3, 5...| SC[每 stream 一个 runStream 协程]
+    SC -->|提交后挂起| EX[HTTP Executor]
     EX --> R[Router / RequestContext]
     R -->|完成通知 fd + connId + streamId| S
+    S -->|恢复对应流协程| SC
     S --> O[OutboundTask / OutboundQueue]
     O --> W[唯一 writerLoop]
     W --> C
 ```
 
-关键区别是 **Session 仍按连接创建，但业务 Job 按 stream 创建**。`Http2Session` 与 `nghttp2_session` 都只由所属 Reactor 线程访问；Worker 只处理各自的 `RequestContext`，完成后通过锁保护的完成队列和现有 eventfd 通知 Reactor。这样不会让不同 Worker 并发修改同一个 HPACK 状态，也不会让它们直接写同一个 socket。
+关键区别是 **Session 仍按连接创建，但业务 Job 和业务流协程按 stream 创建**。`Http2Session` 与 `nghttp2_session` 都只由所属 Reactor 线程访问；Worker 只处理各自的 `RequestContext`，完成后通过锁保护的完成队列和现有 eventfd 通知 Reactor。这样不会让不同 Worker 并发修改同一个 HPACK 状态，也不会让它们直接写同一个 socket。这里的“流协程”是项目的业务等待状态，不是 nghttp2 内部的协议 stream 状态，也不意味着每条流占一个线程。
 
 ## 5. 生产代码逐步走读
 
 1. **识别与交接**：`server/http/HttpSession/HttpSession.cpp` 在 HTTP/1 parser 之前比对前言。只收到前几个字节时保留在 `readBuffer`，等待下一次读取；完整匹配后经 `SessionFactory::createHttp2Session()` 创建会话，替换 `Connection::session`，把新根协程交给调度器。缓冲字节不提前取走，由 nghttp2 自己消费前言。
 2. **收帧与拼请求**：`server/http2/Http2Codec.cpp` 为每个连接创建一个 nghttp2 server session。回调按 stream ID 收集 `:method`、`:path`、普通首部和 DATA；收到 END_STREAM 才把一个完整请求交给业务。HPACK 解码、帧顺序和流量控制由 nghttp2 判断。超过请求首部或请求体上限的 stream 被重置。
-3. **并发业务**：`server/http2/Http2Session.cpp` 为每个完整 stream 建一个 Job，给它独立的 `RequestContext`、取消源和截止时间，然后交给现有 HTTP Executor。因此 stream 3 可以先于 stream 1 完成。Executor 排队满则给该 stream 返回 503，不把整条连接当成一个请求等待。
-4. **完成通知**：Worker 把 Job 放进会话的完成队列，再调用 `notifyExecuteComplete(fd, connId)`。`SubReactor::processComplete()` 用 `connId` 防 fd 复用；对 HTTP/2 唤醒等待读事件的根协程，根协程取走完成的 stream。若客户端提前 RST_STREAM，取消源亮起并丢弃迟到的业务结果。
-5. **响应与写入**：Reactor 把 `HttpResponse` 转为 `:status`、小写首部及 DATA。连接级首部（如 `Connection`、`Transfer-Encoding`）不能出现在 HTTP/2 中，所以过滤。`nghttp2_session_mem_send()` 产出的临时内存立即复制为 `OutboundTask::encoded`，复用原有唯一 writerLoop；所有 stream 共享同一发送顺序和连接窗口。
-6. **关闭清理**：连接关闭时 `requestHandlerStop()` 向仍在运行的各 stream Job 发协作取消信号；`Job` 析构把池化响应归还。停止信号不是强制终止，业务 handler 仍需在耗时循环里主动检查 `stopRequested()`。
+3. **并发业务与流协程**：`Http2Session::dispatchReady()` 为每个完整 stream 建一个 Job、独立 `RequestContext`、取消源和截止时间，并创建 `Task<bool>` 流协程。首次 `resume()` 进入 `runStream()`，把 handler 交给现有 HTTP Executor 后在 `co_await std::suspend_always{}` 停住。连接根协程继续读别的帧；stream 3 可以先于 stream 1 完成。Executor 排队满则流协程直接提交 503。
+4. **完成通知与恢复**：Worker 把 Job 放进会话的完成队列，再调用 `notifyExecuteComplete(fd, connId)`。`SubReactor::processComplete()` 用 `connId` 防 fd 复用，并唤醒连接根协程。根协程在 `finishCompleted()` 找到对应 Job，**只在所属 Reactor 线程**恢复这条流协程；Worker 不碰 nghttp2。若客户端提前 RST_STREAM，取消源亮起、挂起协程被销毁，迟到的业务结果被丢弃。
+5. **响应与写入**：恢复的流协程把 `HttpResponse` 转为 `:status`、小写首部及 DATA。连接级首部（如 `Connection`、`Transfer-Encoding`）不能出现在 HTTP/2 中，所以过滤。`nghttp2_session_mem_send()` 产出的临时内存立即复制为 `OutboundTask::encoded`，复用原有唯一 writerLoop；所有 stream 共享同一发送顺序和连接窗口。
+6. **关闭清理**：连接关闭时 `requestHandlerStop()` 向仍在运行的各 stream Job 发协作取消信号；`Job` 析构销毁未完成的流协程并把池化响应归还。停止信号不是强制终止，业务 handler 仍需在耗时循环里主动检查 `stopRequested()`。
 
 这里的 `connId` 与 `streamId` 解决两个不同问题：`connId` 证明“还是原来那条 TCP 连接”，`streamId` 证明“是这条连接里的哪一张订单”。只用 fd 会误认复用后的新连接；只用 connId 无法区分并发请求。
 
@@ -133,7 +137,7 @@ curl --http2-prior-knowledge -i http://127.0.0.1:8080/
 
 需要运行仓库测试时，再安装已有测试依赖 `libgtest-dev`，使用 `-DBUILD_TESTING=ON`；`http2_codec_roundtrip` 测试覆盖前言拆包、HPACK、同连接两个 stream 交错应答、POST DATA 请求体和 RST_STREAM。
 
-**当前验证结果**：在本地 Windows 工作区，将官方 nghttp2 1.70.0 源码临时编为静态库后，独立编译并运行了 `tests/http2_codec_roundtrip.cpp`，上述协议测试通过；新增 Codec、Session、交接与工厂文件的 C++ 语法检查通过。SSE 事件与 HTTP chunk 编码的独立检查也通过。教学版用 C++20 `g++` 直接编译运行，覆盖 SETTINGS/ACK、DATA 分帧、动态表、窗口、PING、RST 和 GOAWAY；独立 CMake 在本机编译器探测处未完成。这些结果均不等于生产服务的网络验收。
+**当前验证结果**：在本地 Windows 工作区，将官方 nghttp2 1.70.0 源码临时编为静态库后，独立编译并运行了 `tests/http2_codec_roundtrip.cpp`，上述协议测试通过；新增 Codec、Session、交接与工厂文件的 C++ 语法检查通过。SSE 事件与 HTTP chunk 编码的独立检查也通过。教学版用 C++20 `g++` 直接编译运行，覆盖 SETTINGS/ACK、DATA 分帧、动态表、窗口、PING、RST 和 GOAWAY；流协程教学程序另验证独立挂起、逆序完成与取消。独立 CMake 在本机编译器探测处未完成。这些结果均不等于生产服务的网络验收。
 
 核心网络层使用 Linux epoll，当前 Windows 工作区无法直接启动完整服务，因此尚未完成“真实 SubReactor + 本地 socket + curl”的端到端验证。目标 Linux 环境中应运行上面的命令，同时验证 HTTP/1.1 `/events-status`、SSE `/events` 与 WebSocket 原路径继续工作，并检查连接断开后的资源清理。未做性能基准；不能据此宣称吞吐或延迟改善。
 
@@ -148,7 +152,7 @@ curl --http2-prior-knowledge -i http://127.0.0.1:8080/
 | accept、epoll、多 Reactor、协程 | `ServerRuntime`、`ReactorGroup`、`SubReactor`、`CoroutineScheduler` | 已有；每条连接由所属 Reactor 管 I/O |
 | Connection、协议识别 | `Connection`、`HttpSession`、`Http2Preface.h` | 明文同端口识别 h2 前言；支持前言跨 TCP 分片 |
 | Http2Session、FrameParser、Http2Frame、Frame Type Handler | `Http2Session`、`Http2Codec` 内持有的 `nghttp2_session` 及其回调 | **生产帧解析与类型处理在 nghttp2 内部**，项目没有同名手写类；教学版的 `FrameParser`/`Frame` 展示这一步 |
-| Stream、HPACK、HTTP 对象 | nghttp2 的 stream/HPACK 状态；`Http2Codec::ReadyRequest`、`Http2Session::Job` | 库管协议状态；项目按 stream ID 拼请求并建立独立业务 Job |
+| Stream、HPACK、HTTP 对象 | nghttp2 的 stream/HPACK 状态；`Http2Codec::ReadyRequest`、`Http2Session::Job/runStream()` | 库管协议状态；项目按 stream ID 建独立业务 Job 和可挂起的流协程 |
 | Router、Handler、HttpResponse | 原 Router/HTTP Executor/`RequestContext`/`HttpResponse` | 已复用；一个 stream 的 handler 不占住其他 stream 的业务执行 |
 | Encoder、Frame Queue、Sender | `nghttp2_submit_response`、`nghttp2_session_mem_send`、`OutboundTask`/`OutboundQueue`、唯一 writer | nghttp2 编 HEADERS/DATA；项目队列写 socket |
 | HTTP/2 Flow Control 与应用背压 | nghttp2 连接/stream 窗口；项目每连接写队列水位 | **两套不同机制**；窗口控制协议 DATA，水位保护本进程内存 |

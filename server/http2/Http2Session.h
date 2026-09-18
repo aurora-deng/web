@@ -8,13 +8,14 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <stop_token>
 #include <unordered_map>
 
 class SubReactor;
 
-// A native h2c prior-knowledge connection. One coroutine owns the connection;
-// many streams can be in the HTTP Executor concurrently.
+// A native HTTP/2 connection: the root coroutine owns nghttp2 and socket I/O;
+// each completed request has a stream coroutine that awaits its Executor job.
 class Http2Session : public Session, public std::enable_shared_from_this<Http2Session>
 {
 public:
@@ -29,11 +30,16 @@ private:
         int32_t streamId = 0;
         RequestContext context;
         std::stop_source stop;
+        // Only the owning Reactor resumes this coroutine or calls nghttp2.
+        // A cancelled Job may be destroyed after its Worker releases the last
+        // shared_ptr; destroying a suspended Task never resumes it.
+        std::optional<Task<bool>> coroutine;
         ~Job();
     };
 
     bool dispatchReady();
     bool finishCompleted();
+    Task<bool> runStream(Job *job);
     bool flushOutput();
     void workerDone(const std::shared_ptr<Job> &job);
     void reapClosed();

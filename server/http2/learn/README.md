@@ -10,9 +10,10 @@
 cmake -S server/http2/learn -B build-http2-learn
 cmake --build build-http2-learn
 ./build-http2-learn/http2_learn
+./build-http2-learn/http2_stream_coroutine_learn
 ```
 
-Windows PowerShell 的最后一步为 `./build-http2-learn/http2_learn.exe`。也可以直接用 C++20 编译：
+Windows PowerShell 的最后两步需用 `.exe` 后缀。也可以直接用 C++20 编译协议演示：
 
 ```bash
 g++ -std=c++20 -Wall -Wextra -Wpedantic \
@@ -23,6 +24,8 @@ g++ -std=c++20 -Wall -Wextra -Wpedantic \
 ```
 
 Windows PowerShell 上可把上面的 `g++` 参数写成一行，并将输出名改为 `http2_learn.exe`，再运行 `./http2_learn.exe`；本机验证采用了这个直接编译方式。
+
+流协程演示可单独编译运行：`g++ -std=c++20 -Wall -Wextra -Wpedantic server/http2/learn/stream_coroutine_main.cpp -o http2_stream_coroutine_learn.exe`，然后运行 `./http2_stream_coroutine_learn.exe`。它复用项目的 `Task<T>`，不依赖 nghttp2、OpenSSL 或 Linux。
 
 最后看到 `PASS: ...` 表示教学流程内的断言通过；控制台会列出每一帧的方向、stream ID、flags 和负载长度。
 
@@ -67,9 +70,12 @@ sequenceDiagram
 | 2 | [`Hpack.h`](Hpack.h)、[`Hpack.cpp`](Hpack.cpp) | 整数前缀编码、61 项静态表、动态表插入/淘汰、字面量 |
 | 3 | [`Connection.h`](Connection.h)、[`Connection.cpp`](Connection.cpp) | 前言、SETTINGS、stream 状态、HEADERS/DATA、窗口、PING/RST |
 | 4 | [`main.cpp`](main.cpp) | 两端字节交换、拆包、逆序应答、自检断言 |
-| 5 | [`CMakeLists.txt`](CMakeLists.txt) | 独立构建，不依赖服务器或 nghttp2 |
+| 5 | [`stream_coroutine_main.cpp`](stream_coroutine_main.cpp) | 三个独立业务流协程挂起、取消 stream 5、stream 3 先于 1 恢复 |
+| 6 | [`CMakeLists.txt`](CMakeLists.txt) | 独立构建，不依赖服务器或 nghttp2 |
 
 可以先在 `main.cpp` 把 `deliver(..., 1)` 改成 `deliver(..., 100)` 比较行为：帧的结果应一样，只有喂入次数不同。随后看 stream 5 的 20,000 字节 body 如何被拆成 16,384 + 3,616 两个 DATA 帧，并在服务端重新拼回；再把 body 加大到超过教学窗口上限，观察明确报错，留作理解“等待窗口恢复后继续发送”的练习。
+
+**流协程与协议 stream 是两层**：上面的 `Connection` 展示“线上帧按 stream ID 分开”；`stream_coroutine_main.cpp` 则展示“完整请求交给业务后，如何为每条 stream 保存独立的程序执行位置”。`co_await std::suspend_always{}` 像订单交给后厨后把叫号牌挂起来，不占用一个等待线程；Worker 完成时 Reactor 再 `resume()` 对应叫号牌。演示中三张叫号牌先后创建，5 被取消，3 先于 1 完成。真实服务器在 [`../Http2Session.cpp`](../Http2Session.cpp) 里由完成队列与 eventfd 驱动恢复，不按固定顺序手动调用。
 
 ## 4. 它刻意没有实现什么
 

@@ -7,7 +7,7 @@
 | 维度 | test7.0 | test8.0 |
 |---|---|---|
 | 明文入口 | HTTP/1.1、WebSocket、SSE | 同一端口增添 HTTP/2 prior knowledge：首包匹配客户端前言后交给 `Http2Session`，否则走原 HTTP/1.1 |
-| HTTP/2 协议 | 无 | `Http2Codec` 封装 nghttp2，处理帧、HPACK、SETTINGS、stream 与流量控制；`Http2Session` 把完整请求送进现有 Router/Executor |
+| HTTP/2 协议 | 无 | `Http2Codec` 封装 nghttp2，处理帧、HPACK、SETTINGS、stream 与流量控制；`Http2Session` 为每个完整请求建立独立流协程，再送进现有 Router/Executor |
 | HTTPS 入口 | 无 | 配置证书和私钥后开启独立 TLS 监听端口；OpenSSL 完成 TLS 1.3 握手，ALPN 选 `h2` 或 `http/1.1` |
 | 连接读写 | 明文 `recv/writev/sendfile` | TLS 连接先解密再交协议 Session；出站经 `SSL_write_ex` 加密，文件响应经 `pread` 分块读取 |
 | 学习代码 | SSE 与 WebSocket 分层示例 | 增加独立的手写 HTTP/2 完整交换示例，以及 TLS 记录拆包和 OpenSSL 内存双端示例 |
@@ -26,7 +26,8 @@ TCP accept
                   ├─ h2       → Http2Session
                   └─ http/1.1 → HttpSession
 
-Http2Session → Http2Codec/nghttp2 → HttpRequest → Router → HTTP Executor
+Http2Session 根协程 → Http2Codec/nghttp2 → 每 stream 一个流协程
+             → HTTP Executor → Router → 完成通知 → 恢复该流协程
              → HttpResponse → nghttp2 HEADERS/DATA → OutboundQueue
              → 唯一 writerLoop → 明文 socket 或 TlsTransport → TCP
 ```
@@ -78,6 +79,8 @@ curl -k --http1.1 https://127.0.0.1:8443/
 - 生产版 `Http2Codec` 与本地编译的 nghttp2 静态库的往返测试：前言拆包、HPACK、多路请求、POST DATA、RST_STREAM。
 - SSE 编码独立检查：多行数据、HTTP chunk、注释心跳和字段注入防护。
 - TLS 外层记录增量解析教学程序；项目 Python 文件语法检查。
+- 从官方 MSYS2 仓库取得 OpenSSL 3.6.4 Windows 开发包并核对 SHA-256；实际运行 OpenSSL TLS 1.3 内存双端握手，ALPN `h2` 和 `http/1.1` 两条路径及加密字节往返均通过。生产版 TLS 上下文和传输封装通过 Windows 编译器语法检查。
+- HTTP/2 流协程独立演示通过：三条流挂起、RST 取消一条、stream 3 先于 stream 1 完成。生产 `Http2Session` 流协程路径通过语法和静态检查。
 - 全部 `server/` 源码及 HTTP/2 codec 测试源码的 Cppcheck warning 扫描；其中发现并修复了预留路由 ID 未初始化的问题。
 
-完整服务器依赖 Linux epoll，本机也没有 OpenSSL 开发头文件或 GoogleTest，因此 **Linux 全量构建、GTest 套件、TLS/ALPN 真正握手与 HTTP/WS/SSE/TLS 网络黑盒尚未在此环境运行**。这些验证仍需在虚拟机中执行上面的 CTest 命令；不能把独立组件通过解释为完整服务已经通过。
+完整服务器依赖 Linux epoll，本机没有 GoogleTest，因此 **Linux 全量构建、GTest 套件与 HTTP/WS/SSE/TLS 网络黑盒尚未在此环境运行**。本机通过的是独立 OpenSSL 双端握手，不等于完整服务互操作；后者仍需在虚拟机中执行上面的 CTest 命令。

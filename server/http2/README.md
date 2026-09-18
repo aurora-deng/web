@@ -11,7 +11,7 @@ HTTP/1.1 与 HTTP/2 的 GET、POST、状态码等业务语义仍是 HTTP；变�
 | h2 / h2c | 前者经 TLS/ALPN 协商；后者是明文 HTTP/2 | Phase 6 的明文端口为 h2c prior knowledge；Phase 7 的可选 TLS 端口使用 ALPN `h2` |
 | client connection preface | 客户端先报“接下来按 HTTP/2 讲话”的固定 24 字节 | `Http2Preface.h` + `HttpSession.cpp`；nghttp2 再消费前言 |
 | frame（帧） | 带类型和 stream 编号的小包；固定 9 字节帧头 + payload | nghttp2 生产解析；教学版 `learn/Frame.cpp` |
-| stream（流） | 一条连接里的一个双向请求/响应通道；客户端新建流通常用奇数 ID | `Http2Session` 为每个完成的 stream 建独立 Job |
+| stream（流） | 一条连接里的一个双向请求/响应通道；客户端新建流通常用奇数 ID | `Http2Session` 为每个完成的 stream 建独立 Job 和业务流协程 |
 | HEADERS / DATA | 首部块 / 消息体；一个请求可由多个帧组成 | `Http2Codec` 回调收集，END_STREAM 后分发 |
 | HPACK | 压缩 HTTP 首部的二进制格式 | 生产版 nghttp2；教学版 `learn/Hpack.cpp` |
 | 静态表 / 动态表 | 预设常见首部目录 / 每条连接运行时记住的首部目录；索引相当于目录编号 | 动态表是连接方向上的状态，不属于单个 stream |
@@ -39,7 +39,7 @@ HTTP/1.1 与 HTTP/2 的 GET、POST、状态码等业务语义仍是 HTTP；变�
 | 维度 | test7.0（SSE 已接入） | test8.0（加入 HTTP/2 与 TLS/ALPN） |
 |---|---|---|
 | 入口 | HTTP/1.1 请求进入 `HttpSession`，可交接 WS/SSE | 同一明文端口先识别 HTTP/2 前言；匹配则交 `Http2Session`，否则沿原路径 |
-| 并发单位 | HTTP/1.1 会话处理请求；WS/SSE 各占一条长连接 | HTTP/2 **每连接一个 Session、每 stream 一个业务 Job** |
+| 并发单位 | HTTP/1.1 会话处理请求；WS/SSE 各占一条长连接 | HTTP/2 **每连接一个 Session、每 stream 一个业务 Job 和流协程** |
 | 线上格式 | HTTP/1.1 文本首部，SSE 事件经 HTTP chunk 发送 | HTTP/2 二进制帧 + HPACK；不能直接复用 chunk/101 字节 |
 | 编解码 | 项目内 HTTP/WS/SSE 自写模块 | HTTP/2 标准细节交 nghttp2，项目写适配器 |
 | 出站 | `OutboundTask` → 唯一 writer | 相同出站链路，先由 nghttp2 产出 HTTP/2 字节 |
@@ -55,7 +55,7 @@ HTTP/1.1 与 HTTP/2 的 GET、POST、状态码等业务语义仍是 HTTP；变�
 
 1. **每条 TCP 连接创建一个 `nghttp2_session`**：[`Http2Codec.cpp`](Http2Codec.cpp) 构造函数创建 callbacks，注册 `onBeginHeaders`、`onHeader`、`onData`、`onFrame`、`onClose`，然后调用 `nghttp2_session_server_new()` 和 `nghttp2_submit_settings()`。这份 session 要由所属 Reactor 线程独占访问，因为 HPACK 和 stream 状态都在里面。
 2. **喂入收到的字节**：`HttpSession` 用 [`Http2Preface.h`](Http2Preface.h) 判断前言并交接；`Http2Session::run()` 把完整读到的字节交 `Http2Codec::receive()`，里面调用 `nghttp2_session_mem_recv()`。nghttp2 再按帧边界、HPACK 和 stream 规则触发回调。`onFrame` 看到 END_STREAM 后才把完整请求放进 `ready_`。
-3. **让旧业务继续工作**：[`Http2Session.cpp`](Http2Session.cpp) 从 `takeReady()` 取 stream ID、方法、路径、首部和请求体，建 `RequestContext`/Job，交给现有 HTTP Executor。Worker 完成后以 `fd + connId + streamId` 找回所属连接及 stream；`connId` 防 fd 被复用，`streamId` 区分同连接的不同请求。
+3. **让旧业务继续工作**：[`Http2Session.cpp`](Http2Session.cpp) 从 `takeReady()` 取 stream ID、方法、路径、首部和请求体，建 `RequestContext`/Job。每个 Job 持有一个 `runStream()` 协程：先向现有 HTTP Executor 投递 handler，再挂起；Worker 完成后通知连接根协程，根协程按 `fd + connId + streamId` 找回并恢复对应流协程。`connId` 防 fd 被复用，`streamId` 区分同连接请求；Worker 不直接操作 nghttp2。
 4. **提交响应**：`Http2Codec::submitResponse()` 整理 `:status` 和小写首部；调用 `nghttp2_submit_response()`，有 body 时提供 `nghttp2_data_provider` 的读取回调。连接级的 `Connection`、`Transfer-Encoding` 等首部不能塞入 HTTP/2。
 5. **取出待发送字节**：`Http2Codec::drainOutput()` 循环调用 `nghttp2_session_mem_send()`。返回的指针由 nghttp2 管理、只在下一次调用前有效，故立即复制到项目的 `OutboundTask`，交给唯一 writerLoop。stream 关闭回调清理缓存；会话析构调用 `nghttp2_session_del()`。
 
@@ -83,7 +83,7 @@ flowchart TD
     CLOSE --> BYTES
 ```
 
-生产路径的对应关系为：`HttpSession.cpp`/`Http2Preface.h`（前言）→ `Http2Codec.cpp`/nghttp2（帧、HPACK、SETTINGS、stream、窗口）→ `Http2Session.cpp`（请求、Job）→ `Http2Codec.cpp`（响应编码）→ `OutboundTask`/`TransportWriter`（写 socket）。教学版的 `learn/Connection.cpp` 把多项协议状态集中到一个类，是为了跟着一条数据走；生产版把协议库和业务会话分离，才能少写高风险的标准边界代码。
+生产路径的对应关系为：`HttpSession.cpp`/`Http2Preface.h`（前言）→ `Http2Codec.cpp`/nghttp2（帧、HPACK、SETTINGS、stream、窗口）→ `Http2Session.cpp`（请求、Job、流协程）→ `Http2Codec.cpp`（响应编码）→ `OutboundTask`/`TransportWriter`（写 socket）。教学版的 `learn/Connection.cpp` 把多项协议状态集中到一个类，是为了跟着一条数据走；`learn/stream_coroutine_main.cpp` 另演示业务挂起和恢复。生产版把协议库和业务会话分离，才能少写高风险的标准边界代码。
 
 | 选择 | 得到什么 | 自己还必须负责什么 |
 |---|---|---|

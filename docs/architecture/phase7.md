@@ -79,12 +79,14 @@ curl -kvi --http1.1 https://localhost:8443/
 curl -vi --http2-prior-knowledge http://127.0.0.1:8080/
 ```
 
-`-k` 仅因为上述测试证书未受信任；正式客户端要验证 CA 和主机名。还应验收 TLS 上的 POST、静态文件、SSE、WebSocket 及慢客户端背压与断线清理，并确认 `curl -V` 显示 HTTP2 支持。**当前 Windows 工作区没有可运行的 Linux epoll 环境与 OpenSSL 开发头文件，以上完整服务命令尚未在本机执行；不能把源码接入等同于已验证互操作。**
+`-k` 仅因为上述测试证书未受信任；正式客户端要验证 CA 和主机名。还应验收 TLS 上的 POST、静态文件、SSE、WebSocket 及慢客户端背压与断线清理，并确认 `curl -V` 显示 HTTP2 支持。**当前 Windows 工作区没有可运行的 Linux epoll 环境，以上完整服务命令尚未在本机执行；不能把源码接入等同于已验证互操作。**
 
-仓库另备有 [`tls_blackbox.py`](../../tests/integration/tls_blackbox.py)：它临时生成自签名证书、启动真实服务器，检查 ALPN `h2`/`http/1.1` 和 HTTPS/1.1 响应；若系统 `curl` 带 HTTP2 功能，还会发送实际 h2 请求。Linux 上安装测试依赖并使用 `-DBUILD_TESTING=ON` 后可运行 `ctest --test-dir build -R tls_blackbox --output-on-failure`。当前只通过该脚本的 Python 语法检查，**未运行真实服务测试**。Windows 上另已运行手写 TLS 记录拆包程序；OpenSSL 内存双端演示仍因缺少开发库而未运行。
+仓库另备有 [`tls_blackbox.py`](../../tests/integration/tls_blackbox.py)：它临时生成自签名证书、启动真实服务器，检查 ALPN `h2`/`http/1.1` 和 HTTPS/1.1 响应；若系统 `curl` 带 HTTP2 功能，还会发送实际 h2 请求。Linux 上安装测试依赖并使用 `-DBUILD_TESTING=ON` 后可运行 `ctest --test-dir build -R tls_blackbox --output-on-failure`。当前只通过该脚本的 Python 语法检查，**未运行真实服务测试**。
+
+Windows 上已从 [MSYS2 官方 OpenSSL 开发包](https://packages.msys2.org/packages/mingw-w64-x86_64-openssl)取得 3.6.4-1 版，并与发布页核对 SHA-256；依赖包仅放在工作区临时目录，未提交仓库。用它编译运行独立内存双端程序，实际得到 `TLS=TLSv1.3 ALPN=h2 handshake_rounds=2` 和 `TLS=TLSv1.3 ALPN=http/1.1 handshake_rounds=2`，两次均解密收到 `HTTP application bytes`。生产 `TlsContext.cpp`、`TlsTransport.cpp` 也通过对应头文件下的 C++20 语法检查。这说明 OpenSSL 用法和教学握手可以运行，**不证明 Linux epoll 服务器端到端已通过**。
 
 ## 6. 独立教学版怎么学
 
-[`server/tls/learn`](../../server/tls/learn/README.md) 有两段独立练习：`Record.h`/`record_main.cpp` 手写 TLS **外层 5 字节记录信封**的增量拆包；`main.cpp` 用一对内存 BIO 连接教学客户端和服务端，执行真实 TLS 1.3 握手，观察 ALPN 列表、`WANT_*` 重试、协商结果和加密应用字节的往返。前一段只处理合成记录，不解密；后一段的密码学和真实记录层仍由 OpenSSL 完成。它们没有 socket、epoll、Router，也不编进生产 `webserver_core`。阅读顺序是：先看记录边界，再看 `selectAlpn()` 的长度前缀和交替调用 `SSL_do_handshake()`，最后把 `SSL_write_ex/SSL_read_ex` 对到生产 `TlsTransport` 和 `TransportWriter`。手写记录小程序已在 Windows g++ 下编译运行通过；OpenSSL 双端演示需到有开发库的 Linux 环境运行。
+[`server/tls/learn`](../../server/tls/learn/README.md) 有两段独立练习：`Record.h`/`record_main.cpp` 手写 TLS **外层 5 字节记录信封**的增量拆包；`main.cpp` 用一对内存 BIO 连接教学客户端和服务端，执行真实 TLS 1.3 握手，观察 ALPN 列表、`WANT_*` 重试、协商结果和加密应用字节的往返。前一段只处理合成记录，不解密；后一段的密码学和真实记录层仍由 OpenSSL 完成。它们没有 socket、epoll、Router，也不编进生产 `webserver_core`。阅读顺序是：先看记录边界，再看 `selectAlpn()` 的长度前缀和交替调用 `SSL_do_handshake()`，最后把 `SSL_write_ex/SSL_read_ex` 对到生产 `TlsTransport` 和 `TransportWriter`。两段演示都已在 Windows g++ 下实际编译运行；OpenSSL 内存双端分别验证了 ALPN `h2` 和 `http/1.1`。
 
 **阶段结论**：Phase 6 的 h2 帧/stream/HPACK 没有重写；Phase 7 在它外面加了独立 TLS 入口、ALPN 会话选择和全链路加密读写。下一步应先完成 Linux 真实网络验收，再评估证书轮换、SNI、多证书、TLS 关闭通知和 HTTP/2 大响应公平调度。

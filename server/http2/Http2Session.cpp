@@ -7,6 +7,7 @@
 #include "server/transport/OutboundTask.h"
 
 #include <algorithm>
+#include <coroutine>
 #include <string>
 
 namespace
@@ -106,39 +107,15 @@ bool Http2Session::dispatchReady()
         job->context.cancellation = HandlerCancellation{
             job->stop.get_token(), reactor_->executor().handlerDeadline()};
         jobs_[job->streamId] = job;
-        auto self = shared_from_this();
-        if (!reactor_->executor().submit([self, job]()
-                                         {
-            auto &ctx = job->context;
-            try
-            {
-                if (!ctx.stopRequested())
-                {
-                    ctx.response = responsePool.acquire();
-                    self->reactor_->router().handle(ctx);
-                }
-                if (ctx.handlerDeadlineExceeded())
-                {
-                    if (ctx.response)
-                        responsePool.release(ctx.response);
-                    ctx.response = responsePool.acquire();
-                    ctx.response->status = 504;
-                    ctx.response->text("Handler Timeout");
-                }
-            }
-            catch (...)
-            {
-                if (ctx.response)
-                    responsePool.release(ctx.response);
-                ctx.response = responsePool.acquire();
-                ctx.response->status = 500;
-                ctx.response->text("Internal Server Error");
-            }
-            self->workerDone(job);
-        }))
+        // 每个 stream 一张独立的协程“叫号牌”。首次 resume 只提交业务，
+        // 到 co_await 就挂起；根协程继续处理其他 stream 的帧。
+        job->coroutine.emplace(runStream(job.get()));
+        job->coroutine->resume();
+        if (job->coroutine->done())
         {
+            const bool ok = job->coroutine->result();
             jobs_.erase(job->streamId);
-            if (!codec_.submitResponse(job->streamId, 503, {}, "Service Unavailable"))
+            if (!ok)
                 return false;
         }
     }
@@ -170,36 +147,86 @@ bool Http2Session::finishCompleted()
         auto it = jobs_.find(job->streamId);
         if (it == jobs_.end() || it->second != job)
             continue; // RST_STREAM or connection close made this result stale.
-        auto &ctx = job->context;
-        int status = 200;
-        std::unordered_map<std::string, std::string> headers;
-        std::string body;
-        if (ctx.webSocketAccepted || ctx.sseAccepted)
-        {
-            status = 501; // Existing WS/SSE sessions own a whole HTTP/1.1 connection.
-            body = "This route requires HTTP/1.1";
-        }
-        else if (ctx.response)
-        {
-            status = ctx.response->status;
-            headers = ctx.response->headers;
-            if (!collectBody(ctx.response->body, body))
-            {
-                status = 501;
-                headers.clear();
-                body = "Response body type is not supported over HTTP/2";
-            }
-        }
-        else
-        {
-            status = 500;
-            body = "Missing response";
-        }
-        if (!codec_.submitResponse(job->streamId, status, headers, std::move(body)))
+        // Worker 只投递完成通知；在 Reactor 线程恢复流协程，才能安全地
+        // 操作该连接唯一的 nghttp2_session 和出站队列。
+        job->coroutine->resume();
+        if (!job->coroutine->done() || !job->coroutine->result())
             return false;
         jobs_.erase(it);
     }
     return true;
+}
+
+Task<bool> Http2Session::runStream(Job *job)
+{
+    // 这里不能让协程帧长期持有 shared_ptr<Job>：Job 自己拥有本协程，
+    // 双向 shared_ptr 会形成环。Worker 单独捕获共享所有权直到回调结束。
+    bool submitted = false;
+    {
+        auto self = shared_from_this();
+        auto held = jobs_.at(job->streamId);
+        submitted = reactor_->executor().submit([self, held]()
+        {
+            auto &ctx = held->context;
+            try
+            {
+                if (!ctx.stopRequested())
+                {
+                    ctx.response = responsePool.acquire();
+                    self->reactor_->router().handle(ctx);
+                }
+                if (ctx.handlerDeadlineExceeded())
+                {
+                    if (ctx.response)
+                        responsePool.release(ctx.response);
+                    ctx.response = responsePool.acquire();
+                    ctx.response->status = 504;
+                    ctx.response->text("Handler Timeout");
+                }
+            }
+            catch (...)
+            {
+                if (ctx.response)
+                    responsePool.release(ctx.response);
+                ctx.response = responsePool.acquire();
+                ctx.response->status = 500;
+                ctx.response->text("Internal Server Error");
+            }
+            self->workerDone(held);
+        });
+    }
+    if (!submitted)
+        co_return codec_.submitResponse(job->streamId, 503, {}, "Service Unavailable");
+
+    // 真正挂起的是这条逻辑 stream，不是整条 TCP 连接或一个 Worker 线程。
+    // workerDone 经 Reactor mailbox 唤醒根协程，由 finishCompleted 恢复本协程。
+    co_await std::suspend_always{};
+    auto &ctx = job->context;
+    int status = 200;
+    std::unordered_map<std::string, std::string> headers;
+    std::string body;
+    if (ctx.webSocketAccepted || ctx.sseAccepted)
+    {
+        status = 501; // Existing WS/SSE sessions own a whole HTTP/1.1 connection.
+        body = "This route requires HTTP/1.1";
+    }
+    else if (ctx.response)
+    {
+        status = ctx.response->status;
+        headers = ctx.response->headers;
+        if (!collectBody(ctx.response->body, body))
+        {
+            status = 501;
+            headers.clear();
+            body = "Response body type is not supported over HTTP/2";
+        }
+    }
+    else
+    {
+        status = 500;
+        body = "Missing response";
+    }
+    co_return codec_.submitResponse(job->streamId, status, headers, std::move(body));
 }
 
 bool Http2Session::flushOutput()
