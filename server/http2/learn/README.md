@@ -25,7 +25,7 @@ g++ -std=c++20 -Wall -Wextra -Wpedantic \
 
 Windows PowerShell 上可把上面的 `g++` 参数写成一行，并将输出名改为 `http2_learn.exe`，再运行 `./http2_learn.exe`；本机验证采用了这个直接编译方式。
 
-流协程演示可单独编译运行：`g++ -std=c++20 -Wall -Wextra -Wpedantic server/http2/learn/stream_coroutine_main.cpp -o http2_stream_coroutine_learn.exe`，然后运行 `./http2_stream_coroutine_learn.exe`。它复用项目的 `Task<T>`，不依赖 nghttp2、OpenSSL 或 Linux。
+流协程演示可单独编译运行：`g++ -std=c++20 -Wall -Wextra -Wpedantic -I. server/http2/learn/stream_coroutine_main.cpp -o http2_stream_coroutine_learn.exe`，然后运行 `./http2_stream_coroutine_learn.exe`。它复用生产代码的 `Http2StreamCoroutine` 与项目 `Task<T>`，不依赖 nghttp2、OpenSSL 或 Linux。
 
 最后看到 `PASS: ...` 表示教学流程内的断言通过；控制台会列出每一帧的方向、stream ID、flags 和负载长度。
 

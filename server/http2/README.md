@@ -55,7 +55,7 @@ HTTP/1.1 与 HTTP/2 的 GET、POST、状态码等业务语义仍是 HTTP；变�
 
 1. **每条 TCP 连接创建一个 `nghttp2_session`**：[`Http2Codec.cpp`](Http2Codec.cpp) 构造函数创建 callbacks，注册 `onBeginHeaders`、`onHeader`、`onData`、`onFrame`、`onClose`，然后调用 `nghttp2_session_server_new()` 和 `nghttp2_submit_settings()`。这份 session 要由所属 Reactor 线程独占访问，因为 HPACK 和 stream 状态都在里面。
 2. **喂入收到的字节**：`HttpSession` 用 [`Http2Preface.h`](Http2Preface.h) 判断前言并交接；`Http2Session::run()` 把完整读到的字节交 `Http2Codec::receive()`，里面调用 `nghttp2_session_mem_recv()`。nghttp2 再按帧边界、HPACK 和 stream 规则触发回调。`onFrame` 看到 END_STREAM 后才把完整请求放进 `ready_`。
-3. **让旧业务继续工作**：[`Http2Session.cpp`](Http2Session.cpp) 从 `takeReady()` 取 stream ID、方法、路径、首部和请求体，建 `RequestContext`/Job。每个 Job 持有一个 `runStream()` 协程：先向现有 HTTP Executor 投递 handler，再挂起；Worker 完成后通知连接根协程，根协程按 `fd + connId + streamId` 找回并恢复对应流协程。`connId` 防 fd 被复用，`streamId` 区分同连接请求；Worker 不直接操作 nghttp2。
+3. **让旧业务继续工作**：[`Http2Session.cpp`](Http2Session.cpp) 从 `takeReady()` 取 stream ID、方法、路径、首部和请求体，建 `RequestContext`/Job。每个 Job 持有一个 `runStream()` 协程，并由 [`Http2StreamCoroutine.h`](Http2StreamCoroutine.h) 统一管理创建、挂起、成功、失败和取消：先向现有 HTTP Executor 投递 handler，再挂起；Worker 完成后通知连接根协程，根协程按 `fd + connId + streamId` 找回并恢复对应流协程。`connId` 防 fd 被复用，`streamId` 区分同连接请求；Worker 不直接操作 nghttp2。
 4. **提交响应**：`Http2Codec::submitResponse()` 整理 `:status` 和小写首部；调用 `nghttp2_submit_response()`，有 body 时提供 `nghttp2_data_provider` 的读取回调。连接级的 `Connection`、`Transfer-Encoding` 等首部不能塞入 HTTP/2。
 5. **取出待发送字节**：`Http2Codec::drainOutput()` 循环调用 `nghttp2_session_mem_send()`。返回的指针由 nghttp2 管理、只在下一次调用前有效，故立即复制到项目的 `OutboundTask`，交给唯一 writerLoop。stream 关闭回调清理缓存；会话析构调用 `nghttp2_session_del()`。
 

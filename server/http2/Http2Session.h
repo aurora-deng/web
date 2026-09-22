@@ -1,6 +1,7 @@
 #pragma once
 
 #include "server/http2/Http2Codec.h"
+#include "server/http2/Http2StreamCoroutine.h"
 #include "server/http/RequestContext/RequestContext.h"
 #include "server/session/Session/Session.h"
 #include "server/transport/ConnectionKey.h"
@@ -8,7 +9,6 @@
 #include <deque>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <stop_token>
 #include <unordered_map>
 
@@ -30,10 +30,9 @@ private:
         int32_t streamId = 0;
         RequestContext context;
         std::stop_source stop;
-        // Only the owning Reactor resumes this coroutine or calls nghttp2.
-        // A cancelled Job may be destroyed after its Worker releases the last
-        // shared_ptr; destroying a suspended Task never resumes it.
-        std::optional<Task<bool>> coroutine;
+        // Only the owning Reactor starts/resumes/cancels this coroutine.
+        // Worker keeps Job alive, but it only writes context and posts completion.
+        Http2StreamCoroutine coroutine;
         ~Job();
     };
 

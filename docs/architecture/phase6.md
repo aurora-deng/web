@@ -27,7 +27,7 @@ HTTP/2 不只是“HTTP/1.1 长连接”。它还规定连接前言、二进制�
 | 全流程演示 | 独立 codec 往返覆盖拆包、HPACK、多 stream、POST DATA 和 RST | 教学双端程序还演示 SETTINGS/ACK、PING、GOAWAY、DATA 分帧与逆序响应 | 演示覆盖增加，不代表吞吐或延迟提升 |
 | 验证 | 本机 codec 往返通过；Linux 完整服务待验收 | 教学版 C++20 直接编译运行通过 | 真实 Linux h2c/SSE 共存和性能仍待验证 |
 
-`test8.0` 后续补充了**生产业务流协程**：每个 Job 持有一个 `Task<bool>`，Worker 完成后由 Reactor 恢复，响应逻辑写在 `runStream()` 的挂起点之后。协议层仍由 nghttp2 负责，也没有把业务 handler 改成协程；独立的 `learn/stream_coroutine_main.cpp` 只演示该调度机制。这是对上表“业务与出站保持原样”的后续增量，不改变原先的连接级单写者和背压边界。
+`test8.0` 后续补充了**生产业务流协程**：每个 Job 持有一个 `Http2StreamCoroutine`，内部拥有 `Task<bool>`；Worker 完成后由 Reactor 恢复，响应逻辑写在 `runStream()` 的挂起点之后。协议层仍由 nghttp2 负责，也没有把业务 handler 改成协程；独立的 `learn/stream_coroutine_main.cpp` 只演示该调度机制。这是对上表“业务与出站保持原样”的后续增量，不改变原先的连接级单写者和背压边界。
 
 可以把它们想成一台分拣机：HTTP/2 规范规定包裹格式，nghttp2 是生产分拣机的协议内核，`Http2Codec`/`Http2Session` 是接入本项目业务的线路，`learn` 则是拆开齿轮供学习的透明模型。教学版有自己的协议状态，不被根 `CMakeLists.txt` 编进 `webserver_core`。
 
@@ -56,10 +56,10 @@ flowchart LR
 
 1. **识别与交接**：`server/http/HttpSession/HttpSession.cpp` 在 HTTP/1 parser 之前比对前言。只收到前几个字节时保留在 `readBuffer`，等待下一次读取；完整匹配后经 `SessionFactory::createHttp2Session()` 创建会话，替换 `Connection::session`，把新根协程交给调度器。缓冲字节不提前取走，由 nghttp2 自己消费前言。
 2. **收帧与拼请求**：`server/http2/Http2Codec.cpp` 为每个连接创建一个 nghttp2 server session。回调按 stream ID 收集 `:method`、`:path`、普通首部和 DATA；收到 END_STREAM 才把一个完整请求交给业务。HPACK 解码、帧顺序和流量控制由 nghttp2 判断。超过请求首部或请求体上限的 stream 被重置。
-3. **并发业务与流协程**：`Http2Session::dispatchReady()` 为每个完整 stream 建一个 Job、独立 `RequestContext`、取消源和截止时间，并创建 `Task<bool>` 流协程。首次 `resume()` 进入 `runStream()`，把 handler 交给现有 HTTP Executor 后在 `co_await std::suspend_always{}` 停住。连接根协程继续读别的帧；stream 3 可以先于 stream 1 完成。Executor 排队满则流协程直接提交 503。
-4. **完成通知与恢复**：Worker 把 Job 放进会话的完成队列，再调用 `notifyExecuteComplete(fd, connId)`。`SubReactor::processComplete()` 用 `connId` 防 fd 复用，并唤醒连接根协程。根协程在 `finishCompleted()` 找到对应 Job，**只在所属 Reactor 线程**恢复这条流协程；Worker 不碰 nghttp2。若客户端提前 RST_STREAM，取消源亮起、挂起协程被销毁，迟到的业务结果被丢弃。
+3. **并发业务与流协程**：`Http2Session::dispatchReady()` 为每个完整 stream 建一个 Job、独立 `RequestContext`、取消源和截止时间，并创建 `Task<bool>` 流协程。[`Http2StreamCoroutine.h`](../../server/http2/Http2StreamCoroutine.h) 是协程“叫号牌”的所有权状态机，明确记录 `Ready → Suspended → Succeeded/Failed` 或 `Cancelled`。首次 `resume()` 进入 `runStream()`，把 handler 交给现有 HTTP Executor 后在 `co_await std::suspend_always{}` 停住。连接根协程继续读别的帧；stream 3 可以先于 stream 1 完成。Executor 排队满则流协程直接提交 503。
+4. **完成通知与恢复**：Worker 把 Job 放进会话的完成队列，再调用 `notifyExecuteComplete(fd, connId)`。`SubReactor::processComplete()` 用 `connId` 防 fd 复用，并唤醒连接根协程。根协程在 `finishCompleted()` 找到对应 Job，**只在所属 Reactor 线程**恢复这条流协程；Worker 不碰 nghttp2。若客户端提前 RST_STREAM，取消源亮起，`cancel()` 当场销毁挂起的协程帧，迟到的业务结果因 jobs 映射中已没有该 stream 而被丢弃。连接关闭走相同取消逻辑。
 5. **响应与写入**：恢复的流协程把 `HttpResponse` 转为 `:status`、小写首部及 DATA。连接级首部（如 `Connection`、`Transfer-Encoding`）不能出现在 HTTP/2 中，所以过滤。`nghttp2_session_mem_send()` 产出的临时内存立即复制为 `OutboundTask::encoded`，复用原有唯一 writerLoop；所有 stream 共享同一发送顺序和连接窗口。
-6. **关闭清理**：连接关闭时 `requestHandlerStop()` 向仍在运行的各 stream Job 发协作取消信号；`Job` 析构销毁未完成的流协程并把池化响应归还。停止信号不是强制终止，业务 handler 仍需在耗时循环里主动检查 `stopRequested()`。
+6. **关闭清理**：连接关闭时 `requestHandlerStop()` 向仍在运行的各 stream Job 发协作取消信号，并立即取消挂起的流协程；`Job` 析构把池化响应归还。停止信号不是强制终止 Worker，业务 handler 仍需在耗时循环里主动检查 `stopRequested()`。
 
 这里的 `connId` 与 `streamId` 解决两个不同问题：`connId` 证明“还是原来那条 TCP 连接”，`streamId` 证明“是这条连接里的哪一张订单”。只用 fd 会误认复用后的新连接；只用 connId 无法区分并发请求。
 
@@ -137,7 +137,7 @@ curl --http2-prior-knowledge -i http://127.0.0.1:8080/
 
 需要运行仓库测试时，再安装已有测试依赖 `libgtest-dev`，使用 `-DBUILD_TESTING=ON`；`http2_codec_roundtrip` 测试覆盖前言拆包、HPACK、同连接两个 stream 交错应答、POST DATA 请求体和 RST_STREAM。
 
-**当前验证结果**：在本地 Windows 工作区，将官方 nghttp2 1.70.0 源码临时编为静态库后，独立编译并运行了 `tests/http2_codec_roundtrip.cpp`，上述协议测试通过；新增 Codec、Session、交接与工厂文件的 C++ 语法检查通过。SSE 事件与 HTTP chunk 编码的独立检查也通过。教学版用 C++20 `g++` 直接编译运行，覆盖 SETTINGS/ACK、DATA 分帧、动态表、窗口、PING、RST 和 GOAWAY；流协程教学程序另验证独立挂起、逆序完成与取消。独立 CMake 在本机编译器探测处未完成。这些结果均不等于生产服务的网络验收。
+**当前验证结果**：在本地 Windows 工作区，将官方 nghttp2 1.70.0 源码临时编为静态库后，独立编译并运行了 `tests/http2_codec_roundtrip.cpp`，上述协议测试通过；新增 Codec、Session、交接与工厂文件的 C++ 语法检查通过。SSE 事件与 HTTP chunk 编码的独立检查也通过。教学版用 C++20 `g++` 直接编译运行，覆盖 SETTINGS/ACK、DATA 分帧、动态表、窗口、PING、RST 和 GOAWAY；`tests/http2_stream_coroutine_lifecycle.cpp` 直接测试生产状态机的挂起、逆序完成、失败、RST 取消与协程帧销毁，并已注册进 CTest。独立 CMake 在本机编译器探测处未完成。这些结果均不等于生产服务的网络验收。
 
 核心网络层使用 Linux epoll，当前 Windows 工作区无法直接启动完整服务，因此尚未完成“真实 SubReactor + 本地 socket + curl”的端到端验证。目标 Linux 环境中应运行上面的命令，同时验证 HTTP/1.1 `/events-status`、SSE `/events` 与 WebSocket 原路径继续工作，并检查连接断开后的资源清理。未做性能基准；不能据此宣称吞吐或延迟改善。
 

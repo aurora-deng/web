@@ -57,7 +57,12 @@ Http2Session::Job::~Job()
 void Http2Session::requestHandlerStop() noexcept
 {
     for (auto &[_, job] : jobs_)
+    {
         job->stop.request_stop();
+        // fd_close 在 Reactor 线程调用；此处可安全销毁挂起的流协程。
+        // Worker 仍持有 Job 并观察 stop_token，迟到结果只会进入废弃队列。
+        job->coroutine.cancel();
+    }
 }
 
 void Http2Session::workerDone(const std::shared_ptr<Job> &job)
@@ -109,13 +114,13 @@ bool Http2Session::dispatchReady()
         jobs_[job->streamId] = job;
         // 每个 stream 一张独立的协程“叫号牌”。首次 resume 只提交业务，
         // 到 co_await 就挂起；根协程继续处理其他 stream 的帧。
-        job->coroutine.emplace(runStream(job.get()));
-        job->coroutine->resume();
-        if (job->coroutine->done())
+        if (!job->coroutine.start(runStream(job.get())))
+            return false;
+        const auto state = job->coroutine.resume();
+        if (state != Http2StreamCoroutine::State::Suspended)
         {
-            const bool ok = job->coroutine->result();
             jobs_.erase(job->streamId);
-            if (!ok)
+            if (state != Http2StreamCoroutine::State::Succeeded)
                 return false;
         }
     }
@@ -130,6 +135,7 @@ void Http2Session::reapClosed()
         if (it != jobs_.end())
         {
             it->second->stop.request_stop();
+            it->second->coroutine.cancel();
             jobs_.erase(it);
         }
     }
@@ -149,8 +155,8 @@ bool Http2Session::finishCompleted()
             continue; // RST_STREAM or connection close made this result stale.
         // Worker 只投递完成通知；在 Reactor 线程恢复流协程，才能安全地
         // 操作该连接唯一的 nghttp2_session 和出站队列。
-        job->coroutine->resume();
-        if (!job->coroutine->done() || !job->coroutine->result())
+        const auto state = job->coroutine.resume();
+        if (state != Http2StreamCoroutine::State::Succeeded)
             return false;
         jobs_.erase(it);
     }

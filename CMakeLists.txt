@@ -197,6 +197,13 @@ add_custom_command(
 # 策略：只寻找系统预装GTest，不自动下载源码编译，保证构建环境可控、支持离线编译
 # ==============================================================================
 if(BUILD_TESTING)
+    add_executable(http2_stream_coroutine_lifecycle
+        tests/http2_stream_coroutine_lifecycle.cpp)
+    target_include_directories(http2_stream_coroutine_lifecycle PRIVATE
+        ${PROJECT_SOURCE_DIR})
+    add_test(NAME http2_stream_coroutine_lifecycle
+        COMMAND http2_stream_coroutine_lifecycle)
+
     add_executable(http2_codec_roundtrip
         tests/http2_codec_roundtrip.cpp server/http2/Http2Codec.cpp)
     target_include_directories(http2_codec_roundtrip PRIVATE

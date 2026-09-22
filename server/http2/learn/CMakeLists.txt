@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 project(http2_learn LANGUAGES CXX)
 add_executable(http2_learn main.cpp Frame.cpp Hpack.cpp Connection.cpp)
 add_executable(http2_stream_coroutine_learn stream_coroutine_main.cpp)
+target_include_directories(http2_stream_coroutine_learn PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
 foreach(target http2_learn http2_stream_coroutine_learn)
     target_compile_features(${target} PRIVATE cxx_std_20)
     if(MSVC)

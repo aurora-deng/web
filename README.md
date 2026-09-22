@@ -80,7 +80,7 @@ curl -k --http1.1 https://127.0.0.1:8443/
 - SSE 编码独立检查：多行数据、HTTP chunk、注释心跳和字段注入防护。
 - TLS 外层记录增量解析教学程序；项目 Python 文件语法检查。
 - 从官方 MSYS2 仓库取得 OpenSSL 3.6.4 Windows 开发包并核对 SHA-256；实际运行 OpenSSL TLS 1.3 内存双端握手，ALPN `h2` 和 `http/1.1` 两条路径及加密字节往返均通过。生产版 TLS 上下文和传输封装通过 Windows 编译器语法检查。
-- HTTP/2 流协程独立演示通过：三条流挂起、RST 取消一条、stream 3 先于 stream 1 完成。生产 `Http2Session` 流协程路径通过语法和静态检查。
+- HTTP/2 流协程生命周期测试通过：三条流独立挂起、RST 只取消一条、stream 3 先于 stream 1 完成，同时覆盖响应提交失败、同步完成和协程帧及时销毁。生产 `Http2Session` 复用同一个 `Http2StreamCoroutine` 状态机，并通过语法和静态检查。
 - 全部 `server/` 源码及 HTTP/2 codec 测试源码的 Cppcheck warning 扫描；其中发现并修复了预留路由 ID 未初始化的问题。
 
 完整服务器依赖 Linux epoll，本机没有 GoogleTest，因此 **Linux 全量构建、GTest 套件与 HTTP/WS/SSE/TLS 网络黑盒尚未在此环境运行**。本机通过的是独立 OpenSSL 双端握手，不等于完整服务互操作；后者仍需在虚拟机中执行上面的 CTest 命令。
