@@ -92,6 +92,14 @@ public:
      */
     virtual void requestHandlerStop() noexcept {}
 
+    /**
+     * @brief Runtime 停止接收新连接后，在 Reactor 线程内通知协议进入排空阶段。
+     *
+     * HTTP/2 可发送 GOAWAY，WebSocket 可发送 1001，SSE 可发送 shutdown 事件。
+     * 默认空实现让普通 HTTP/1.1 保持兼容，稍后的统一停机会关闭剩余连接。
+     */
+    virtual void beginDrain() noexcept {}
+
     /** HTTP/2 can have several Workers per connection; completion wakes its read loop. */
     virtual bool wakeReadOnExecuteComplete() const { return false; }
 };

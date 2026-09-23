@@ -115,6 +115,7 @@ private:
     RequestContext context_;        // 本次请求的"档案袋"（请求/响应/连接信息）
     bool keepAlive_ = true;         // 是否保持连接
     uint64_t sseClientId_ = 0;      // SSE 握手校验后的客户端标识
+    std::string sseLastEventId_;    // 重连游标，交给 SseSession 做有界重放
     SessionState state = SessionState::READING; // 当前会话状态
     std::stop_source handlerStopSource_; // 当前在途 handler 的协作式撤单源
 

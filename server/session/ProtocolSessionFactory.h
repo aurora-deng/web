@@ -21,7 +21,8 @@ public:
     std::shared_ptr<Session> createSseSession(
         ConnectionKey key,
         SubReactor *reactor,
-        std::uint64_t clientId) override;
+        std::uint64_t clientId,
+        std::string lastEventId) override;
     std::shared_ptr<Session> createHttp2Session(
         ConnectionKey key, SubReactor *reactor) override;
 

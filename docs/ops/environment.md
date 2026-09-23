@@ -137,3 +137,31 @@ chmod +x install_env.sh
 2. `set -e`：任意命令出错脚本直接终止，方便排查部署故障；
   
 3. 所有 dnf 命令携带`--nogpgcheck`，规避 MySQL 仓库 GPG 校验失败阻塞安装；
+
+---
+
+# 三、Phase 9 运行配置
+
+学习模式可以继续不配置身份。面向非本机环境运行时建议开启失败关闭模式：
+
+```bash
+export WEB_PRODUCTION_MODE=1
+export WEB_AUTH_SECRET='replace-with-at-least-32-random-bytes'
+export WEB_ALLOWED_ORIGINS='https://app.example.com,https://admin.example.com'
+export WEB_TLS_CERT=/run/secrets/web-cert.pem
+export WEB_TLS_KEY=/run/secrets/web-key.pem
+
+# 启用 gRPC 时必须单独提供它的证书路径；不需要则设为 off。
+export WEB_GRPC_ADDRESS='127.0.0.1:50051'
+export WEB_GRPC_TLS_CERT=/run/secrets/grpc-cert.pem
+export WEB_GRPC_TLS_KEY=/run/secrets/grpc-key.pem
+
+export WEB_MAX_CONNECTIONS=10000
+export WEB_SHUTDOWN_DRAIN_MS=500
+export WEB_REQUESTS_PER_MINUTE=120
+export WEB_RATE_LIMIT_IDENTITIES=65536
+export WEB_GRPC_MAX_CONCURRENT_RPCS=256
+export WEB_GRPC_MAX_WORKER_THREADS=64
+```
+
+`WEB_AUTH_SECRET` 不应写入源码、Git 或命令历史，生产中应由 secret manager 注入。当前令牌实现用于本项目学习统一身份边界；正式系统还要接入密钥轮换、撤销或 OIDC/JWT/JWKS。

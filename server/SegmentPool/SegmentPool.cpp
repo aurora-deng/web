@@ -27,6 +27,20 @@
 #include "SegmentPool.h"
 
 /**
+ * @brief 释放池中仍缓存的 Block
+ *
+ * 池化只是延迟释放，不是放弃所有权。局部 SegmentPool 销毁或进程退出时，
+ * 必须删除回收站中的托盘；否则 LeakSanitizer 会正确地把缓存识别为泄漏。
+ */
+SegmentPool::~SegmentPool()
+{
+    std::lock_guard<std::mutex> lock(mtx);
+    for (Block *block : freeList)
+        delete block;
+    freeList.clear();
+}
+
+/**
  * @brief 借一个 Block 托盘（领一个空托盘开始装包裹）
  * @return 可用的 Block*，idx 已归零
  *
@@ -56,14 +70,21 @@ Block *SegmentPool::acquire()
  * @brief 还一个 Block 托盘（装完送回回收站）
  * @param b 要归还的 Block 指针
  *
- * 还托盘逻辑：加锁、idx 归零、压回 freeList。
- * 注意本实现没有上限保护（与 BufferPoll 不同），调用方需确保归还数量可控。
+ * 还托盘逻辑：加锁、idx 归零；缓存未满就压回 freeList，已满则直接释放。
+ * 上限把一次流量尖峰产生的 Block 与长期常驻内存隔开。
  */
 void SegmentPool::release(Block *b)
 {
     std::lock_guard<std::mutex> lock(mtx);
     b->idx=0;       // 清空使用计数，托盘恢复"空"状态
-    freeList.push_back(b);
+    if (freeList.size() < kMaxCachedBlocks)
+    {
+        freeList.push_back(b);
+        return;
+    }
+
+    // 回收站已经装满时直接销毁，避免一次并发尖峰变成进程终身驻留内存。
+    delete b;
 }
 
 /**

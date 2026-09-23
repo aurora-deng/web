@@ -10,6 +10,7 @@ import tempfile
 import time
 import urllib.parse
 from pathlib import Path
+from typing import Optional
 
 HOST = "127.0.0.1"
 PORT = 8080
@@ -68,14 +69,16 @@ class ChunkReader:
         return payload.decode("utf-8")
 
 
-def open_sse(uid: int) -> tuple[socket.socket, ChunkReader]:
+def open_sse(uid: int, last_event_id: Optional[str] = None) -> tuple[socket.socket, ChunkReader]:
     sock = socket.create_connection((HOST, PORT), timeout=TIMEOUT)
     sock.settimeout(TIMEOUT)
+    cursor = f"Last-Event-ID: {last_event_id}\r\n" if last_event_id else ""
     sock.sendall(
         (
             f"GET /events?uid={uid} HTTP/1.1\r\n"
             "Host: localhost\r\n"
             "Accept: text/event-stream\r\n"
+            f"{cursor}"
             "Connection: keep-alive\r\n\r\n"
         ).encode()
     )
@@ -137,6 +140,30 @@ def run_check() -> None:
             event = reader.read()
             if event != "id: 42\nevent: notice\ndata: hello-SSE\n\n":
                 raise AssertionError(("unexpected event", event))
+
+        # 第一页断线期间发布第二条消息，再携带 Last-Event-ID 重连。
+        # 新连接应先收到 ready，再从有界历史中补回遗漏的 43。
+        first_socket.close()
+        for _ in range(40):
+            _, online_body = request("/events-status")
+            if json.loads(online_body).get("onlineConnections") == 1:
+                break
+            time.sleep(0.05)
+
+        query = urllib.parse.urlencode(
+            {"event": "notice", "id": "43", "data": "missed-while-offline"}
+        )
+        header, body = request(f"/events/9101?{query}", method="POST")
+        if not header.startswith(b"HTTP/1.1 200 OK"):
+            raise AssertionError((header, body))
+        if json.loads(body).get("acceptedConnections") != 1:
+            raise AssertionError(("remaining tab was not targeted", body))
+        if second.read() != "id: 43\nevent: notice\ndata: missed-while-offline\n\n":
+            raise AssertionError("remaining tab did not receive event 43")
+
+        first_socket, replayed = open_sse(9101, last_event_id="42")
+        if replayed.read() != "id: 43\nevent: notice\ndata: missed-while-offline\n\n":
+            raise AssertionError("Last-Event-ID replay did not recover event 43")
 
         status_header, status_body = request("/events-status")
         if not status_header.startswith(b"HTTP/1.1 200 OK"):

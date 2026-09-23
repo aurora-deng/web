@@ -10,6 +10,8 @@
 | SSE 接入（Phase 5） | [architecture/phase5.md](architecture/phase5.md) |
 | HTTP/2 接入与手写教学对照（Phase 6，test8.0） | [architecture/phase6.md](architecture/phase6.md) |
 | TLS/ALPN 接入与教学版（Phase 7，test8.0） | [architecture/phase7.md](architecture/phase7.md) |
+| gRPC C++ 接入与消息封装教学版（Phase 8，同步 API 基线） | [architecture/phase8.md](architecture/phase8.md) |
+| 生产化护栏与 gRPC Callback Reactor（Phase 9，test9.0） | [architecture/phase9.md](architecture/phase9.md) |
 | WebSocket 课程演进 | [architecture/websocket-lessons/README.md](architecture/websocket-lessons/README.md) |
 | Reactor 基础课程 | [architecture/phase3/README.md](architecture/phase3/README.md) |
 | WebSocket 初次接入 | [architecture/phase4_upgrade.md](architecture/phase4_upgrade.md) |

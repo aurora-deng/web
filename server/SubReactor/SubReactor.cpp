@@ -180,6 +180,28 @@ void SubReactor::stop()
         (void)write(event_fd, &one, sizeof(one));
 }
 
+void SubReactor::beginDrain()
+{
+    if (!running.load(std::memory_order_acquire))
+        return;
+    drainRequested_.store(true, std::memory_order_release);
+    if (!notified.exchange(true, std::memory_order_acq_rel))
+    {
+        const std::uint64_t one = 1;
+        if (event_fd >= 0)
+            (void)write(event_fd, &one, sizeof(one));
+    }
+}
+
+void SubReactor::processDrainRequest()
+{
+    if (!drainRequested_.exchange(false, std::memory_order_acq_rel))
+        return;
+    for (auto &[_, connection] : conns)
+        if (connection && connection->session)
+            connection->session->beginDrain();
+}
+
 /**
  * @brief 综合背压和写关注，重新武装 fd 的 epoll 事件
  * @param fd 目标 socket
@@ -720,6 +742,7 @@ void SubReactor::loop()
                 // 处理已完成任务并唤醒协程（请求解析）
                 processComplete();
                 processPendingOutbound();
+                processDrainRequest();
             }
             else
             {

@@ -20,7 +20,20 @@ struct ClientObserved
 {
     std::unordered_map<int32_t, std::string> status;
     std::unordered_map<int32_t, std::string> body;
+    bool goaway = false;
+    int32_t lastAcceptedStream = 0;
 };
+
+int onFrame(nghttp2_session *, const nghttp2_frame *frame, void *user)
+{
+    if (frame->hd.type == NGHTTP2_GOAWAY)
+    {
+        auto *observed = static_cast<ClientObserved *>(user);
+        observed->goaway = true;
+        observed->lastAcceptedStream = frame->goaway.last_stream_id;
+    }
+    return 0;
+}
 
 int onHeader(nghttp2_session *, const nghttp2_frame *frame,
              const uint8_t *name, size_t nameLen, const uint8_t *value,
@@ -121,6 +134,7 @@ int main()
     CHECK(nghttp2_session_callbacks_new(&callbacks) == 0);
     nghttp2_session_callbacks_set_on_header_callback(callbacks, onHeader);
     nghttp2_session_callbacks_set_on_data_chunk_recv_callback(callbacks, onData);
+    nghttp2_session_callbacks_set_on_frame_recv_callback(callbacks, onFrame);
     nghttp2_session *client = nullptr;
     CHECK(nghttp2_session_client_new(&client, callbacks, &observed) == 0);
     nghttp2_session_callbacks_del(callbacks);
@@ -166,6 +180,16 @@ int main()
     transfer(client, server);
     auto closed = server.takeClosed();
     CHECK(std::find(closed.begin(), closed.end(), cancelled) != closed.end());
+
+    // 优雅停机先发 GOAWAY。它只关闭“新 stream 的入口”，已处理 stream 可继续收尾。
+    CHECK(server.submitGoaway());
+    CHECK(server.submitGoaway()); // 幂等：重复停机通知不会排两帧。
+    CHECK(server.drainOutput(wire) && !wire.empty());
+    CHECK(nghttp2_session_mem_recv(
+              client, reinterpret_cast<const uint8_t *>(wire.data()), wire.size()) ==
+          static_cast<ssize_t>(wire.size()));
+    CHECK(observed.goaway);
+    CHECK(observed.lastAcceptedStream >= posted);
     nghttp2_session_del(client);
-    std::cout << "HTTP/2 codec: split preface, HPACK, multiplexing, POST DATA and reset passed\n";
+    std::cout << "HTTP/2 codec: split preface, HPACK, multiplexing, POST DATA, reset and GOAWAY passed\n";
 }

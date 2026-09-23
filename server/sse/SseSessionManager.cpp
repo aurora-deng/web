@@ -5,6 +5,16 @@
 #include "server/transport/OutboundTask.h"
 
 #include <algorithm>
+#include <utility>
+
+SseSessionManager::SseSessionManager(SseSessionManagerOptions options)
+    : options_(std::move(options)),
+      replay_(options_.replayEventsPerClient, options_.replayClients)
+{
+    options_.maxConnections = std::max<std::size_t>(1, options_.maxConnections);
+    options_.maxConnectionsPerClient =
+        std::max<std::size_t>(1, options_.maxConnectionsPerClient);
+}
 
 bool SseSessionManager::registerSession(
     SseClientId clientId,
@@ -16,10 +26,42 @@ bool SseSessionManager::registerSession(
         return false;
 
     std::lock_guard<std::mutex> lock(mtx_);
+    std::size_t total = 0;
+    // 先清扫所有用户的过期 weak_ptr，再计算全局连接配额。否则已经断开的旧连接
+    // 仍会占着“座位”，最终让健康的新订阅被错误拒绝。
+    for (auto it = sessions_.begin(); it != sessions_.end();)
+    {
+        auto &entries = it->second;
+        std::erase_if(entries, [](const Locator &item)
+                      { return item.session.expired(); });
+        if (entries.empty())
+        {
+            it = sessions_.erase(it);
+            continue;
+        }
+        total += entries.size();
+        ++it;
+    }
+
     auto &bucket = sessions_[clientId];
-    std::erase_if(bucket, [&](const Locator &item)
-                  { return item.session.expired() || item.key == key; });
+    const auto duplicate = std::find_if(
+        bucket.begin(), bucket.end(), [&](const Locator &item)
+        { return item.key == key; });
+    if (duplicate != bucket.end())
+    {
+        rejectedRegistrations_.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
+    if (total >= options_.maxConnections ||
+        bucket.size() >= options_.maxConnectionsPerClient)
+    {
+        if (bucket.empty())
+            sessions_.erase(clientId);
+        rejectedRegistrations_.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
     bucket.push_back(Locator{session, reactorIndex, key});
+    registrations_.fetch_add(1, std::memory_order_relaxed);
     return true;
 }
 
@@ -109,12 +151,69 @@ std::size_t SseSessionManager::post(const std::vector<Locator> &targets,
 std::size_t SseSessionManager::publish(SseClientId clientId,
                                        const SseEvent &event)
 {
-    return post(liveTargets(clientId), event);
+    const auto stored = replay_.append(clientId, event);
+    publishedEvents_.fetch_add(1, std::memory_order_relaxed);
+    const auto accepted = post(liveTargets(clientId), stored);
+    acceptedDeliveries_.fetch_add(accepted, std::memory_order_relaxed);
+    return accepted;
 }
 
 std::size_t SseSessionManager::broadcast(const SseEvent &event)
 {
-    return post(allLiveTargets(), event);
+    std::vector<SseClientId> clients;
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        clients.reserve(sessions_.size());
+        for (const auto &[clientId, _] : sessions_)
+            clients.push_back(clientId);
+    }
+    std::size_t accepted = 0;
+    for (const auto clientId : clients)
+        accepted += publish(clientId, event);
+    return accepted;
+}
+
+std::size_t SseSessionManager::replayTo(
+    SseClientId clientId,
+    ConnectionKey key,
+    const std::string &lastEventId)
+{
+    Locator target;
+    bool foundTarget = false;
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        const auto found = sessions_.find(clientId);
+        if (found != sessions_.end())
+        {
+            for (const auto &candidate : found->second)
+            {
+                if (candidate.key == key && !candidate.session.expired())
+                {
+                    target = candidate;
+                    foundTarget = true;
+                    break;
+                }
+            }
+        }
+    }
+    if (!foundTarget)
+        return 0;
+
+    const auto replay = replay_.replayAfter(clientId, lastEventId);
+    if (replay.gap)
+    {
+        replayGaps_.fetch_add(1, std::memory_order_relaxed);
+        SseEvent reset;
+        reset.eventName = "replay-reset";
+        reset.data = "Last-Event-ID is outside the retained history";
+        return post({target}, reset);
+    }
+
+    std::size_t accepted = 0;
+    for (const auto &event : replay.events)
+        accepted += post({target}, event);
+    replayedEvents_.fetch_add(accepted, std::memory_order_relaxed);
+    return accepted;
 }
 
 std::size_t SseSessionManager::onlineCount() const
@@ -126,4 +225,15 @@ std::size_t SseSessionManager::onlineCount() const
             if (!item.session.expired())
                 ++count;
     return count;
+}
+
+SseMetricsSnapshot SseSessionManager::metrics() const
+{
+    return {
+        registrations_.load(std::memory_order_relaxed),
+        rejectedRegistrations_.load(std::memory_order_relaxed),
+        publishedEvents_.load(std::memory_order_relaxed),
+        acceptedDeliveries_.load(std::memory_order_relaxed),
+        replayedEvents_.load(std::memory_order_relaxed),
+        replayGaps_.load(std::memory_order_relaxed)};
 }

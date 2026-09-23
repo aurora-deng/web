@@ -1,86 +1,126 @@
-# web-test 2.0 · test8.0
+# web-test 2.0 · test9.0
 
-这是一个面向 Linux 的 C++20 Web 服务器学习项目。本分支从 [`test7.0`](https://github.com/aurora-deng/web/tree/test7.0)（提交 `067d34ce91333ca0ba995bad10882cbac9c41d4e`）继续：保留 HTTP/1.1、WebSocket、SSE 和原有 Reactor/协程/统一出站架构，新增进程内 HTTP/2 与可选的 TLS/ALPN 入口。HTTP/2 的协议复杂部分交给 nghttp2；另有一套独立的手写教学程序供逐步学习。
+这是一个面向 Linux 的 C++20 高级 Web 服务器学习项目。test9.0 以
+[test8.0](https://github.com/aurora-deng/web/tree/test8.0) 的 HTTP/2、TLS/ALPN
+和 stream 协程为基础，加入 gRPC、跨协议身份与资源保护、SSE 断线重放、运行指标和
+协议级优雅停机，并把 gRPC 服务从同步 Service API 升级为 Callback API。
 
-## 本分支相对 test7.0 的主要更新
+当前代码已经过 Linux 全量功能测试和 Sanitizer 检查，但仍是学习与预生产基线，不能据此
+直接宣称适合公网、多实例关键业务。具体缺口见
+[Phase 9 的生产适用性说明](docs/architecture/phase9.md#10-生产适用性与仍缺少的条件)。
 
-| 维度 | test7.0 | test8.0 |
+## 相对 test8.0 的主要更新
+
+| 维度 | test8.0 | test9.0 |
 |---|---|---|
-| 明文入口 | HTTP/1.1、WebSocket、SSE | 同一端口增添 HTTP/2 prior knowledge：首包匹配客户端前言后交给 `Http2Session`，否则走原 HTTP/1.1 |
-| HTTP/2 协议 | 无 | `Http2Codec` 封装 nghttp2，处理帧、HPACK、SETTINGS、stream 与流量控制；`Http2Session` 为每个完整请求建立独立流协程，再送进现有 Router/Executor |
-| HTTPS 入口 | 无 | 配置证书和私钥后开启独立 TLS 监听端口；OpenSSL 完成 TLS 1.3 握手，ALPN 选 `h2` 或 `http/1.1` |
-| 连接读写 | 明文 `recv/writev/sendfile` | TLS 连接先解密再交协议 Session；出站经 `SSL_write_ex` 加密，文件响应经 `pread` 分块读取 |
-| 学习代码 | SSE 与 WebSocket 分层示例 | 增加独立的手写 HTTP/2 完整交换示例，以及 TLS 记录拆包和 OpenSSL 内存双端示例 |
-| 验证 | 原 HTTP/WS/SSE 测试 | 增加 HTTP/2 codec 往返测试、TLS/ALPN Linux 黑盒脚本；本次 Windows 验证结果见下文 |
+| gRPC | 无 | 官方 gRPC C++ 独立监听器，.proto 生成代码，覆盖 unary、server streaming、client streaming、bidirectional streaming |
+| gRPC 执行模型 | 无 | CallbackService + 每 RPC Reactor；流等待时归还执行线程 |
+| 身份 | 各协议入口主要依赖原始参数 | HTTP、WebSocket、SSE、gRPC 共用带过期时间和租户的 HMAC 身份 |
+| 浏览器边界 | 缺少统一 Origin 策略 | WebSocket、SSE 和 Cookie 写请求执行精确 Origin 白名单检查 |
+| SSE 恢复 | 连接断开后只重新订阅 | 有界事件历史、Last-Event-ID 重放和历史 gap 通知 |
+| 资源保护 | 连接及出站队列等基础边界 | 增加身份限流、SSE 订阅/历史、gRPC 并发/消息/总量预算和 SegmentPool 缓存上限 |
+| 停机 | 停止监听和运行线程 | HTTP/2 GOAWAY、WebSocket 1001、SSE shutdown 事件以及有界 drain |
+| 观测 | 分散指标 | liveness、readiness、Prometheus 指标和跨协议 request-id |
+| 验证 | HTTP/2、TLS 和既有协议测试 | Linux Debug 与 ASan/LSan/UBSan 全量测试，另含 gRPC 明文/TLS 真实 socket 集成 |
 
-这次升级没有另建一套业务服务器。新协议最终仍汇入同一个 Router、HTTP Executor、OutboundQueue 与单写者 `TransportWriter`；`fd + connId` 仍用来防止旧连接任务误投到复用的 fd。
-
-## 请求如何经过服务器
+## 当前架构
 
 ```text
 TCP accept
-  ├─ 明文端口 → HttpSession 检查 h2 客户端前言
-  │               ├─ 匹配 → Http2Session
-  │               └─ 其他 → HTTP/1.1；需要时交接 WebSocket/SSE Session
-  └─ TLS 端口 → TlsSession 握手 → ALPN
-                  ├─ h2       → Http2Session
-                  └─ http/1.1 → HttpSession
+  ├─ 明文入口
+  │    ├─ HTTP/2 client preface → Http2Session → nghttp2 → stream coroutine
+  │    └─ HTTP/1.1 → Router
+  │                    ├─ 普通 HTTP
+  │                    ├─ WebSocket Session
+  │                    └─ SSE Session + ReplayBuffer
+  └─ TLS 入口 → OpenSSL handshake → ALPN
+                     ├─ h2       → Http2Session
+                     └─ http/1.1 → HttpSession
 
-Http2Session 根协程 → Http2Codec/nghttp2 → 每 stream 一个流协程
-             → HTTP Executor → Router → 完成通知 → 恢复该流协程
-             → HttpResponse → nghttp2 HEADERS/DATA → OutboundQueue
-             → 唯一 writerLoop → 明文 socket 或 TlsTransport → TCP
+独立 gRPC listener
+  → gRPC Core 管理 HTTP/2 / HPACK / flow control
+  → CallbackService
+  → EchoReactor / CountReactor / UploadReactor / ChatReactor
+  → CallbackCall 统一认证、配额、request-id、取消和指标
 ```
 
-可以把 ALPN 理解为进门时选定“说哪种 HTTP 语言”的牌子；nghttp2 才是真正拆解 HTTP/2 帧和 HPACK 首部的人。TLS 不替代 HTTP 解析，HTTP/2 也不替代 TLS 加密。明文端口的前言探测是本项目的协议选择设计；HTTPS 端口依据 ALPN，不能靠密文字节猜 HTTP 版本。
+Web 入口仍采用“连接归所属 Reactor、业务进入 Executor、出站由单写者发送”的所有权模型。
+gRPC 不复用项目手写的 Http2Session，因为官方 gRPC Core 需要完整拥有自己的 HTTP/2、
+metadata、trailers、deadline 和流控状态；二者在业务与身份层汇合，而不共同修改协议状态。
 
-HTTP/2 当前支持普通、有界的请求与响应，同一连接的多个 stream 可以独立完成。它暂不把 SSE 长流或 WebSocket 升级映射到 HTTP/2 stream；命中这类路由时返回 501，使用这些功能请走 HTTP/1.1。大文件/流式响应、完整的 stream 公平调度也尚未接入 HTTP/2。TLS 仅配置 TLS 1.3、单证书和可选独立端口；仍需在目标 Linux 上做真实端到端验收。
+## Callback API 如何工作
 
-## 学习入口与代码索引
+同步流式 handler 像一名服务员一直站在桌边等待；Callback Reactor 记录桌号，只在读完成、
+写完成、定时器到期或取消时回来处理一步。因此，一条等待中的长流仍占用有限状态，但不会
+永久绑住一条业务线程。
 
-1. [Phase 5：SSE](docs/architecture/phase5.md) 是 `test7.0` 的基线，先回顾 HTTP 长响应如何交接给 Session。
-2. [Phase 6：HTTP/2 接入、理论与手写教学版](docs/architecture/phase6.md) 对照 [生产版 codec](server/http2/Http2Codec.cpp)、[生产版 session](server/http2/Http2Session.cpp) 和 [独立教学版](server/http2/learn/README.md)。教学版从 24 字节前言、SETTINGS、9 字节帧头、HPACK、stream、窗口一直走到 GOAWAY，不依赖 nghttp2 或网络 socket。
-3. [Phase 7：TLS/ALPN 接入](docs/architecture/phase7.md) 对照 [TLS 上下文](server/tls/TlsContext.cpp)、[传输包装](server/tls/TlsTransport.cpp)、[握手会话](server/tls/TlsSession.cpp) 和 [TLS 教学版](server/tls/learn/README.md)。
-4. [文档导航](docs/README.md) 收录 WebSocket 旧课程、测试、性能和运维说明。
+| RPC | Reactor 流程 |
+|---|---|
+| Echo | 填充 reply → Finish() → OnDone() |
+| Count | StartWrite() → OnWriteDone() → grpc::Alarm → 下一次写 |
+| Upload | StartRead() → OnReadDone() 累计 → 客户端半关闭后返回 summary |
+| Chat | StartRead() → OnReadDone() → StartWrite() → OnWriteDone() → 下一次读 |
 
-核心运行路径仍在 `server/Runtime`、`server/Reactor`、`server/SubReactor`、`server/http`、`server/websocket`、`server/sse`、`server/transport`；新增内容主要在 `server/http2` 和 `server/tls`。测试入口见 [tests/README.md](tests/README.md)。
+所有消息缓冲都由 Reactor 持有，至少存活到对应完成回调。OnCancel 与读写回调可能并发，
+所以每个流式 Reactor 都保护终态并保证只执行一次 Finish()；对象只在 OnDone() 删除。
+详细说明与代码索引见 [Phase 9](docs/architecture/phase9.md#6-grpc-四种调用形态)。
 
-## 构建与运行
+## 构建
 
-目标环境为 Linux，需 C++20、CMake 3.16+、OpenSSL 开发库及 nghttp2 开发库；运行全部单元测试还需 GoogleTest 与 Python 3。例如 Debian/Ubuntu：
+目标环境需要 Linux、C++20、CMake、OpenSSL、nghttp2、Protobuf 和 gRPC C++。Web TLS 与
+gRPC 必须链接同一套 OpenSSL；本项目验证环境中的 gRPC 使用
+gRPC_SSL_PROVIDER=package 构建，并安装在独立前缀。
 
 ```bash
-sudo apt install build-essential cmake libssl-dev libnghttp2-dev libgtest-dev python3
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+cmake -S . -B build \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DBUILD_TESTING=ON \
+  -DWEBSERVER_ENABLE_GRPC=ON \
+  -DCMAKE_PREFIX_PATH="$HOME/.local-grpc-systemssl"
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
+```
+
+默认 Web 明文端口是 8080。设置 WEB_TLS_CERT 与 WEB_TLS_KEY 后启用 TLS，默认端口
+是 8443。gRPC 默认监听 127.0.0.1:50051，可用 WEB_GRPC_ADDRESS=off 关闭。
+
+生产模式至少要求：
+
+```bash
+export WEB_PRODUCTION_MODE=1
+export WEB_AUTH_SECRET='由 secret manager 注入的至少 32 字节随机密钥'
+export WEB_ALLOWED_ORIGINS='https://app.example.com'
+export WEB_TLS_CERT=/run/secrets/web-cert.pem
+export WEB_TLS_KEY=/run/secrets/web-key.pem
+export WEB_GRPC_TLS_CERT=/run/secrets/grpc-cert.pem
+export WEB_GRPC_TLS_KEY=/run/secrets/grpc-key.pem
 ./build/webserver
 ```
 
-默认明文端口为 8080；`WEB_SERVER_PORT` 可覆盖。仅在同时设置 `WEB_TLS_CERT` 和 `WEB_TLS_KEY` 时开启 HTTPS，默认 8443，`WEB_TLS_PORT` 可覆盖。证书与私钥由运行环境提供，不提交进仓库。以下命令只用于本地演示：
+缺少安全配置时，生产模式会在开始监听前失败关闭。密钥、证书和私钥都不应提交到仓库。
 
-```bash
-openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
-  -keyout /tmp/web-key.pem -out /tmp/web-cert.pem -subj '/CN=localhost'
-WEB_TLS_CERT=/tmp/web-cert.pem WEB_TLS_KEY=/tmp/web-key.pem ./build/webserver
-curl --http2-prior-knowledge http://127.0.0.1:8080/
-curl -k --http2 https://127.0.0.1:8443/
-curl -k --http1.1 https://127.0.0.1:8443/
-```
+## 验证状态
 
-`-k` 仅供上述自签名证书的本地演示。SSE 的 `/events`、WebSocket 的 `/ws` 应使用 HTTP/1.1。详细测试方法见 Phase 6/7。
+CentOS Stream 9 虚拟机使用 GCC 11.5、OpenSSL 3.5.5、libnghttp2 1.43.0 和
+gRPC C++ 1.82.0 完成了以下检查：
 
-## 当前验证状态
+- Debug 全量构建与 CTest：80/80 通过，25.41 秒。
+- ASan、LeakSanitizer、UBSan 全量 CTest：80/80 通过，30.43 秒。
+- HTTP、TLS、WebSocket、SSE、HTTP/2 与优雅停机真实 socket 黑盒。
+- gRPC 四种 RPC、认证 metadata、request-id、配额、deadline/取消以及 TLS + ALPN h2。
+- Callback 专项：Core 线程预算设为 1，一条 Count 流在 1 秒 Alarm 等待时，并发 Echo 仍在
+  500 ms 门限内完成；两条活跃流占满业务配额后，第三个 RPC 得到 RESOURCE_EXHAUSTED。
+- Sanitizer 首轮发现并修复 Count 定时器的 1080 字节引用环泄漏：Alarm 回调使用
+  weak_ptr，既打破 state/alarm/callback 环，又在回调执行期间保持状态存活。
 
-在本次 Windows 环境中实际通过：
+最终测试数字与发现过的问题记录在
+[Phase 9 验证记录](docs/architecture/phase9.md#11-验证记录)。
 
-- Python WebSocket 可靠接收端：5 个用例。
-- 手写 HTTP/2 教学程序：前言拆分、帧、HPACK 静态/动态表、两个并发 stream、窗口、PING、RST_STREAM、GOAWAY。
-- 生产版 `Http2Codec` 与本地编译的 nghttp2 静态库的往返测试：前言拆包、HPACK、多路请求、POST DATA、RST_STREAM。
-- SSE 编码独立检查：多行数据、HTTP chunk、注释心跳和字段注入防护。
-- TLS 外层记录增量解析教学程序；项目 Python 文件语法检查。
-- 从官方 MSYS2 仓库取得 OpenSSL 3.6.4 Windows 开发包并核对 SHA-256；实际运行 OpenSSL TLS 1.3 内存双端握手，ALPN `h2` 和 `http/1.1` 两条路径及加密字节往返均通过。生产版 TLS 上下文和传输封装通过 Windows 编译器语法检查。
-- HTTP/2 流协程生命周期测试通过：三条流独立挂起、RST 只取消一条、stream 3 先于 stream 1 完成，同时覆盖响应提交失败、同步完成和协程帧及时销毁。生产 `Http2Session` 复用同一个 `Http2StreamCoroutine` 状态机，并通过语法和静态检查。
-- 全部 `server/` 源码及 HTTP/2 codec 测试源码的 Cppcheck warning 扫描；其中发现并修复了预留路由 ID 未初始化的问题。
+## 学习入口
 
-完整服务器依赖 Linux epoll，本机没有 GoogleTest，因此 **Linux 全量构建、GTest 套件与 HTTP/WS/SSE/TLS 网络黑盒尚未在此环境运行**。本机通过的是独立 OpenSSL 双端握手，不等于完整服务互操作；后者仍需在虚拟机中执行上面的 CTest 命令。
+1. [Phase 5：SSE](docs/architecture/phase5.md)
+2. [Phase 6：HTTP/2、nghttp2 与手写教学版](docs/architecture/phase6.md)
+3. [Phase 7：TLS/ALPN 与教学版](docs/architecture/phase7.md)
+4. [Phase 8：gRPC 协议语义与消息封装](docs/architecture/phase8.md)
+5. [Phase 9：生产化护栏与 Callback Reactor](docs/architecture/phase9.md)
+6. [文档总导航](docs/README.md)

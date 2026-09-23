@@ -35,6 +35,8 @@ public:
     bool submitResponse(int32_t streamId, int status,
                         const std::unordered_map<std::string, std::string> &headers,
                         std::string body);
+    /** 发送 NO_ERROR GOAWAY；已开始处理的 stream 仍可完成，不再接纳新 stream。 */
+    bool submitGoaway();
     // Copies nghttp2's transient output into an owned string before the next call.
     bool drainOutput(std::string &output);
 
@@ -66,4 +68,5 @@ private:
     std::unordered_map<int32_t, Outgoing> outgoing_;
     std::vector<ReadyRequest> ready_;
     std::vector<int32_t> closed_;
+    bool goawaySubmitted_ = false;
 };

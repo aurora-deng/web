@@ -6,6 +6,7 @@
 #include "server/transport/OutboundTask.h"
 
 #include <memory>
+#include <string>
 
 class Connection;
 class SseSessionManager;
@@ -19,11 +20,13 @@ public:
     SseSession(ConnectionKey key,
                SubReactor *reactor,
                SseClientId clientId,
-               SseSessionManager *manager);
+               SseSessionManager *manager,
+               std::string lastEventId = {});
 
     Task<void> run() override;
     bool onTimeout() override;
     void onClose() override;
+    void beginDrain() noexcept override;
 
     SseClientId clientId() const noexcept { return clientId_; }
 
@@ -37,5 +40,6 @@ private:
     SubReactor *reactor_ = nullptr;
     SseClientId clientId_ = 0;
     SseSessionManager *manager_ = nullptr;
+    std::string lastEventId_;
     bool registered_ = false;
 };

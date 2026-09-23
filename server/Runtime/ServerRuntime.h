@@ -50,6 +50,7 @@
 #define SERVER_RUNTIME_H
 
 #include <memory>
+#include <chrono>
 #include <string>
 #include <utility>
 #include <cstddef>
@@ -114,6 +115,8 @@ public:
 
     /** @brief 设置最大并发连接数（全局限流），默认 10000 */
     void setMaxConnections(size_t n) { maxConnections_ = n; }
+    /** @brief 协议下线控制帧的最大排空窗口。 */
+    void setShutdownDrain(std::chrono::milliseconds value) { shutdownDrain_ = value; }
 
     /**
      * @brief 请求服务器停止（线程安全）
@@ -147,6 +150,8 @@ public:
     WebSocketDeliveryService &wsDelivery() { return wsDelivery_; }
     /** @return SSE 订阅目录与跨 Reactor 发布入口。 */
     SseSessionManager &sseManager() { return sseManager_; }
+    /** 健康检查的 readiness：Reactor 已启动且尚未进入摘流。 */
+    bool ready() const noexcept { return ready_.load(std::memory_order_acquire); }
 
 private:
     // 路由表（协议无关）：第四阶段前 Runtime 还持有一个 HttpCodec codec_ 成员，
@@ -165,6 +170,7 @@ private:
     int port_ = 8080;                                // 监听端口
     size_t reactorCount_ = 0;                        // SubReactor 数量（0=自动）
     size_t maxConnections_ = 10000;                  // 全局最大连接数（限流）
+    std::chrono::milliseconds shutdownDrain_{500};   // GOAWAY/Close/SSE shutdown 排空上限
     int listenFd_ = -1;                              // 监听套接字 fd
     int tlsListenFd_ = -1;                           // 可选 HTTPS 监听端口
     int tlsPort_ = 8443;
@@ -174,6 +180,7 @@ private:
     int epfd_ = -1;                                  // 主 acceptor 的 epoll fd
     int wakeFd_ = -1;                                // 用于唤醒 acceptor 退出的 eventfd
     std::atomic<bool> running_{true};                // 运行标志，控制 acceptLoop 退出
+    std::atomic<bool> ready_{false};                 // 只有完整运行图启动后才对外报 ready
 
     /** @brief 创建监听套接字并注册到 epoll */
     void setupListener();

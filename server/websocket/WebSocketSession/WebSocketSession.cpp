@@ -88,6 +88,25 @@ void WebSocketSession::requestHandlerStop() noexcept
     (void)handlerStopSource_.request_stop();
 }
 
+void WebSocketSession::beginDrain() noexcept
+{
+    if (state_ != WsSessionState::Open)
+        return;
+    state_ = WsSessionState::Closing;
+    // 1001 明确告诉客户端“服务器正在离开”，客户端可按自己的退避策略重连。
+    // CloseConnection 让 writerLoop 先写完 Close 帧，再真正释放 fd。
+    try
+    {
+        (void)enqueueOutbound(
+            WebSocketCodec::encodeClose(WsCloseCode::GoingAway, "server shutdown"),
+            OutboundCompletion::CloseConnection);
+    }
+    catch (...)
+    {
+        // 硬停阶段稍后仍会释放连接；停机钩子绝不能因分配失败终止进程。
+    }
+}
+
 /**
  * @brief 超时钩子：实现 WebSocket 心跳 Ping/Pong 探活
  * @return false 本轮暂不关闭（已发 Ping，等 Pong 下轮再看）；true 同意关闭

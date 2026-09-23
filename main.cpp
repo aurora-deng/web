@@ -25,21 +25,128 @@
 #include "server/Runtime/ServerRuntime.h"
 #include "server/http/RequestContext/RequestContext.h"
 #include "server/sse/SseEvent.h"
+#include "server/ops/OperationalMetrics.h"
+#include "server/security/AuthToken.h"
+#include "server/security/FixedWindowRateLimiter.h"
 #include "server/websocket/WebSocketCodec/WebSocketCodec.h"
 #include "server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
 #include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
 #include "log/logger/logger.h"
+#ifdef WEBSERVER_HAS_GRPC
+#include "server/grpc/GrpcServer.h"
+#endif
 #include <unistd.h>
 #include <cerrno>
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
 namespace
 {
+bool environmentFlag(const char *name)
+{
+    const char *raw = std::getenv(name);
+    if (!raw)
+        return false;
+    std::string value(raw);
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch)
+                   { return static_cast<char>(std::tolower(ch)); });
+    return value == "1" || value == "true" || value == "yes" || value == "on";
+}
+
+std::size_t boundedEnvironmentSize(const char *name,
+                                   std::size_t fallback,
+                                   std::size_t minimum,
+                                   std::size_t maximum)
+{
+    const char *raw = std::getenv(name);
+    if (!raw)
+        return fallback;
+    char *end = nullptr;
+    errno = 0;
+    const auto value = std::strtoull(raw, &end, 10);
+    if (errno != 0 || end == raw || *end != '\0' ||
+        value < minimum || value > maximum)
+        throw std::invalid_argument(std::string(name) + " is outside the allowed range");
+    return static_cast<std::size_t>(value);
+}
+
+std::unordered_set<std::string> commaSeparatedSet(const char *raw)
+{
+    std::unordered_set<std::string> values;
+    if (!raw)
+        return values;
+    std::string_view input(raw);
+    std::size_t start = 0;
+    while (start <= input.size())
+    {
+        const auto end = input.find(',', start);
+        auto item = input.substr(start, end == std::string_view::npos
+                                           ? input.size() - start
+                                           : end - start);
+        while (!item.empty() && std::isspace(static_cast<unsigned char>(item.front())))
+            item.remove_prefix(1);
+        while (!item.empty() && std::isspace(static_cast<unsigned char>(item.back())))
+            item.remove_suffix(1);
+        if (!item.empty())
+            values.emplace(item);
+        if (end == std::string_view::npos)
+            break;
+        start = end + 1;
+    }
+    return values;
+}
+
+bool protectedPath(std::string_view path)
+{
+    return path == "/ws" || path == "/events" ||
+           path.starts_with("/events/") || path == "/events-status" ||
+           path == "/delivery-metrics" || path == "/metrics" ||
+           path == "/admin";
+}
+
+bool operationsPath(const HttpRequest &request)
+{
+    return request.path == "/metrics" || request.path == "/delivery-metrics" ||
+           request.path == "/events-status" ||
+           (request.method == "POST" && request.path.starts_with("/events/"));
+}
+
+void reject(RequestContext &ctx, int status, std::string statusText,
+            const std::string &message)
+{
+    ctx.response->status = status;
+    ctx.response->statusText = std::move(statusText);
+    ctx.response->json("{\"error\":\"" + message + "\"}");
+    ctx.response->setHeader("Cache-Control", "no-store");
+}
+
+bool queryUserMatches(const RequestContext &ctx, std::uint64_t userId)
+{
+    const auto found = ctx.request.querryParams.find("uid");
+    if (found == ctx.request.querryParams.end() || found->second.empty())
+        return true;
+    try
+    {
+        std::size_t parsed = 0;
+        const auto supplied = std::stoull(found->second, &parsed);
+        return parsed == found->second.size() && supplied == userId;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
 std::string serializeDeliveryMetrics(
     const WebSocketDeliveryMetricsSnapshot &metrics)
 {
@@ -89,7 +196,31 @@ int main()
 {
     try
     {
+        const bool productionMode = environmentFlag("WEB_PRODUCTION_MODE");
+        const std::string authSecret = std::getenv("WEB_AUTH_SECRET")
+                                           ? std::getenv("WEB_AUTH_SECRET")
+                                           : "";
+        if (productionMode && authSecret.size() < 32)
+            throw std::invalid_argument(
+                "WEB_PRODUCTION_MODE requires WEB_AUTH_SECRET with at least 32 bytes");
+        auto authTokens = std::make_shared<webserver::security::AuthToken>(authSecret);
+        auto allowedOrigins = std::make_shared<const std::unordered_set<std::string>>(
+            commaSeparatedSet(std::getenv("WEB_ALLOWED_ORIGINS")));
+        if (productionMode && allowedOrigins->empty())
+            throw std::invalid_argument(
+                "WEB_PRODUCTION_MODE requires WEB_ALLOWED_ORIGINS");
+        auto operationalMetrics =
+            std::make_shared<webserver::ops::OperationalMetrics>();
+        auto rateLimiter = std::make_shared<webserver::security::FixedWindowRateLimiter>(
+            boundedEnvironmentSize("WEB_REQUESTS_PER_MINUTE", 120, 1, 1'000'000),
+            std::chrono::minutes(1),
+            boundedEnvironmentSize("WEB_RATE_LIMIT_IDENTITIES", 65'536, 1, 10'000'000));
+
         ServerRuntime server;
+        server.setMaxConnections(
+            boundedEnvironmentSize("WEB_MAX_CONNECTIONS", 10'000, 1, 1'000'000));
+        server.setShutdownDrain(std::chrono::milliseconds(
+            boundedEnvironmentSize("WEB_SHUTDOWN_DRAIN_MS", 500, 0, 30'000)));
         if (const char *rawPort = std::getenv("WEB_SERVER_PORT")) {
             char *end = nullptr;
             errno = 0;
@@ -117,6 +248,9 @@ int main()
         } else if (std::getenv("WEB_TLS_KEY")) {
             throw std::invalid_argument("WEB_TLS_CERT is required with WEB_TLS_KEY");
         }
+        if (productionMode && !std::getenv("WEB_TLS_CERT"))
+            throw std::invalid_argument(
+                "WEB_PRODUCTION_MODE requires WEB_TLS_CERT and WEB_TLS_KEY");
         // 可重复的并发测试需要固定 Reactor 数；生产环境不设置时仍按 CPU 自动选择。
         if (const char *raw = std::getenv("WEB_SERVER_REACTORS"))
         {
@@ -136,25 +270,105 @@ int main()
 
         // 请求日志中间件：像工厂门口的签到台，记录每位访客点了什么菜
         // LOG_HTTP 当前为空操作（压测纯净版），需要日志时改回真正调用
-        server.router().use([](RequestContext &ctx, auto next)
+        server.router().use([operationalMetrics](RequestContext &ctx, auto next)
                             {
+        operationalMetrics->httpRequests.fetch_add(1, std::memory_order_relaxed);
         (void)ctx; // 压测模式下 LOG_HTTP 是空宏，仍显式标记参数已使用。
         LOG_HTTP(ctx.request.method + " " + ctx.request.path);
         next(); });
 
-        // 鉴权中间件：像保安检查 VIP 通行证
-        // 访问 /admin 必须带 token 头，否则直接 401 拒绝（短路，不调 next）
-        server.router().use([](RequestContext &ctx, auto next)
-                            {
-        if (ctx.request.path == "/admin")
+        // 统一安检：HTTP、WebSocket 握手和 SSE 握手先在这里得到可信身份。
+        // 长连接接管后只复制 ctx 中已校验的 userId，不能信任客户端随意填写的 uid。
+        server.router().use(
+            [authTokens, allowedOrigins, operationalMetrics, rateLimiter,
+             productionMode](RequestContext &ctx, auto next)
+            {
+        if (!protectedPath(ctx.request.path))
         {
-            auto it = ctx.request.headers.find("token");
-            if (it == ctx.request.headers.end())
+            next();
+            return;
+        }
+
+        if (!authTokens->enabled())
+        {
+            // 学习模式没有 HMAC 密钥时保留旧版 /admin 中间件契约：
+            // 缺少 legacy token 仍要在路由前返回纯文本 401，防止回归测试被 404 掩盖。
+            if (ctx.request.path == "/admin" &&
+                ctx.request.headers.find("token") == ctx.request.headers.end())
             {
                 ctx.response->status = 401;
+                ctx.response->statusText = "Unauthorized";
                 ctx.response->text("Unauthorized");
-                return;  // 不调用 next()，后续 handler 不执行（中间件短路）
+                return;
             }
+            next();
+            return;
+        }
+
+        const auto authenticated = authTokens->authenticateHeaders(
+            ctx.request.headers);
+        if (!authenticated)
+        {
+            operationalMetrics->authenticationRejected.fetch_add(
+                1, std::memory_order_relaxed);
+            reject(ctx, 401, "Unauthorized", "valid bearer token required");
+            return;
+        }
+        ctx.authenticated = true;
+        ctx.authenticatedUserId = authenticated.identity->userId;
+        ctx.authenticatedTenant = authenticated.identity->tenant;
+
+        if (operationsPath(ctx.request) && ctx.authenticatedTenant != "ops")
+        {
+            operationalMetrics->authenticationRejected.fetch_add(
+                1, std::memory_order_relaxed);
+            reject(ctx, 403, "Forbidden", "operations tenant required");
+            return;
+        }
+
+        if ((ctx.request.path == "/ws" || ctx.request.path == "/events") &&
+            !queryUserMatches(ctx, ctx.authenticatedUserId))
+        {
+            operationalMetrics->authenticationRejected.fetch_add(
+                1, std::memory_order_relaxed);
+            reject(ctx, 403, "Forbidden", "uid does not match authenticated identity");
+            return;
+        }
+
+        // WebSocket 的 Origin 是浏览器替用户发来的站点身份证。生产模式必须存在；
+        // 其他模式只要配置了白名单，就对携带 Origin 的浏览器请求做同样检查。
+        const bool browserLongConnection =
+            ctx.request.path == "/ws" || ctx.request.path == "/events";
+        const bool authenticatedByCookie =
+            ctx.request.headers.find("authorization") == ctx.request.headers.end() &&
+            ctx.request.headers.find("cookie") != ctx.request.headers.end();
+        const bool cookieStateChange =
+            authenticatedByCookie && ctx.request.method != "GET" &&
+            ctx.request.method != "HEAD";
+        if (browserLongConnection || cookieStateChange)
+        {
+            const auto found = ctx.request.headers.find("origin");
+            // Cookie 会被浏览器自动附带，因此任何使用 Cookie 的写请求都必须携带
+            // 白名单 Origin；否则即使在开发模式，也会留下可被跨站页面利用的 CSRF 缺口。
+            const bool missingRequired = (productionMode || cookieStateChange) &&
+                                         found == ctx.request.headers.end();
+            const bool untrusted = found != ctx.request.headers.end() &&
+                                   !allowedOrigins->contains(found->second);
+            if (missingRequired || untrusted)
+            {
+                operationalMetrics->originRejected.fetch_add(
+                    1, std::memory_order_relaxed);
+                reject(ctx, 403, "Forbidden", "origin is not allowed");
+                return;
+            }
+        }
+
+        if (!rateLimiter->allow(ctx.authenticatedUserId))
+        {
+            operationalMetrics->rateLimited.fetch_add(1, std::memory_order_relaxed);
+            reject(ctx, 429, "Too Many Requests", "identity request quota exceeded");
+            ctx.response->setHeader("Retry-After", "60");
+            return;
         }
         next(); });
 
@@ -165,6 +379,48 @@ int main()
                             {
         ctx.response->html("<h1>hello</h1>");
         return true; });
+
+        server.router().GET("/health/live", [](RequestContext &ctx) -> bool
+                            {
+        ctx.response->json("{\"status\":\"alive\"}");
+        return true; });
+
+        server.router().GET("/health/ready", [&server](RequestContext &ctx) -> bool
+                            {
+        if (!server.ready())
+        {
+            ctx.response->status = 503;
+            ctx.response->statusText = "Service Unavailable";
+        }
+        ctx.response->json(server.ready()
+                               ? "{\"status\":\"ready\"}"
+                               : "{\"status\":\"starting\"}");
+        return true; });
+
+        server.router().GET(
+            "/metrics",
+            [&server, operationalMetrics](RequestContext &ctx) -> bool
+            {
+                const auto sse = server.sseManager().metrics();
+                auto body = operationalMetrics->prometheus(
+                    server.wsManager().onlineCount(),
+                    server.sseManager().onlineCount(),
+                    server.sseManager().historyEventCount());
+                body += "# TYPE webserver_sse_published_total counter\n";
+                body += "webserver_sse_published_total " +
+                        std::to_string(sse.publishedEvents) + "\n";
+                body += "webserver_sse_deliveries_total " +
+                        std::to_string(sse.acceptedDeliveries) + "\n";
+                body += "webserver_sse_replayed_total " +
+                        std::to_string(sse.replayedEvents) + "\n";
+                body += "webserver_sse_replay_gaps_total " +
+                        std::to_string(sse.replayGaps) + "\n";
+                ctx.response->text(body);
+                ctx.response->setHeader(
+                    "Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+                ctx.response->setHeader("Cache-Control", "no-store");
+                return true;
+            });
 
         // 动态路由：:id 是占位符，框架自动提取 URL 实际值到 ctx.params
         server.router().GET("/user/:id", [](RequestContext &ctx) -> bool
@@ -238,10 +494,12 @@ int main()
             "/delivery-metrics",
             [deliveryService](RequestContext &ctx) -> bool
             {
-                ctx.response->setHeader(
-                    "Content-Type", "application/json; charset=utf-8");
+                // text() 会先设置默认的 text/plain；随后覆盖成 JSON，确保最终首部
+                // 与实际响应体一致，避免调用顺序把显式 Content-Type 冲掉。
                 ctx.response->text(
                     serializeDeliveryMetrics(deliveryService->metrics()));
+                ctx.response->setHeader(
+                    "Content-Type", "application/json; charset=utf-8");
                 return true;
             });
 
@@ -306,9 +564,24 @@ int main()
             "/events-status",
             [sseManager](RequestContext &ctx) -> bool
             {
+                const auto metrics = sseManager->metrics();
                 ctx.response->json(
                     "{\"onlineConnections\":" +
-                    std::to_string(sseManager->onlineCount()) + "}");
+                    std::to_string(sseManager->onlineCount()) +
+                    ",\"historyEvents\":" +
+                    std::to_string(sseManager->historyEventCount()) +
+                    ",\"registrations\":" +
+                    std::to_string(metrics.registrations) +
+                    ",\"rejectedRegistrations\":" +
+                    std::to_string(metrics.rejectedRegistrations) +
+                    ",\"publishedEvents\":" +
+                    std::to_string(metrics.publishedEvents) +
+                    ",\"acceptedDeliveries\":" +
+                    std::to_string(metrics.acceptedDeliveries) +
+                    ",\"replayedEvents\":" +
+                    std::to_string(metrics.replayedEvents) +
+                    ",\"replayGaps\":" +
+                    std::to_string(metrics.replayGaps) + "}");
                 return true;
             });
 
@@ -496,6 +769,49 @@ int main()
         ctx.outbound.type = "echo";
         ctx.hasOutbound = true;
         return true; });
+
+        // gRPC 使用官方 C++ 运行时和独立端口。它与 Web 服务处于同一进程，
+        // 但不把自己的 HTTP/2 stream 状态塞进现有 Http2Session。
+#ifdef WEBSERVER_HAS_GRPC
+        std::unique_ptr<webserver::grpc_runtime::GrpcServer> grpcServer;
+        const char *configuredGrpcAddress = std::getenv("WEB_GRPC_ADDRESS");
+        const std::string grpcAddress = configuredGrpcAddress
+                                            ? configuredGrpcAddress
+                                            : "127.0.0.1:50051";
+        if (grpcAddress != "off")
+        {
+            webserver::grpc_runtime::GrpcServerOptions grpcOptions;
+            grpcOptions.address = grpcAddress;
+            grpcOptions.authenticationSecret = authSecret;
+            grpcOptions.metrics = operationalMetrics;
+            grpcOptions.maxConcurrentRpcs = boundedEnvironmentSize(
+                "WEB_GRPC_MAX_CONCURRENT_RPCS", 256, 1, 100'000);
+            grpcOptions.maxWorkerThreads = boundedEnvironmentSize(
+                "WEB_GRPC_MAX_WORKER_THREADS", 64, 1, 4096);
+
+            const char *grpcCert = std::getenv("WEB_GRPC_TLS_CERT");
+            const char *grpcKey = std::getenv("WEB_GRPC_TLS_KEY");
+            if (static_cast<bool>(grpcCert) != static_cast<bool>(grpcKey))
+                throw std::invalid_argument(
+                    "WEB_GRPC_TLS_CERT and WEB_GRPC_TLS_KEY must be set together");
+            if (grpcCert)
+            {
+                grpcOptions.certificateChainPath = grpcCert;
+                grpcOptions.privateKeyPath = grpcKey;
+            }
+            else if (productionMode)
+            {
+                throw std::invalid_argument(
+                    "WEB_PRODUCTION_MODE requires WEB_GRPC_TLS_CERT and WEB_GRPC_TLS_KEY");
+            }
+
+            grpcServer = std::make_unique<webserver::grpc_runtime::GrpcServer>(
+                std::move(grpcOptions));
+            grpcServer->start();
+            std::cout << "gRPC listening on " << grpcAddress
+                      << " (bound port " << grpcServer->boundPort() << ")\n";
+        }
+#endif
 
         // ===== 正式开工：进入事件循环，阻塞直到收到关闭信号 =====
         server.start();

@@ -142,6 +142,12 @@ void ReactorGroup::stop()
         reactor->stop();
 }
 
+void ReactorGroup::beginDrain()
+{
+    for (auto &reactor : reactors_)
+        reactor->beginDrain();
+}
+
 /**
  * @brief 阻塞等待所有 SubReactor 线程退出
  *

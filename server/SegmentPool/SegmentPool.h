@@ -120,8 +120,11 @@ inline int BlockToIov(const Block *block, iovec *out, int maxCount)
 class SegmentPool
 {
 public:
+    // 回收站只保留有限数量的托盘；流量尖峰退去后，多余内存立即归还系统。
+    static constexpr std::size_t kMaxCachedBlocks = 256;
     std::vector<Block *> freeList;  // 回收站：空闲托盘栈
     std::mutex mtx;                 // 门锁：保护 freeList 多线程访问
+    ~SegmentPool();
     /// @brief 借一个空托盘，池空则 new 一个
     Block *acquire();
     /// @brief 还一个托盘，idx 归零后压回栈

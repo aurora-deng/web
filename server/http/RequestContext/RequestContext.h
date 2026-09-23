@@ -49,6 +49,12 @@ struct RequestContext
     bool handled = false;         // 是否已被某个中间件/handler 处理
     uint64_t Id = 0;              // 请求/连接标识，用于日志追踪
 
+    // 由 Phase 9 统一鉴权中间件填写。长连接交接只能使用这个经过签名校验的
+    // userId，不能再从客户端随意填写的 ?uid= 参数直接信任。
+    bool authenticated = false;
+    std::uint64_t authenticatedUserId = 0;
+    std::string authenticatedTenant;
+
     // 业务 handler 调用 acceptWebSocket() 表示接受升级；
     // HttpSession 在发送响应前检查该标志并转入 WebSocketSession。
     // 默认 false：每轮请求默认不升级，业务需主动调 acceptWebSocket() 表达意愿——

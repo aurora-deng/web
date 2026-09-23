@@ -138,6 +138,8 @@ public:
     void run();
     /** @brief 通知事件循环线程停止（置 running=false 并写 eventfd 唤醒） */
     void stop();
+    /** 跨线程请求协议层先发送 GOAWAY/Close/shutdown，再进入硬停止。 */
+    void beginDrain();
     /** @brief 阻塞等待事件循环线程退出（join 内部线程） */
     void join();
 
@@ -238,6 +240,7 @@ private:
     void processPendingFds();     // 批量办理 addFd 投递的待入驻 fd
     void processComplete();       // 消费 completeQueue，匹配 connId 唤醒协程或处理僵尸唤醒
     void processPendingOutbound();// 消费跨线程 postOutbound 投递的出站任务
+    void processDrainRequest();   // 在 Reactor 线程内调用各 Session::beginDrain
     void fd_unblock(int fd);      // 把 fd 设为非阻塞
     void wakeReadCoroutine(int fd);   // 唤醒等待 READ 的协程
     void wakeWriteCoroutine(int fd);  // 唤醒等待 WRITE 的协程（Main + Writer 两个角色）
@@ -255,6 +258,7 @@ private:
     std::atomic<size_t> activeConns_{0};   // 活跃连接计数（原子，可跨线程读）
     // notified 合并连续 eventfd 写入，避免高并发接入时为每个 fd 都触发一次系统调用
     std::atomic<bool> notified{false};
+    std::atomic<bool> drainRequested_{false};
 
     size_t slotNum = 60;          // 时间轮格子数
     int timeout = 30;             // 连接空闲超时秒数

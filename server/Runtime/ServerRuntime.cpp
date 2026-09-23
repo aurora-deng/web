@@ -47,6 +47,7 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <cstring>
+#include <chrono>
 #include <thread>
 #include <csignal>
 #include <iostream>
@@ -157,12 +158,21 @@ ServerRuntime::~ServerRuntime()
 
 void ServerRuntime::shutdownComponents() noexcept
 {
+    ready_.store(false, std::memory_order_release);
     // ①先停所有任务生产者：acceptor、可靠投递重试器与 Reactor 事件线程。
     wsDelivery_.stop();
     requestStop();
     releaseListener();
     if (reactorGroup_)
     {
+        // 监听口已经关闭，先让现有协议说“我要下线”：HTTP/2 发 GOAWAY、
+        // WebSocket 发 1001、SSE 发 server-shutdown。短暂窗口只用于把控制帧
+        // 冲入内核；随后仍会停止 Reactor，避免关机无限等待慢客户端。
+        reactorGroup_->beginDrain();
+        const auto drainDeadline = std::chrono::steady_clock::now() + shutdownDrain_;
+        while (reactorGroup_->activeConnections() != 0 &&
+               std::chrono::steady_clock::now() < drainDeadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         reactorGroup_->stop();
         reactorGroup_->join();
     }
@@ -492,6 +502,7 @@ void ServerRuntime::start()
     {
         createReactors();
         wsDelivery_.start();
+        ready_.store(true, std::memory_order_release);
         // 登记 g_runtime 让信号处理函数能找到本对象
         g_runtime.store(this, std::memory_order_release);
         // 注册信号处理：Ctrl+C 或 kill 触发 handleStopSignal→requestStop

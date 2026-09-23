@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package webtest.rpc.v1;
+
+// LearningService 用四个方法覆盖 gRPC 的四种调用形态。它不是另造传输协议；
+// 生成代码把这些 RPC 语义映射到官方 gRPC 所管理的 HTTP/2 stream 上。
+service LearningService {
+  rpc Echo(EchoRequest) returns (EchoReply);
+  rpc Count(CountRequest) returns (stream CountReply);
+  rpc Upload(stream UploadChunk) returns (UploadSummary);
+  rpc Chat(stream ChatMessage) returns (stream ChatMessage);
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoReply {
+  string message = 1;
+  uint64 server_sequence = 2;
+}
+
+message CountRequest {
+  uint32 limit = 1;
+  uint32 interval_ms = 2;
+}
+
+message CountReply {
+  uint32 value = 1;
+}
+
+message UploadChunk {
+  uint64 sequence = 1;
+  bytes payload = 2;
+}
+
+message UploadSummary {
+  uint64 chunk_count = 1;
+  uint64 byte_count = 2;
+  uint64 last_sequence = 3;
+}
+
+message ChatMessage {
+  uint64 sequence = 1;
+  string text = 2;
+}

@@ -113,6 +113,8 @@ public:
      * 置 false 并写 eventfd 唤醒可能阻塞在 epoll_wait 的线程。幂等，多次调用安全。
      */
     void stop();
+    /** 让每条已建立连接先执行协议自己的优雅下线语义。 */
+    void beginDrain();
 
     /**
      * @brief 阻塞等待所有 SubReactor 线程退出

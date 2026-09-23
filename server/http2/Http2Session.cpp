@@ -65,6 +65,26 @@ void Http2Session::requestHandlerStop() noexcept
     }
 }
 
+void Http2Session::beginDrain() noexcept
+{
+    if (draining_)
+        return;
+    draining_ = true;
+    // 本钩子由所属 Reactor 线程调用，所以可以安全触碰该连接唯一的
+    // nghttp2_session。GOAWAY 排队后仍允许已接纳的 stream 完成。
+    try
+    {
+        if (!codec_.submitGoaway() || !flushOutput())
+            reactor_->fd_close(
+                key_.fd, "HTTP/2 GOAWAY enqueue failed", CoroutineRole::Main);
+    }
+    catch (...)
+    {
+        reactor_->fd_close(
+            key_.fd, "HTTP/2 GOAWAY exception", CoroutineRole::Main);
+    }
+}
+
 void Http2Session::workerDone(const std::shared_ptr<Job> &job)
 {
     {

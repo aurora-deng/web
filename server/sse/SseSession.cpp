@@ -1,5 +1,7 @@
 #include "server/sse/SseSession.h"
 
+#include <utility>
+
 #include "server/CoroutineScheduler/AWaiter.h"
 #include "server/SubReactor/SubReactor.h"
 #include "server/sse/SseCodec.h"
@@ -8,8 +10,10 @@
 SseSession::SseSession(ConnectionKey key,
                        SubReactor *reactor,
                        SseClientId clientId,
-                       SseSessionManager *manager)
-    : key_(key), reactor_(reactor), clientId_(clientId), manager_(manager)
+                       SseSessionManager *manager,
+                       std::string lastEventId)
+    : key_(key), reactor_(reactor), clientId_(clientId), manager_(manager),
+      lastEventId_(std::move(lastEventId))
 {
 }
 
@@ -43,6 +47,27 @@ void SseSession::unregisterIfNeeded()
 void SseSession::onClose()
 {
     unregisterIfNeeded();
+}
+
+void SseSession::beginDrain() noexcept
+{
+    try
+    {
+        SseEvent shutdown;
+        shutdown.eventName = "server-shutdown";
+        shutdown.data = "reconnect";
+        auto bytes = SseCodec::encodeChunk(SseCodec::encodeEvent(shutdown));
+        // 事件先到达客户端，再由统一 writer 的完成动作关闭连接。浏览器随后会按
+        // ready 事件中的 retry 提示重连，并携带 Last-Event-ID 补发业务事件。
+        (void)reactor_->enqueueOutbound(
+            key_.fd,
+            OutboundTask::encoded(
+                std::move(bytes), 0, OutboundCompletion::CloseConnection));
+    }
+    catch (...)
+    {
+        // 硬停阶段稍后仍会释放连接；停机钩子绝不能因分配失败终止进程。
+    }
 }
 
 bool SseSession::onTimeout()
@@ -81,6 +106,11 @@ Task<void> SseSession::run()
         reactor_->fd_close(key_.fd, "sse ready event rejected", CoroutineRole::Main);
         co_return;
     }
+
+    // ready 先告诉浏览器连接已经接管，再按 Last-Event-ID 补发断线窗口。
+    // 重放同样走跨 Reactor 有界出站队列，不能绕过背压直接 write。
+    if (!lastEventId_.empty())
+        manager_->replayTo(clientId_, key_, lastEventId_);
 
     while (true)
     {

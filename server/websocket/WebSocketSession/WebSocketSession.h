@@ -146,6 +146,7 @@ public:
 
     /** 连接关闭或 Runtime 停机时只发撤单信号，不等待 Worker。 */
     void requestHandlerStop() noexcept override;
+    void beginDrain() noexcept override;
 
 private:
     /**

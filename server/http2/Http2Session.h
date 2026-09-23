@@ -22,6 +22,7 @@ public:
     Http2Session(ConnectionKey key, SubReactor *reactor);
     Task<void> run() override;
     void requestHandlerStop() noexcept override;
+    void beginDrain() noexcept override;
     bool wakeReadOnExecuteComplete() const override { return true; }
 
 private:
@@ -49,4 +50,5 @@ private:
     std::unordered_map<int32_t, std::shared_ptr<Job>> jobs_;
     std::mutex completedMutex_;
     std::deque<std::shared_ptr<Job>> completed_;
+    bool draining_ = false;
 };

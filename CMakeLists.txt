@@ -66,6 +66,7 @@ option(WEBSERVER_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(WEBSERVER_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(WEBSERVER_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(WEBSERVER_BUILD_FUZZER "Build the libFuzzer HttpParser harness (Clang only)" OFF)
+option(WEBSERVER_ENABLE_GRPC "Build the optional gRPC service on a separate listener" OFF)
 
 # TSan 和 ASan/UBSan 运行时库冲突，无法同时启用，直接报错终止构建
 if(WEBSERVER_ENABLE_TSAN AND (WEBSERVER_ENABLE_ASAN OR WEBSERVER_ENABLE_UBSAN))
@@ -95,6 +96,13 @@ if(WEBSERVER_ENABLE_TSAN)
     target_compile_options(webserver_sanitizers INTERFACE -fsanitize=thread -fno-omit-frame-pointer)
     target_link_options(webserver_sanitizers INTERFACE -fsanitize=thread)
 endif()
+
+# 跨 HTTP/SSE/WebSocket/gRPC 共用的安全基础层。独立成库后，gRPC 组件测试
+# 不必为了复用令牌校验而链接 Linux epoll 网络核心。
+add_library(webserver_security
+    server/security/AuthToken.cpp)
+target_include_directories(webserver_security PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(webserver_security PUBLIC OpenSSL::Crypto webserver_sanitizers)
 
 # ==============================================================================
 # 核心业务静态库 webserver_core
@@ -146,6 +154,7 @@ target_sources(webserver_core PRIVATE
     server/response/HeaderBody.cpp
     # sse：事件编码、长会话和跨 Reactor 订阅目录
     server/sse/SseCodec.cpp
+    server/sse/SseReplayBuffer.cpp
     server/sse/SseSession.cpp
     server/sse/SseSessionManager.cpp
     server/session/ProtocolSessionFactory.cpp
@@ -171,7 +180,7 @@ target_include_directories(webserver_core PUBLIC ${PROJECT_SOURCE_DIR})
 target_include_directories(webserver_core PUBLIC ${NGHTTP2_INCLUDE_DIR})
 
 # 链接依赖：系统线程库 + sanitizer编译选项接口库
-target_link_libraries(webserver_core PUBLIC Threads::Threads webserver_sanitizers ${NGHTTP2_LIBRARY} OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(webserver_core PUBLIC Threads::Threads webserver_sanitizers webserver_security ${NGHTTP2_LIBRARY} OpenSSL::SSL OpenSSL::Crypto)
 
 # ==============================================================================
 # 主程序可执行文件 webserver
@@ -180,6 +189,77 @@ target_link_libraries(webserver_core PUBLIC Threads::Threads webserver_sanitizer
 add_executable(webserver main.cpp)
 # 链接核心业务库
 target_link_libraries(webserver PRIVATE webserver_core)
+
+# ==============================================================================
+# 可选 gRPC 服务：官方 gRPC C++ 负责它自己的 HTTP/2、HPACK、stream 与 trailers。
+# 现有 webserver_core 不链接 gRPC，避免把两套 HTTP/2 状态机耦合在一起。
+# ==============================================================================
+if(WEBSERVER_ENABLE_GRPC)
+    # 与 gRPC 官方 C++ 示例一致，要求已安装的 CMake package，并使用 protoc
+    # 与 grpc_cpp_plugin 在构建目录生成代码，不提交生成文件。
+    set(protobuf_MODULE_COMPATIBLE TRUE)
+    find_package(Protobuf CONFIG REQUIRED)
+    find_package(gRPC CONFIG REQUIRED)
+
+    if(CMAKE_CROSSCOMPILING)
+        find_program(WEBSERVER_PROTOC protoc REQUIRED)
+        find_program(WEBSERVER_GRPC_CPP_PLUGIN grpc_cpp_plugin REQUIRED)
+    else()
+        set(WEBSERVER_PROTOC $<TARGET_FILE:protobuf::protoc>)
+        set(WEBSERVER_GRPC_CPP_PLUGIN $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+    endif()
+
+    set(WEBSERVER_GRPC_PROTO
+        "${PROJECT_SOURCE_DIR}/server/grpc/proto/web_learning.proto")
+    set(WEBSERVER_GRPC_GENERATED_DIR
+        "${CMAKE_CURRENT_BINARY_DIR}/generated/grpc")
+    file(MAKE_DIRECTORY "${WEBSERVER_GRPC_GENERATED_DIR}")
+
+    set(WEBSERVER_GRPC_PROTO_SRCS
+        "${WEBSERVER_GRPC_GENERATED_DIR}/web_learning.pb.cc")
+    set(WEBSERVER_GRPC_PROTO_HDRS
+        "${WEBSERVER_GRPC_GENERATED_DIR}/web_learning.pb.h")
+    set(WEBSERVER_GRPC_SERVICE_SRCS
+        "${WEBSERVER_GRPC_GENERATED_DIR}/web_learning.grpc.pb.cc")
+    set(WEBSERVER_GRPC_SERVICE_HDRS
+        "${WEBSERVER_GRPC_GENERATED_DIR}/web_learning.grpc.pb.h")
+
+    add_custom_command(
+        OUTPUT
+            "${WEBSERVER_GRPC_PROTO_SRCS}"
+            "${WEBSERVER_GRPC_PROTO_HDRS}"
+            "${WEBSERVER_GRPC_SERVICE_SRCS}"
+            "${WEBSERVER_GRPC_SERVICE_HDRS}"
+        COMMAND ${WEBSERVER_PROTOC}
+        ARGS
+            --grpc_out "${WEBSERVER_GRPC_GENERATED_DIR}"
+            --cpp_out "${WEBSERVER_GRPC_GENERATED_DIR}"
+            -I "${PROJECT_SOURCE_DIR}/server/grpc/proto"
+            "--plugin=protoc-gen-grpc=${WEBSERVER_GRPC_CPP_PLUGIN}"
+            "${WEBSERVER_GRPC_PROTO}"
+        DEPENDS "${WEBSERVER_GRPC_PROTO}"
+        COMMENT "Generating C++ and gRPC sources for web_learning.proto"
+        VERBATIM)
+
+    add_library(webserver_grpc
+        server/grpc/GrpcServer.cpp
+        ${WEBSERVER_GRPC_PROTO_SRCS}
+        ${WEBSERVER_GRPC_PROTO_HDRS}
+        ${WEBSERVER_GRPC_SERVICE_SRCS}
+        ${WEBSERVER_GRPC_SERVICE_HDRS})
+    target_include_directories(webserver_grpc PUBLIC
+        ${PROJECT_SOURCE_DIR}
+        ${WEBSERVER_GRPC_GENERATED_DIR})
+    target_link_libraries(webserver_grpc PUBLIC
+        gRPC::grpc++
+        protobuf::libprotobuf
+        Threads::Threads
+        webserver_security)
+    target_link_libraries(webserver_grpc PRIVATE webserver_sanitizers)
+
+    target_compile_definitions(webserver PRIVATE WEBSERVER_HAS_GRPC=1)
+    target_link_libraries(webserver PRIVATE webserver_grpc)
+endif()
 
 # 构建完成后自动复制静态资源目录static到程序输出目录
 # $<TARGET_FILE_DIR:webserver> 生成器表达式：自动获取webserver可执行文件所在目录
@@ -197,6 +277,37 @@ add_custom_command(
 # 策略：只寻找系统预装GTest，不自动下载源码编译，保证构建环境可控、支持离线编译
 # ==============================================================================
 if(BUILD_TESTING)
+    add_executable(phase9_foundation_tests
+        tests/phase9_foundation.cpp
+        server/sse/SseReplayBuffer.cpp)
+    target_include_directories(phase9_foundation_tests PRIVATE ${PROJECT_SOURCE_DIR})
+    target_link_libraries(phase9_foundation_tests PRIVATE webserver_security)
+    add_test(NAME phase9_foundation_tests COMMAND phase9_foundation_tests)
+
+    add_executable(grpc_message_codec_tests
+        tests/grpc_message_codec.cpp
+        server/grpc/learn/GrpcMessageCodec.cpp)
+    target_include_directories(grpc_message_codec_tests PRIVATE
+        ${PROJECT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}/server/grpc/learn)
+    add_test(NAME grpc_message_codec_tests COMMAND grpc_message_codec_tests)
+
+    if(WEBSERVER_ENABLE_GRPC)
+        add_executable(grpc_integration tests/grpc_integration.cpp)
+        target_link_libraries(grpc_integration PRIVATE webserver_grpc)
+        # Windows 的 gRPC 包通常是 DLL；把传递依赖复制到测试程序旁边，
+        # 让 CTest 不依赖用户手工修改 PATH。该生成器表达式要求 CMake 3.21。
+        if(WIN32 AND CMAKE_VERSION VERSION_GREATER_EQUAL "3.21")
+            add_custom_command(TARGET grpc_integration POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        $<TARGET_RUNTIME_DLLS:grpc_integration>
+                        $<TARGET_FILE_DIR:grpc_integration>
+                COMMAND_EXPAND_LISTS)
+        endif()
+        add_test(NAME grpc_integration COMMAND grpc_integration)
+        set_tests_properties(grpc_integration PROPERTIES TIMEOUT 30)
+    endif()
+
     add_executable(http2_stream_coroutine_lifecycle
         tests/http2_stream_coroutine_lifecycle.cpp)
     target_include_directories(http2_stream_coroutine_lifecycle PRIVATE
@@ -303,9 +414,22 @@ if(BUILD_TESTING)
                     ${PROJECT_SOURCE_DIR}/tests/integration/sse_blackbox.py
                     --server $<TARGET_FILE:webserver>
         )
+        add_test(
+            NAME phase9_security_blackbox
+            COMMAND ${Python3_EXECUTABLE}
+                    ${PROJECT_SOURCE_DIR}/tests/integration/phase9_security_blackbox.py
+                    --server $<TARGET_FILE:webserver>
+        )
+        add_test(
+            NAME phase9_shutdown_blackbox
+            COMMAND ${Python3_EXECUTABLE}
+                    ${PROJECT_SOURCE_DIR}/tests/integration/phase9_shutdown_blackbox.py
+                    --server $<TARGET_FILE:webserver>
+        )
         # 设置测试超时时间90秒，防止测试卡死阻塞CI
         set_tests_properties(
             http_blackbox websocket_blackbox sse_blackbox
+            phase9_security_blackbox phase9_shutdown_blackbox
             PROPERTIES TIMEOUT 90 RUN_SERIAL TRUE
         )
     else()

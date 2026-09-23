@@ -242,17 +242,21 @@ bool HttpSession::handoffWebSocket()
     if (!conn || conn->state.closed)
         return false;
 
-    // ---- 从查询参数取 uid（WebSocket 用户标识）----
-    uint64_t wsUid = 0;
-    if (auto it = context_.request.querryParams.find("uid"); it != context_.request.querryParams.end())
+    // 生产身份来自签名令牌；未启用鉴权的学习模式才兼容旧的 ?uid= 参数。
+    uint64_t wsUid = context_.authenticatedUserId;
+    if (wsUid == 0)
     {
-        try
+        if (auto it = context_.request.querryParams.find("uid");
+            it != context_.request.querryParams.end())
         {
-            wsUid = std::stoull(it->second);
-        }
-        catch (...)
-        {
-            wsUid = 0;
+            try
+            {
+                wsUid = std::stoull(it->second);
+            }
+            catch (...)
+            {
+                wsUid = 0;
+            }
         }
     }
 
@@ -301,22 +305,29 @@ bool HttpSession::prepareSseStream()
     if (!context_.sseAccepted)
         return false;
 
-    sseClientId_ = 0;
-    const auto found = context_.request.querryParams.find("uid");
-    if (found != context_.request.querryParams.end())
+    sseClientId_ = context_.authenticatedUserId;
+    if (sseClientId_ == 0)
     {
-        try
+        const auto found = context_.request.querryParams.find("uid");
+        if (found != context_.request.querryParams.end())
         {
-            std::size_t parsed = 0;
-            const auto value = std::stoull(found->second, &parsed);
-            if (parsed == found->second.size() && value != 0)
-                sseClientId_ = value;
-        }
-        catch (...)
-        {
-            sseClientId_ = 0;
+            try
+            {
+                std::size_t parsed = 0;
+                const auto value = std::stoull(found->second, &parsed);
+                if (parsed == found->second.size() && value != 0)
+                    sseClientId_ = value;
+            }
+            catch (...)
+            {
+                sseClientId_ = 0;
+            }
         }
     }
+    sseLastEventId_.clear();
+    if (const auto cursor = context_.request.headers.find("last-event-id");
+        cursor != context_.request.headers.end())
+        sseLastEventId_ = cursor->second;
 
     releasePendingResponse();
     context_.response = responsePool.acquire();
@@ -366,7 +377,7 @@ bool HttpSession::handoffSse()
     if (!factory)
         return false;
     auto sse = factory->createSseSession(
-        key_, reactor, sseClientId_);
+        key_, reactor, sseClientId_, sseLastEventId_);
     if (!sse)
         return false;
 
@@ -547,6 +558,10 @@ void HttpSession::resetRequestContext()
     context_.fd = key_.fd;
     context_.webSocketAccepted = false;
     context_.sseAccepted = false;
+    context_.authenticated = false;
+    context_.authenticatedUserId = 0;
+    context_.authenticatedTenant.clear();
+    sseLastEventId_.clear();
     sseClientId_ = 0;
     context_.cancellation = HandlerCancellation{};
     keepAlive_ = true;

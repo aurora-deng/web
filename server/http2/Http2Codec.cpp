@@ -223,6 +223,23 @@ bool Http2Codec::submitResponse(
     return result == 0;
 }
 
+bool Http2Codec::submitGoaway()
+{
+    if (!session_)
+        return false;
+    if (goawaySubmitted_)
+        return true;
+    // last_proc_stream_id 是已经完整交给本端状态机处理的最大客户端 stream。
+    // 客户端看见它以后，只会把编号更大的未处理请求迁移到新连接。
+    const auto lastStreamId = nghttp2_session_get_last_proc_stream_id(session_);
+    const int result = nghttp2_submit_goaway(
+        session_, NGHTTP2_FLAG_NONE, lastStreamId, NGHTTP2_NO_ERROR,
+        nullptr, 0);
+    if (result == 0)
+        goawaySubmitted_ = true;
+    return result == 0;
+}
+
 bool Http2Codec::drainOutput(std::string &output)
 {
     output.clear();

@@ -12,7 +12,8 @@
 //   3. 【响应对象池】dispatch 时若没有现成 response，从对象池借一个，避免每次请求都 new/delete。
 // ==============================================================================
 #include "HttpCodec.h"
-#include "server/SubReactor/SubReactor.h"
+#include "server/Route/Router.h"
+#include "server/http/RequestContext/RequestContext.h"
 
 /**
  * @brief 解码：驱动 Parser 解析 Buffer，输出 HttpRequest 和 keepAlive 标志
