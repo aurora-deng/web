@@ -48,6 +48,31 @@ include(CTest)
 # 查找系统线程库，Linux下封装pthread，必须依赖
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+
+# TLS 传输层依赖 SSL_read_ex / SSL_write_ex（OpenSSL 1.1.1+）。仅仅找到名为
+# libssl 的库还不够：用户目录可能同时残留旧 OpenSSL 或 BoringSSL，CMake 随后
+# 会把不匹配的头文件和库拼在一起，直到编译 TlsTransport.cpp 才出现难懂的报错。
+# 在配置阶段检查实际选中的头文件和库，让依赖选错时立即给出可操作的诊断。
+include(CheckCXXSymbolExists)
+unset(WEBSERVER_HAS_SSL_READ_EX CACHE)
+unset(WEBSERVER_HAS_SSL_WRITE_EX CACHE)
+set(CMAKE_REQUIRED_INCLUDES "${OPENSSL_INCLUDE_DIR}")
+set(CMAKE_REQUIRED_LIBRARIES OpenSSL::SSL OpenSSL::Crypto)
+check_cxx_symbol_exists(SSL_read_ex "openssl/ssl.h" WEBSERVER_HAS_SSL_READ_EX)
+check_cxx_symbol_exists(SSL_write_ex "openssl/ssl.h" WEBSERVER_HAS_SSL_WRITE_EX)
+unset(CMAKE_REQUIRED_INCLUDES)
+unset(CMAKE_REQUIRED_LIBRARIES)
+if(NOT WEBSERVER_HAS_SSL_READ_EX OR NOT WEBSERVER_HAS_SSL_WRITE_EX)
+    message(FATAL_ERROR
+        "The selected OpenSSL does not provide SSL_read_ex/SSL_write_ex. "
+        "OPENSSL_INCLUDE_DIR='${OPENSSL_INCLUDE_DIR}', "
+        "OPENSSL_SSL_LIBRARY='${OPENSSL_SSL_LIBRARY}', "
+        "OPENSSL_CRYPTO_LIBRARY='${OPENSSL_CRYPTO_LIBRARY}'. "
+        "Use one OpenSSL 1.1.1+ installation for both headers and libraries. "
+        "If ~/.local shadows the system installation, set OPENSSL_ROOT_DIR, "
+        "OPENSSL_INCLUDE_DIR, OPENSSL_SSL_LIBRARY and OPENSSL_CRYPTO_LIBRARY explicitly.")
+endif()
+
 find_path(NGHTTP2_INCLUDE_DIR nghttp2/nghttp2.h)
 find_library(NGHTTP2_LIBRARY NAMES nghttp2)
 if(NOT NGHTTP2_INCLUDE_DIR OR NOT NGHTTP2_LIBRARY)

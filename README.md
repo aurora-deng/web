@@ -76,10 +76,22 @@ cmake -S . -B build \
   -DCMAKE_BUILD_TYPE=Debug \
   -DBUILD_TESTING=ON \
   -DWEBSERVER_ENABLE_GRPC=ON \
-  -DCMAKE_PREFIX_PATH="$HOME/.local-grpc-systemssl"
+  -DCMAKE_PREFIX_PATH="$HOME/.local-grpc-systemssl" \
+  -DOPENSSL_ROOT_DIR=/usr \
+  -DOPENSSL_INCLUDE_DIR=/usr/include \
+  -DOPENSSL_SSL_LIBRARY=/usr/lib64/libssl.so \
+  -DOPENSSL_CRYPTO_LIBRARY=/usr/lib64/libcrypto.so \
+  -DOPENSSL_USE_STATIC_LIBS=OFF
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
+
+上面的 OpenSSL 路径是本项目 CentOS Stream 9 验证环境的路径。Debian/Ubuntu 的库通常位于
+`/usr/lib/x86_64-linux-gnu`，应改成该系统中 `libssl.so` 与 `libcrypto.so` 的实际位置。
+显式指定四个路径的目的是防止 `$HOME/.local` 中遗留的旧 OpenSSL/BoringSSL 与系统头文件
+混用。配置后可执行 `cmake -LA -N build | grep OPENSSL` 检查：include、ssl、crypto 必须来自
+同一套安装。CMake 还会在配置阶段检查 `SSL_read_ex` 和 `SSL_write_ex`；检查失败时不要继续
+执行构建或 CTest，先修正 OpenSSL 路径后重新运行配置命令即可，无须删除整个源码目录。
 
 默认 Web 明文端口是 8080。设置 WEB_TLS_CERT 与 WEB_TLS_KEY 后启用 TLS，默认端口
 是 8443。gRPC 默认监听 127.0.0.1:50051，可用 WEB_GRPC_ADDRESS=off 关闭。

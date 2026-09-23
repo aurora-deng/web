@@ -303,6 +303,8 @@ HTTP/2 的 GOAWAY 像酒店挂出“停止办理新入住”：编号不大于 `
 | gRPC TLS 集成 | 通过；临时 `localhost` 证书下，常规版与 ASan/UBSan 版独立执行均返回 0，使用 HTTP/2 ALPN `h2` |
 | TLS/HTTP/WS/SSE 黑盒 | 全部通过；包括 TLS 握手、旧 HTTP 回归、WS、SSE 重放、安全策略和协议下线 |
 | ASan + LeakSanitizer + UBSan 全量 CTest | **80/80 通过**，Callback 最终版本总计 30.43 秒；`detect_leaks=1`、遇错立即终止 |
+| OpenSSL 路径修复后原 `build` 目录复验 | **80/80 通过**，24.97 秒；配置阶段确认 `SSL_read_ex`、`SSL_write_ex` 均来自系统 OpenSSL 3.5.5 |
+| OpenSSL 错误路径防护 | 通过；故意指定 `~/.local/include` 与 `~/.local/lib64/*.a` 时，CMake 在配置阶段停止并打印被选中的三个路径 |
 
 本次验证不是只记录失败，而是逐项闭环：
 
@@ -310,6 +312,7 @@ HTTP/2 的 GOAWAY 像酒店挂出“停止办理新入住”：编号不大于 `
 |---|---|---|
 | GCC 干净构建时 `HttpCodec.cpp` 类型不完整 | 源文件意外依赖 `SubReactor.h` 的传递包含 | 直接包含 `Router.h` 与 `RequestContext.h`，让依赖关系可见 |
 | gRPC TLS 在 `SSL_CTX_new()` 崩溃 | 系统 OpenSSL 与旧 gRPC 的静态 BoringSSL 同进程符号冲突 | 用 `gRPC_SSL_PROVIDER=package` 重建 gRPC，并审计最终链接输入 |
+| `TlsTransport.cpp` 提示 `SSL_read_ex`、`SSL_write_ex` 未声明 | CMake 从 `~/.local` 选中了不含所需 API 的旧头文件与静态库；后续 CTest 失败只是未生成可执行文件的连锁结果 | 显式绑定 `/usr` 的系统 OpenSSL；CMake 新增符号检查，使同类问题在配置阶段提前失败 |
 | `/delivery-metrics` 被识别成 `text/plain` | 先设置 JSON 头，随后 `text()` 又覆盖了类型 | 先写 body，再把 `Content-Type` 明确设为 JSON |
 | Cookie 写请求缺少 Origin 时未被拦截 | 非生产模式放松规则造成 CSRF 缺口 | Cookie 写请求在所有模式都要求白名单 Origin |
 | gRPC 并发配额测试偶发失败 | 客户端 deadline 状态可早于服务端 `OnDone()` 释放 `CallbackCall` | 测试在下一次配额断言前给取消 reaction 一个有界释放窗口 |
