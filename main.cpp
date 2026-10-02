@@ -216,7 +216,12 @@ int main()
             std::chrono::minutes(1),
             boundedEnvironmentSize("WEB_RATE_LIMIT_IDENTITIES", 65'536, 1, 10'000'000));
 
-        ServerRuntime server;
+        const ServerRuntimeOptions runtimeOptions{
+            boundedEnvironmentSize("WEB_HTTP_WORKERS", 0, 1, 32),
+            boundedEnvironmentSize("WEB_WS_WORKERS", 0, 1, 32)};
+        ServerRuntime server(runtimeOptions);
+        std::cout << "worker pools: http=" << server.httpWorkerCount()
+                  << ", websocket=" << server.webSocketWorkerCount() << '\n';
         server.setMaxConnections(
             boundedEnvironmentSize("WEB_MAX_CONNECTIONS", 10'000, 1, 1'000'000));
         server.setShutdownDrain(std::chrono::milliseconds(
@@ -272,7 +277,7 @@ int main()
         // LOG_HTTP 当前为空操作（压测纯净版），需要日志时改回真正调用
         server.router().use([operationalMetrics](RequestContext &ctx, auto next)
                             {
-        operationalMetrics->httpRequests.fetch_add(1, std::memory_order_relaxed);
+        operationalMetrics->recordHttpRequest();
         (void)ctx; // 压测模式下 LOG_HTTP 是空宏，仍显式标记参数已使用。
         LOG_HTTP(ctx.request.method + " " + ctx.request.path);
         next(); });
@@ -309,8 +314,7 @@ int main()
             ctx.request.headers);
         if (!authenticated)
         {
-            operationalMetrics->authenticationRejected.fetch_add(
-                1, std::memory_order_relaxed);
+            operationalMetrics->recordAuthenticationRejected();
             reject(ctx, 401, "Unauthorized", "valid bearer token required");
             return;
         }
@@ -320,8 +324,7 @@ int main()
 
         if (operationsPath(ctx.request) && ctx.authenticatedTenant != "ops")
         {
-            operationalMetrics->authenticationRejected.fetch_add(
-                1, std::memory_order_relaxed);
+            operationalMetrics->recordAuthenticationRejected();
             reject(ctx, 403, "Forbidden", "operations tenant required");
             return;
         }
@@ -329,8 +332,7 @@ int main()
         if ((ctx.request.path == "/ws" || ctx.request.path == "/events") &&
             !queryUserMatches(ctx, ctx.authenticatedUserId))
         {
-            operationalMetrics->authenticationRejected.fetch_add(
-                1, std::memory_order_relaxed);
+            operationalMetrics->recordAuthenticationRejected();
             reject(ctx, 403, "Forbidden", "uid does not match authenticated identity");
             return;
         }
@@ -356,8 +358,7 @@ int main()
                                    !allowedOrigins->contains(found->second);
             if (missingRequired || untrusted)
             {
-                operationalMetrics->originRejected.fetch_add(
-                    1, std::memory_order_relaxed);
+                operationalMetrics->recordOriginRejected();
                 reject(ctx, 403, "Forbidden", "origin is not allowed");
                 return;
             }
@@ -365,7 +366,7 @@ int main()
 
         if (!rateLimiter->allow(ctx.authenticatedUserId))
         {
-            operationalMetrics->rateLimited.fetch_add(1, std::memory_order_relaxed);
+            operationalMetrics->recordRateLimited();
             reject(ctx, 429, "Too Many Requests", "identity request quota exceeded");
             ctx.response->setHeader("Retry-After", "60");
             return;
@@ -378,12 +379,12 @@ int main()
         server.router().GET("/", [](RequestContext &ctx) -> bool
                             {
         ctx.response->html("<h1>hello</h1>");
-        return true; });
+        return true; }, RouteOptions{ExecutionPolicy::ReactorSafe});
 
         server.router().GET("/health/live", [](RequestContext &ctx) -> bool
                             {
         ctx.response->json("{\"status\":\"alive\"}");
-        return true; });
+        return true; }, RouteOptions{ExecutionPolicy::ReactorSafe});
 
         server.router().GET("/health/ready", [&server](RequestContext &ctx) -> bool
                             {
@@ -395,7 +396,7 @@ int main()
         ctx.response->json(server.ready()
                                ? "{\"status\":\"ready\"}"
                                : "{\"status\":\"starting\"}");
-        return true; });
+        return true; }, RouteOptions{ExecutionPolicy::ReactorSafe});
 
         server.router().GET(
             "/metrics",
@@ -426,7 +427,7 @@ int main()
         server.router().GET("/user/:id", [](RequestContext &ctx) -> bool
                             {
         ctx.response->text(ctx.params.at("id"));
-        return true; });
+        return true; }, RouteOptions{ExecutionPolicy::ReactorSafe});
 
         // 分块传输（chunked）示例：把响应拆成多块发送，适合动态生成内容
         server.router().GET("/stream1", [](RequestContext &ctx) -> bool
@@ -486,7 +487,7 @@ int main()
         server.router().GET("/fast", [](RequestContext &ctx) -> bool
                             {
         ctx.response->text("fast");
-        return true; });
+        return true; }, RouteOptions{ExecutionPolicy::ReactorSafe});
 
         // 可靠投递观测面：计数器只增不减，gauges 表示读取瞬间的当前水位。
         // 生产部署应通过鉴权或仅在管理网络暴露该路由。
@@ -788,6 +789,18 @@ int main()
                 "WEB_GRPC_MAX_CONCURRENT_RPCS", 256, 1, 100'000);
             grpcOptions.maxWorkerThreads = boundedEnvironmentSize(
                 "WEB_GRPC_MAX_WORKER_THREADS", 64, 1, 4096);
+            grpcOptions.maxReceiveMessageBytes = static_cast<int>(
+                boundedEnvironmentSize(
+                    "WEB_GRPC_MAX_RECEIVE_BYTES", 1024 * 1024, 1024,
+                    64 * 1024 * 1024));
+            grpcOptions.maxSendMessageBytes = static_cast<int>(
+                boundedEnvironmentSize(
+                    "WEB_GRPC_MAX_SEND_BYTES", 1024 * 1024, 1024,
+                    64 * 1024 * 1024));
+            grpcOptions.maxRpcDuration = std::chrono::milliseconds(
+                boundedEnvironmentSize(
+                    "WEB_GRPC_MAX_RPC_MS", 30'000, 1,
+                    24 * 60 * 60 * 1000));
 
             const char *grpcCert = std::getenv("WEB_GRPC_TLS_CERT");
             const char *grpcKey = std::getenv("WEB_GRPC_TLS_KEY");

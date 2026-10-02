@@ -12,6 +12,8 @@
 | TLS/ALPN 接入与教学版（Phase 7，test8.0） | [architecture/phase7.md](architecture/phase7.md) |
 | gRPC C++ 接入与消息封装教学版（Phase 8，同步 API 基线） | [architecture/phase8.md](architecture/phase8.md) |
 | 生产化护栏与 gRPC Callback Reactor（Phase 9，test9.0） | [architecture/phase9.md](architecture/phase9.md) |
+| test9.0 → test9.1 版本差异 | [architecture/test9.1.md](architecture/test9.1.md) |
+| HTTP/gRPC 性能路径、架构拆分与 Linux 实测（Phase 10） | [architecture/phase10.md](architecture/phase10.md) |
 | WebSocket 课程演进 | [architecture/websocket-lessons/README.md](architecture/websocket-lessons/README.md) |
 | Reactor 基础课程 | [architecture/phase3/README.md](architecture/phase3/README.md) |
 | WebSocket 初次接入 | [architecture/phase4_upgrade.md](architecture/phase4_upgrade.md) |

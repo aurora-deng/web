@@ -235,10 +235,33 @@ void verifyRpcRoundTrip(
            secondOccupiedStatus.error_code() ==
                ::grpc::StatusCode::DEADLINE_EXCEEDED);
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    // 服务端总时限由独立 Alarm 驱动，不依赖下一次读写回调。即使 Count 正在
+    // 等待长间隔，2 秒预算到点后也必须主动结束，而不是继续占用 Reactor/配额。
+    ::grpc::ClientContext serverDeadlineContext;
+    authenticate(serverDeadlineContext, token, "integration-server-deadline");
+    ::webtest::rpc::v1::CountRequest serverDeadlineRequest;
+    serverDeadlineRequest.set_limit(100);
+    serverDeadlineRequest.set_interval_ms(1000);
+    const auto serverDeadlineStarted = std::chrono::steady_clock::now();
+    auto serverDeadlineReader = stub->Count(
+        &serverDeadlineContext, serverDeadlineRequest);
+    while (serverDeadlineReader->Read(&countReply))
+    {
+    }
+    const auto serverDeadlineStatus = serverDeadlineReader->Finish();
+    const auto serverDeadlineElapsed = std::chrono::steady_clock::now() -
+                                       serverDeadlineStarted;
+    assert(serverDeadlineStatus.error_code() ==
+           ::grpc::StatusCode::DEADLINE_EXCEEDED);
+    assert(serverDeadlineElapsed < std::chrono::seconds(3));
+
     server.stop(std::chrono::milliseconds(500));
     assert(!server.running());
-    assert(metrics->grpcRejected.load() >= 1);
-    assert(metrics->grpcStarted.load() >= 6);
+    const auto metricSnapshot = metrics->snapshot();
+    assert(metricSnapshot.grpcRejected >= 1);
+    assert(metricSnapshot.grpcStarted >= 6);
 }
 } // namespace
 

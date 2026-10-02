@@ -55,6 +55,7 @@
 #include "server/http/http.h"
 #include "server/http/HttpParser/HttpParser.h"
 #include "server/http/RequestContext/RequestContext.h"
+#include "server/ops/OperationalMetrics.h"
 #include "server/sse/SseCodec.h"
 #include "server/SegmentPool/SegmentPool.h"
 #include "server/timer/TimeWheel.h"
@@ -662,7 +663,7 @@ TEST(RouterTest, MiddlewareCanShortCircuitRoute)
     // 限流等横切逻辑阻断请求的基础，routeCalled 可检测意外穿透。
     Router router;
     bool routeCalled = false;
-    router.use([](RequestContext& ctx, std::function<void()>) {
+    router.use([](RequestContext& ctx, MiddlewareNext) {
         ctx.response->status = 401;
         ctx.response->statusText = "Unauthorized";
         ctx.response->text("Unauthorized");
@@ -684,6 +685,89 @@ TEST(RouterTest, MiddlewareCanShortCircuitRoute)
     EXPECT_EQ(responseBody(response), "Unauthorized");
 }
 
+TEST(RouterTest, ResolvesExecutionPolicyBeforeDispatch)
+{
+    Router router;
+    router.GET("/worker", [](RequestContext &) { return true; });
+    router.GET("/fast", [](RequestContext &) { return true; },
+               RouteOptions{ExecutionPolicy::ReactorSafe});
+
+    RequestContext context;
+    context.request.method = "GET";
+    context.request.path = "/worker";
+    EXPECT_EQ(router.resolve(context), ExecutionPolicy::Worker);
+    ASSERT_NE(context.route, nullptr);
+
+    context.request.path = "/fast";
+    EXPECT_EQ(router.resolve(context), ExecutionPolicy::ReactorSafe);
+    ASSERT_NE(context.route, nullptr);
+}
+
+TEST(RouterTest, FrozenRouterRejectsMutation)
+{
+    Router router;
+    router.GET("/ready", [](RequestContext &) { return true; });
+    router.freeze();
+    EXPECT_TRUE(router.frozen());
+    EXPECT_THROW(
+        router.GET("/late", [](RequestContext &) { return true; }),
+        std::logic_error);
+    EXPECT_THROW(
+        router.use([](RequestContext &, MiddlewareNext next) { next(); }),
+        std::logic_error);
+}
+
+TEST(OperationalMetricsTest, ConcurrentStripedCountersPreserveTotal)
+{
+    webserver::ops::OperationalMetrics metrics;
+    constexpr std::size_t threadCount = 8;
+    constexpr std::size_t incrementsPerThread = 10'000;
+    std::vector<std::thread> workers;
+    for (std::size_t index = 0; index < threadCount; ++index)
+    {
+        workers.emplace_back([&metrics]
+        {
+            for (std::size_t count = 0; count < incrementsPerThread; ++count)
+            {
+                metrics.recordHttpRequest();
+                metrics.recordGrpcStarted();
+            }
+        });
+    }
+    for (auto &worker : workers)
+        worker.join();
+
+    const auto snapshot = metrics.snapshot();
+    EXPECT_EQ(snapshot.httpRequests, threadCount * incrementsPerThread);
+    EXPECT_EQ(snapshot.grpcStarted, threadCount * incrementsPerThread);
+}
+
+TEST(ObjectPoolTest, ConcurrentAcquireReleaseKeepsObjectsReset)
+{
+    constexpr std::size_t threadCount = 8;
+    constexpr std::size_t iterations = 2'000;
+    std::atomic<bool> invalidReset{false};
+    std::vector<std::thread> workers;
+    for (std::size_t index = 0; index < threadCount; ++index)
+    {
+        workers.emplace_back([&]
+        {
+            for (std::size_t count = 0; count < iterations; ++count)
+            {
+                auto *response = responsePool.acquire();
+                if (response->status != 200 || response->body)
+                    invalidReset.store(true, std::memory_order_relaxed);
+                response->status = 503;
+                response->text("temporary");
+                responsePool.release(response);
+            }
+        });
+    }
+    for (auto &worker : workers)
+        worker.join();
+    EXPECT_FALSE(invalidReset.load(std::memory_order_relaxed));
+}
+
 /**
  * @test RouterTest.ProducesNotFoundResponse
  * @brief 验证路由未匹配时返回 404。
@@ -702,9 +786,8 @@ TEST(RouterTest, MiddlewareCanShortCircuitRoute)
  */
 TEST(RouterTest, ProducesNotFoundResponse)
 {
-    // make404() 会从 responsePool 取出新对象并改写 ctx.response，
-    // 因此断言必须看 context.response，而不是测试栈上原先那份 HttpResponse。
-    // 另外当前 make404 只设置 status=404 与 body，不改 statusText。
+    // make404() 优先复用已有 response，避免一次无意义的归还/再借用；
+    // 只有 ctx.response 为空时才会从池中获取。当前实现设置 404 与正文。
     Router router;
     HttpResponse stackResponse;
     RequestContext context;

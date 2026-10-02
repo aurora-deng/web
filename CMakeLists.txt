@@ -92,6 +92,11 @@ option(WEBSERVER_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(WEBSERVER_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(WEBSERVER_BUILD_FUZZER "Build the libFuzzer HttpParser harness (Clang only)" OFF)
 option(WEBSERVER_ENABLE_GRPC "Build the optional gRPC service on a separate listener" OFF)
+option(WEBSERVER_BUILD_BENCHMARKS "Build repeatable Phase 10 benchmark clients" OFF)
+
+if(WEBSERVER_BUILD_BENCHMARKS AND NOT WEBSERVER_ENABLE_GRPC)
+    message(FATAL_ERROR "WEBSERVER_BUILD_BENCHMARKS requires WEBSERVER_ENABLE_GRPC=ON")
+endif()
 
 # TSan 和 ASan/UBSan 运行时库冲突，无法同时启用，直接报错终止构建
 if(WEBSERVER_ENABLE_TSAN AND (WEBSERVER_ENABLE_ASAN OR WEBSERVER_ENABLE_UBSAN))
@@ -284,6 +289,15 @@ if(WEBSERVER_ENABLE_GRPC)
 
     target_compile_definitions(webserver PRIVATE WEBSERVER_HAS_GRPC=1)
     target_link_libraries(webserver PRIVATE webserver_grpc)
+
+    # 可独立部署/压测的 gRPC 进程。集成 webserver 仍保留，便于对比同进程资源竞争。
+    add_executable(webserver-grpc server/grpc/GrpcMain.cpp)
+    target_link_libraries(webserver-grpc PRIVATE webserver_grpc)
+
+    if(WEBSERVER_BUILD_BENCHMARKS)
+        add_executable(grpc_benchmark benchmarks/grpc_benchmark.cpp)
+        target_link_libraries(grpc_benchmark PRIVATE webserver_grpc)
+    endif()
 endif()
 
 # 构建完成后自动复制静态资源目录static到程序输出目录

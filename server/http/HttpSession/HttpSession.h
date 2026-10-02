@@ -81,7 +81,7 @@ enum class RequestReadResult
 enum class HandlerStartResult
 {
     SUBMITTED, // 已交给 Executor，根协程接下来等待 EXECUTE
-    READY,     // Executor 拒绝，已经准备好 503 响应，可直接发送
+    READY,     // Reactor 内已完成，或 Executor 拒绝后已准备好 503，可直接发送
     CLOSED     // 原连接已经不存在
 };
 
@@ -166,6 +166,9 @@ private:
 
     /** @brief 同步提交 handler；是否等待由唯一根协程 run() 决定 */
     HandlerStartResult startHandler();
+
+    /** 统一收口 Worker/ReactorSafe 执行后的超时、异常和无响应处理。 */
+    void completeHandler(bool dispatched, bool failed);
 
     /** @brief 同步编码并入队响应；返回 ticket，0 表示失败 */
     uint64_t queueResponse();

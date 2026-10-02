@@ -42,6 +42,7 @@ struct RequestContext
     HttpResponse *response = nullptr; // 响应对象指针（对象池借出，用完归还）
     int fd = -1;                  // 连接 fd（默认 -1 避免野值，防止对象池复用时残留旧 fd 被误用）
     const RouteEntry *route = nullptr; // 命中的路由项
+    bool routeResolved = false;        // 已尝试路由解析；route==nullptr 表示确认未命中
     HandlerCancellation cancellation; // Worker 的撤单信号与单调时钟截止时间
 
     std::unordered_map<std::string, std::string> params; // 路径参数（如 /user/:id 中的 id）

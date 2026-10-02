@@ -429,6 +429,29 @@ HandlerStartResult HttpSession::startHandler()
         handlerStopSource_.get_token(),
         reactor->executor().handlerDeadline()};
 
+    // 路由解析只读已冻结的表，不运行用户代码。明确标成 ReactorSafe 的短 handler
+    // 直接执行，省去“线程池排队 -> eventfd 唤醒 -> 协程恢复”这一整次往返。
+    if (codec_.executionPolicy(context_) == ExecutionPolicy::ReactorSafe)
+    {
+        bool dispatched = false;
+        bool failed = false;
+        try
+        {
+            dispatched = codec_.dispatch(context_);
+        }
+        catch (...)
+        {
+            failed = true;
+        }
+        completeHandler(dispatched, failed);
+        return HandlerStartResult::READY;
+    }
+
+    // 响应对象在所属 Reactor 借出，最终也由同一 Reactor 的 Writer 归还。
+    // Worker 只填写对象，避免对象池发生“Worker 借、Reactor 还”的跨分片迁移。
+    if (!context_.response)
+        context_.response = responsePool.acquire();
+
     // ---- 提交到 HTTP 专用执行器线程池异步跑 handler ----
     const ConnectionKey key = key_;
     const bool submitted = reactor->executor().submit([this, key]()
@@ -445,36 +468,7 @@ HandlerStartResult HttpSession::startHandler()
         {
             failed = true;
         }
-
-        auto prepareError = [this](int status,
-                                   const char *statusText,
-                                   const char *body)
-        {
-            releasePendingResponse();
-            context_.response = responsePool.acquire();
-            context_.response->reset();
-            context_.response->status = status;
-            context_.response->statusText = statusText;
-            context_.response->keepAlive = false;
-            // 失败或超时必须取消业务留下的升级意图，否则 504/500 可能被后续 101 覆盖。
-            context_.webSocketAccepted = false;
-            context_.sseAccepted = false;
-            context_.response->text(body);
-        };
-
-        // 截止时间优先于普通业务结果；忽略预算的 handler 返回后仍只能得到 504。
-        if (context_.handlerDeadlineExceeded())
-        {
-            prepareError(504, "Gateway Timeout", "Handler Timeout");
-        }
-        else if (failed)
-        {
-            prepareError(500, "Internal Server Error", "Internal Server Error");
-        }
-        else if (!dispatched && context_.response)
-        {
-            releasePendingResponse();
-        }
+        completeHandler(dispatched, failed);
         reactor->notifyExecuteComplete(key.fd, key.connId);   // 唤醒主协程
     });
     if (submitted)
@@ -488,6 +482,32 @@ HandlerStartResult HttpSession::startHandler()
     context_.response->keepAlive = false;
     context_.response->text("Service Unavailable");
     return HandlerStartResult::READY;
+}
+
+void HttpSession::completeHandler(bool dispatched, bool failed)
+{
+    auto prepareError = [this](int status,
+                               const char *statusText,
+                               const char *body)
+    {
+        releasePendingResponse();
+        context_.response = responsePool.acquire();
+        context_.response->reset();
+        context_.response->status = status;
+        context_.response->statusText = statusText;
+        context_.response->keepAlive = false;
+        // 错误响应不能保留业务留下的协议升级意图，否则 500/504 可能被覆盖成 101。
+        context_.webSocketAccepted = false;
+        context_.sseAccepted = false;
+        context_.response->text(body);
+    };
+
+    if (context_.handlerDeadlineExceeded())
+        prepareError(504, "Gateway Timeout", "Handler Timeout");
+    else if (failed)
+        prepareError(500, "Internal Server Error", "Internal Server Error");
+    else if (!dispatched && context_.response)
+        releasePendingResponse();
 }
 
 /**
@@ -552,6 +572,7 @@ void HttpSession::resetRequestContext()
     releasePendingResponse();
     context_.request.reset();
     context_.route = nullptr;
+    context_.routeResolved = false;
     context_.params.clear();
     context_.handled = false;
     context_.Id = key_.connId;

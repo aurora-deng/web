@@ -25,6 +25,7 @@
 //   4. 【对象池 BufferPoll】所有临时缓冲区从对象池借出，用完归还，避免频繁 malloc/free。
 // ==============================================================================
 #include "http.h"
+#include <charconv>
 // 统一小写：HTTP 头部名大小写不敏感，统一转小写后存储和比较，避免 "Content-Type" 与
 // "content-type" 被当成两个不同头。
 static inline std::string toLower(std::string s)
@@ -33,6 +34,29 @@ static inline std::string toLower(std::string s)
         c = std::tolower((unsigned char)c);
     return s;
 }
+
+namespace
+{
+bool headerNameEquals(std::string_view lhs, std::string_view rhs) noexcept
+{
+    if (lhs.size() != rhs.size())
+        return false;
+    for (std::size_t index = 0; index < lhs.size(); ++index)
+    {
+        if (std::tolower(static_cast<unsigned char>(lhs[index])) !=
+            std::tolower(static_cast<unsigned char>(rhs[index])))
+            return false;
+    }
+    return true;
+}
+
+void appendUnsigned(Buffer &buffer, std::uint64_t value)
+{
+    char digits[32];
+    const auto result = std::to_chars(digits, digits + sizeof(digits), value);
+    buffer.append(digits, static_cast<std::size_t>(result.ptr - digits));
+}
+} // namespace
 
 HttpResponse::HttpResponse()
 {
@@ -382,26 +406,29 @@ void HttpResponse::buildHeader()
     auto buf=BufferPoll::instance().acquire();
    
     // ---- 状态行 ----
-    buf->append
-        ("HTTP/1.1 " + std::to_string(status) +
-        " " +
-        statusText +
-        "\r\n");
+    buf->append("HTTP/1.1 ");
+    appendUnsigned(*buf, static_cast<std::uint64_t>(status));
+    buf->append(" ");
+    buf->append(statusText);
+    buf->append("\r\n");
     // 第四阶段新增 hasConnection 检测：遍历业务头时记录是否已设 Connection 头。
     // 若业务已显式设置 Connection（例如 WebSocket 升级的 Upgrade: websocket + Connection: Upgrade），
     // 不再追加 keep-alive/close，避免重复或覆盖 Upgrade 语义。
     bool hasConnection = false;
     for (auto &[k, v] : headers)
     {
-        std::string lk = toLower(k);
-        if (lk == "content-length" || lk == "transfer-encoding")
+        if (headerNameEquals(k, "content-length") ||
+            headerNameEquals(k, "transfer-encoding"))
         {
             continue;
         }
-        if (lk == "connection")
+        if (headerNameEquals(k, "connection"))
             hasConnection = true;
 
-        buf->append(k + ": " + v + "\r\n");
+        buf->append(k);
+        buf->append(": ");
+        buf->append(v);
+        buf->append("\r\n");
     }
 
     // 业务没设 Connection 时，按 keepAlive 标志补默认值
@@ -444,28 +471,34 @@ void HttpResponse::buildHeader()
             if (status == 206)
             {
                 buf->append ("Content-Range: bytes ");
-                buf->append( std::to_string(file->begin));
+                appendUnsigned(*buf, file->begin);
                 buf->append ("-");
-                buf->append (std::to_string(file->end));
+                appendUnsigned(*buf, file->end);
                 buf->append ("/");
-                buf->append (std::to_string(file->filesize));
+                appendUnsigned(*buf, file->filesize);
                 buf->append ("\r\n");
             }
 
             if (status == 416)
             {
                 buf->append( "Content-Range: bytes ");
-                buf->append ("*/" + std::to_string(file->filesize) + "\r\n");
+                buf->append ("*/");
+                appendUnsigned(*buf, file->filesize);
+                buf->append("\r\n");
             }
             else
             {
-                buf->append( "Content-Length: " + std::to_string(file->remain_) + "\r\n");
+                buf->append("Content-Length: ");
+                appendUnsigned(*buf, file->remain_);
+                buf->append("\r\n");
             }
         }
         else
         {
             size_t memSize = body ? body->memoryUsage() : 0;
-            buf->append ("Content-Length: " + std::to_string(memSize) + "\r\n");
+            buf->append("Content-Length: ");
+            appendUnsigned(*buf, memSize);
+            buf->append("\r\n");
         }
     }
 
@@ -474,13 +507,13 @@ void HttpResponse::buildHeader()
     HeaderBody_=std::make_shared<HeaderBody>(buf);
 }
 
-void HttpResponse::setHeader(const std::string key, std::string value)
+void HttpResponse::setHeader(std::string key, std::string value)
 {
-    headers[key] = std::move(value);
+    headers[std::move(key)] = std::move(value);
 }
 
 // ---- 便捷响应构造：text/html/json，从对象池借缓冲区，避免临时 string 拷贝 ----
-void HttpResponse::text(const std::string &s)
+void HttpResponse::text(std::string_view s)
 {
 
     auto buf = BufferPoll::instance().acquire();
@@ -489,7 +522,7 @@ void HttpResponse::text(const std::string &s)
     headers["Content-Type"] = "text/plain";
 }
 
-void HttpResponse::html(const std::string &s)
+void HttpResponse::html(std::string_view s)
 {
 
     auto buf = BufferPoll::instance().acquire();
@@ -498,7 +531,7 @@ void HttpResponse::html(const std::string &s)
     headers["Content-Type"] = "text/html";
 }
 
-void HttpResponse::json(const std::string &s)
+void HttpResponse::json(std::string_view s)
 {
 
     auto buf = BufferPoll::instance().acquire();

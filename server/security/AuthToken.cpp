@@ -9,7 +9,6 @@
 #include <cctype>
 #include <limits>
 #include <stdexcept>
-#include <vector>
 
 namespace webserver::security
 {
@@ -44,20 +43,23 @@ bool parseUnsigned(std::string_view text, Integer &value)
     return result.ec == std::errc{} && result.ptr == text.data() + text.size();
 }
 
-std::vector<std::string_view> split(std::string_view value, char delimiter)
+bool splitToken(std::string_view value,
+                std::array<std::string_view, 5> &parts)
 {
-    std::vector<std::string_view> parts;
     std::size_t start = 0;
+    std::size_t count = 0;
     while (start <= value.size())
     {
-        const auto end = value.find(delimiter, start);
-        parts.push_back(value.substr(
-            start, end == std::string_view::npos ? end : end - start));
+        if (count == parts.size())
+            return false;
+        const auto end = value.find('.', start);
+        parts[count++] = value.substr(
+            start, end == std::string_view::npos ? end : end - start);
         if (end == std::string_view::npos)
             break;
         start = end + 1;
     }
-    return parts;
+    return count == parts.size();
 }
 } // namespace
 
@@ -125,8 +127,8 @@ AuthResult AuthToken::verify(
 {
     if (!enabled() || token.empty())
         return {{}, AuthError::Missing};
-    const auto parts = split(token, '.');
-    if (parts.size() != 5 || parts[0] != "v1")
+    std::array<std::string_view, 5> parts{};
+    if (!splitToken(token, parts) || parts[0] != "v1")
         return {{}, AuthError::Malformed};
 
     AuthIdentity identity;

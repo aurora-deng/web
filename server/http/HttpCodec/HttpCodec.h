@@ -30,6 +30,7 @@ struct Connection;
 class HttpResponse;
 class Router;
 class RequestContext;
+enum class ExecutionPolicy;
 // HttpCodec 是 Session 与 HTTP 语义之间的适配层：decode 驱动连接私有解析器，
 // dispatch 则准备响应对象并进入路由。集中这条边界后，Reactor 无需了解路由和对象池细节，
 // 后续增加协议版本或替换分发策略时也有明确扩展点。
@@ -72,6 +73,12 @@ public:
      * @note 若 ctx.response 为空，先从对象池借一个，再交给 router.handle。
      */
     bool dispatch(RequestContext &ctx);
+
+    /**
+     * @brief 只做路由解析，返回 handler 应在哪类线程执行。
+     * @note resolve 不运行中间件和业务代码，因此可在 Reactor 上安全调用。
+     */
+    ExecutionPolicy executionPolicy(RequestContext &ctx);
 
     // 业务对象 → 协议字节：序列化响应头进 HeaderBody_（对称 WebSocketCodec::encode）。
     void encode(HttpResponse &resp);

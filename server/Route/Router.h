@@ -20,13 +20,15 @@
 // 关键技术点（初学者重点理解）：
 //   1. 双数据结构：静态路由用 map（快），动态路由用 vector（支持参数匹配）。
 //   2. 路径切分匹配：把 "/a/b/c" 切成 ["a","b","c"] 按片段比较，忽略首尾斜杠。
-//   3. 中间件链：用递归 lambda 实现 next() 控制流，类似 Express/Koa 的洋葱模型。
+//   3. 中间件链：MiddlewareNext 用状态指针推进，保留 next() 语义且避免每请求闭包分配。
 //   4. 对象池：HttpRequest/HttpResponse 用 ObjectPoll 复用，减少内存分配。
 // =============================================================================
 #ifndef ROUTER_H
 #define ROUTER_H
+#include <atomic>
 #include <cstdint>
 #include <functional>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -48,9 +50,46 @@ extern ObjectPoll<HttpResponse> responsePool;
 //     std::string querry(const std::string &key);
 // };
 
-// 中间件类型：接收请求上下文和 next 回调，调 next() 继续下一个中间件
-// 【Middleware 通俗解释】像安检流程：每道安检通过后才放行到下一道，全部通过才进柜台
-using Middleware = std::function<void(RequestContext &, std::function<void()>)>;
+/** handler 的执行位置。默认 Worker 保留阻塞隔离；只有明确审计过的短任务才能 ReactorSafe。 */
+enum class ExecutionPolicy
+{
+    Worker,
+    ReactorSafe
+};
+
+struct RouteOptions
+{
+    ExecutionPolicy execution{ExecutionPolicy::Worker};
+};
+
+/**
+ * @brief 不拥有状态的中间件 continuation。
+ *
+ * 旧版每次请求都会构造和复制 std::function<void()>。这里改成“状态指针 +
+ * 普通函数指针”，仍保留 next() 洋葱语义，但调用本身不需要堆分配。
+ */
+class MiddlewareNext
+{
+public:
+    using Callback = void (*)(void *);
+
+    MiddlewareNext() = default;
+    MiddlewareNext(void *state, Callback callback) noexcept
+        : state_(state), callback_(callback) {}
+
+    void operator()() const
+    {
+        if (callback_)
+            callback_(state_);
+    }
+
+private:
+    void *state_{nullptr};
+    Callback callback_{nullptr};
+};
+
+// 中间件类型：接收请求上下文和轻量 next 回调，调 next() 继续下一个中间件
+using Middleware = std::function<void(RequestContext &, MiddlewareNext)>;
 // 处理器类型：接收请求上下文，返回是否已处理（true 表示已生成响应）
 using Handler = std::function<bool(RequestContext &)>;
 
@@ -71,6 +110,7 @@ struct RouteEntry
     std::vector<std::string> parts; // 路径切分片段：["api","users",":id"]，:id 是动态参数
 
     Handler handler;                // 匹配成功时调用的处理函数
+    ExecutionPolicy execution{ExecutionPolicy::Worker};
 };
 
 // =============================================================================
@@ -92,12 +132,12 @@ public:
      * @param handler 处理回调
      * 静态路由（无 :param）存入 staticRoutes map；动态路由存入 dynamicRoutes vector
      */
-    void GET(const std::string &path, Handler handler);
+    void GET(const std::string &path, Handler handler, RouteOptions options = {});
 
     /**
      * @brief 注册 POST 路由（逻辑与 GET 相同，仅方法名不同）
      */
-    void POST(const std::string &path, Handler handler);
+    void POST(const std::string &path, Handler handler, RouteOptions options = {});
 
     /**
      * @brief 注册中间件
@@ -106,6 +146,16 @@ public:
      */
     void use(Middleware mw);
 
+    /** 启动前冻结路由表；冻结后只允许并发读取，继续注册会抛出 logic_error。 */
+    void freeze() noexcept { frozen_.store(true, std::memory_order_release); }
+    [[nodiscard]] bool frozen() const noexcept
+    {
+        return frozen_.load(std::memory_order_acquire);
+    }
+
+    /** 只解析路由并保存 RouteEntry/动态参数，不运行中间件和 handler。 */
+    ExecutionPolicy resolve(RequestContext &ctx) const;
+
     /**
      * @brief 在动态路由列表中匹配请求
      * @param ctx 请求上下文（含请求路径和方法）
@@ -113,13 +163,7 @@ public:
      * @return true 表示匹配并处理成功
      * 匹配成功时动态参数填入 ctx.params
      */
-    bool matchRoute(RequestContext& ctx,const std::vector<RouteEntry> &methodRoutes);
-
-    /**
-     * @brief 处理请求的统一入口（中间件 → 静态 → 动态 → 404）
-     * @param ctx 请求上下文
-     * @return true 表示已生成响应（即使是 404）
-     */
+    /** 处理已解析请求；未提前 resolve 时会自行解析以保持旧调用兼容。 */
     bool handle(RequestContext &ctx);
 
 private:
@@ -134,13 +178,17 @@ private:
      * @brief 尝试静态路由匹配（O(1) 哈希查找）
      * @return true 表示命中静态路由
      */
-    bool matchStatic(RequestContext &ctx);
+    bool resolveStatic(RequestContext &ctx) const;
 
     /**
      * @brief 尝试动态路由匹配（遍历 vector，支持 :param 参数提取）
      * @return true 表示命中动态路由
      */
-    bool matchDynamic(RequestContext &ctx);
+    bool resolveDynamic(RequestContext &ctx) const;
+
+    bool resolveDynamicRoute(
+        RequestContext &ctx,
+        const std::vector<RouteEntry> &methodRoutes) const;
 
     /**
      * @brief 生成 404 Not Found 响应
@@ -156,10 +204,13 @@ private:
 
     // 动态路由表：方法 → 路由列表（vector 顺序遍历，支持 :param）
     MethodRoutes dynamicRoutes;
-    // 静态路由表：key = "METHOD path"（如 "GET /api/users"），O(1) 哈希查找
-    std::unordered_map<std::string, RouteEntry> staticRoutes;
+    // 静态路由表：method → path → RouteEntry，查询时无需拼接临时 key
+    std::unordered_map<
+        std::string,
+        std::unordered_map<std::string, RouteEntry>> staticRoutes;
     // 中间件列表：按注册顺序执行
     std::vector<Middleware> middlewares;
+    std::atomic<bool> frozen_{false};
 
 };
 

@@ -21,14 +21,16 @@
 //      借出时 release() 释放裸指针给调用方，调用方用完再 release() 回收。
 //   3. reset() 契约：要求 T 提供 reset() 把对象恢复到初始状态，
 //      保证每次借出去的都是"干净"对象，不残留上次的数据。
-//   4. 无上限保护：注意本实现 freeList 没有容量上限，调用方需自行控制归还频率，
-//      否则突发流量下池可能无限增长（与 BufferPoll 的 1024 上限不同）。
+//   4. Phase 10 分片：64 个线程分片替代全局单锁；本地为空时可从别的分片窃取，
+//      兼顾 Reactor 本地性和跨线程归还。每片最多缓存 64 个对象，避免峰值后无限驻留。
 // ============================================================
 #ifndef OBJECT_POOL_H
 #define OBJECT_POOL_H
-#include<mutex>
-#include<memory>
-#include<vector>
+#include <array>
+#include <atomic>
+#include <mutex>
+#include <memory>
+#include <vector>
 #include <cstddef>
 
 /**
@@ -51,8 +53,25 @@ template<class T>
 class ObjectPoll
 {
 private:
-    mutable std::mutex mtx;                    // 门锁：保护 freeList 多线程访问
-    std::vector<std::unique_ptr<T>> freeList;  // 布草柜：空闲对象栈，后进先出
+    static constexpr std::size_t kShardCount = 64;
+    static constexpr std::size_t kMaxObjectsPerShard = 64;
+
+    struct alignas(64) Shard
+    {
+        mutable std::mutex mutex;
+        std::vector<std::unique_ptr<T>> freeList;
+    };
+
+    static std::size_t localShard() noexcept
+    {
+        static std::atomic<std::size_t> next{0};
+        static thread_local const std::size_t index =
+            next.fetch_add(1, std::memory_order_relaxed) % kShardCount;
+        return index;
+    }
+
+    std::array<Shard, kShardCount> shards_;
+    std::atomic<std::size_t> available_{0};
 public:
     /**
      * @brief 借一个对象（领一床干净床单）
@@ -63,38 +82,51 @@ public:
      * 返回裸指针更灵活，调用方自己管理何时归还，不用受 unique_ptr
      * 移动语义的限制。
      */
-    T* acquire(){
-        std::lock_guard lock(mtx);
-        if(freeList.empty())
+    T* acquire()
+    {
+        const auto preferred = localShard();
+        // 通常第一个分片就命中；只有 Worker 借、Reactor 还这类跨线程交接时
+        // 才向其他分片“借一件”，避免对象永久堆在某一线程名下。
+        for (std::size_t offset = 0; offset < kShardCount; ++offset)
         {
-            // 柜里空了，现造一个新的。冷启动或高并发突发时会走到这里。
-            return new T();
+            auto &shard = shards_[(preferred + offset) % kShardCount];
+            std::unique_ptr<T> object;
+            {
+                std::lock_guard lock(shard.mutex);
+                if (shard.freeList.empty())
+                    continue;
+                object = std::move(shard.freeList.back());
+                shard.freeList.pop_back();
+            }
+            available_.fetch_sub(1, std::memory_order_relaxed);
+            object->reset();
+            return object.release();
         }
-        auto p=
-        std::move(
-            freeList.back()
-        );
-
-        freeList.pop_back();
-        p->reset();         // 洗干净：恢复初始状态，清掉上次残留数据
-        return p.release(); // 释放裸指针所有权交给调用方
+        return new T();
     }
     /**
      * @brief 归还对象（送回洗涤复用）
      * @param obj 用完的对象指针，传入会被接管所有权
      *
-     * 先 reset 再入栈：保证柜里所有对象都是干净的，下次借出即用。
+     * 先 reset 再放入当前线程分片：保证对象干净，也避免所有 Reactor 争同一把锁。
      */
-    void release(T* obj){
-        obj->reset();    // 先洗干净，再放回柜，保证柜里都是干净的
-        std::lock_guard lock(mtx);
-        freeList.emplace_back(obj);  // 包成 unique_ptr 入栈，所有权转移给池
+    void release(T* obj)
+    {
+        if (!obj)
+            return;
+        std::unique_ptr<T> object(obj);
+        object->reset();
+        auto &shard = shards_[localShard()];
+        std::lock_guard lock(shard.mutex);
+        if (shard.freeList.size() >= kMaxObjectsPerShard)
+            return;
+        shard.freeList.push_back(std::move(object));
+        available_.fetch_add(1, std::memory_order_relaxed);
     }
 
     size_t available() const
     {
-        std::lock_guard lock(mtx);
-        return freeList.size();
+        return available_.load(std::memory_order_relaxed);
     }
 };
 

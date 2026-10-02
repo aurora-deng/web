@@ -47,12 +47,14 @@ std::string readPemFile(const std::string &path)
 }
 
 template <typename Context>
-std::string metadataValue(const Context &context, std::string_view key)
+std::optional<std::string_view> metadataView(
+    const Context &context, std::string_view key)
 {
-    const auto found = context.client_metadata().find(std::string(key));
+    const auto found = context.client_metadata().find(
+        ::grpc::string_ref(key.data(), key.size()));
     if (found == context.client_metadata().end())
-        return {};
-    return {found->second.data(), found->second.length()};
+        return std::nullopt;
+    return std::string_view(found->second.data(), found->second.length());
 }
 
 class LearningService final
@@ -90,14 +92,16 @@ public:
     {
         if (authTokens_.enabled())
         {
-            const auto authorization = metadataValue(context, "authorization");
-            const auto token = webserver::security::AuthToken::bearerToken(
-                authorization);
+            const auto authorization = metadataView(context, "authorization");
+            const auto token = authorization
+                                   ? webserver::security::AuthToken::bearerToken(
+                                         *authorization)
+                                   : std::nullopt;
             const auto identity = token ? authTokens_.verify(*token)
                                         : webserver::security::AuthResult{};
             if (!identity)
             {
-                metrics_->grpcRejected.fetch_add(1, std::memory_order_relaxed);
+                metrics_->recordGrpcRejected();
                 return {::grpc::StatusCode::UNAUTHENTICATED,
                         "valid bearer token required"};
             }
@@ -107,27 +111,29 @@ public:
                 "x-authenticated-tenant", identity.identity->tenant);
         }
 
-        std::size_t current = activeRpcs_.load(std::memory_order_acquire);
-        while (current < maxConcurrentRpcs_ &&
-               !activeRpcs_.compare_exchange_weak(
-                   current, current + 1,
-                   std::memory_order_acq_rel,
-                   std::memory_order_acquire))
+        // 一次 RMW 完成准入，避免高并发时 CAS 失败后反复自旋。超额调用立即
+        // 回滚，因此成功获得租约的 RPC 数量仍不会超过 maxConcurrentRpcs_。
+        const auto previous = activeRpcs_.fetch_add(1, std::memory_order_acq_rel);
+        if (previous >= maxConcurrentRpcs_)
         {
-        }
-        if (current >= maxConcurrentRpcs_)
-        {
-            metrics_->grpcRejected.fetch_add(1, std::memory_order_relaxed);
+            activeRpcs_.fetch_sub(1, std::memory_order_acq_rel);
+            metrics_->recordGrpcRejected();
             return {::grpc::StatusCode::RESOURCE_EXHAUSTED,
                     "concurrent RPC quota exhausted"};
         }
-        metrics_->grpcStarted.fetch_add(1, std::memory_order_relaxed);
+        metrics_->recordGrpcStarted();
 
-        auto requestId = metadataValue(context, "x-request-id");
-        if (requestId.empty() || requestId.size() > 64)
+        const auto suppliedRequestId = metadataView(context, "x-request-id");
+        std::string requestId;
+        if (!suppliedRequestId || suppliedRequestId->empty() ||
+            suppliedRequestId->size() > 64)
         {
             requestId = "grpc-" + std::to_string(
                 nextRequestId_.fetch_add(1, std::memory_order_relaxed) + 1);
+        }
+        else
+        {
+            requestId.assign(*suppliedRequestId);
         }
         context.AddInitialMetadata("x-request-id", requestId);
         return ::grpc::Status::OK;
@@ -137,9 +143,9 @@ public:
     {
         activeRpcs_.fetch_sub(1, std::memory_order_acq_rel);
         if (context.IsCancelled())
-            metrics_->grpcCancelled.fetch_add(1, std::memory_order_relaxed);
+            metrics_->recordGrpcCancelled();
         else
-            metrics_->grpcCompleted.fetch_add(1, std::memory_order_relaxed);
+            metrics_->recordGrpcCompleted();
     }
 
     ::grpc::Status interruption(
@@ -159,14 +165,19 @@ public:
         return nextSequence_.fetch_add(1, std::memory_order_relaxed) + 1;
     }
 
+    [[nodiscard]] std::chrono::milliseconds maxRpcDuration() const noexcept
+    {
+        return maxRpcDuration_;
+    }
+
 private:
     webserver::security::AuthToken authTokens_;
     std::size_t maxConcurrentRpcs_;
     std::chrono::milliseconds maxRpcDuration_;
     std::shared_ptr<webserver::ops::OperationalMetrics> metrics_;
-    std::atomic<std::size_t> activeRpcs_{0};
-    std::atomic<std::uint64_t> nextSequence_{0};
-    std::atomic<std::uint64_t> nextRequestId_{0};
+    alignas(64) std::atomic<std::size_t> activeRpcs_{0};
+    alignas(64) std::atomic<std::uint64_t> nextSequence_{0};
+    alignas(64) std::atomic<std::uint64_t> nextRequestId_{0};
 };
 
 /**
@@ -182,10 +193,18 @@ public:
                  ::grpc::CallbackServerContext *context)
         : service_(service), context_(context), startedAt_(Clock::now()) {}
 
-    ~CallbackCall()
+    ~CallbackCall() = default;
+
+    void complete() noexcept
     {
-        if (admitted_)
+        // CallbackServerContext 只保证在 Reactor 的 OnDone 生命周期内有效。
+        // Deadline Alarm 可能让 Reactor 对象本身活得更久，因此完成统计必须在
+        // OnDone 显式结算，不能推迟到 CallbackCall 析构。
+        if (admitted_ && !completed_)
+        {
+            completed_ = true;
             service_.complete(*context_);
+        }
     }
 
     CallbackCall(const CallbackCall &) = delete;
@@ -216,6 +235,7 @@ private:
     Clock::time_point startedAt_;
     bool attempted_{false};
     bool admitted_{false};
+    bool completed_{false};
 };
 
 class EchoReactor final : public ::grpc::ServerUnaryReactor
@@ -241,7 +261,11 @@ public:
         Finish(std::move(status));
     }
 
-    void OnDone() override { delete this; }
+    void OnDone() override
+    {
+        call_.complete();
+        delete this;
+    }
     void OnCancel() override {}
 
 private:
@@ -260,7 +284,6 @@ public:
           interval_(request->interval_ms()),
           timer_(std::make_shared<TimerState>())
     {
-        timer_->owner = this;
         auto status = call_.admit();
         if (status.ok() && (limit_ == 0 || limit_ > kMaxCountItems))
         {
@@ -278,6 +301,8 @@ public:
             Finish(std::move(status));
             return;
         }
+
+        scheduleDeadline(service.maxRpcDuration());
 
         std::lock_guard lock(timer_->mutex);
         startNextWriteLocked();
@@ -330,11 +355,9 @@ public:
 
     void OnDone() override
     {
-        {
-            std::lock_guard lock(timer_->mutex);
-            timer_->owner = nullptr;
-        }
-        delete this;
+        call_.complete();
+        deadlineAlarm_.Cancel();
+        release();
     }
 
 private:
@@ -342,7 +365,6 @@ private:
     {
         std::mutex mutex;
         ::grpc::Alarm alarm;
-        CountReactor *owner{nullptr};
         bool alarmPending{false};
         bool finishing{false};
         std::optional<::grpc::Status> deferredFinish;
@@ -359,24 +381,44 @@ private:
     void scheduleNextLocked()
     {
         timer_->alarmPending = true;
-        // Alarm 保存回调，而 TimerState 又拥有 Alarm；这里必须使用 weak_ptr，
-        // 否则“state → alarm → callback → state”会形成永久引用环。
+        // Alarm 保存回调，而 TimerState 又拥有 Alarm；state 使用 weak_ptr 打破环。
+        // raw this 则由 retain/release 单独保活到回调退出，避免 OnDone 后悬空。
         std::weak_ptr<TimerState> weakTimer = timer_;
+        retain();
         timer_->alarm.Set(
             std::chrono::system_clock::now() + interval_,
-            [weakTimer = std::move(weakTimer)](bool ok)
+            [this, weakTimer = std::move(weakTimer)](bool ok)
             {
                 auto timer = weakTimer.lock();
-                if (!timer)
-                    return;
-                CountReactor *owner = nullptr;
-                {
-                    std::lock_guard lock(timer->mutex);
-                    owner = timer->owner;
-                }
-                if (owner)
-                    owner->onAlarm(timer, ok);
+                if (timer)
+                    onAlarm(timer, ok);
+                release();
             });
+    }
+
+    void scheduleDeadline(std::chrono::milliseconds duration)
+    {
+        retain();
+        deadlineAlarm_.Set(
+            std::chrono::system_clock::now() + duration,
+            [this](bool ok)
+            {
+                if (ok)
+                    finishOnce({::grpc::StatusCode::DEADLINE_EXCEEDED,
+                                "server RPC duration limit exceeded"});
+                release();
+            });
+    }
+
+    void retain() noexcept
+    {
+        references_.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    void release() noexcept
+    {
+        if (references_.fetch_sub(1, std::memory_order_acq_rel) == 1)
+            delete this;
     }
 
     void onAlarm(const std::shared_ptr<TimerState> &timer, bool ok)
@@ -444,6 +486,8 @@ private:
     std::uint32_t limit_;
     std::chrono::milliseconds interval_;
     std::shared_ptr<TimerState> timer_;
+    ::grpc::Alarm deadlineAlarm_;
+    std::atomic<std::size_t> references_{1};
     ::webtest::rpc::v1::CountReply reply_;
     std::uint32_t current_{0};
 };
@@ -464,6 +508,7 @@ public:
             Finish(std::move(status));
             return;
         }
+        scheduleDeadline(service.maxRpcDuration());
         StartRead(&chunk_);
     }
 
@@ -530,9 +575,39 @@ public:
         finishOnce({::grpc::StatusCode::CANCELLED, "request cancelled"});
     }
 
-    void OnDone() override { delete this; }
+    void OnDone() override
+    {
+        call_.complete();
+        deadlineAlarm_.Cancel();
+        release();
+    }
 
 private:
+    void scheduleDeadline(std::chrono::milliseconds duration)
+    {
+        retain();
+        deadlineAlarm_.Set(
+            std::chrono::system_clock::now() + duration,
+            [this](bool ok)
+            {
+                if (ok)
+                    finishOnce({::grpc::StatusCode::DEADLINE_EXCEEDED,
+                                "server RPC duration limit exceeded"});
+                release();
+            });
+    }
+
+    void retain() noexcept
+    {
+        references_.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    void release() noexcept
+    {
+        if (references_.fetch_sub(1, std::memory_order_acq_rel) == 1)
+            delete this;
+    }
+
     void finishOnce(::grpc::Status status)
     {
         {
@@ -548,6 +623,8 @@ private:
     ::webtest::rpc::v1::UploadSummary *summary_;
     std::mutex mutex_;
     ::webtest::rpc::v1::UploadChunk chunk_;
+    ::grpc::Alarm deadlineAlarm_;
+    std::atomic<std::size_t> references_{1};
     std::uint64_t expectedSequence_{1};
     bool finished_{false};
 };
@@ -568,6 +645,7 @@ public:
             Finish(std::move(status));
             return;
         }
+        scheduleDeadline(service.maxRpcDuration());
         StartRead(&inbound_);
     }
 
@@ -653,9 +731,39 @@ public:
         finishOnce({::grpc::StatusCode::CANCELLED, "request cancelled"});
     }
 
-    void OnDone() override { delete this; }
+    void OnDone() override
+    {
+        call_.complete();
+        deadlineAlarm_.Cancel();
+        release();
+    }
 
 private:
+    void scheduleDeadline(std::chrono::milliseconds duration)
+    {
+        retain();
+        deadlineAlarm_.Set(
+            std::chrono::system_clock::now() + duration,
+            [this](bool ok)
+            {
+                if (ok)
+                    finishOnce({::grpc::StatusCode::DEADLINE_EXCEEDED,
+                                "server RPC duration limit exceeded"});
+                release();
+            });
+    }
+
+    void retain() noexcept
+    {
+        references_.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    void release() noexcept
+    {
+        if (references_.fetch_sub(1, std::memory_order_acq_rel) == 1)
+            delete this;
+    }
+
     void finishOnce(::grpc::Status status)
     {
         {
@@ -671,6 +779,8 @@ private:
     std::mutex mutex_;
     ::webtest::rpc::v1::ChatMessage inbound_;
     ::webtest::rpc::v1::ChatMessage outbound_;
+    ::grpc::Alarm deadlineAlarm_;
+    std::atomic<std::size_t> references_{1};
     std::uint64_t messages_{0};
     bool finished_{false};
 };

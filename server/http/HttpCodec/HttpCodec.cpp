@@ -69,6 +69,11 @@ bool HttpCodec::dispatch(RequestContext &ctx)
     return router.handle(ctx);
 }
 
+ExecutionPolicy HttpCodec::executionPolicy(RequestContext &ctx)
+{
+    return router.resolve(ctx);
+}
+
 void HttpCodec::encode(HttpResponse &resp)
 {
     resp.buildHeader();

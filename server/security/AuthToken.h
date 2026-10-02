@@ -68,6 +68,8 @@ public:
         std::chrono::system_clock::time_point now =
             std::chrono::system_clock::now()) const;
 
+    // 返回拥有自身存储的字符串。调用者即使传入临时 std::string，结果也不会
+    // 变成悬空 string_view；认证本身包含 HMAC，优先保证接口生命周期安全。
     [[nodiscard]] static std::optional<std::string> bearerToken(
         std::string_view authorization);
     [[nodiscard]] static std::optional<std::string> cookieToken(

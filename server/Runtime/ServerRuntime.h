@@ -89,10 +89,17 @@ class TlsContext;
  * @note 第四阶段重构后，本类不再持有 HttpCodec codec_ 成员——codec 已下沉到各 Session
  *       子类内部（HttpSession/WebSocketSession/SseSession 各自负责协议语义），Runtime 只装配组件。
  */
+struct ServerRuntimeOptions
+{
+    // 0 表示按 CPU 自动分配；显式值便于在压测/生产中分别调优两条容量舱。
+    size_t httpWorkerCount{0};
+    size_t webSocketWorkerCount{0};
+};
+
 class ServerRuntime
 {
 public:
-    ServerRuntime();
+    explicit ServerRuntime(ServerRuntimeOptions options = {});
     ~ServerRuntime();
 
     /** @return 路由器引用，外部用 server.router().GET(...) 注册路由 */
@@ -152,6 +159,8 @@ public:
     SseSessionManager &sseManager() { return sseManager_; }
     /** 健康检查的 readiness：Reactor 已启动且尚未进入摘流。 */
     bool ready() const noexcept { return ready_.load(std::memory_order_acquire); }
+    size_t httpWorkerCount() const noexcept { return httpWorkerCount_; }
+    size_t webSocketWorkerCount() const noexcept { return webSocketWorkerCount_; }
 
 private:
     // 路由表（协议无关）：第四阶段前 Runtime 还持有一个 HttpCodec codec_ 成员，
@@ -161,6 +170,8 @@ private:
     WebSocketSessionManager wsManager_;
     SseSessionManager sseManager_;
     WebSocketDeliveryService wsDelivery_;
+    size_t httpWorkerCount_{0};
+    size_t webSocketWorkerCount_{0};
     // 析构前由 shutdownComponents 显式排空两个 Executor，再 reset ReactorGroup；不能只依赖
     // 成员逆序析构，因为 Worker 完成时仍要调用 Reactor 的完成通知入口。
     Executor httpExecutor_;                          // HTTP 业务舱：不会被 WS 慢任务占满

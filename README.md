@@ -1,9 +1,15 @@
-# web-test 2.0 · test9.0
+# web-test 2.0 · test9.1
+
+> test9.1 完成了 Phase 10 性能升级：HTTP 短路由可显式走 ReactorSafe 快路径，
+> 对象池/指标已分片，并新增独立 gRPC 进程与仓库内基准工具。版本差异见
+> [test9.1 版本说明](docs/architecture/test9.1.md)，实现细节见
+> [Phase 10](docs/architecture/phase10.md)。
 
 这是一个面向 Linux 的 C++20 高级 Web 服务器学习项目。test9.0 以
 [test8.0](https://github.com/aurora-deng/web/tree/test8.0) 的 HTTP/2、TLS/ALPN
 和 stream 协程为基础，加入 gRPC、跨协议身份与资源保护、SSE 断线重放、运行指标和
-协议级优雅停机，并把 gRPC 服务从同步 Service API 升级为 Callback API。
+协议级优雅停机，并把 gRPC 服务从同步 Service API 升级为 Callback API。test9.1 在此基础上
+优化 HTTP/gRPC 热路径、共享池和指标竞争，并补充独立 gRPC 部署与可复现基准。
 
 当前代码已经过 Linux 全量功能测试和 Sanitizer 检查，但仍是学习与预生产基线，不能据此
 直接宣称适合公网、多实例关键业务。具体缺口见
@@ -61,8 +67,9 @@ metadata、trailers、deadline 和流控状态；二者在业务与身份层汇�
 | Upload | StartRead() → OnReadDone() 累计 → 客户端半关闭后返回 summary |
 | Chat | StartRead() → OnReadDone() → StartWrite() → OnWriteDone() → 下一次读 |
 
-所有消息缓冲都由 Reactor 持有，至少存活到对应完成回调。OnCancel 与读写回调可能并发，
-所以每个流式 Reactor 都保护终态并保证只执行一次 Finish()；对象只在 OnDone() 删除。
+所有消息缓冲都由 Reactor 持有，至少存活到对应完成回调。OnCancel、Alarm 与读写回调可能并发，
+所以每个流式 Reactor 都保护终态并保证只执行一次 Finish()；`OnDone()` 完成协议记账，
+对象在 gRPC 与 Alarm 两个异步引用都释放后删除。
 详细说明与代码索引见 [Phase 9](docs/architecture/phase9.md#6-grpc-四种调用形态)。
 
 ## 构建
@@ -116,14 +123,18 @@ export WEB_GRPC_TLS_KEY=/run/secrets/grpc-key.pem
 CentOS Stream 9 虚拟机使用 GCC 11.5、OpenSSL 3.5.5、libnghttp2 1.43.0 和
 gRPC C++ 1.82.0 完成了以下检查：
 
-- Debug 全量构建与 CTest：80/80 通过，25.41 秒。
-- ASan、LeakSanitizer、UBSan 全量 CTest：80/80 通过，30.43 秒。
+- Release 全量构建与 CTest：84/84 通过，25.98 秒。
+- Debug 全量构建与 CTest：84/84 通过，26.74 秒。
+- ASan、LeakSanitizer、UBSan 全量 CTest：84/84 通过，29.77 秒。
 - HTTP、TLS、WebSocket、SSE、HTTP/2 与优雅停机真实 socket 黑盒。
 - gRPC 四种 RPC、认证 metadata、request-id、配额、deadline/取消以及 TLS + ALPN h2。
 - Callback 专项：Core 线程预算设为 1，一条 Count 流在 1 秒 Alarm 等待时，并发 Echo 仍在
   500 ms 门限内完成；两条活跃流占满业务配额后，第三个 RPC 得到 RESOURCE_EXHAUSTED。
 - Sanitizer 首轮发现并修复 Count 定时器的 1080 字节引用环泄漏：Alarm 回调使用
   weak_ptr，既打破 state/alarm/callback 环，又在回调执行期间保持状态存活。
+- Phase 10 同机受控五轮中位数：HTTP `/fast` 从 33,957.99 提升到 49,459.19 QPS
+  （+45.65%），gRPC Echo 从 12,389.40 提升到 16,389.00 QPS（+32.28%）；
+  两者错误为 0，P99 均低于基线。
 
 最终测试数字与发现过的问题记录在
 [Phase 9 验证记录](docs/architecture/phase9.md#11-验证记录)。
@@ -135,4 +146,6 @@ gRPC C++ 1.82.0 完成了以下检查：
 3. [Phase 7：TLS/ALPN 与教学版](docs/architecture/phase7.md)
 4. [Phase 8：gRPC 协议语义与消息封装](docs/architecture/phase8.md)
 5. [Phase 9：生产化护栏与 Callback Reactor](docs/architecture/phase9.md)
-6. [文档总导航](docs/README.md)
+6. [test9.1：相对 test9.0 的版本差异](docs/architecture/test9.1.md)
+7. [Phase 10：HTTP/gRPC 性能路径与架构拆分](docs/architecture/phase10.md)
+8. [文档总导航](docs/README.md)

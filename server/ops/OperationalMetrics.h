@@ -1,9 +1,10 @@
 #pragma once
 
-#include <atomic>
 #include <cstdint>
 #include <sstream>
 #include <string>
+
+#include "server/ops/StripedCounter.h"
 
 namespace webserver::ops
 {
@@ -17,34 +18,60 @@ namespace webserver::ops
 class OperationalMetrics
 {
 public:
-    std::atomic<std::uint64_t> httpRequests{0};
-    std::atomic<std::uint64_t> authenticationRejected{0};
-    std::atomic<std::uint64_t> originRejected{0};
-    std::atomic<std::uint64_t> rateLimited{0};
-    std::atomic<std::uint64_t> grpcStarted{0};
-    std::atomic<std::uint64_t> grpcCompleted{0};
-    std::atomic<std::uint64_t> grpcCancelled{0};
-    std::atomic<std::uint64_t> grpcRejected{0};
+    struct Snapshot
+    {
+        std::uint64_t httpRequests{0};
+        std::uint64_t authenticationRejected{0};
+        std::uint64_t originRejected{0};
+        std::uint64_t rateLimited{0};
+        std::uint64_t grpcStarted{0};
+        std::uint64_t grpcCompleted{0};
+        std::uint64_t grpcCancelled{0};
+        std::uint64_t grpcRejected{0};
+    };
+
+    void recordHttpRequest() noexcept { httpRequests_.add(); }
+    void recordAuthenticationRejected() noexcept { authenticationRejected_.add(); }
+    void recordOriginRejected() noexcept { originRejected_.add(); }
+    void recordRateLimited() noexcept { rateLimited_.add(); }
+    void recordGrpcStarted() noexcept { grpcStarted_.add(); }
+    void recordGrpcCompleted() noexcept { grpcCompleted_.add(); }
+    void recordGrpcCancelled() noexcept { grpcCancelled_.add(); }
+    void recordGrpcRejected() noexcept { grpcRejected_.add(); }
+
+    [[nodiscard]] Snapshot snapshot() const noexcept
+    {
+        return {
+            httpRequests_.load(),
+            authenticationRejected_.load(),
+            originRejected_.load(),
+            rateLimited_.load(),
+            grpcStarted_.load(),
+            grpcCompleted_.load(),
+            grpcCancelled_.load(),
+            grpcRejected_.load()};
+    }
 
     [[nodiscard]] std::string prometheus(
         std::size_t webSocketOnline,
         std::size_t sseOnline,
         std::size_t sseHistoryEvents) const
     {
+        const auto values = snapshot();
         std::ostringstream out;
         out << "# TYPE webserver_http_requests_total counter\n"
-            << "webserver_http_requests_total " << load(httpRequests) << '\n'
+            << "webserver_http_requests_total " << values.httpRequests << '\n'
             << "# TYPE webserver_auth_rejected_total counter\n"
-            << "webserver_auth_rejected_total " << load(authenticationRejected) << '\n'
+            << "webserver_auth_rejected_total " << values.authenticationRejected << '\n'
             << "# TYPE webserver_origin_rejected_total counter\n"
-            << "webserver_origin_rejected_total " << load(originRejected) << '\n'
+            << "webserver_origin_rejected_total " << values.originRejected << '\n'
             << "# TYPE webserver_rate_limited_total counter\n"
-            << "webserver_rate_limited_total " << load(rateLimited) << '\n'
+            << "webserver_rate_limited_total " << values.rateLimited << '\n'
             << "# TYPE webserver_grpc_started_total counter\n"
-            << "webserver_grpc_started_total " << load(grpcStarted) << '\n'
-            << "webserver_grpc_completed_total " << load(grpcCompleted) << '\n'
-            << "webserver_grpc_cancelled_total " << load(grpcCancelled) << '\n'
-            << "webserver_grpc_rejected_total " << load(grpcRejected) << '\n'
+            << "webserver_grpc_started_total " << values.grpcStarted << '\n'
+            << "webserver_grpc_completed_total " << values.grpcCompleted << '\n'
+            << "webserver_grpc_cancelled_total " << values.grpcCancelled << '\n'
+            << "webserver_grpc_rejected_total " << values.grpcRejected << '\n'
             << "# TYPE webserver_websocket_online gauge\n"
             << "webserver_websocket_online " << webSocketOnline << '\n'
             << "# TYPE webserver_sse_online gauge\n"
@@ -55,10 +82,14 @@ public:
     }
 
 private:
-    static std::uint64_t load(const std::atomic<std::uint64_t> &value)
-    {
-        return value.load(std::memory_order_relaxed);
-    }
+    StripedCounter httpRequests_;
+    StripedCounter authenticationRejected_;
+    StripedCounter originRejected_;
+    StripedCounter rateLimited_;
+    StripedCounter grpcStarted_;
+    StripedCounter grpcCompleted_;
+    StripedCounter grpcCancelled_;
+    StripedCounter grpcRejected_;
 };
 
 } // namespace webserver::ops

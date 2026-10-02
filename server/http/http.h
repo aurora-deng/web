@@ -19,6 +19,7 @@
 #ifndef HTTP_H
 #define HTTP_H
 #include <string>
+#include <string_view>
 #include <map>
 #include <iostream>
 #include <sstream>
@@ -171,13 +172,13 @@ struct HttpResponse
     void writeChunk(const std::string &s); // 追加一个分块（自动加 chunk-size 前缀和 CRLF 后缀）
     void endChunked();                // 结束分块流（写入终止 0 长度块）
     // 完善response函数
-    void setHeader(const std::string key, std::string value); // 设置自定义响应头
+    void setHeader(std::string key, std::string value); // 设置自定义响应头
 
-    void text(const std::string &s);  // 设置纯文本响应体（Content-Type: text/plain）
+    void text(std::string_view s);  // 设置纯文本响应体（Content-Type: text/plain）
 
-    void html(const std::string &s);  // 设置 HTML 响应体（Content-Type: text/html）
+    void html(std::string_view s);  // 设置 HTML 响应体（Content-Type: text/html）
 
-    void json(const std::string &s);  // 设置 JSON 响应体（Content-Type: application/json）
+    void json(std::string_view s);  // 设置 JSON 响应体（Content-Type: application/json）
     static HttpResponse stock404();   // 工厂方法：生成标准 404 响应
     static HttpResponse stock416(size_t fileSize); // 工厂方法：生成 416 范围越界响应
     void reset();                     // 重置为初始状态，供对象池复用

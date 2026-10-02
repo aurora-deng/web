@@ -16,8 +16,8 @@
 // 关键技术点（初学者重点理解）：
 //   1. 单例模式：全局唯一停车棚，instance() 返回 static 局部变量，
 //      线程安全且懒加载，所有 SubReactor 共享。
-//   2. 互斥锁保护：多线程同时借/还车，用 std::mutex 串行化访问 freeList。
-//   3. 上限保护：停车棚最多停 1024 辆，超了就真 delete，防止内存无限增长。
+//   2. 分片锁保护：64 个车架各自加锁，热路径不再通过一把全局锁串行化。
+//   3. 上限保护：每个分片最多 32 辆，超出后释放，防止内存无限增长。
 //   4. 复用前清理：acquire 时 retrieve 清掉残留数据，release 时 clear 归零，
 //      保证借出去的车是"干净的"。
 // ============================================================
@@ -39,6 +39,14 @@ BufferPoll &BufferPoll::instance()
     return bufferpool;
 }
 
+std::size_t BufferPoll::localShard() noexcept
+{
+    static std::atomic<std::size_t> next{0};
+    static thread_local const std::size_t index =
+        next.fetch_add(1, std::memory_order_relaxed) % kShardCount;
+    return index;
+}
+
 /**
  * @brief 从池里借一个 Buffer（从棚里骑走一辆车）
  * @return 可用的 shared_ptr<Buffer>
@@ -55,14 +63,20 @@ BufferPoll &BufferPoll::instance()
  */
 std::shared_ptr<Buffer> BufferPoll::acquire()
 {
-    std::lock_guard lock(mtx_);
-
-    if (!pool.empty())
+    const auto preferred = localShard();
+    for (std::size_t offset = 0; offset < kShardCount; ++offset)
     {
-        auto p = pool.back();
-        pool.pop_back();
-        p->retrieve(p->readableBytes());  // 清掉残留可读数据，车擦干净再借出
-        return p;
+        auto &shard = shards_[(preferred + offset) % kShardCount];
+        std::shared_ptr<Buffer> buffer;
+        {
+            std::lock_guard lock(shard.mutex);
+            if (shard.pool.empty())
+                continue;
+            buffer = std::move(shard.pool.back());
+            shard.pool.pop_back();
+        }
+        buffer->clear();
+        return buffer;
     }
     return std::make_shared<Buffer>();
 }
@@ -75,20 +89,20 @@ std::shared_ptr<Buffer> BufferPoll::acquire()
  *   1. 空指针直接返回，防呆。
  *   2. clear() 归零指针，让车"干净"。
  *   3. 加锁后塞回 freeList 尾部。
- *   4. 棚里已满（>=1024）就不收了，shared_ptr 引用计数归零自动 delete。
+ *   4. 当前分片已满（>=32）就不收了，shared_ptr 引用计数归零自动 delete。
  *
  * 【上限 1024 的意义】
  * 防止突发流量下借出去的车全还回来、棚无限膨胀吃光内存。
- * 1024 个 8KB Buffer 约 8MB，是个安全的内存预算上限。
+ * 最多 64×32 个 8KB 初始 Buffer，理论初始容量约 16 MiB；实际按需创建。
  */
 void BufferPoll::release(std::shared_ptr<Buffer> p)
 {
     if(!p)return;
     p->clear();
-    std::lock_guard lock(mtx_);
-
-    if (pool.size() < 1024)
+    auto &shard = shards_[localShard()];
+    std::lock_guard lock(shard.mutex);
+    if (shard.pool.size() < kMaxBuffersPerShard)
     {
-        pool.push_back(std::move(p));
+        shard.pool.push_back(std::move(p));
     }
 }

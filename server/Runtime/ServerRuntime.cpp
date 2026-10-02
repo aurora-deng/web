@@ -79,6 +79,20 @@ namespace
         return count;
     }
 
+    size_t effectiveHttpWorkerCount(const ServerRuntimeOptions &options)
+    {
+        return options.httpWorkerCount != 0
+                   ? options.httpWorkerCount
+                   : (runtimeWorkerCount() + 1) / 2;
+    }
+
+    size_t effectiveWebSocketWorkerCount(const ServerRuntimeOptions &options)
+    {
+        return options.webSocketWorkerCount != 0
+                   ? options.webSocketWorkerCount
+                   : runtimeWorkerCount() / 2;
+    }
+
     /**
      * @brief SIGINT/SIGTERM 信号处理函数
      *
@@ -108,14 +122,16 @@ namespace
  *       Session 子类内部，Runtime 不再创建 codec 实例；构造 ReactorGroup 改传 *router_
  *       （路由器协议无关，HTTP/WS 共用）。这样同一套 Runtime 可同时承载 HTTP 与 WS 协议。
  */
-ServerRuntime::ServerRuntime()
+ServerRuntime::ServerRuntime(ServerRuntimeOptions options)
     : router_(std::make_shared<Router>()),
       wsDelivery_([this](UserId uid, std::string text)
                   {
           return wsManager_.sendTextTracked(uid, text);
       }),
-      httpExecutor_((runtimeWorkerCount() + 1) / 2),
-      wsExecutor_(runtimeWorkerCount() / 2)
+      httpWorkerCount_(effectiveHttpWorkerCount(options)),
+      webSocketWorkerCount_(effectiveWebSocketWorkerCount(options)),
+      httpExecutor_(httpWorkerCount_),
+      wsExecutor_(webSocketWorkerCount_)
 {
     // ---- SessionFactory 依赖注入 ----
     // ①创建 ProtocolSessionFactory（SessionFactory 抽象的具体实现），内部封装
@@ -491,6 +507,8 @@ void ServerRuntime::start()
         throw std::runtime_error("TLS requires both certificate and private key");
     if (!tlsCertificate_.empty())
         tlsContext_ = TlsContext::create(tlsCertificate_, tlsPrivateKey_);
+    // start() 以后所有 Reactor 只读路由表。冻结能保证 RouteEntry 指针在整个运行期稳定。
+    router_->freeze();
     setupListener();
     auto shutdown = [this]
     {
