@@ -67,6 +67,16 @@ public:
     std::vector<ConversationMember> listMembers(
         ConversationId conversation) const override;
     bool addMember(ConversationMember member) override;
+    bool updateConversationProfile(ConversationId conversation,
+                                   std::string title,
+                                   std::string announcement) override;
+    bool dissolveConversation(ConversationId conversation, UserId actor,
+                              TimePoint now) override;
+    bool updateMemberRole(ConversationId conversation, UserId user,
+                          MemberRole role) override;
+    bool updateMemberMute(ConversationId conversation, UserId user,
+                          std::optional<TimePoint> mutedUntil) override;
+    bool removeMember(ConversationId conversation, UserId user) override;
     bool updateDelivered(ConversationId conversation, UserId user,
                          std::uint64_t sequence) override;
     bool updateRead(ConversationId conversation, UserId user,

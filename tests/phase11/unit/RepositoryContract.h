@@ -107,6 +107,53 @@ inline void runRepositoryContract(RepositoryBundle repositories,
                     "outbox acknowledgement failed");
     contractRequire(repositories.outbox.pendingOutbox(10).empty(),
                     "acknowledged outbox event remained pending");
+
+    const auto moderator = repositories.users.create(
+        {0, "contract-moderator", "Moderator", {}, "hash-m",
+         false, false, now});
+    const auto group = repositories.conversations.createConversation(
+        {0, ConversationKind::Group, "Contract Group", alice.id, 1, now},
+        {{0, alice.id, MemberRole::Owner, 0, 0, now},
+         {0, moderator.id, MemberRole::Member, 0, 0, now}});
+    contractRequire(repositories.conversations.updateConversationProfile(
+                        group.id, "Renamed Group", "Contract announcement"),
+                    "group profile update failed");
+    const auto updatedGroup =
+        repositories.conversations.findConversation(group.id);
+    contractRequire(updatedGroup && updatedGroup->title == "Renamed Group" &&
+                        updatedGroup->announcement == "Contract announcement",
+                    "group profile fields were not persisted");
+    contractRequire(repositories.conversations.updateMemberRole(
+                        group.id, moderator.id, MemberRole::Administrator),
+                    "administrator role update failed");
+    const auto mutedUntil = now + std::chrono::minutes(10);
+    contractRequire(repositories.conversations.updateMemberMute(
+                        group.id, moderator.id, mutedUntil),
+                    "member mute update failed");
+    const auto moderatorMembership =
+        repositories.conversations.findMember(group.id, moderator.id);
+    contractRequire(moderatorMembership &&
+                        moderatorMembership->role == MemberRole::Administrator &&
+                        moderatorMembership->mutedUntil &&
+                        std::chrono::duration_cast<std::chrono::microseconds>(
+                            *moderatorMembership->mutedUntil - mutedUntil).count() == 0,
+                    "member role or mute was not persisted");
+    contractRequire(repositories.conversations.removeMember(
+                        group.id, moderator.id),
+                    "member removal failed");
+    contractRequire(!repositories.conversations.findMember(
+                        group.id, moderator.id),
+                    "removed member remained in the repository");
+    contractRequire(repositories.conversations.dissolveConversation(
+                        group.id, alice.id, now),
+                    "group dissolve failed");
+    const auto dissolved = repositories.conversations.findConversation(group.id);
+    contractRequire(dissolved &&
+                        dissolved->state == ConversationState::Dissolved &&
+                        dissolved->dissolvedBy == alice.id,
+                    "dissolved group audit fields were not persisted");
+    contractRequire(repositories.conversations.listConversations(alice.id).size() == 1,
+                    "dissolved group remained in the active conversation list");
 }
 
 } // namespace webserver::phase11::test

@@ -404,16 +404,60 @@ Message verifyChatFlow(Fixture &fixture, TimePoint now,
     expectError(ErrorCode::Forbidden, [&] {
         fixture.chat.addGroupMember(bob.id, group.id, charlie.id, now);
     });
-    fixture.chat.addGroupMember(alice.id, group.id, charlie.id, now);
+    fixture.chat.setGroupMemberRole(
+        alice.id, group.id, bob.id, MemberRole::Administrator, now);
+    fixture.chat.addGroupMember(bob.id, group.id, charlie.id, now);
     CHECK(fixture.store.findMember(group.id, charlie.id));
+    const auto updatedGroup = fixture.chat.updateGroupProfile(
+        bob.id, group.id, "Study Group", "Read before asking", now);
+    CHECK(updatedGroup.title == "Study Group" &&
+          updatedGroup.announcement == "Read before asking");
+    expectError(ErrorCode::Forbidden, [&] {
+        fixture.chat.setGroupMemberRole(
+            bob.id, group.id, charlie.id, MemberRole::Administrator, now);
+    });
+
+    fixture.chat.setGroupMemberMute(
+        bob.id, group.id, charlie.id, now + std::chrono::minutes(10), now);
+    expectError(ErrorCode::Forbidden, [&] {
+        fixture.chat.sendText(
+            charlie.id, group.id, "muted-message", "must be blocked", now);
+    });
+    fixture.chat.setGroupMemberMute(
+        alice.id, group.id, charlie.id, std::nullopt, now);
+    const auto memberMessage = fixture.chat.sendText(
+        charlie.id, group.id, "member-message", "moderate me", now);
+    const auto moderated = fixture.chat.recallMessage(
+        bob.id, memberMessage.message.id, now + std::chrono::seconds(30));
+    CHECK(moderated.changed && moderated.message.recalledBy == bob.id);
+    expectError(ErrorCode::Forbidden, [&] {
+        fixture.chat.removeGroupMember(bob.id, group.id, alice.id, now);
+    });
 
     // 业务层不要求接收方存在 WebSocket/SSE 会话。这里没有创建任何实时连接，
     // 仍应允许 Alice 单向写入私聊和群聊；Bob/Charlie 稍后查询历史即可恢复。
     const auto groupOffline = fixture.chat.sendText(
         alice.id, group.id, "group-offline-1", "members may be offline", now);
-    CHECK(groupOffline.inserted && groupOffline.message.sequence == 1);
-    CHECK(fixture.chat.history(bob.id, group.id, 0, 20).size() == 1);
-    CHECK(fixture.chat.history(charlie.id, group.id, 0, 20).size() == 1);
+    CHECK(groupOffline.inserted && groupOffline.message.sequence == 2);
+    CHECK(fixture.chat.history(bob.id, group.id, 0, 20).size() == 2);
+    CHECK(fixture.chat.history(charlie.id, group.id, 0, 20).size() == 2);
+
+    fixture.chat.leaveGroup(charlie.id, group.id, now);
+    expectError(ErrorCode::Forbidden, [&] {
+        (void)fixture.chat.history(charlie.id, group.id, 0, 20);
+    });
+    expectError(ErrorCode::Conflict, [&] {
+        fixture.chat.leaveGroup(alice.id, group.id, now);
+    });
+    expectError(ErrorCode::Forbidden, [&] {
+        fixture.chat.dissolveGroup(bob.id, group.id, now);
+    });
+    fixture.chat.dissolveGroup(alice.id, group.id, now);
+    expectError(ErrorCode::Conflict, [&] {
+        fixture.chat.sendText(
+            bob.id, group.id, "after-dissolve", "must be blocked", now);
+    });
+    CHECK(fixture.chat.conversations(bob.id).size() == 1);
 
     expectError(ErrorCode::Forbidden, [&] {
         fixture.chat.recallMessage(bob.id, first.message.id, now);
@@ -434,7 +478,7 @@ Message verifyChatFlow(Fixture &fixture, TimePoint now,
     });
 
     // ACK、已读、撤回都和消息一样通过 Outbox 发布；重复命令不会重复生成事件。
-    CHECK(fixture.store.pendingOutbox(20).size() == 10);
+    CHECK(fixture.store.pendingOutbox(100).size() == 18);
     return first.message;
 }
 

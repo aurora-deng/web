@@ -231,6 +231,19 @@ def wait_for_ws(reader: WebSocketReader, event_type: str, attempts: int = 6) -> 
     raise AssertionError((f"missing WebSocket event {event_type}", observed))
 
 
+def wait_for_ws_action(reader: WebSocketReader, action: str,
+                       attempts: int = 12) -> dict:
+    """同类治理事件可能连续到达；同时匹配 type 与 action 才不会拿错回执。"""
+    observed = []
+    for _ in range(attempts):
+        message = reader.read_json()
+        observed.append((message.get("type"), message.get("action")))
+        if message.get("type") == "conversation.updated" \
+                and message.get("action") == action:
+            return message
+    raise AssertionError((f"missing conversation action {action}", observed))
+
+
 def wait_for_sse(reader: ChunkReader, event_name: str, attempts: int = 6) -> str:
     observed = []
     for _ in range(attempts):
@@ -403,6 +416,148 @@ def run(host: str, port: int, ai_user_id: int = 0,
         bob_socket.close()
         bob_sse_socket.close()
 
+    # Phase 13 群聊治理链路：所有权限判断都必须由业务层执行，前端隐藏按钮
+    # 只能改善体验，不能成为安全边界。
+    charlie = BrowserClient(host, port)
+    charlie.register_and_login("phase11_charlie_" + suffix, "correct-password")
+    status, group = alice.request(
+        "POST", "/api/conversations",
+        {"kind": "group", "title": "Runtime Group",
+         "memberIds": str(bob.user_id)},
+    )
+    if status != 201:
+        raise AssertionError(("group create", status, group))
+    group_id = int(group["id"])
+    bob_group_socket, bob_group_ws = bob.open_websocket()
+    charlie_group_socket = None
+    try:
+        status, denied = bob.request(
+            "POST", f"/api/conversations/{group_id}/members",
+            {"memberId": str(charlie.user_id)},
+        )
+        if status != 403:
+            raise AssertionError(("ordinary member invited user", status, denied))
+
+        status, result = alice.request(
+            "POST",
+            f"/api/conversations/{group_id}/members/{bob.user_id}/role",
+            {"role": "administrator"},
+        )
+        if status != 200:
+            raise AssertionError(("promote administrator", status, result))
+        wait_for_ws_action(bob_group_ws, "member-role-changed")
+
+        status, result = bob.request(
+            "POST", f"/api/conversations/{group_id}/members",
+            {"memberId": str(charlie.user_id)},
+        )
+        if status != 200:
+            raise AssertionError(("administrator invite", status, result))
+        wait_for_ws_action(bob_group_ws, "member-added")
+
+        status, updated = bob.request(
+            "PATCH", f"/api/conversations/{group_id}",
+            {"title": "Runtime Governance", "announcement": "Be kind"},
+        )
+        if status != 200 or updated.get("title") != "Runtime Governance" \
+                or updated.get("announcement") != "Be kind":
+            raise AssertionError(("group profile", status, updated))
+        wait_for_ws_action(bob_group_ws, "updated")
+
+        status, result = bob.request(
+            "POST",
+            f"/api/conversations/{group_id}/members/{charlie.user_id}/mute",
+            {"seconds": "600"},
+        )
+        if status != 200:
+            raise AssertionError(("administrator mute", status, result))
+        wait_for_ws_action(bob_group_ws, "member-muted")
+        status, group_members = alice.request(
+            "GET", f"/api/conversations/{group_id}/members"
+        )
+        charlie_member = next(
+            (item for item in group_members
+             if int(item["userId"]) == charlie.user_id), None
+        )
+        bob_member = next(
+            (item for item in group_members
+             if int(item["userId"]) == bob.user_id), None
+        )
+        if status != 200 or not charlie_member or not charlie_member.get("mutedUntil") \
+                or not bob_member or bob_member.get("role") != "administrator":
+            raise AssertionError(("group member state", status, group_members))
+
+        charlie_group_socket, charlie_group_ws = charlie.open_websocket()
+        muted_id = "muted-" + suffix
+        charlie_group_socket.sendall(masked_frame(json.dumps({
+            "v": 1,
+            "type": "chat.send",
+            "id": muted_id,
+            "conversationId": group_id,
+            "content": "must be rejected while muted",
+        }, separators=(",", ":")).encode()))
+        muted_error = wait_for_ws(charlie_group_ws, "chat.error", 12)
+        if muted_error.get("replyTo") != muted_id:
+            raise AssertionError(("muted send", muted_error))
+
+        status, result = alice.request(
+            "POST",
+            f"/api/conversations/{group_id}/members/{charlie.user_id}/mute",
+            {"seconds": "0"},
+        )
+        if status != 200:
+            raise AssertionError(("owner unmute", status, result))
+        member_message_id = "member-" + suffix
+        charlie_group_socket.sendall(masked_frame(json.dumps({
+            "v": 1,
+            "type": "chat.send",
+            "id": member_message_id,
+            "conversationId": group_id,
+            "content": "administrator may moderate this",
+        }, separators=(",", ":")).encode()))
+        accepted = wait_for_ws(charlie_group_ws, "chat.accepted", 12)
+        if accepted.get("status") != "inserted":
+            raise AssertionError(("unmuted send", accepted))
+        persisted = wait_for_ws(charlie_group_ws, "chat.message", 12)
+        bob_message = wait_for_ws(bob_group_ws, "chat.message", 20)
+        if bob_message.get("id") != persisted.get("id"):
+            raise AssertionError(("group broadcast", persisted, bob_message))
+
+        bob_group_socket.sendall(masked_frame(json.dumps({
+            "v": 1,
+            "type": "chat.recall",
+            "id": "moderate-" + suffix,
+            "conversationId": group_id,
+            "replyTo": str(persisted["id"]),
+        }, separators=(",", ":")).encode()))
+        if wait_for_ws(bob_group_ws, "chat.recall.accepted", 20).get("status") != "recalled":
+            raise AssertionError("administrator could not recall member message")
+
+        status, result = charlie.request(
+            "POST", f"/api/conversations/{group_id}/leave", {}
+        )
+        if status != 200:
+            raise AssertionError(("member leave", status, result))
+        status, result = bob.request(
+            "POST", f"/api/conversations/{group_id}/dissolve", {}
+        )
+        if status != 403:
+            raise AssertionError(("administrator dissolved group", status, result))
+        status, result = alice.request(
+            "POST", f"/api/conversations/{group_id}/dissolve", {}
+        )
+        if status != 200:
+            raise AssertionError(("owner dissolve", status, result))
+        wait_for_ws_action(bob_group_ws, "dissolved", 20)
+        status, alice_conversations = alice.request("GET", "/api/conversations")
+        if status != 200 or any(int(item["id"]) == group_id
+                                for item in alice_conversations):
+            raise AssertionError(("dissolved group remained active", alice_conversations))
+    finally:
+        bob_group_socket.close()
+        if charlie_group_socket:
+            charlie_group_socket.close()
+
     ai_result = None
     if ai_user_id:
         status, ai_conversation = alice.request(
@@ -547,6 +702,7 @@ def run(host: str, port: int, ai_user_id: int = 0,
             "alice": alice.user_id,
             "bob": bob.user_id,
             "conversation": conversation_id,
+            "group": group_id,
             "sequence": bob_event["sequence"],
             "ai": ai_result,
         }, separators=(",", ":")),

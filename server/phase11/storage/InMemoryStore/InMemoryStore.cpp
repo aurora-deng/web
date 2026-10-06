@@ -244,7 +244,8 @@ std::optional<Conversation> InMemoryStore::findDirectConversation(
     std::lock_guard lock(mutex_);
     for (const auto &[id, conversation] : state_.conversations)
     {
-        if (conversation.kind != ConversationKind::Direct)
+        if (conversation.kind != ConversationKind::Direct ||
+            conversation.state != ConversationState::Active)
             continue;
         if (state_.members.contains({id, first}) &&
             state_.members.contains({id, second}))
@@ -259,7 +260,11 @@ std::vector<Conversation> InMemoryStore::listConversations(UserId user) const
     std::vector<Conversation> result;
     for (const auto &[key, _] : state_.members)
         if (key.second == user)
-            result.push_back(state_.conversations.at(key.first));
+        {
+            const auto &conversation = state_.conversations.at(key.first);
+            if (conversation.state == ConversationState::Active)
+                result.push_back(conversation);
+        }
     return result;
 }
 
@@ -273,6 +278,8 @@ std::vector<ConversationSummary> InMemoryStore::listConversationSummaries(
         if (key.second != user)
             continue;
         const auto &conversation = state_.conversations.at(key.first);
+        if (conversation.state != ConversationState::Active)
+            continue;
         const auto latest = conversation.nextSequence > 0
                                 ? conversation.nextSequence - 1 : 0;
         result.push_back({conversation,
@@ -298,11 +305,72 @@ std::vector<ConversationMember> InMemoryStore::listMembers(
 bool InMemoryStore::addMember(ConversationMember member)
 {
     std::lock_guard lock(mutex_);
-    if (!state_.conversations.contains(member.conversationId) ||
+    const auto conversation = state_.conversations.find(member.conversationId);
+    if (conversation == state_.conversations.end() ||
+        conversation->second.state != ConversationState::Active ||
         !state_.users.contains(member.userId))
         return false;
     return state_.members.emplace(
         MemberKey{member.conversationId, member.userId}, member).second;
+}
+
+bool InMemoryStore::updateConversationProfile(
+    ConversationId conversation, std::string title,
+    std::string announcement)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.conversations.find(conversation);
+    if (found == state_.conversations.end() ||
+        found->second.kind != ConversationKind::Group ||
+        found->second.state != ConversationState::Active)
+        return false;
+    found->second.title = std::move(title);
+    found->second.announcement = std::move(announcement);
+    return true;
+}
+
+bool InMemoryStore::dissolveConversation(ConversationId conversation,
+                                         UserId actor, TimePoint now)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.conversations.find(conversation);
+    if (found == state_.conversations.end() ||
+        found->second.kind != ConversationKind::Group ||
+        found->second.state != ConversationState::Active)
+        return false;
+    found->second.state = ConversationState::Dissolved;
+    found->second.dissolvedBy = actor;
+    found->second.dissolvedAt = now;
+    return true;
+}
+
+bool InMemoryStore::updateMemberRole(ConversationId conversation, UserId user,
+                                     MemberRole role)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.members.find({conversation, user});
+    if (found == state_.members.end())
+        return false;
+    found->second.role = role;
+    return true;
+}
+
+bool InMemoryStore::updateMemberMute(
+    ConversationId conversation, UserId user,
+    std::optional<TimePoint> mutedUntil)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.members.find({conversation, user});
+    if (found == state_.members.end())
+        return false;
+    found->second.mutedUntil = mutedUntil;
+    return true;
+}
+
+bool InMemoryStore::removeMember(ConversationId conversation, UserId user)
+{
+    std::lock_guard lock(mutex_);
+    return state_.members.erase({conversation, user}) == 1;
 }
 
 bool InMemoryStore::updateDelivered(ConversationId conversation, UserId user,
@@ -349,6 +417,8 @@ AppendMessageResult InMemoryStore::appendMessage(Message message)
     const auto conversation = state_.conversations.find(message.conversationId);
     if (conversation == state_.conversations.end())
         throw std::invalid_argument("conversation does not exist");
+    if (conversation->second.state != ConversationState::Active)
+        throw std::invalid_argument("conversation is not active");
     message.id = state_.nextMessageId++;
     message.sequence = conversation->second.nextSequence++;
     state_.messages.emplace(message.id, message);

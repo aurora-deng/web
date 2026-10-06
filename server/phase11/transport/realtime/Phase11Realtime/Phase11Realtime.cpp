@@ -8,7 +8,9 @@
 #include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
 #include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
 
+#include <algorithm>
 #include <chrono>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -353,17 +355,54 @@ bool Phase11RealtimeOutboxSink::publish(const OutboxEvent &event)
         return true;
     }
 
-    if (event.type == "conversation.member-added")
+    if (event.type == "conversation.updated" ||
+        event.type == "conversation.member-added" ||
+        event.type == "conversation.member-removed" ||
+        event.type == "conversation.member-left" ||
+        event.type == "conversation.member-role-changed" ||
+        event.type == "conversation.member-muted" ||
+        event.type == "conversation.dissolved")
     {
         try
         {
-            const auto user = static_cast<UserId>(std::stoull(event.payload));
-            SseEvent notification;
-            notification.id = std::to_string(event.id);
-            notification.eventName = "conversation.invited";
-            notification.data = "{\"conversationId\":" +
-                                std::to_string(event.aggregateId) + "}";
-            (void)sse_.publish(user, notification);
+            std::optional<UserId> subject;
+            if (!event.payload.empty())
+                subject = static_cast<UserId>(std::stoull(event.payload));
+
+            const auto members = conversations_.listMembers(event.aggregateId);
+            std::vector<UserId> users;
+            users.reserve(members.size() + (subject ? 1 : 0));
+            for (const auto &member : members)
+                users.push_back(member.userId);
+            // 被移除或主动退出的成员已经不在成员表中，但仍应收到最后一张“离群回执”。
+            if (subject && std::find(users.begin(), users.end(), *subject) == users.end())
+                users.push_back(*subject);
+
+            const auto action = event.type.substr(std::string("conversation.").size());
+            const auto json = "{\"type\":\"conversation.updated\",\"conversationId\":" +
+                              std::to_string(event.aggregateId) +
+                              ",\"action\":" + quoteJson(action) +
+                              ",\"userId\":" +
+                              (subject ? std::to_string(*subject) : "null") + "}";
+            (void)webSockets_.broadcastText(users, json);
+            for (const auto user : users)
+            {
+                SseEvent notification;
+                notification.id = std::to_string(event.id);
+                notification.eventName = "conversation.updated";
+                notification.data = json;
+                (void)sse_.publish(user, notification);
+            }
+
+            if (event.type == "conversation.member-added" && subject)
+            {
+                SseEvent invitation;
+                invitation.id = std::to_string(event.id) + ":invite";
+                invitation.eventName = "conversation.invited";
+                invitation.data = "{\"conversationId\":" +
+                                  std::to_string(event.aggregateId) + "}";
+                (void)sse_.publish(*subject, invitation);
+            }
             return true;
         }
         catch (...)

@@ -145,14 +145,33 @@ ConversationKind conversationKind(std::string_view kind)
 
 std::string memberRole(MemberRole role)
 {
-    return role == MemberRole::Owner ? "owner" : "member";
+    switch (role)
+    {
+    case MemberRole::Member: return "member";
+    case MemberRole::Administrator: return "administrator";
+    case MemberRole::Owner: return "owner";
+    }
+    throw std::logic_error("unknown member role");
 }
 
 MemberRole memberRole(std::string_view role)
 {
     if (role == "owner") return MemberRole::Owner;
+    if (role == "administrator") return MemberRole::Administrator;
     if (role == "member") return MemberRole::Member;
     throw std::runtime_error("unknown persisted member role");
+}
+
+std::string conversationState(ConversationState state)
+{
+    return state == ConversationState::Active ? "active" : "dissolved";
+}
+
+ConversationState conversationState(std::string_view state)
+{
+    if (state == "active") return ConversationState::Active;
+    if (state == "dissolved") return ConversationState::Dissolved;
+    throw std::runtime_error("unknown persisted conversation state");
 }
 
 MessageState messageState(std::string_view state)
@@ -264,7 +283,10 @@ Conversation readConversation(const Result &result, int row)
     return {std::stoull(result.value(row, 0)),
             conversationKind(result.value(row, 1)), result.value(row, 2),
             std::stoull(result.value(row, 3)),
-            std::stoull(result.value(row, 4)), decodeTime(result, row, 5)};
+            std::stoull(result.value(row, 4)), decodeTime(result, row, 5),
+            result.value(row, 6), conversationState(result.value(row, 7)),
+            decodeOptionalId(result, row, 8),
+            decodeOptionalTime(result, row, 9)};
 }
 
 ConversationMember readMember(const Result &result, int row)
@@ -272,7 +294,8 @@ ConversationMember readMember(const Result &result, int row)
     return {std::stoull(result.value(row, 0)),
             std::stoull(result.value(row, 1)), memberRole(result.value(row, 2)),
             std::stoull(result.value(row, 3)),
-            std::stoull(result.value(row, 4)), decodeTime(result, row, 5)};
+            std::stoull(result.value(row, 4)), decodeTime(result, row, 5),
+            decodeOptionalTime(result, row, 6)};
 }
 
 Message readMessage(const Result &result, int row)
@@ -344,13 +367,16 @@ constexpr std::string_view kFriendColumns =
     "(extract(epoch FROM decided_at) * 1000000)::bigint";
 constexpr std::string_view kConversationColumns =
     "id, kind, title, created_by, next_sequence, "
-    "(extract(epoch FROM created_at) * 1000000)::bigint";
+    "(extract(epoch FROM created_at) * 1000000)::bigint, announcement, state, "
+    "dissolved_by, (extract(epoch FROM dissolved_at) * 1000000)::bigint";
 constexpr std::string_view kQualifiedConversationColumns =
     "c.id, c.kind, c.title, c.created_by, c.next_sequence, "
-    "(extract(epoch FROM c.created_at) * 1000000)::bigint";
+    "(extract(epoch FROM c.created_at) * 1000000)::bigint, c.announcement, c.state, "
+    "c.dissolved_by, (extract(epoch FROM c.dissolved_at) * 1000000)::bigint";
 constexpr std::string_view kMemberColumns =
     "conversation_id, user_id, role, last_delivered_sequence, "
-    "last_read_sequence, (extract(epoch FROM joined_at) * 1000000)::bigint";
+    "last_read_sequence, (extract(epoch FROM joined_at) * 1000000)::bigint, "
+    "(extract(epoch FROM muted_until) * 1000000)::bigint";
 constexpr std::string_view kMessageColumns =
     "id, conversation_id, conversation_seq, sender_id, client_message_id, body, "
     "model_node_id, model_version_id, adapter_name, "
@@ -636,19 +662,23 @@ Conversation PostgresStore::createConversation(
             directKey = number(low) + ":" + number(high);
         }
         const auto result = query(scope.connection,
-            "INSERT INTO conversations(kind,title,created_by,direct_pair_key,created_at) "
-            "VALUES($1,$2,$3::bigint,$4,to_timestamp($5::double precision/1000000.0)) RETURNING " +
+            "INSERT INTO conversations(kind,title,created_by,direct_pair_key,created_at,announcement,state) "
+            "VALUES($1,$2,$3::bigint,$4,to_timestamp($5::double precision/1000000.0),$6,$7) RETURNING " +
             std::string(kConversationColumns),
             {conversationKind(conversation.kind), conversation.title,
-             number(conversation.createdBy), directKey, encodeTime(conversation.createdAt)});
+             number(conversation.createdBy), directKey, encodeTime(conversation.createdAt),
+             conversation.announcement, conversationState(conversation.state)});
         auto created = readConversation(result, 0);
         for (const auto &member : members)
             (void)query(scope.connection,
-                "INSERT INTO conversation_members(conversation_id,user_id,role,last_delivered_sequence,last_read_sequence,joined_at) "
-                "VALUES($1::bigint,$2::bigint,$3,$4::bigint,$5::bigint,to_timestamp($6::double precision/1000000.0)) RETURNING 1",
+                "INSERT INTO conversation_members(conversation_id,user_id,role,last_delivered_sequence,last_read_sequence,joined_at,muted_until) "
+                "VALUES($1::bigint,$2::bigint,$3,$4::bigint,$5::bigint,to_timestamp($6::double precision/1000000.0),"
+                "CASE WHEN $7::text IS NULL THEN NULL ELSE to_timestamp($7::double precision/1000000.0) END) RETURNING 1",
                 {number(created.id), number(member.userId), memberRole(member.role),
                  number(member.lastDeliveredSequence), number(member.lastReadSequence),
-                 encodeTime(member.joinedAt)});
+                 encodeTime(member.joinedAt),
+                 member.mutedUntil ? std::optional<std::string>{encodeTime(*member.mutedUntil)}
+                                   : std::nullopt});
         if (localTransaction) command(scope.connection, "COMMIT");
         return created;
     }
@@ -667,7 +697,8 @@ std::optional<Conversation> PostgresStore::findConversation(ConversationId id) c
     auto scope = connection();
     const auto result = query(scope.connection,
         "SELECT " + std::string(kConversationColumns) +
-        " FROM conversations WHERE id=$1::bigint", {number(id)});
+        " FROM conversations WHERE id=$1::bigint" +
+        (activeTransactions.contains(this) ? " FOR UPDATE" : ""), {number(id)});
     return result.rows() ? std::optional<Conversation>{readConversation(result, 0)}
                          : std::nullopt;
 }
@@ -693,7 +724,7 @@ std::optional<Conversation> PostgresStore::findDirectConversation(
                      number(std::max(first, second));
     const auto result = query(scope.connection,
         "SELECT " + std::string(kConversationColumns) +
-        " FROM conversations WHERE direct_pair_key=$1", {key});
+        " FROM conversations WHERE direct_pair_key=$1 AND state='active'", {key});
     return result.rows() ? std::optional<Conversation>{readConversation(result, 0)}
                          : std::nullopt;
 }
@@ -704,7 +735,7 @@ std::vector<Conversation> PostgresStore::listConversations(UserId user) const
     const auto result = query(scope.connection,
         "SELECT " + std::string(kQualifiedConversationColumns) +
         " FROM conversations c JOIN conversation_members m ON m.conversation_id=c.id "
-        "WHERE m.user_id=$1::bigint ORDER BY c.id", {number(user)});
+        "WHERE m.user_id=$1::bigint AND c.state='active' ORDER BY c.id", {number(user)});
     std::vector<Conversation> conversations;
     conversations.reserve(result.rows());
     for (int row = 0; row < result.rows(); ++row)
@@ -721,14 +752,14 @@ std::vector<ConversationSummary> PostgresStore::listConversationSummaries(
         ",m.last_delivered_sequence,m.last_read_sequence,"
         "GREATEST(c.next_sequence-1-m.last_read_sequence,0) "
         "FROM conversations c JOIN conversation_members m ON m.conversation_id=c.id "
-        "WHERE m.user_id=$1::bigint ORDER BY c.id", {number(user)});
+        "WHERE m.user_id=$1::bigint AND c.state='active' ORDER BY c.id", {number(user)});
     std::vector<ConversationSummary> summaries;
     summaries.reserve(result.rows());
     for (int row = 0; row < result.rows(); ++row)
         summaries.push_back({readConversation(result, row),
-                             std::stoull(result.value(row, 6)),
-                             std::stoull(result.value(row, 7)),
-                             std::stoull(result.value(row, 8))});
+                             std::stoull(result.value(row, 10)),
+                             std::stoull(result.value(row, 11)),
+                             std::stoull(result.value(row, 12))});
     return summaries;
 }
 
@@ -737,8 +768,7 @@ std::vector<ConversationMember> PostgresStore::listMembers(
 {
     auto scope = connection();
     const auto result = query(scope.connection,
-        "SELECT conversation_id,user_id,role,last_delivered_sequence,last_read_sequence,"
-        "(extract(epoch from joined_at)*1000000)::bigint "
+        "SELECT " + std::string(kMemberColumns) + " "
         "FROM conversation_members WHERE conversation_id=$1::bigint ORDER BY user_id",
         {number(conversation)});
     std::vector<ConversationMember> members;
@@ -752,12 +782,71 @@ bool PostgresStore::addMember(ConversationMember member)
 {
     auto scope = connection();
     return query(scope.connection,
-        "INSERT INTO conversation_members(conversation_id,user_id,role,last_delivered_sequence,last_read_sequence,joined_at) "
-        "VALUES($1::bigint,$2::bigint,$3,$4::bigint,$5::bigint,to_timestamp($6::double precision/1000000.0)) "
+        "INSERT INTO conversation_members(conversation_id,user_id,role,last_delivered_sequence,last_read_sequence,joined_at,muted_until) "
+        "SELECT $1::bigint,$2::bigint,$3,$4::bigint,$5::bigint,to_timestamp($6::double precision/1000000.0),"
+        "CASE WHEN $7::text IS NULL THEN NULL ELSE to_timestamp($7::double precision/1000000.0) END "
+        "WHERE EXISTS(SELECT 1 FROM conversations WHERE id=$1::bigint AND state='active') "
         "ON CONFLICT DO NOTHING RETURNING 1",
         {number(member.conversationId), number(member.userId), memberRole(member.role),
          number(member.lastDeliveredSequence), number(member.lastReadSequence),
-         encodeTime(member.joinedAt)}).rows() == 1;
+         encodeTime(member.joinedAt),
+         member.mutedUntil ? std::optional<std::string>{encodeTime(*member.mutedUntil)}
+                           : std::nullopt}).rows() == 1;
+}
+
+bool PostgresStore::updateConversationProfile(
+    ConversationId conversation, std::string title,
+    std::string announcement)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "UPDATE conversations SET title=$2,announcement=$3 "
+        "WHERE id=$1::bigint AND kind='group' AND state='active' RETURNING 1",
+        {number(conversation), std::move(title), std::move(announcement)}).rows() == 1;
+}
+
+bool PostgresStore::dissolveConversation(ConversationId conversation,
+                                         UserId actor, TimePoint now)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "UPDATE conversations SET state='dissolved',dissolved_by=$2::bigint,"
+        "dissolved_at=to_timestamp($3::double precision/1000000.0) "
+        "WHERE id=$1::bigint AND kind='group' AND state='active' RETURNING 1",
+        {number(conversation), number(actor), encodeTime(now)}).rows() == 1;
+}
+
+bool PostgresStore::updateMemberRole(ConversationId conversation, UserId user,
+                                     MemberRole role)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "UPDATE conversation_members SET role=$3 "
+        "WHERE conversation_id=$1::bigint AND user_id=$2::bigint RETURNING 1",
+        {number(conversation), number(user), memberRole(role)}).rows() == 1;
+}
+
+bool PostgresStore::updateMemberMute(
+    ConversationId conversation, UserId user,
+    std::optional<TimePoint> mutedUntil)
+{
+    auto scope = connection();
+    const std::optional<std::string> value = mutedUntil
+        ? std::optional<std::string>{encodeTime(*mutedUntil)} : std::nullopt;
+    return query(scope.connection,
+        "UPDATE conversation_members SET muted_until="
+        "CASE WHEN $3::text IS NULL THEN NULL ELSE to_timestamp($3::double precision/1000000.0) END "
+        "WHERE conversation_id=$1::bigint AND user_id=$2::bigint RETURNING 1",
+        {number(conversation), number(user), value}).rows() == 1;
+}
+
+bool PostgresStore::removeMember(ConversationId conversation, UserId user)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "DELETE FROM conversation_members WHERE conversation_id=$1::bigint "
+        "AND user_id=$2::bigint RETURNING 1",
+        {number(conversation), number(user)}).rows() == 1;
 }
 
 bool PostgresStore::updateDelivered(ConversationId conversation, UserId user,
@@ -805,6 +894,7 @@ AppendMessageResult PostgresStore::appendMessage(Message message)
 
         const auto allocated = query(scope.connection,
             "UPDATE conversations SET next_sequence=next_sequence+1 WHERE id=$1::bigint "
+            "AND state='active' "
             "RETURNING next_sequence-1", {number(message.conversationId)});
         if (!allocated.rows())
             throw std::invalid_argument("conversation does not exist");

@@ -75,7 +75,7 @@
       <div id="conversation-loading" class="list-skeleton hidden" aria-hidden="true"><span></span><span></span><span></span></div>
       <ul id="conversation-list" class="conversation-list"></ul>
       <p id="conversation-empty" class="empty-hint hidden">暂时没有会话<br><button id="empty-create-conversation" type="button">开始新对话</button></p>
-      <footer class="sidebar-footer"><p class="form-status" id="chat-status" role="status" aria-live="polite"></p><span>Phase 12 · Message Lifecycle</span></footer>
+      <footer class="sidebar-footer"><p class="form-status" id="chat-status" role="status" aria-live="polite"></p><span>Phase 13 · Group Governance</span></footer>
     </aside>
 
     <section class="conversation-pane">
@@ -99,6 +99,7 @@
     <aside id="detail-pane" class="detail-pane">
       <header><h2>会话详情</h2><button id="close-details" class="dialog-close" type="button">×</button></header>
       <section class="detail-identity"><span id="detail-avatar" class="avatar avatar-xl">✦</span><div><h3 id="detail-title">尚未选择会话</h3><p id="detail-kind">选择会话后显示详情</p></div></section>
+      <section id="group-governance" class="detail-card group-governance hidden"><div class="detail-card-head"><h3>群聊治理</h3><button id="edit-group-profile" class="mini-button hidden" type="button">编辑</button></div><p id="group-announcement" class="group-announcement">暂无群公告</p><div class="group-actions"><button id="leave-group" class="mini-button hidden" type="button">退出群聊</button><button id="dissolve-group" class="mini-button danger hidden" type="button">解散群聊</button></div></section>
       <section class="detail-card"><div class="detail-card-head"><h3>成员 <span id="detail-member-count">0</span></h3></div><ul id="detail-member-list" class="member-list"><li class="detail-empty">暂无成员信息</li></ul></section>
       <section class="detail-card connection-card"><div class="detail-card-head"><h3>连接状态</h3></div><div class="health-row"><span><i class="health-dot ok"></i>HTTP API</span><b id="http-health">正常</b></div><div class="health-row"><span><i id="detail-ws-dot" class="health-dot"></i>WebSocket</span><b id="detail-ws-state">连接中</b></div><div class="health-row"><span><i id="detail-sse-dot" class="health-dot"></i>SSE 通知</span><b id="detail-sse-state">连接中</b></div></section>
       <section class="detail-card delivery-card"><span class="delivery-icon">DB</span><div><h3>离线投递已启用</h3><p>接收成员不在线也可以发送。消息与 Outbox 在同一事务内保存，上线后按序恢复。</p></div></section>
@@ -115,12 +116,14 @@
 
   <dialog id="search-dialog"><section class="dialog-card dialog-wide search-dialog-card"><header><div><p class="eyebrow">HISTORY SEARCH</p><h2>历史消息搜索</h2><p>只搜索当前有权访问的会话内容。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><form id="search-form" class="inline-form"><label>关键词<input name="query" maxlength="120" required placeholder="输入消息关键词"></label><button type="submit" class="primary-button">搜索</button></form><ol id="search-results" class="search-results"></ol><p class="form-status" id="search-status" role="status"></p></section></dialog>
 
-  <dialog id="member-dialog"><form id="member-form" class="dialog-card"><header><div><p class="eyebrow">GROUP MEMBER</p><h2>邀请群成员</h2><p>当前接口只允许群创建者添加成员。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>用户 ID<input name="memberId" inputmode="numeric" required placeholder="输入要邀请的用户 ID"></label><p class="form-status" id="member-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">邀请成员</button></footer></form></dialog>
+  <dialog id="member-dialog"><form id="member-form" class="dialog-card"><header><div><p class="eyebrow">GROUP MEMBER</p><h2>邀请群成员</h2><p>群主和管理员可以邀请新成员。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>用户 ID<input name="memberId" inputmode="numeric" required placeholder="输入要邀请的用户 ID"></label><p class="form-status" id="member-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">邀请成员</button></footer></form></dialog>
+
+  <dialog id="group-profile-dialog"><form id="group-profile-form" class="dialog-card"><header><div><p class="eyebrow">GROUP SETTINGS</p><h2>编辑群资料</h2><p>群主和管理员可以修改群名称与群公告。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>群名称<input name="title" maxlength="80" required></label><label>群公告<textarea name="announcement" maxlength="4096" rows="6" placeholder="向所有成员说明群聊规则或重要事项"></textarea></label><p class="form-status" id="group-profile-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">保存群资料</button></footer></form></dialog>
 
   <dialog id="model-dialog"><section class="dialog-card dialog-wide model-dialog-card"><header><div><p class="eyebrow">RUNTIME STATUS</p><h2>模型与通道状态</h2><p>只展示浏览器能够真实确认的连接，不伪造模型探测结果。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="model-status-grid"><article><span class="model-orb">H</span><div><h3>HTTP 业务接口</h3><p>账号、好友、会话、历史与搜索</p></div><b class="status-chip ok">可用</b></article><article><span class="model-orb">W</span><div><h3>WebSocket 消息</h3><p>发送、ACK、已读与实时广播</p></div><b id="model-ws-status" class="status-chip">连接中</b></article><article><span class="model-orb">S</span><div><h3>SSE 事件流</h3><p>好友、邀请、通知与 AI Token</p></div><b id="model-sse-status" class="status-chip">连接中</b></article><article><span class="model-orb ai">AI</span><div><h3>AI Provider 路由</h3><p>Ollama / ONNX 进程内 / gRPC Worker</p></div><b class="status-chip neutral">按账号路由</b></article></div><div class="model-explain"><strong>AI 状态说明</strong><p>当前公共接口没有主动模型探测操作。发起生成后，实际成功、取消或错误状态会通过 SSE 返回。</p></div></section></dialog>
 
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <!-- 版本参数让已经打开过旧页面的浏览器重新获取修复后的 ES Module。 -->
-  <script type="module" src="/phase11/app.js?v=20261006-phase12-message-lifecycle"></script>
+  <script type="module" src="/phase11/app.js?v=20261006-phase13-group-governance"></script>
 </body>
 </html>

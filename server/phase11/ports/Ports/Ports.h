@@ -83,6 +83,16 @@ public:
     [[nodiscard]] virtual std::vector<ConversationMember> listMembers(
         ConversationId conversation) const = 0;
     virtual bool addMember(ConversationMember member) = 0;
+    virtual bool updateConversationProfile(ConversationId conversation,
+                                           std::string title,
+                                           std::string announcement) = 0;
+    virtual bool dissolveConversation(ConversationId conversation,
+                                      UserId actor, TimePoint now) = 0;
+    virtual bool updateMemberRole(ConversationId conversation, UserId user,
+                                  MemberRole role) = 0;
+    virtual bool updateMemberMute(ConversationId conversation, UserId user,
+                                  std::optional<TimePoint> mutedUntil) = 0;
+    virtual bool removeMember(ConversationId conversation, UserId user) = 0;
     virtual bool updateDelivered(ConversationId conversation, UserId user,
                                  std::uint64_t sequence) = 0;
     virtual bool updateRead(ConversationId conversation, UserId user,

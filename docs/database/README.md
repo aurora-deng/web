@@ -1,8 +1,9 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
-这份文档对应当前两份数据库迁移：建库基线
+这份文档对应当前三份数据库迁移：建库基线
 [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) 和消息生命周期增量
-[002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)。它解释当前真实代码中的
+[002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)，以及群聊治理增量
+[003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql)。它解释当前真实代码中的
 16 张表（1 张迁移登记表和 15 张业务表），不把规划中的功能写成已经实现。
 
 当前虚拟机的实际行数、AI 绑定和本地测试账号统一记录在同目录的
@@ -117,6 +118,9 @@ user_low_id=3, user_high_id=8
 |---|---|
 | `kind` | `direct` 私聊或 `group` 群聊 |
 | `title` | 群名称；私聊可以由成员资料生成显示名称 |
+| `announcement` | 群公告；最多 4096 字节 |
+| `state` | `active` 活动中或 `dissolved` 已软解散 |
+| `dissolved_by / dissolved_at` | 解散人和解散时间；活动会话必须为空 |
 | `created_by` | 创建者 |
 | `next_sequence` | 下一条消息应使用的房间内序号 |
 | `direct_pair_key` | 私聊双方的规范化组合，保证同一对用户只有一个私聊 |
@@ -129,10 +133,11 @@ user_low_id=3, user_high_id=8
 
 | 关键字段 | 含义 |
 |---|---|
-| `role` | `owner` 创建者或普通 `member` |
+| `role` | `owner` 群主、`administrator` 管理员或普通 `member` |
 | `last_delivered_sequence` | 服务端确认已经投递到该用户的最大序号 |
 | `last_read_sequence` | 用户确认已经读到的最大序号 |
 | `joined_at` | 加入时间 |
+| `muted_until` | 禁言截止时间；空值表示未禁言 |
 
 两个游标像书签。`last_read_sequence <= last_delivered_sequence` 的约束防止出现“已经读到 20，但其实只投递到 10”的
 不可能状态。
@@ -332,6 +337,7 @@ ORDER BY id DESC;
 |---|---|
 | 基础表、约束和索引 | [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) |
 | 消息状态与撤回约束 | [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql) |
+| 群角色、公告、禁言与软解散约束 | [003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql) |
 | PostgreSQL Repository | [PostgresStore.cpp](../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 连接池 | [PostgresConnectionPool.cpp](../../server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
 | Repository 业务接口 | [Ports.h](../../server/phase11/ports/Ports/Ports.h) |

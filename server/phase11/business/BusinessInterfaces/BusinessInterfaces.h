@@ -103,6 +103,23 @@ public:
                                                   TimePoint now) = 0;
     virtual void addGroupMember(UserId actor, ConversationId conversation,
                                 UserId member, TimePoint now) = 0;
+    virtual Conversation updateGroupProfile(UserId actor,
+                                            ConversationId conversation,
+                                            std::string title,
+                                            std::string announcement,
+                                            TimePoint now) = 0;
+    virtual void setGroupMemberRole(UserId actor, ConversationId conversation,
+                                    UserId member, MemberRole role,
+                                    TimePoint now) = 0;
+    virtual void setGroupMemberMute(
+        UserId actor, ConversationId conversation, UserId member,
+        std::optional<TimePoint> mutedUntil, TimePoint now) = 0;
+    virtual void removeGroupMember(UserId actor, ConversationId conversation,
+                                   UserId member, TimePoint now) = 0;
+    virtual void leaveGroup(UserId user, ConversationId conversation,
+                            TimePoint now) = 0;
+    virtual void dissolveGroup(UserId actor, ConversationId conversation,
+                               TimePoint now) = 0;
     virtual AppendMessageResult sendText(UserId sender,
                                          ConversationId conversation,
                                          std::string clientMessageId,

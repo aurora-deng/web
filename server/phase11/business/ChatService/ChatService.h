@@ -28,6 +28,23 @@ public:
                                          TimePoint now) override;
     void addGroupMember(UserId actor, ConversationId conversation,
                         UserId member, TimePoint now) override;
+    Conversation updateGroupProfile(UserId actor, ConversationId conversation,
+                                    std::string title,
+                                    std::string announcement,
+                                    TimePoint now) override;
+    void setGroupMemberRole(UserId actor, ConversationId conversation,
+                            UserId member, MemberRole role,
+                            TimePoint now) override;
+    void setGroupMemberMute(UserId actor, ConversationId conversation,
+                            UserId member,
+                            std::optional<TimePoint> mutedUntil,
+                            TimePoint now) override;
+    void removeGroupMember(UserId actor, ConversationId conversation,
+                           UserId member, TimePoint now) override;
+    void leaveGroup(UserId user, ConversationId conversation,
+                    TimePoint now) override;
+    void dissolveGroup(UserId actor, ConversationId conversation,
+                       TimePoint now) override;
     AppendMessageResult sendText(UserId sender, ConversationId conversation,
                                  std::string clientMessageId,
                                  std::string body, TimePoint now,
@@ -52,6 +69,7 @@ private:
     ConversationMember requireMember(UserId user,
                                      ConversationId conversation) const;
     Conversation requireConversation(ConversationId conversation) const;
+    Conversation requireActiveGroup(ConversationId conversation) const;
 
     IDatabase &database_;
     IUserRepository &users_;

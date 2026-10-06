@@ -75,7 +75,14 @@ enum class ConversationKind
 enum class MemberRole
 {
     Member,
+    Administrator,
     Owner
+};
+
+enum class ConversationState
+{
+    Active,
+    Dissolved
 };
 
 struct Conversation
@@ -86,6 +93,10 @@ struct Conversation
     UserId createdBy = 0;
     std::uint64_t nextSequence = 1;
     TimePoint createdAt{};
+    std::string announcement;
+    ConversationState state = ConversationState::Active;
+    std::optional<UserId> dissolvedBy;
+    std::optional<TimePoint> dissolvedAt;
 };
 
 struct ConversationMember
@@ -96,6 +107,7 @@ struct ConversationMember
     std::uint64_t lastDeliveredSequence = 0;
     std::uint64_t lastReadSequence = 0;
     TimePoint joinedAt{};
+    std::optional<TimePoint> mutedUntil;
 };
 
 /**

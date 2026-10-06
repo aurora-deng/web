@@ -126,6 +126,19 @@ std::uint64_t unsignedValue(std::string_view value, std::string_view field)
     return result;
 }
 
+std::uint64_t nonnegativeValue(std::string_view value, std::string_view field)
+{
+    std::uint64_t result = 0;
+    const auto parsed = std::from_chars(value.data(), value.data() + value.size(),
+                                        result);
+    if (value.empty() || parsed.ec != std::errc{} ||
+        parsed.ptr != value.data() + value.size())
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "invalid non-negative integer: " +
+                                   std::string(field));
+    return result;
+}
+
 std::uint64_t optionalUnsigned(const RequestContext &context,
                                std::string_view field,
                                std::uint64_t fallback)
@@ -184,11 +197,15 @@ std::string friendRequestJson(const FriendRequest &request)
 
 std::string conversationJson(const Conversation &conversation)
 {
+    const auto state = conversation.state == ConversationState::Active
+                           ? "active" : "dissolved";
     return "{\"id\":" + std::to_string(conversation.id) +
            ",\"kind\":" +
            quoteJson(conversation.kind == ConversationKind::Direct
                          ? "direct" : "group") +
            ",\"title\":" + quoteJson(conversation.title) +
+           ",\"announcement\":" + quoteJson(conversation.announcement) +
+           ",\"state\":" + quoteJson(state) +
            ",\"createdBy\":" + std::to_string(conversation.createdBy) +
            ",\"nextSequence\":" +
            std::to_string(conversation.nextSequence) + "}";
@@ -202,6 +219,10 @@ std::string conversationSummaryJson(const ConversationSummary &summary)
            quoteJson(conversation.kind == ConversationKind::Direct
                          ? "direct" : "group") +
            ",\"title\":" + quoteJson(conversation.title) +
+           ",\"announcement\":" + quoteJson(conversation.announcement) +
+           ",\"state\":" +
+           quoteJson(conversation.state == ConversationState::Active
+                         ? "active" : "dissolved") +
            ",\"createdBy\":" + std::to_string(conversation.createdBy) +
            ",\"nextSequence\":" + std::to_string(conversation.nextSequence) +
            ",\"lastDeliveredSequence\":" +
@@ -226,12 +247,17 @@ std::string memberJson(const ConversationParticipant &participant)
            ",\"displayName\":" + quoteJson(user.displayName) +
            ",\"aiAccount\":" + (user.aiAccount ? "true" : "false") +
            ",\"role\":" +
-           quoteJson(member.role == MemberRole::Owner ? "owner" : "member") +
+           quoteJson(member.role == MemberRole::Owner ? "owner" :
+                     member.role == MemberRole::Administrator
+                         ? "administrator" : "member") +
            ",\"lastDeliveredSequence\":" +
            std::to_string(member.lastDeliveredSequence) +
            ",\"lastReadSequence\":" +
            std::to_string(member.lastReadSequence) +
            ",\"joinedAt\":" + std::to_string(epochMilliseconds(member.joinedAt)) +
+           ",\"mutedUntil\":" +
+           (member.mutedUntil
+                ? std::to_string(epochMilliseconds(*member.mutedUntil)) : "null") +
            "}";
 }
 
@@ -430,6 +456,131 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             runDatabase([this, actor = identity.user.id, conversation, member]
             {
                 chat_.addGroupMember(actor, conversation, member, currentTime());
+            });
+            reply(context, 200, "{\"ok\":true}");
+        });
+    });
+
+    router.PATCH("/api/conversations/:id", [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto conversation = unsignedValue(context.param("id"),
+                                                     "conversationId");
+            const auto fields = bodyObject(context);
+            auto title = required(fields, "title");
+            auto announcement = required(fields, "announcement");
+            const auto updated = runDatabase(
+                [this, actor = identity.user.id, conversation,
+                 title = std::move(title),
+                 announcement = std::move(announcement)]() mutable
+                {
+                    return chat_.updateGroupProfile(
+                        actor, conversation, std::move(title),
+                        std::move(announcement), currentTime());
+                });
+            reply(context, 200, conversationJson(updated));
+        });
+    });
+
+    router.POST("/api/conversations/:id/members/:memberId/role",
+                [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto conversation = unsignedValue(context.param("id"),
+                                                     "conversationId");
+            const auto member = unsignedValue(context.param("memberId"),
+                                               "memberId");
+            const auto value = required(bodyObject(context), "role");
+            const auto role = value == "administrator" ? MemberRole::Administrator
+                              : value == "member" ? MemberRole::Member
+                              : throw ApplicationError(
+                                    ErrorCode::InvalidArgument,
+                                    "role must be member or administrator");
+            runDatabase([this, actor = identity.user.id, conversation,
+                         member, role]
+            {
+                chat_.setGroupMemberRole(actor, conversation, member, role,
+                                         currentTime());
+            });
+            reply(context, 200, "{\"ok\":true}");
+        });
+    });
+
+    router.POST("/api/conversations/:id/members/:memberId/mute",
+                [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto conversation = unsignedValue(context.param("id"),
+                                                     "conversationId");
+            const auto member = unsignedValue(context.param("memberId"),
+                                               "memberId");
+            const auto seconds = nonnegativeValue(
+                required(bodyObject(context), "seconds"), "seconds");
+            if (seconds > 30ULL * 24 * 60 * 60)
+                throw ApplicationError(ErrorCode::InvalidArgument,
+                                       "mute duration cannot exceed 30 days");
+            const auto now = currentTime();
+            const auto until = seconds == 0
+                ? std::optional<TimePoint>{}
+                : std::optional<TimePoint>{now + std::chrono::seconds(seconds)};
+            runDatabase([this, actor = identity.user.id, conversation,
+                         member, until, now]
+            {
+                chat_.setGroupMemberMute(actor, conversation, member, until, now);
+            });
+            reply(context, 200, "{\"ok\":true}");
+        });
+    });
+
+    router.POST("/api/conversations/:id/members/:memberId/remove",
+                [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto conversation = unsignedValue(context.param("id"),
+                                                     "conversationId");
+            const auto member = unsignedValue(context.param("memberId"),
+                                               "memberId");
+            runDatabase([this, actor = identity.user.id, conversation, member]
+            {
+                chat_.removeGroupMember(actor, conversation, member, currentTime());
+            });
+            reply(context, 200, "{\"ok\":true}");
+        });
+    });
+
+    router.POST("/api/conversations/:id/leave", [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto conversation = unsignedValue(context.param("id"),
+                                                     "conversationId");
+            runDatabase([this, user = identity.user.id, conversation]
+            {
+                chat_.leaveGroup(user, conversation, currentTime());
+            });
+            reply(context, 200, "{\"ok\":true}");
+        });
+    });
+
+    router.POST("/api/conversations/:id/dissolve", [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto conversation = unsignedValue(context.param("id"),
+                                                     "conversationId");
+            runDatabase([this, actor = identity.user.id, conversation]
+            {
+                chat_.dissolveGroup(actor, conversation, currentTime());
             });
             reply(context, 200, "{\"ok\":true}");
         });

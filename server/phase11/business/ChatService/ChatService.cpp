@@ -25,6 +25,18 @@ ConversationMember ChatService::requireMember(
     return *member;
 }
 
+Conversation ChatService::requireActiveGroup(ConversationId conversation) const
+{
+    const auto found = requireConversation(conversation);
+    if (found.kind != ConversationKind::Group)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "operation requires a group conversation");
+    if (found.state != ConversationState::Active)
+        throw ApplicationError(ErrorCode::Conflict,
+                               "group conversation has been dissolved");
+    return found;
+}
+
 Conversation ChatService::createDirectConversation(UserId requester,
                                                     UserId peer,
                                                     TimePoint now)
@@ -105,16 +117,19 @@ Conversation ChatService::createGroupConversation(
 void ChatService::addGroupMember(UserId actor, ConversationId conversation,
                                  UserId member, TimePoint now)
 {
-    const auto existing = requireConversation(conversation);
+    auto transaction = database_.beginTransaction();
+    (void)requireActiveGroup(conversation);
     const auto actorMembership = requireMember(actor, conversation);
-    if (existing.kind != ConversationKind::Group ||
-        actorMembership.role != MemberRole::Owner)
+    if (actorMembership.role != MemberRole::Owner &&
+        actorMembership.role != MemberRole::Administrator)
         throw ApplicationError(ErrorCode::Forbidden,
-                               "only the group owner can add members");
+                               "only group owners and administrators can add members");
     if (!users_.findUser(member))
         throw ApplicationError(ErrorCode::NotFound, "new member not found");
+    if (conversations_.listMembers(conversation).size() >= 500)
+        throw ApplicationError(ErrorCode::Conflict,
+                               "group member limit exceeded");
 
-    auto transaction = database_.beginTransaction();
     if (!conversations_.addMember(
             {conversation, member, MemberRole::Member, 0, 0, now}))
         throw ApplicationError(ErrorCode::Conflict,
@@ -124,12 +139,159 @@ void ChatService::addGroupMember(UserId actor, ConversationId conversation,
     transaction->commit();
 }
 
+Conversation ChatService::updateGroupProfile(
+    UserId actor, ConversationId conversation, std::string title,
+    std::string announcement, TimePoint now)
+{
+    auto transaction = database_.beginTransaction();
+    (void)requireActiveGroup(conversation);
+    const auto actorMembership = requireMember(actor, conversation);
+    if (actorMembership.role == MemberRole::Member)
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "only group owners and administrators can edit the group");
+    if (title.empty() || title.size() > 80)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "group title length must be between 1 and 80");
+    if (announcement.size() > 4096)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "group announcement is too long");
+
+    if (!conversations_.updateConversationProfile(
+            conversation, std::move(title), std::move(announcement)))
+        throw ApplicationError(ErrorCode::Conflict,
+                               "group profile could not be updated");
+    outbox_.appendOutbox({0, "conversation.updated", "conversation",
+                          conversation, {}, now, {}});
+    transaction->commit();
+    return requireConversation(conversation);
+}
+
+void ChatService::setGroupMemberRole(UserId actor,
+                                     ConversationId conversation,
+                                     UserId member, MemberRole role,
+                                     TimePoint now)
+{
+    auto transaction = database_.beginTransaction();
+    (void)requireActiveGroup(conversation);
+    const auto actorMembership = requireMember(actor, conversation);
+    const auto target = requireMember(member, conversation);
+    if (actorMembership.role != MemberRole::Owner)
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "only the group owner can change member roles");
+    if (target.role == MemberRole::Owner || role == MemberRole::Owner)
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "the owner role cannot be changed here");
+    if (role != MemberRole::Member && role != MemberRole::Administrator)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "role must be member or administrator");
+    if (target.role == role)
+    {
+        transaction->commit();
+        return;
+    }
+
+    if (!conversations_.updateMemberRole(conversation, member, role))
+        throw ApplicationError(ErrorCode::NotFound, "group member not found");
+    outbox_.appendOutbox({0, "conversation.member-role-changed", "conversation",
+                          conversation, std::to_string(member), now, {}});
+    transaction->commit();
+}
+
+void ChatService::setGroupMemberMute(
+    UserId actor, ConversationId conversation, UserId member,
+    std::optional<TimePoint> mutedUntil, TimePoint now)
+{
+    auto transaction = database_.beginTransaction();
+    (void)requireActiveGroup(conversation);
+    const auto actorMembership = requireMember(actor, conversation);
+    const auto target = requireMember(member, conversation);
+    if (actorMembership.role == MemberRole::Member)
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "only group owners and administrators can mute members");
+    if (target.role == MemberRole::Owner ||
+        (actorMembership.role == MemberRole::Administrator &&
+         target.role != MemberRole::Member))
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "the selected member cannot be muted by this actor");
+    if (mutedUntil &&
+        (*mutedUntil <= now || *mutedUntil > now + std::chrono::hours(24 * 30)))
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "mute duration must be between 1 second and 30 days");
+
+    if (!conversations_.updateMemberMute(conversation, member, mutedUntil))
+        throw ApplicationError(ErrorCode::NotFound, "group member not found");
+    outbox_.appendOutbox({0, "conversation.member-muted", "conversation",
+                          conversation, std::to_string(member), now, {}});
+    transaction->commit();
+}
+
+void ChatService::removeGroupMember(UserId actor,
+                                    ConversationId conversation,
+                                    UserId member, TimePoint now)
+{
+    auto transaction = database_.beginTransaction();
+    (void)requireActiveGroup(conversation);
+    const auto actorMembership = requireMember(actor, conversation);
+    const auto target = requireMember(member, conversation);
+    if (actor == member)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "use leave group to remove yourself");
+    if (actorMembership.role == MemberRole::Member)
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "only group owners and administrators can remove members");
+    if (target.role == MemberRole::Owner ||
+        (actorMembership.role == MemberRole::Administrator &&
+         target.role != MemberRole::Member))
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "the selected member cannot be removed by this actor");
+
+    if (!conversations_.removeMember(conversation, member))
+        throw ApplicationError(ErrorCode::NotFound, "group member not found");
+    outbox_.appendOutbox({0, "conversation.member-removed", "conversation",
+                          conversation, std::to_string(member), now, {}});
+    transaction->commit();
+}
+
+void ChatService::leaveGroup(UserId user, ConversationId conversation,
+                             TimePoint now)
+{
+    auto transaction = database_.beginTransaction();
+    (void)requireActiveGroup(conversation);
+    const auto membership = requireMember(user, conversation);
+    if (membership.role == MemberRole::Owner)
+        throw ApplicationError(ErrorCode::Conflict,
+                               "the group owner must dissolve the group");
+
+    if (!conversations_.removeMember(conversation, user))
+        throw ApplicationError(ErrorCode::NotFound, "group member not found");
+    outbox_.appendOutbox({0, "conversation.member-left", "conversation",
+                          conversation, std::to_string(user), now, {}});
+    transaction->commit();
+}
+
+void ChatService::dissolveGroup(UserId actor, ConversationId conversation,
+                                TimePoint now)
+{
+    auto transaction = database_.beginTransaction();
+    (void)requireActiveGroup(conversation);
+    const auto membership = requireMember(actor, conversation);
+    if (membership.role != MemberRole::Owner)
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "only the group owner can dissolve the group");
+
+    if (!conversations_.dissolveConversation(conversation, actor, now))
+        throw ApplicationError(ErrorCode::Conflict,
+                               "group was already dissolved");
+    outbox_.appendOutbox({0, "conversation.dissolved", "conversation",
+                          conversation, std::to_string(actor), now, {}});
+    transaction->commit();
+}
+
 AppendMessageResult ChatService::sendText(
     UserId sender, ConversationId conversation,
     std::string clientMessageId, std::string body, TimePoint now,
     MessageModelTrace trace)
 {
-    requireMember(sender, conversation);
     if (clientMessageId.empty() || clientMessageId.size() > 128)
         throw ApplicationError(ErrorCode::InvalidArgument,
                                "invalid client message id");
@@ -138,6 +300,14 @@ AppendMessageResult ChatService::sendText(
                                "message body length is out of range");
 
     auto transaction = database_.beginTransaction();
+    const auto current = requireConversation(conversation);
+    if (current.state != ConversationState::Active)
+        throw ApplicationError(ErrorCode::Conflict,
+                               "conversation has been dissolved");
+    const auto membership = requireMember(sender, conversation);
+    if (membership.mutedUntil && *membership.mutedUntil > now)
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "group member is currently muted");
     const auto originalBody = body;
     auto appended = messages_.appendMessage(
         {0, conversation, 0, sender, std::move(clientMessageId),
@@ -171,10 +341,24 @@ RecallMessageResult ChatService::recallMessage(UserId actor,
     const auto existing = messages_.findMessage(message);
     if (!existing)
         throw ApplicationError(ErrorCode::NotFound, "message not found");
-    requireMember(actor, existing->conversationId);
+    const auto conversation = requireConversation(existing->conversationId);
+    if (conversation.state != ConversationState::Active)
+        throw ApplicationError(ErrorCode::Conflict,
+                               "conversation has been dissolved");
+    const auto actorMembership = requireMember(actor, existing->conversationId);
     if (existing->senderId != actor)
-        throw ApplicationError(ErrorCode::Forbidden,
-                               "only the sender can recall this message");
+    {
+        if (conversation.kind != ConversationKind::Group ||
+            actorMembership.role == MemberRole::Member)
+            throw ApplicationError(ErrorCode::Forbidden,
+                                   "only the sender or a group moderator can recall this message");
+        const auto senderMembership = conversations_.findMember(
+            existing->conversationId, existing->senderId);
+        if (actorMembership.role == MemberRole::Administrator &&
+            senderMembership && senderMembership->role != MemberRole::Member)
+            throw ApplicationError(ErrorCode::Forbidden,
+                                   "administrators cannot recall owner or administrator messages");
+    }
     if (existing->state == MessageState::Recalled)
     {
         transaction->commit();

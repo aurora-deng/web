@@ -18,6 +18,7 @@ const elements = {
   profileDialog: $('#profile-dialog'),
   searchDialog: $('#search-dialog'),
   memberDialog: $('#member-dialog'),
+  groupProfileDialog: $('#group-profile-dialog'),
   modelDialog: $('#model-dialog'),
   detailPane: $('#detail-pane'),
 };
@@ -116,6 +117,28 @@ function conversationTitle(conversation) {
   return conversation.title || (conversation.kind === 'group'
     ? `群聊 #${conversation.id}`
     : `私聊 #${conversation.id}`);
+}
+
+function myMembership() {
+  return state.members.find(member => Number(member.userId) === Number(state.me?.id));
+}
+
+function clearConversationView() {
+  state.conversation = null;
+  state.members = [];
+  $('#conversation-title').textContent = '请选择会话';
+  $('#conversation-subtitle').textContent = '选择左侧会话，开始交流';
+  $('#conversation-avatar').textContent = '✦';
+  $('#detail-title').textContent = '尚未选择会话';
+  $('#detail-kind').textContent = '选择会话后显示详情';
+  $('#detail-avatar').textContent = '✦';
+  $('#search-messages').disabled = true;
+  $('#add-member').classList.add('hidden');
+  $('#group-governance').classList.add('hidden');
+  elements.messageList.classList.add('hidden');
+  elements.messageForm.classList.add('hidden');
+  elements.emptyConversation.classList.remove('hidden');
+  renderConversationMembers();
 }
 
 function setButtonBusy(button, busy, busyText = '处理中…') {
@@ -280,9 +303,11 @@ async function loadConversations() {
       }
     });
     if (state.conversation) {
-      state.conversation = state.conversations.find(
+      const current = state.conversations.find(
         item => Number(item.id) === Number(state.conversation.id),
-      ) || state.conversation;
+      );
+      if (current) state.conversation = current;
+      else clearConversationView();
     }
     renderConversations();
     setStatus(elements.chatStatus);
@@ -311,6 +336,10 @@ async function openConversation(conversation) {
   $('#detail-avatar').textContent = conversation.kind === 'group' ? '群' : initials(title, '聊');
   $('#search-messages').disabled = false;
   $('#add-member').classList.add('hidden');
+  $('#group-governance').classList.toggle('hidden', conversation.kind !== 'group');
+  $('#edit-group-profile').classList.add('hidden');
+  $('#leave-group').classList.add('hidden');
+  $('#dissolve-group').classList.add('hidden');
   elements.emptyConversation.classList.add('hidden');
   elements.messageList.classList.remove('hidden');
   elements.messageForm.classList.remove('hidden');
@@ -339,8 +368,9 @@ async function openConversation(conversation) {
     renderConversationMembers();
     const me = members.find(member => Number(member.userId) === Number(state.me?.id));
     $('#add-member').classList.toggle(
-      'hidden', conversation.kind !== 'group' || me?.role !== 'owner',
+      'hidden', conversation.kind !== 'group' || !['owner', 'administrator'].includes(me?.role),
     );
+    renderGroupGovernance();
     if (messages.length) acknowledge(messages.at(-1));
     setStatus(elements.chatStatus);
   } catch (error) {
@@ -363,14 +393,102 @@ function renderConversationMembers() {
       ? (state.me.displayName || state.me.username)
       : `${member.displayName || member.username || `用户 ${member.userId}`}${member.aiAccount ? ' · AI' : ''}`;
     const progress = document.createElement('small');
-    progress.textContent = `已读至 #${member.lastReadSequence || 0}`;
+    const muted = Number(member.mutedUntil) > Date.now();
+    progress.textContent = muted
+      ? `禁言至 ${new Date(Number(member.mutedUntil)).toLocaleString()}`
+      : `已读至 #${member.lastReadSequence || 0}`;
     copy.append(name, progress);
     const role = document.createElement('span');
-    role.className = 'member-role';
-    role.textContent = member.role === 'owner' ? '创建者' : '成员';
+    role.className = `member-role ${member.role === 'owner' ? 'owner' : member.role === 'administrator' ? 'admin' : ''}`;
+    role.textContent = member.role === 'owner' ? '群主'
+      : member.role === 'administrator' ? '管理员' : '成员';
     item.append(avatar, copy, role);
+
+    const mine = myMembership();
+    const isSelf = Number(member.userId) === Number(state.me?.id);
+    const ownerCanAct = mine?.role === 'owner' && member.role !== 'owner' && !isSelf;
+    const adminCanAct = mine?.role === 'administrator' && member.role === 'member' && !isSelf;
+    if (ownerCanAct || adminCanAct) {
+      const actions = document.createElement('span');
+      actions.className = 'member-actions';
+      if (ownerCanAct) {
+        const roleButton = document.createElement('button');
+        roleButton.type = 'button';
+        roleButton.className = 'mini-button';
+        roleButton.textContent = member.role === 'administrator' ? '取消管理员' : '设为管理员';
+        roleButton.addEventListener('click', () => updateMemberRole(
+          member.userId,
+          member.role === 'administrator' ? 'member' : 'administrator',
+        ));
+        actions.append(roleButton);
+      }
+      const muteButton = document.createElement('button');
+      muteButton.type = 'button';
+      muteButton.className = 'mini-button';
+      muteButton.textContent = muted ? '解除禁言' : '禁言 10 分钟';
+      muteButton.addEventListener('click', () => updateMemberMute(
+        member.userId, muted ? 0 : 600,
+      ));
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'mini-button danger';
+      removeButton.textContent = '移出群聊';
+      removeButton.addEventListener('click', () => removeMember(member));
+      actions.append(muteButton, removeButton);
+      item.append(actions);
+    }
     return item;
   }) : [actionListEmpty('暂无成员信息')]));
+}
+
+function renderGroupGovernance() {
+  const group = state.conversation?.kind === 'group';
+  $('#group-governance').classList.toggle('hidden', !group);
+  if (!group) return;
+  const mine = myMembership();
+  const privileged = ['owner', 'administrator'].includes(mine?.role);
+  $('#group-announcement').textContent = state.conversation.announcement || '暂无群公告';
+  $('#edit-group-profile').classList.toggle('hidden', !privileged);
+  $('#leave-group').classList.toggle('hidden', !mine || mine.role === 'owner');
+  $('#dissolve-group').classList.toggle('hidden', mine?.role !== 'owner');
+}
+
+async function refreshCurrentGroup(message) {
+  toast(message, 'success');
+  const currentId = Number(state.conversation?.id);
+  await loadConversations();
+  const current = state.conversations.find(item => Number(item.id) === currentId);
+  if (current) await openConversation(current);
+}
+
+async function updateMemberRole(userId, role) {
+  if (!state.conversation) return;
+  try {
+    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/members/${encodeURIComponent(userId)}/role`, {
+      method: 'POST', body: JSON.stringify({ role }),
+    });
+    await refreshCurrentGroup(role === 'administrator' ? '已设置管理员' : '已取消管理员');
+  } catch (error) { toast(error.message, 'error'); }
+}
+
+async function updateMemberMute(userId, seconds) {
+  if (!state.conversation) return;
+  try {
+    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/members/${encodeURIComponent(userId)}/mute`, {
+      method: 'POST', body: JSON.stringify({ seconds }),
+    });
+    await refreshCurrentGroup(seconds ? '成员已禁言 10 分钟' : '成员禁言已解除');
+  } catch (error) { toast(error.message, 'error'); }
+}
+
+async function removeMember(member) {
+  if (!state.conversation || !confirm(`确定将“${member.displayName || member.username}”移出群聊吗？`)) return;
+  try {
+    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/members/${encodeURIComponent(member.userId)}/remove`, {
+      method: 'POST', body: '{}',
+    });
+    await refreshCurrentGroup('成员已移出群聊');
+  } catch (error) { toast(error.message, 'error'); }
 }
 
 function formatMessageTime(value) {
@@ -649,6 +767,30 @@ function onRealtimeMessage(message) {
     }
     return;
   }
+  if (message.type === 'conversation.updated') {
+    const currentId = Number(state.conversation?.id);
+    const affected = Number(message.conversationId) === currentId;
+    const removedSelf = Number(message.userId) === Number(state.me?.id)
+      && ['member-removed', 'member-left'].includes(message.action);
+    loadConversations().then(async () => {
+      const current = state.conversations.find(item => Number(item.id) === currentId);
+      if (affected && current && !removedSelf) await openConversation(current);
+      if (affected && (!current || removedSelf || message.action === 'dissolved')) {
+        clearConversationView();
+      }
+    }).catch(() => {});
+    const labels = {
+      updated: '群资料已更新',
+      'member-added': '群成员已更新',
+      'member-removed': '有成员被移出群聊',
+      'member-left': '有成员退出群聊',
+      'member-role-changed': '群成员角色已更新',
+      'member-muted': '群成员禁言状态已更新',
+      dissolved: '群聊已解散',
+    };
+    toast(labels[message.action] || '群聊信息已更新');
+    return;
+  }
   if (message.type === 'chat.accepted') {
     acceptPendingMessage(message);
     acknowledge(message);
@@ -726,6 +868,9 @@ function connectRealtime() {
       toast(`你已加入会话 #${notice.conversationId}`);
       await loadConversations();
     } catch { /* A later refresh can recover the conversation list. */ }
+  });
+  events.addEventListener('conversation.updated', event => {
+    try { onRealtimeMessage(JSON.parse(event.data)); } catch { /* 刷新会话列表可恢复状态。 */ }
   });
   events.addEventListener('friend.request', async () => {
     toast('收到新的好友申请');
@@ -1238,6 +1383,62 @@ $('#member-form').addEventListener('submit', async event => {
     setTimeout(() => elements.memberDialog.close(), 600);
   } catch (error) { setStatus($('#member-status'), error.message, 'error'); }
   finally { setButtonBusy(button, false); }
+});
+
+$('#edit-group-profile').addEventListener('click', () => {
+  if (!state.conversation) return;
+  const form = $('#group-profile-form');
+  form.elements.title.value = state.conversation.title || '';
+  form.elements.announcement.value = state.conversation.announcement || '';
+  setStatus($('#group-profile-status'));
+  elements.groupProfileDialog.showModal();
+});
+
+$('#group-profile-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!state.conversation) return;
+  const form = event.currentTarget;
+  const values = new FormData(form);
+  const button = form.querySelector('[type="submit"]');
+  setButtonBusy(button, true, '保存中…');
+  try {
+    const updated = await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: values.get('title').trim(),
+        announcement: values.get('announcement').trim(),
+      }),
+    });
+    state.conversation = { ...state.conversation, ...updated };
+    setStatus($('#group-profile-status'), '群资料已保存。', 'success');
+    await refreshCurrentGroup('群资料已更新');
+    setTimeout(() => elements.groupProfileDialog.close(), 500);
+  } catch (error) { setStatus($('#group-profile-status'), error.message, 'error'); }
+  finally { setButtonBusy(button, false); }
+});
+
+$('#leave-group').addEventListener('click', async () => {
+  if (!state.conversation || !confirm('确定退出当前群聊吗？退出后将不能继续查看或发送消息。')) return;
+  try {
+    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/leave`, {
+      method: 'POST', body: '{}',
+    });
+    clearConversationView();
+    await loadConversations();
+    toast('已退出群聊', 'success');
+  } catch (error) { toast(error.message, 'error'); }
+});
+
+$('#dissolve-group').addEventListener('click', async () => {
+  if (!state.conversation || !confirm('确定解散当前群聊吗？该操作会停止所有成员继续发送消息。')) return;
+  try {
+    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/dissolve`, {
+      method: 'POST', body: '{}',
+    });
+    clearConversationView();
+    await loadConversations();
+    toast('群聊已解散，历史记录仍保留在数据库中', 'success');
+  } catch (error) { toast(error.message, 'error'); }
 });
 
 $('#logout').addEventListener('click', async () => {
