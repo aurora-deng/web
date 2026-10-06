@@ -1,10 +1,11 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
-这份文档对应当前三份数据库迁移：建库基线
+这份文档对应当前四份数据库迁移：建库基线
 [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) 和消息生命周期增量
 [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)，以及群聊治理增量
-[003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql)。它解释当前真实代码中的
-16 张表（1 张迁移登记表和 15 张业务表），不把规划中的功能写成已经实现。
+[003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql)，以及联系人增量
+[004_contacts_presence.sql](../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql)。它解释当前真实代码中的
+19 张表（1 张迁移登记表和 18 张业务表），不把规划中的功能写成已经实现。
 
 当前虚拟机的实际行数、AI 绑定和本地测试账号统一记录在同目录的
 `phase11-app-data.local.md`。该文件包含测试密码并被 `.gitignore` 排除，只保留在本地与虚拟机，
@@ -27,6 +28,9 @@ erDiagram
     users ||--o{ friend_requests : receives
     users ||--o{ friendships : user_low
     users ||--o{ friendships : user_high
+    users ||--o{ contact_preferences : owns
+    users ||--o{ user_blocks : blocks
+    users ||--o| user_presence : has
     users ||--o{ conversations : creates
     users ||--o{ conversation_members : joins
     conversations ||--o{ conversation_members : contains
@@ -54,12 +58,12 @@ erDiagram
 
 | 字段 | 含义 |
 |---|---|
-| `version` | 迁移版本号，当前最新为 `2` |
+| `version` | 迁移版本号，当前最新为 `4` |
 | `description` | 该版本做了什么 |
 | `applied_at` | 迁移执行时间 |
 
 它像数据库的“装修记录”。迁移脚本会按编号依次检查和执行尚未登记的文件，因此已有版本 1 的数据库只应用
-版本 2，新建空库则依次应用版本 1、2。
+版本 2–4，新建空库则依次应用版本 1–4。
 
 ### `users`：用户花名册
 
@@ -109,6 +113,26 @@ user_low_id=3, user_high_id=8
 ```
 
 这种结构天然阻止 `(3,8)` 与 `(8,3)` 同时存在。
+
+### `contact_preferences`：每个人自己的联系人便签
+
+`owner_id` 是设置人，`contact_id` 是好友；`remark` 保存备注，`notifications_muted` 保存私聊免打扰。
+复合主键说明同一个人对同一好友只有一份设置。它有方向：A 对 B 的备注不会覆盖 B 对 A 的备注。
+
+删除好友或拉黑时，双方的联系人设置会在同一事务内清除。免打扰只跳过该收件人的 SSE 门铃通知，
+不会删除消息，也不会阻止已打开会话通过 WebSocket 收到消息。
+
+### `user_blocks`：单向黑名单
+
+`blocker_id` 是设置门禁的人，`blocked_id` 是被屏蔽的人，`created_at` 记录时间。一行只表达一个方向，
+但业务层用“双向任意命中”判断：任何一方拉黑后，都不能创建好友申请、私聊或继续向旧私聊发消息。
+解除黑名单不会自动恢复好友。
+
+### `user_presence`：最后活跃时间
+
+只保存每个用户最近一次 WebSocket 连接数变化的时间 `last_active_at`。当前在线与设备数来自进程内
+`WebSocketSessionManager`，不会把数据库中的旧状态误报为在线。连接变化通过数据库执行器异步写入，
+不会在 Reactor 网络线程里直接执行 SQL。
 
 ## 4. 会话与消息
 
@@ -308,6 +332,8 @@ WebSocket + SSE 通知所有会话成员
 6. 查看 `outbox_events.published_at`，理解落库和实时通知是两个阶段。
 7. 让接收者打开会话，观察 `conversation_members` 的两个游标只增不减。
 8. 两分钟内撤回一条消息，观察 `messages.state/recalled_by/recalled_at`，并确认前端不再显示正文。
+9. 修改好友备注和免打扰，观察 `contact_preferences`；拉黑后确认 friendship 和设置被事务清理。
+10. 用同一账号打开两个 WebSocket，关闭后观察 `user_presence.last_active_at` 更新。
 
 只读查询示例：
 
@@ -338,6 +364,7 @@ ORDER BY id DESC;
 | 基础表、约束和索引 | [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) |
 | 消息状态与撤回约束 | [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql) |
 | 群角色、公告、禁言与软解散约束 | [003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql) |
+| 联系人、黑名单与最后活跃 | [004_contacts_presence.sql](../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql) |
 | PostgreSQL Repository | [PostgresStore.cpp](../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 连接池 | [PostgresConnectionPool.cpp](../../server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
 | Repository 业务接口 | [Ports.h](../../server/phase11/ports/Ports/Ports.h) |

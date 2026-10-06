@@ -247,5 +247,5 @@ scripts/phase11/postgres-migrate.sh phase11_test
 - 成员操作日志存在 Outbox 事实，但尚未形成独立审计表与管理员审计页面。
 - 当前仍是单实例实时广播；多实例需要共享 Presence、事件总线和 Outbox 消费租约。
 
-下一阶段继续第一优先级的联系人能力：删除好友、黑名单、消息免打扰、好友备注以及多设备在线/最后活跃时间。它会沿用
-同一条纵向链路：领域对象 → 业务权限 → Repository → PostgreSQL → Outbox → 前端，而不会把规则塞进按钮事件中。
+上述联系人能力已在 [Phase 14](phase14.md) 完成。下一阶段转向真实业务性能基准，测量登录、持久消息、
+群广播、离线恢复、WebSocket/SSE 和 AI 混合负载，而不再用 `/fast` 代表全部业务性能。

@@ -104,6 +104,28 @@ std::pair<UserId, std::uint64_t> receiptPayload(std::string_view payload)
 
 } // namespace
 
+Phase11PresenceBridge::Phase11PresenceBridge(
+    ISocialBusiness &social, DatabaseExecutor &databaseExecutor,
+    WebSocketSessionManager &webSockets)
+    : webSockets_(webSockets)
+{
+    // 回调只把工作单放进有界数据库队列，不在 Reactor 线程里执行 SQL。
+    webSockets_.setPresenceObserver(
+        [&social, &databaseExecutor](UserId user, std::size_t connections)
+        {
+            (void)databaseExecutor.submit([&social, user, connections]
+            {
+                try { social.recordPresence(user, connections, now()); }
+                catch (...) { /* 下次连接变化会刷新 last-active。 */ }
+            });
+        });
+}
+
+Phase11PresenceBridge::~Phase11PresenceBridge()
+{
+    webSockets_.setPresenceObserver({});
+}
+
 void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
 {
     dispatcher.on("chat.send", [this](WsMessageContext &context)
@@ -272,8 +294,17 @@ bool Phase11RealtimeOutboxSink::publish(const OutboxEvent &event)
 
         const auto json = persistedMessageJson(*message);
         (void)webSockets_.broadcastText(users, json);
+        const auto conversation = conversations_.findConversation(
+            message->conversationId);
         for (const auto user : users)
         {
+            // 免打扰只压低“敲门铃”的 SSE 通知，不丢弃已持久消息，也不阻止
+            // 已打开聊天页通过 WebSocket 实时看到内容。
+            if (conversation && conversation->kind == ConversationKind::Direct &&
+                user != message->senderId &&
+                social_.contactSettings(user, message->senderId)
+                    .notificationsMuted)
+                continue;
             SseEvent notification;
             notification.id = std::to_string(event.id);
             notification.eventName = "message.notification";
@@ -422,6 +453,92 @@ bool Phase11RealtimeOutboxSink::publish(const OutboxEvent &event)
             notification.data = "{\"requestId\":" +
                                 std::to_string(event.aggregateId) + "}";
             (void)sse_.publish(receiver, notification);
+            return true;
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    if (event.type == "friend.decided")
+    {
+        const auto request = social_.findFriendRequest(event.aggregateId);
+        if (!request)
+            return false;
+        const auto action = request->state == FriendRequestState::Accepted
+                                ? "accepted" : "rejected";
+        const auto json = "{\"type\":\"friend.updated\",\"action\":" +
+                          quoteJson(action) + ",\"userId\":" +
+                          std::to_string(request->senderId) + "}";
+        const std::vector<UserId> users{request->senderId, request->receiverId};
+        (void)webSockets_.broadcastText(users, json);
+        for (const auto user : users)
+        {
+            SseEvent notification;
+            notification.id = std::to_string(event.id);
+            notification.eventName = "friend.updated";
+            notification.data = json;
+            (void)sse_.publish(user, notification);
+        }
+        return true;
+    }
+
+    if (event.type == "friend.removed" || event.type == "friend.updated" ||
+        event.type == "friend.blocked" || event.type == "friend.unblocked")
+    {
+        try
+        {
+            const auto target = static_cast<UserId>(std::stoull(event.payload));
+            const auto action = event.type.substr(std::string("friend.").size());
+            std::vector<UserId> recipients{event.aggregateId};
+            if (event.type == "friend.removed")
+                recipients.push_back(target);
+            const auto json = "{\"type\":\"friend.updated\",\"action\":" +
+                              quoteJson(action) + ",\"userId\":" +
+                              std::to_string(target) + "}";
+            (void)webSockets_.broadcastText(recipients, json);
+            for (const auto user : recipients)
+            {
+                SseEvent notification;
+                notification.id = std::to_string(event.id);
+                notification.eventName = "friend.updated";
+                notification.data = json;
+                (void)sse_.publish(user, notification);
+            }
+            return true;
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    if (event.type == "presence.updated")
+    {
+        try
+        {
+            const auto connections = std::stoull(event.payload);
+            const auto friends = social_.listFriendIds(event.aggregateId);
+            const auto lastActive = std::chrono::duration_cast<
+                std::chrono::milliseconds>(event.createdAt.time_since_epoch()).count();
+            const auto json = "{\"type\":\"presence.update\",\"userId\":" +
+                              std::to_string(event.aggregateId) +
+                              ",\"online\":" +
+                              (connections ? "true" : "false") +
+                              ",\"connections\":" +
+                              std::to_string(connections) +
+                              ",\"lastActiveAt\":" +
+                              std::to_string(lastActive) + "}";
+            (void)webSockets_.broadcastText(friends, json);
+            for (const auto user : friends)
+            {
+                SseEvent notification;
+                notification.id = std::to_string(event.id);
+                notification.eventName = "presence.update";
+                notification.data = json;
+                (void)sse_.publish(user, notification);
+            }
             return true;
         }
         catch (...)

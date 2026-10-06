@@ -34,6 +34,8 @@
 #include "server/Reactor/ReactorGroup.h"
 #include "server/websocket/WebSocketCodec/WebSocketCodec.h"
 
+#include <algorithm>
+#include <unordered_set>
 #include <utility>
 
 // ---- 会话注册：把(uid, session, 位置)三元组写入登记簿 ----
@@ -45,30 +47,65 @@ bool WebSocketSessionManager::registerSession(UserId uid,
     // 匿名用户无房号；空 session 或无效连接身份也不允许登记。
     if (uid == 0 || !session || !key)
         return false;
-    // 加锁串行化：多 Reactor 线程会并发调 registerSession
-    std::lock_guard<std::mutex> lock(mtx_);
-    // 用赋值覆盖可能的旧记录（同一 uid 重新登录的情况）
-    sessions_[uid] = Locator{session, reactorIndex, key};
+    PresenceObserver observer;
+    std::size_t connections = 0;
+    {
+        // 同一个 uid 保留多个 Locator：手机和电脑都能同时收到持久消息广播。
+        std::lock_guard<std::mutex> lock(mtx_);
+        auto &bucket = sessions_[uid];
+        std::erase_if(bucket, [](const Locator &item)
+                      { return item.session.expired(); });
+        if (std::any_of(bucket.begin(), bucket.end(), [&](const Locator &item)
+                        { return item.key == key; }) ||
+            bucket.size() >= maxConnectionsPerUser_)
+        {
+            if (bucket.empty())
+                sessions_.erase(uid);
+            return false;
+        }
+        bucket.push_back(Locator{session, reactorIndex, key});
+        connections = bucket.size();
+        observer = presenceObserver_;
+    }
+    // 观察者在锁外执行，避免数据库/业务回调反过来堵住所有会话登记。
+    if (observer)
+        observer(uid, connections);
     return true;
 }
 
-// ---- 会话注销：从登记簿擦除该 uid ----
+// ---- 会话注销：只从该 uid 的设备列表中擦除指定连接 ----
 bool WebSocketSessionManager::unregister(UserId uid, ConnectionKey key)
 {
     // 匿名用户从未登记过，无需注销
     if (uid == 0 || !key)
         return false;
+    PresenceObserver observer;
+    std::size_t connections = 0;
+    bool removed = false;
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        auto it = sessions_.find(uid);
+        if (it == sessions_.end())
+            return false;
+        auto &bucket = it->second;
+        removed = std::any_of(bucket.begin(), bucket.end(), [&](const Locator &item)
+                              { return item.key == key; });
+        std::erase_if(bucket, [&](const Locator &item)
+                      { return item.session.expired() || item.key == key; });
+        connections = bucket.size();
+        if (bucket.empty())
+            sessions_.erase(it);
+        observer = presenceObserver_;
+    }
+    if (removed && observer)
+        observer(uid, connections);
+    return removed;
+}
+
+void WebSocketSessionManager::setPresenceObserver(PresenceObserver observer)
+{
     std::lock_guard<std::mutex> lock(mtx_);
-    auto it = sessions_.find(uid);
-    if (it == sessions_.end())
-        return false;
-
-    // 同 uid 可能已经由新连接覆盖。旧连接退场时只能删除仍属于自己的定位记录。
-    if (it->second.key != key)
-        return false;
-
-    sessions_.erase(it);
-    return true;
+    presenceObserver_ = std::move(observer);
 }
 
 // ---- 跨 Reactor 投递：核心方法，链路见文件头注释 ----
@@ -89,13 +126,16 @@ EnqueueResult WebSocketSessionManager::sendEncodedImpl(
         auto it = sessions_.find(uid);
         if (it == sessions_.end())
             return EnqueueResult::Closed;  // 用户不在线
-        loc = it->second;
-        // weak_ptr 已过期：Session 已销毁，惰性清理这条死记录
-        if (loc.session.expired())
+        auto &bucket = it->second;
+        std::erase_if(bucket, [](const Locator &item)
+                      { return item.session.expired(); });
+        if (bucket.empty())
         {
             sessions_.erase(it);
             return EnqueueResult::Closed;
         }
+        // 可靠投递旧接口保留单一回执语义，选择最近登记的连接；业务广播会发给全部设备。
+        loc = bucket.back();
     }  // 锁在此处释放——postOutbound 在锁外执行，避免持锁期间被 IO 阻塞
 
     // 把字节投递到目标 Reactor 的发送队列（由目标线程自行 flush）
@@ -160,20 +200,25 @@ size_t WebSocketSessionManager::broadcastText(
         return 0;
 
     std::vector<Locator> targets;
-    targets.reserve(users.size());
+    std::unordered_set<UserId> visited;
     {
         std::lock_guard<std::mutex> lock(mtx_);
         for (const UserId uid : users)
         {
+            if (!visited.insert(uid).second)
+                continue;
             auto it = sessions_.find(uid);
             if (it == sessions_.end())
                 continue;
-            if (it->second.session.expired())
+            auto &bucket = it->second;
+            std::erase_if(bucket, [](const Locator &item)
+                          { return item.session.expired(); });
+            if (bucket.empty())
             {
                 sessions_.erase(it);
                 continue;
             }
-            targets.push_back(it->second);
+            targets.insert(targets.end(), bucket.begin(), bucket.end());
         }
     }
 
@@ -193,10 +238,25 @@ size_t WebSocketSessionManager::broadcastText(
     return accepted;
 }
 
-// ---- 在线计数：粗略统计，含可能未清理的过期条目 ----
+// ---- 在线计数：统计各账号仍存活的设备连接 ----
 size_t WebSocketSessionManager::onlineCount() const
 {
-    // mutable 锁：onlineCount 是 const 方法，但要在内部修改 mutex
     std::lock_guard<std::mutex> lock(mtx_);
-    return sessions_.size();
+    std::size_t count = 0;
+    for (const auto &[_, bucket] : sessions_)
+        count += static_cast<std::size_t>(std::count_if(
+            bucket.begin(), bucket.end(), [](const Locator &item)
+            { return !item.session.expired(); }));
+    return count;
+}
+
+size_t WebSocketSessionManager::connectionCount(UserId uid) const
+{
+    std::lock_guard<std::mutex> lock(mtx_);
+    const auto found = sessions_.find(uid);
+    if (found == sessions_.end())
+        return 0;
+    return static_cast<std::size_t>(std::count_if(
+        found->second.begin(), found->second.end(), [](const Locator &item)
+        { return !item.session.expired(); }));
 }

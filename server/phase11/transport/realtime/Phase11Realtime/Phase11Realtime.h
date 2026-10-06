@@ -83,15 +83,35 @@ private:
     SseSessionManager &sse_;
 };
 
+/**
+ * 把 WebSocket 多设备连接数变化投递到数据库执行器。Reactor 只做一次无阻塞 submit，
+ * last-active 与 Outbox 写入由数据库 Worker 完成。
+ */
+class Phase11PresenceBridge final
+{
+public:
+    Phase11PresenceBridge(ISocialBusiness &social,
+                          DatabaseExecutor &databaseExecutor,
+                          WebSocketSessionManager &webSockets);
+    ~Phase11PresenceBridge();
+
+    Phase11PresenceBridge(const Phase11PresenceBridge &) = delete;
+    Phase11PresenceBridge &operator=(const Phase11PresenceBridge &) = delete;
+
+private:
+    WebSocketSessionManager &webSockets_;
+};
+
 /** 把已提交的 Outbox 事件翻译成 WebSocket 消息和 SSE 通知。 */
 class Phase11RealtimeOutboxSink final : public IOutboxEventSink
 {
 public:
     Phase11RealtimeOutboxSink(IMessageRepository &messages,
                               IConversationRepository &conversations,
+                              ISocialRepository &social,
                               WebSocketSessionManager &webSockets,
                               SseSessionManager &sse)
-        : messages_(messages), conversations_(conversations),
+        : messages_(messages), conversations_(conversations), social_(social),
           webSockets_(webSockets), sse_(sse)
     {
     }
@@ -101,6 +121,7 @@ public:
 private:
     IMessageRepository &messages_;
     IConversationRepository &conversations_;
+    ISocialRepository &social_;
     WebSocketSessionManager &webSockets_;
     SseSessionManager &sse_;
 };

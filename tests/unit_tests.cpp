@@ -1897,13 +1897,13 @@ TEST(RequestContextTest, AcceptWebSocketFlag)
 }
 
 /**
- * @test WebSocketSessionManagerTest.OldConnectionCannotUnregisterReplacement
- * @brief 验证同 uid 重连时，旧连接不能误删新连接的目录项。
+ * @test WebSocketSessionManagerTest.MultiDeviceUnregisterKeepsOtherConnection
+ * @brief 验证同 uid 多设备在线时，一台设备退出不会误删另一台设备。
  *
  * 房号 fd 可能被复用，uid 也会被新登录覆盖；Manager 必须比较完整的
  * ConnectionKey。只有当前目录项仍属于发起注销的连接时，erase 才能发生。
  */
-TEST(WebSocketSessionManagerTest, OldConnectionCannotUnregisterReplacement)
+TEST(WebSocketSessionManagerTest, MultiDeviceUnregisterKeepsOtherConnection)
 {
     WebSocketDispatcher dispatcher;
     WebSocketSessionManager manager;
@@ -1923,8 +1923,11 @@ TEST(WebSocketSessionManagerTest, OldConnectionCannotUnregisterReplacement)
     ASSERT_TRUE(manager.registerSession(
         uid, newSession, 0, newKey));
 
-    EXPECT_FALSE(manager.unregister(uid, oldKey));
+    EXPECT_EQ(manager.onlineCount(), 2U);
+    EXPECT_EQ(manager.connectionCount(uid), 2U);
+    EXPECT_TRUE(manager.unregister(uid, oldKey));
     EXPECT_EQ(manager.onlineCount(), 1U);
+    EXPECT_EQ(manager.connectionCount(uid), 1U);
     EXPECT_TRUE(manager.unregister(uid, newKey));
     EXPECT_EQ(manager.onlineCount(), 0U);
 }

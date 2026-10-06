@@ -66,6 +66,17 @@ inline void runRepositoryContract(RepositoryBundle repositories,
     const auto aliceFriends = repositories.social.listFriendIds(alice.id);
     contractRequire(aliceFriends.size() == 1 && aliceFriends.front() == bob.id,
                     "friend listing did not return the accepted peer");
+    contractRequire(repositories.social.updateContactSettings(
+                        alice.id, bob.id, "contract friend", true),
+                    "contact settings update failed");
+    const auto contact = repositories.social.contactSettings(alice.id, bob.id);
+    contractRequire(contact.remark == "contract friend" &&
+                        contact.notificationsMuted,
+                    "contact settings were not persisted");
+    contractRequire(repositories.social.updateLastActive(bob.id, now),
+                    "last-active update failed");
+    contractRequire(repositories.social.lastActive(bob.id).has_value(),
+                    "last-active lookup failed");
 
     auto transaction = repositories.database.beginTransaction();
     const auto conversation = repositories.conversations.createConversation(
@@ -154,6 +165,21 @@ inline void runRepositoryContract(RepositoryBundle repositories,
                     "dissolved group audit fields were not persisted");
     contractRequire(repositories.conversations.listConversations(alice.id).size() == 1,
                     "dissolved group remained in the active conversation list");
+    contractRequire(repositories.social.blockUser(alice.id, moderator.id, now),
+                    "block relationship was not persisted");
+    contractRequire(repositories.social.isBlocked(alice.id, moderator.id) &&
+                        repositories.social.blockedEitherDirection(
+                            moderator.id, alice.id),
+                    "block lookup failed");
+    const auto blocked = repositories.social.listBlockedIds(alice.id);
+    contractRequire(blocked.size() == 1 && blocked.front() == moderator.id,
+                    "blocked-user listing failed");
+    contractRequire(repositories.social.unblockUser(alice.id, moderator.id),
+                    "unblock failed");
+    contractRequire(repositories.social.removeFriendship(alice.id, bob.id),
+                    "friend removal failed");
+    contractRequire(!repositories.social.areFriends(alice.id, bob.id),
+                    "removed friendship remained in the repository");
 }
 
 } // namespace webserver::phase11::test

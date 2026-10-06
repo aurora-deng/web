@@ -53,6 +53,9 @@ Conversation ChatService::createDirectConversation(UserId requester,
         !social_.areFriends(requester, peer))
         throw ApplicationError(ErrorCode::Forbidden,
                                "direct messages require friendship");
+    if (social_.blockedEitherDirection(requester, peer))
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "direct messages are blocked by a privacy rule");
     if (const auto existing =
             conversations_.findDirectConversation(requester, peer))
         return *existing;
@@ -308,6 +311,25 @@ AppendMessageResult ChatService::sendText(
     if (membership.mutedUntil && *membership.mutedUntil > now)
         throw ApplicationError(ErrorCode::Forbidden,
                                "group member is currently muted");
+    if (current.kind == ConversationKind::Direct)
+    {
+        const auto members = conversations_.listMembers(conversation);
+        const auto peer = std::find_if(
+            members.begin(), members.end(), [sender](const auto &member)
+            { return member.userId != sender; });
+        if (peer == members.end() ||
+            social_.blockedEitherDirection(sender, peer->userId))
+            throw ApplicationError(ErrorCode::Forbidden,
+                                   "direct messages are blocked by a privacy rule");
+        const auto senderUser = users_.findUser(sender);
+        const auto peerUser = users_.findUser(peer->userId);
+        if (!senderUser || !peerUser)
+            throw ApplicationError(ErrorCode::NotFound, "direct user not found");
+        if (!senderUser->aiAccount && !peerUser->aiAccount &&
+            !social_.areFriends(sender, peer->userId))
+            throw ApplicationError(ErrorCode::Forbidden,
+                                   "direct messages require friendship");
+    }
     const auto originalBody = body;
     auto appended = messages_.appendMessage(
         {0, conversation, 0, sender, std::move(clientMessageId),

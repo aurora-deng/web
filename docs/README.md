@@ -19,6 +19,7 @@
 | 账号、社交聊天、AI Provider 与模型治理地基（Phase 11，Function1.0） | [architecture/phase11.md](architecture/phase11.md) |
 | 持久未读、送达/已读回执与消息撤回（Phase 12，本地分支） | [architecture/phase12.md](architecture/phase12.md) |
 | 群主、管理员、禁言、退出与软解散（Phase 13，本地分支） | [architecture/phase13.md](architecture/phase13.md) |
+| 好友备注、免打扰、黑名单与多设备 Presence（Phase 14，本地分支） | [architecture/phase14.md](architecture/phase14.md) |
 | Phase 11 外部依赖审批、位置和卸载说明 | [architecture/phase11-dependency-gates.md](architecture/phase11-dependency-gates.md) |
 | Phase 11 PostgreSQL 表结构、关系和业务写入流程 | [database/README.md](database/README.md) |
 | WebSocket 课程演进 | [architecture/websocket-lessons/README.md](architecture/websocket-lessons/README.md) |

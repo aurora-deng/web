@@ -113,6 +113,25 @@ void Router::PATCH(const std::string &path, Handler handler, RouteOptions option
         staticRoutes[entry.method][path] = std::move(entry);
 }
 
+void Router::DEL(const std::string &path, Handler handler,
+                 RouteOptions options)
+{
+    if (frozen())
+        throw std::logic_error("cannot register DELETE route after Router::freeze()");
+
+    RouteEntry entry;
+    entry.method = "DELETE";
+    entry.path = path;
+    entry.parts = splitPath(path);
+    entry.handler = std::move(handler);
+    entry.execution = options.execution;
+
+    if (isDynamic(entry))
+        dynamicRoutes[entry.method].push_back(std::move(entry));
+    else
+        staticRoutes[entry.method][path] = std::move(entry);
+}
+
 void Router::use(Middleware middleware)
 {
     if (frozen())

@@ -644,6 +644,144 @@ std::vector<FriendRequest> PostgresStore::pendingRequests(UserId receiver) const
     return requests;
 }
 
+bool PostgresStore::removeFriendship(UserId first, UserId second)
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "WITH removed AS ("
+        " DELETE FROM friendships WHERE user_low_id=LEAST($1::bigint,$2::bigint)"
+        " AND user_high_id=GREATEST($1::bigint,$2::bigint) RETURNING 1"
+        "), cleared AS ("
+        " DELETE FROM contact_preferences WHERE ("
+        " (owner_id=$1::bigint AND contact_id=$2::bigint) OR"
+        " (owner_id=$2::bigint AND contact_id=$1::bigint))"
+        " AND EXISTS (SELECT 1 FROM removed) RETURNING 1"
+        ") SELECT count(*) FROM removed",
+        {number(first), number(second)});
+    return result.value(0, 0) == "1";
+}
+
+ContactSettings PostgresStore::contactSettings(UserId owner,
+                                                UserId contact) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT remark,notifications_muted FROM contact_preferences "
+        "WHERE owner_id=$1::bigint AND contact_id=$2::bigint",
+        {number(owner), number(contact)});
+    if (!result.rows())
+        return {owner, contact, {}, false};
+    return {owner, contact, result.value(0, 0), decodeBool(result, 0, 1)};
+}
+
+bool PostgresStore::updateContactSettings(UserId owner, UserId contact,
+                                          std::string remark,
+                                          bool notificationsMuted)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "INSERT INTO contact_preferences(owner_id,contact_id,remark,notifications_muted) "
+        "SELECT $1::bigint,$2::bigint,$3,$4::boolean WHERE EXISTS ("
+        " SELECT 1 FROM friendships WHERE user_low_id=LEAST($1::bigint,$2::bigint)"
+        " AND user_high_id=GREATEST($1::bigint,$2::bigint)) "
+        "ON CONFLICT(owner_id,contact_id) DO UPDATE SET "
+        "remark=EXCLUDED.remark,notifications_muted=EXCLUDED.notifications_muted "
+        "RETURNING 1",
+        {number(owner), number(contact), std::move(remark),
+         notificationsMuted ? "true" : "false"}).rows() == 1;
+}
+
+bool PostgresStore::blockUser(UserId blocker, UserId blocked, TimePoint now)
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "WITH inserted AS ("
+        " INSERT INTO user_blocks(blocker_id,blocked_id,created_at)"
+        " VALUES($1::bigint,$2::bigint,to_timestamp($3::double precision/1000000.0))"
+        " ON CONFLICT DO NOTHING RETURNING 1"
+        "), removed AS ("
+        " DELETE FROM friendships WHERE user_low_id=LEAST($1::bigint,$2::bigint)"
+        " AND user_high_id=GREATEST($1::bigint,$2::bigint)"
+        " AND EXISTS (SELECT 1 FROM inserted) RETURNING 1"
+        "), cleared AS ("
+        " DELETE FROM contact_preferences WHERE"
+        " ((owner_id=$1::bigint AND contact_id=$2::bigint) OR"
+        "  (owner_id=$2::bigint AND contact_id=$1::bigint))"
+        " AND EXISTS (SELECT 1 FROM inserted) RETURNING 1"
+        "), rejected AS ("
+        " UPDATE friend_requests SET state='rejected',"
+        " decided_at=to_timestamp($3::double precision/1000000.0)"
+        " WHERE state='pending' AND"
+        " ((sender_id=$1::bigint AND receiver_id=$2::bigint) OR"
+        "  (sender_id=$2::bigint AND receiver_id=$1::bigint))"
+        " AND EXISTS (SELECT 1 FROM inserted) RETURNING 1"
+        ") SELECT count(*) FROM inserted",
+        {number(blocker), number(blocked), encodeTime(now)});
+    return result.value(0, 0) == "1";
+}
+
+bool PostgresStore::unblockUser(UserId blocker, UserId blocked)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "DELETE FROM user_blocks WHERE blocker_id=$1::bigint "
+        "AND blocked_id=$2::bigint RETURNING 1",
+        {number(blocker), number(blocked)}).rows() == 1;
+}
+
+bool PostgresStore::isBlocked(UserId blocker, UserId blocked) const
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "SELECT 1 FROM user_blocks WHERE blocker_id=$1::bigint "
+        "AND blocked_id=$2::bigint",
+        {number(blocker), number(blocked)}).rows() == 1;
+}
+
+bool PostgresStore::blockedEitherDirection(UserId first, UserId second) const
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "SELECT 1 FROM user_blocks WHERE "
+        "(blocker_id=$1::bigint AND blocked_id=$2::bigint) OR "
+        "(blocker_id=$2::bigint AND blocked_id=$1::bigint) LIMIT 1",
+        {number(first), number(second)}).rows() == 1;
+}
+
+std::vector<UserId> PostgresStore::listBlockedIds(UserId blocker) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT blocked_id FROM user_blocks WHERE blocker_id=$1::bigint "
+        "ORDER BY blocked_id", {number(blocker)});
+    std::vector<UserId> blocked;
+    blocked.reserve(result.rows());
+    for (int row = 0; row < result.rows(); ++row)
+        blocked.push_back(std::stoull(result.value(row, 0)));
+    return blocked;
+}
+
+bool PostgresStore::updateLastActive(UserId user, TimePoint now)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "INSERT INTO user_presence(user_id,last_active_at) "
+        "SELECT $1::bigint,to_timestamp($2::double precision/1000000.0) "
+        "WHERE EXISTS (SELECT 1 FROM users WHERE id=$1::bigint) "
+        "ON CONFLICT(user_id) DO UPDATE SET last_active_at=EXCLUDED.last_active_at "
+        "RETURNING 1", {number(user), encodeTime(now)}).rows() == 1;
+}
+
+std::optional<TimePoint> PostgresStore::lastActive(UserId user) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT (extract(epoch FROM last_active_at)*1000000)::bigint "
+        "FROM user_presence WHERE user_id=$1::bigint", {number(user)});
+    return result.rows() ? std::optional<TimePoint>{decodeTime(result, 0, 0)}
+                         : std::nullopt;
+}
+
 Conversation PostgresStore::createConversation(
     Conversation conversation, std::vector<ConversationMember> members)
 {

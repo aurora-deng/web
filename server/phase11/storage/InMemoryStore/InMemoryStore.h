@@ -59,6 +59,19 @@ public:
     bool areFriends(UserId first, UserId second) const override;
     std::vector<UserId> listFriendIds(UserId user) const override;
     std::vector<FriendRequest> pendingRequests(UserId receiver) const override;
+    bool removeFriendship(UserId first, UserId second) override;
+    ContactSettings contactSettings(UserId owner,
+                                    UserId contact) const override;
+    bool updateContactSettings(UserId owner, UserId contact,
+                               std::string remark,
+                               bool notificationsMuted) override;
+    bool blockUser(UserId blocker, UserId blocked, TimePoint now) override;
+    bool unblockUser(UserId blocker, UserId blocked) override;
+    bool isBlocked(UserId blocker, UserId blocked) const override;
+    bool blockedEitherDirection(UserId first, UserId second) const override;
+    std::vector<UserId> listBlockedIds(UserId blocker) const override;
+    bool updateLastActive(UserId user, TimePoint now) override;
+    std::optional<TimePoint> lastActive(UserId user) const override;
 
     Conversation createConversation(
         Conversation conversation,
@@ -144,6 +157,9 @@ private:
         std::unordered_map<std::string, std::string> sessionIdByTokenHash;
         std::unordered_map<FriendRequestId, FriendRequest> friendRequests;
         std::set<UserPair> friendships;
+        std::map<UserPair, ContactSettings> contactSettings;
+        std::set<UserPair> blocks;
+        std::unordered_map<UserId, TimePoint> lastActive;
         std::unordered_map<ConversationId, Conversation> conversations;
         std::map<MemberKey, ConversationMember> members;
         std::unordered_map<MessageId, Message> messages;

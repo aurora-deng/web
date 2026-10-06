@@ -66,6 +66,26 @@ struct FriendRequest
     std::optional<TimePoint> decidedAt;
 };
 
+/**
+ * 联系人设置是单向事实：Alice 给 Bob 写的备注、是否免打扰，只影响 Alice 自己。
+ * 好友关系仍由 friendships 维护为双向关系，避免把两个概念混在一张表里。
+ */
+struct ContactSettings
+{
+    UserId ownerId = 0;
+    UserId contactId = 0;
+    std::string remark;
+    bool notificationsMuted = false;
+};
+
+/** HTTP 联系人列表需要的持久视图；online/连接数由实时适配层现场补充。 */
+struct FriendContact
+{
+    User user;
+    ContactSettings settings;
+    std::optional<TimePoint> lastActiveAt;
+};
+
 enum class ConversationKind
 {
     Direct,

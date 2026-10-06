@@ -3,6 +3,7 @@
 #include "server/Route/Router.h"
 #include "server/http/RequestContext/RequestContext.h"
 #include "server/phase11/transport/FlatJson/FlatJson.h"
+#include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
 
 #include <charconv>
 #include <chrono>
@@ -195,6 +196,27 @@ std::string friendRequestJson(const FriendRequest &request)
            ",\"state\":" + quoteJson(state) + "}";
 }
 
+std::int64_t epochMilliseconds(TimePoint value);
+
+std::string contactJson(const FriendContact &contact,
+                        std::size_t connections)
+{
+    const auto lastActive = contact.lastActiveAt
+        ? std::to_string(epochMilliseconds(*contact.lastActiveAt)) : "null";
+    return "{\"id\":" + std::to_string(contact.user.id) +
+           ",\"username\":" + quoteJson(contact.user.username) +
+           ",\"displayName\":" + quoteJson(contact.user.displayName) +
+           ",\"biography\":" + quoteJson(contact.user.biography) +
+           ",\"aiAccount\":" +
+           (contact.user.aiAccount ? "true" : "false") +
+           ",\"remark\":" + quoteJson(contact.settings.remark) +
+           ",\"notificationsMuted\":" +
+           (contact.settings.notificationsMuted ? "true" : "false") +
+           ",\"online\":" + (connections ? "true" : "false") +
+           ",\"connections\":" + std::to_string(connections) +
+           ",\"lastActiveAt\":" + lastActive + "}";
+}
+
 std::string conversationJson(const Conversation &conversation)
 {
     const auto state = conversation.state == ConversationState::Active
@@ -312,7 +334,82 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             const auto identity = authentication_.authorizeRequest(context);
             const auto friends = runDatabase(
                 [this, user = identity.user.id] { return social_.friends(user); });
-            reply(context, 200, arrayJson(friends, userJson));
+            reply(context, 200, arrayJson(friends, [this](const auto &contact)
+            {
+                return contactJson(
+                    contact, webSockets_.connectionCount(contact.user.id));
+            }));
+        });
+    });
+
+    router.PATCH("/api/friends/:id", [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto contact = unsignedValue(context.param("id"), "contactId");
+            const auto fields = bodyObject(context);
+            auto remark = required(fields, "remark");
+            const auto mutedValue = required(fields, "notificationsMuted");
+            if (mutedValue != "true" && mutedValue != "false")
+                throw ApplicationError(ErrorCode::InvalidArgument,
+                                       "notificationsMuted must be true or false");
+            const auto updated = runDatabase(
+                [this, owner = identity.user.id, contact,
+                 remark = std::move(remark), muted = mutedValue == "true"]() mutable
+                {
+                    return social_.updateContact(owner, contact, std::move(remark),
+                                                 muted, currentTime());
+                });
+            reply(context, 200, contactJson(
+                updated, webSockets_.connectionCount(updated.user.id)));
+        });
+    });
+
+    router.DEL("/api/friends/:id", [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto contact = unsignedValue(context.param("id"), "contactId");
+            runDatabase([this, user = identity.user.id, contact]
+            { social_.removeFriend(user, contact, currentTime()); });
+            reply(context, 200, "{\"ok\":true}");
+        });
+    });
+
+    router.GET("/api/blocks", [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context);
+            const auto blocked = runDatabase(
+                [this, user = identity.user.id] { return social_.blocked(user); });
+            reply(context, 200, arrayJson(blocked, userJson));
+        });
+    });
+
+    router.POST("/api/blocks/:id", [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto target = unsignedValue(context.param("id"), "targetId");
+            runDatabase([this, user = identity.user.id, target]
+            { social_.block(user, target, currentTime()); });
+            reply(context, 200, "{\"ok\":true}");
+        });
+    });
+
+    router.DEL("/api/blocks/:id", [this](RequestContext &context)
+    {
+        return guarded(context, [&]
+        {
+            const auto identity = authentication_.authorizeRequest(context, true);
+            const auto target = unsignedValue(context.param("id"), "targetId");
+            runDatabase([this, user = identity.user.id, target]
+            { social_.unblock(user, target, currentTime()); });
+            reply(context, 200, "{\"ok\":true}");
         });
     });
 

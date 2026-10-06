@@ -29,6 +29,7 @@ const state = {
   conversation: null,
   conversations: [],
   friends: [],
+  blocked: [],
   socket: null,
   events: null,
   reconnectTimer: null,
@@ -232,6 +233,8 @@ function showLoggedOut() {
   state.csrf = '';
   state.conversation = null;
   state.conversations = [];
+  state.friends = [];
+  state.blocked = [];
   state.members = [];
   state.unread.clear();
   state.seenMessageIds.clear();
@@ -791,6 +794,31 @@ function onRealtimeMessage(message) {
     toast(labels[message.action] || '群聊信息已更新');
     return;
   }
+  if (message.type === 'presence.update') {
+    const contact = state.friends.find(
+      item => Number(item.id) === Number(message.userId),
+    );
+    if (contact) {
+      contact.online = Boolean(message.online);
+      contact.connections = Number(message.connections) || 0;
+      contact.lastActiveAt = Number(message.lastActiveAt) || contact.lastActiveAt;
+      renderFriendPreview();
+      if (elements.friendDialog.open) renderContactLists();
+    }
+    return;
+  }
+  if (message.type === 'friend.updated') {
+    loadFriendsPreview().catch(() => {});
+    refreshPendingBadge().catch(() => {});
+    if (elements.friendDialog.open) loadContacts().catch(() => {});
+    const labels = {
+      accepted: '好友申请已通过', rejected: '好友申请已处理',
+      removed: '好友关系已解除', updated: '联系人设置已更新',
+      blocked: '用户已加入黑名单', unblocked: '用户已移出黑名单',
+    };
+    toast(labels[message.action] || '联系人信息已更新');
+    return;
+  }
   if (message.type === 'chat.accepted') {
     acceptPendingMessage(message);
     acknowledge(message);
@@ -877,6 +905,12 @@ function connectRealtime() {
     await refreshPendingBadge();
     if (elements.friendDialog.open) await loadContacts();
   });
+  events.addEventListener('friend.updated', event => {
+    try { onRealtimeMessage(JSON.parse(event.data)); } catch { /* HTTP 刷新可恢复。 */ }
+  });
+  events.addEventListener('presence.update', event => {
+    try { onRealtimeMessage(JSON.parse(event.data)); } catch { /* 下次联系人刷新可恢复。 */ }
+  });
   events.addEventListener('ai.token', event => {
     const token = JSON.parse(event.data);
     if (Number(token.conversationId) !== Number(state.conversation?.id)) return;
@@ -928,7 +962,133 @@ function actionListEmpty(text) {
   return item;
 }
 
+function contactName(user) {
+  return user.remark || user.displayName || user.username;
+}
+
+function contactPresence(user) {
+  if (user.online) {
+    const devices = Math.max(1, Number(user.connections) || 1);
+    return `在线 · ${devices} 个连接`;
+  }
+  if (user.lastActiveAt) {
+    return `最后活跃 ${new Date(Number(user.lastActiveAt)).toLocaleString()}`;
+  }
+  return '离线 · 暂无活跃记录';
+}
+
+async function saveContact(user, changes) {
+  await api(`/api/friends/${encodeURIComponent(user.id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      remark: changes.remark ?? user.remark ?? '',
+      notificationsMuted: String(
+        changes.notificationsMuted ?? Boolean(user.notificationsMuted),
+      ),
+    }),
+  });
+  await loadContacts();
+}
+
 function contactRow(user) {
+  const item = document.createElement('li');
+  const avatar = document.createElement('span');
+  avatar.className = 'avatar';
+  avatar.textContent = initials(user.displayName || user.username);
+  const copy = document.createElement('span');
+  copy.className = 'item-copy';
+  const name = document.createElement('strong');
+  name.textContent = contactName(user);
+  const detail = document.createElement('small');
+  detail.className = `contact-presence ${user.online ? 'online' : ''}`;
+  detail.textContent = contactPresence(user);
+  const biography = document.createElement('small');
+  biography.className = 'contact-biography';
+  biography.textContent = `@${user.username} · ID ${user.id}${user.notificationsMuted ? ' · 已免打扰' : ''}`;
+  copy.append(name, detail, biography);
+  const actions = document.createElement('span');
+  actions.className = 'mini-actions contact-actions';
+  const chat = document.createElement('button');
+  chat.type = 'button';
+  chat.className = 'mini-button';
+  chat.textContent = '私聊';
+  chat.addEventListener('click', () => openFriendConversation(user, chat));
+  const remark = document.createElement('button');
+  remark.type = 'button';
+  remark.className = 'mini-button';
+  remark.textContent = '备注';
+  remark.addEventListener('click', async () => {
+    const value = window.prompt('设置仅自己可见的好友备注（留空可清除）', user.remark || '');
+    if (value === null) return;
+    try { await saveContact(user, { remark: value.trim() }); }
+    catch (error) { setStatus($('#friend-status'), error.message, 'error'); }
+  });
+  const mute = document.createElement('button');
+  mute.type = 'button';
+  mute.className = 'mini-button';
+  mute.textContent = user.notificationsMuted ? '取消免打扰' : '免打扰';
+  mute.addEventListener('click', async () => {
+    try { await saveContact(user, { notificationsMuted: !user.notificationsMuted }); }
+    catch (error) { setStatus($('#friend-status'), error.message, 'error'); }
+  });
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'mini-button danger';
+  remove.textContent = '删除';
+  remove.addEventListener('click', async () => {
+    if (!window.confirm(`确定删除联系人“${contactName(user)}”吗？历史消息会保留。`)) return;
+    try {
+      await api(`/api/friends/${encodeURIComponent(user.id)}`, { method: 'DELETE' });
+      await loadContacts();
+    } catch (error) { setStatus($('#friend-status'), error.message, 'error'); }
+  });
+  const block = document.createElement('button');
+  block.type = 'button';
+  block.className = 'mini-button danger';
+  block.textContent = '拉黑';
+  block.addEventListener('click', async () => {
+    if (!window.confirm(`拉黑“${contactName(user)}”会同时解除好友关系，是否继续？`)) return;
+    try {
+      await api(`/api/blocks/${encodeURIComponent(user.id)}`, { method: 'POST' });
+      await loadContacts();
+    } catch (error) { setStatus($('#friend-status'), error.message, 'error'); }
+  });
+  actions.append(chat, remark, mute, remove, block);
+  item.append(avatar, copy, actions);
+  return item;
+}
+
+function sidebarFriendRow(user) {
+  const item = document.createElement('li');
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'sidebar-friend';
+  button.title = `给 ${contactName(user)} 发送消息`;
+
+  const avatar = document.createElement('span');
+  avatar.className = 'avatar avatar-friend';
+  avatar.textContent = initials(user.displayName || user.username);
+  const copy = document.createElement('span');
+  copy.className = 'friend-copy';
+  const name = document.createElement('strong');
+  name.textContent = contactName(user);
+  const detail = document.createElement('small');
+  detail.className = `contact-presence ${user.online ? 'online' : ''}`;
+  detail.textContent = contactPresence(user);
+  const biography = document.createElement('small');
+  biography.className = 'friend-biography';
+  biography.textContent = `@${user.username}${user.notificationsMuted ? ' · 免打扰' : ''}`;
+  const action = document.createElement('span');
+  action.className = 'friend-chat-action';
+  action.textContent = '私聊';
+  copy.append(name, detail, biography);
+  button.append(avatar, copy, action);
+  button.addEventListener('click', () => openFriendConversation(user, button));
+  item.append(button);
+  return item;
+}
+
+function blockedRow(user) {
   const item = document.createElement('li');
   const avatar = document.createElement('span');
   avatar.className = 'avatar';
@@ -939,46 +1099,28 @@ function contactRow(user) {
   name.textContent = user.displayName || user.username;
   const detail = document.createElement('small');
   detail.textContent = `@${user.username} · ID ${user.id}`;
-  const biography = document.createElement('small');
-  biography.className = 'contact-biography';
-  biography.textContent = user.biography || '可接收离线消息';
-  copy.append(name, detail, biography);
+  copy.append(name, detail);
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'mini-button';
-  button.textContent = '发消息';
-  button.addEventListener('click', () => openFriendConversation(user, button));
+  button.textContent = '解除';
+  button.addEventListener('click', async () => {
+    try {
+      await api(`/api/blocks/${encodeURIComponent(user.id)}`, { method: 'DELETE' });
+      await loadContacts();
+    } catch (error) { setStatus($('#friend-status'), error.message, 'error'); }
+  });
   item.append(avatar, copy, button);
   return item;
 }
 
-function sidebarFriendRow(user) {
-  const item = document.createElement('li');
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'sidebar-friend';
-  button.title = `给 ${user.displayName || user.username} 发送消息`;
-
-  const avatar = document.createElement('span');
-  avatar.className = 'avatar avatar-friend';
-  avatar.textContent = initials(user.displayName || user.username);
-  const copy = document.createElement('span');
-  copy.className = 'friend-copy';
-  const name = document.createElement('strong');
-  name.textContent = user.displayName || user.username;
-  const detail = document.createElement('small');
-  detail.textContent = `@${user.username} · ID ${user.id}`;
-  const biography = document.createElement('small');
-  biography.className = 'friend-biography';
-  biography.textContent = user.biography || '可接收离线消息';
-  const action = document.createElement('span');
-  action.className = 'friend-chat-action';
-  action.textContent = '私聊';
-  copy.append(name, detail, biography);
-  button.append(avatar, copy, action);
-  button.addEventListener('click', () => openFriendConversation(user, button));
-  item.append(button);
-  return item;
+function renderContactLists() {
+  $('#friend-count').textContent = String(state.friends.length);
+  $('#blocked-count').textContent = String(state.blocked.length);
+  $('#friend-list').replaceChildren(...(state.friends.length
+    ? state.friends.map(contactRow) : [actionListEmpty('还没有好友')]));
+  $('#blocked-list').replaceChildren(...(state.blocked.length
+    ? state.blocked.map(blockedRow) : [actionListEmpty('黑名单为空')]));
 }
 
 function renderFriendPreview() {
@@ -1049,12 +1191,14 @@ async function loadContacts() {
   const status = $('#friend-status');
   setStatus(status, '正在加载…');
   try {
-    const [friends, requests] = await Promise.all([api('/api/friends'), api('/api/friend-requests')]);
+    const [friends, requests, blocked] = await Promise.all([
+      api('/api/friends'), api('/api/friend-requests'), api('/api/blocks'),
+    ]);
     state.friends = friends;
+    state.blocked = blocked;
     renderFriendPreview();
-    $('#friend-count').textContent = String(friends.length);
     $('#request-count').textContent = String(requests.length);
-    $('#friend-list').replaceChildren(...(friends.length ? friends.map(contactRow) : [actionListEmpty('还没有好友')]));
+    renderContactLists();
     $('#friend-request-list').replaceChildren(...(requests.length ? requests.map(friendRequestRow) : [actionListEmpty('没有待处理申请')]));
     $('#friend-badge').textContent = String(requests.length);
     $('#friend-badge').classList.toggle('hidden', requests.length === 0);

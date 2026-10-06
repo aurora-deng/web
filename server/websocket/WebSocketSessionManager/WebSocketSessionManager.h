@@ -46,6 +46,7 @@
 #define WEBSOCKET_SESSION_MANAGER_H
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -59,11 +60,11 @@ class ReactorGroup;
 class WebSocketSession;
 
 /**
- * @brief 全局 WebSocket 会话目录：UserId -> 弱引用 Session + 所在 Reactor 定位信息
+ * @brief 全局 WebSocket 会话目录：UserId -> 多个弱引用 Session 与 Reactor 定位信息
  *
  * 【WebSocketSessionManager 通俗解释】
- * 这就是大酒店前台的"住客登记簿"——每个住客（UserId）入住时记下房间位置（Locator），
- * 有人找他就翻登记簿查位置；住客退房（Session 销毁）时登记簿里那条自动失效。
+ * 这就是大酒店前台的"住客登记簿"——每个账号（UserId）可同时登记手机、电脑等
+ * 多个房间位置（Locator），有人找他就向全部房间送达；某个设备退房只擦掉对应记录。
  * 不持有房间所有权（weak_ptr），不会卡住房间不让拆。
  *
  * @note 不持有 Session 所有权（weak_ptr），避免与 Connection::session 形成循环引用。
@@ -71,6 +72,8 @@ class WebSocketSession;
 class WebSocketSessionManager
 {
 public:
+    using PresenceObserver = std::function<void(UserId, std::size_t)>;
+
     /**
      * @brief 绑定 ReactorGroup 引用，供后续跨 Reactor 投递使用
      * @param group 全局 ReactorGroup 指针（不持有所有权）
@@ -98,10 +101,13 @@ public:
      * @brief 注销会话（住客退房）
      * @param uid 要注销的用户 id
      * @param key 发起注销的连接身份
-     * @return 只有目录仍指向该 key 时才删除并返回 true
-     * @note 同 uid 重连后，旧 Session 的退场通知不会删除新 Session 的目录项。
+     * @return 找到并删除该 key 时返回 true
+     * @note 同 uid 的旧设备退场不会删除新设备或其他仍在线设备。
      */
     bool unregister(UserId uid, ConnectionKey key);
+
+    /** 注册/注销后异步通知上层该用户当前的 WebSocket 连接数。 */
+    void setPresenceObserver(PresenceObserver observer);
 
     /**
      * @brief 向指定用户投递已编码的 WebSocket 帧字节（可跨 Reactor，线程安全）
@@ -135,11 +141,12 @@ public:
                          const std::string &text);
 
     /**
-     * @brief 查询当前在线会话数（住客人数）
-     * @return sessions_ 表的大小（含可能尚未惰性清理的过期条目，仅作粗略统计）
-     * @note 加锁读 size，是 O(1) 操作。
+     * @brief 查询当前在线 WebSocket 连接总数
+     * @return 所有用户仍存活的设备/标签页连接数，仅作粗略统计
      */
     size_t onlineCount() const;
+    /** 某个用户当前仍存活的设备/标签页连接数。 */
+    size_t connectionCount(UserId uid) const;
 
 private:
     EnqueueResult sendEncodedImpl(
@@ -163,7 +170,9 @@ private:
     };
 
     mutable std::mutex mtx_;                                   // 全局读写锁：多 Reactor 线程并发访问 sessions_ 必须串行化
-    std::unordered_map<UserId, Locator> sessions_;             // 登记簿主体：UserId -> Locator
+    std::unordered_map<UserId, std::vector<Locator>> sessions_; // 一个用户可同时登录多个设备
+    PresenceObserver presenceObserver_;
+    std::size_t maxConnectionsPerUser_ = 4;
     ReactorGroup *reactorGroup_ = nullptr;                     // 全局 ReactorGroup 引用（不持有所有权），用于跨 Reactor 投递
 };
 

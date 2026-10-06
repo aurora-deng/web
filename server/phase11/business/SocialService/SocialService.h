@@ -20,8 +20,18 @@ public:
                                     TimePoint now) override;
     FriendRequest decideFriendship(FriendRequestId request, UserId receiver,
                                    bool accept, TimePoint now) override;
-    std::vector<User> friends(UserId user) const override;
+    std::vector<FriendContact> friends(UserId user) const override;
     std::vector<FriendRequest> pending(UserId receiver) const override;
+    FriendContact updateContact(UserId owner, UserId contact,
+                                std::string remark,
+                                bool notificationsMuted,
+                                TimePoint now) override;
+    void removeFriend(UserId user, UserId contact, TimePoint now) override;
+    void block(UserId user, UserId target, TimePoint now) override;
+    void unblock(UserId user, UserId target, TimePoint now) override;
+    std::vector<User> blocked(UserId user) const override;
+    void recordPresence(UserId user, std::size_t connections,
+                        TimePoint now) override;
 
 private:
     IDatabase &database_;

@@ -199,6 +199,113 @@ std::vector<FriendRequest> InMemoryStore::pendingRequests(UserId receiver) const
     return result;
 }
 
+bool InMemoryStore::removeFriendship(UserId first, UserId second)
+{
+    std::lock_guard lock(mutex_);
+    const auto removed = state_.friendships.erase(orderedUsers(first, second)) != 0;
+    if (removed)
+    {
+        state_.contactSettings.erase({first, second});
+        state_.contactSettings.erase({second, first});
+    }
+    return removed;
+}
+
+ContactSettings InMemoryStore::contactSettings(UserId owner,
+                                                UserId contact) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.contactSettings.find({owner, contact});
+    return found == state_.contactSettings.end()
+               ? ContactSettings{owner, contact, {}, false}
+               : found->second;
+}
+
+bool InMemoryStore::updateContactSettings(UserId owner, UserId contact,
+                                          std::string remark,
+                                          bool notificationsMuted)
+{
+    std::lock_guard lock(mutex_);
+    if (!state_.friendships.contains(orderedUsers(owner, contact)))
+        return false;
+    state_.contactSettings[{owner, contact}] =
+        ContactSettings{owner, contact, std::move(remark), notificationsMuted};
+    return true;
+}
+
+bool InMemoryStore::blockUser(UserId blocker, UserId blocked, TimePoint now)
+{
+    std::lock_guard lock(mutex_);
+    if (blocker == blocked || !state_.users.contains(blocker) ||
+        !state_.users.contains(blocked))
+        return false;
+    const auto inserted = state_.blocks.emplace(blocker, blocked).second;
+    if (!inserted)
+        return false;
+
+    state_.friendships.erase(orderedUsers(blocker, blocked));
+    state_.contactSettings.erase({blocker, blocked});
+    state_.contactSettings.erase({blocked, blocker});
+    for (auto &[_, request] : state_.friendRequests)
+    {
+        const bool samePair =
+            (request.senderId == blocker && request.receiverId == blocked) ||
+            (request.senderId == blocked && request.receiverId == blocker);
+        if (samePair && request.state == FriendRequestState::Pending)
+        {
+            request.state = FriendRequestState::Rejected;
+            request.decidedAt = now;
+        }
+    }
+    return true;
+}
+
+bool InMemoryStore::unblockUser(UserId blocker, UserId blocked)
+{
+    std::lock_guard lock(mutex_);
+    return state_.blocks.erase({blocker, blocked}) != 0;
+}
+
+bool InMemoryStore::isBlocked(UserId blocker, UserId blocked) const
+{
+    std::lock_guard lock(mutex_);
+    return state_.blocks.contains({blocker, blocked});
+}
+
+bool InMemoryStore::blockedEitherDirection(UserId first, UserId second) const
+{
+    std::lock_guard lock(mutex_);
+    return state_.blocks.contains({first, second}) ||
+           state_.blocks.contains({second, first});
+}
+
+std::vector<UserId> InMemoryStore::listBlockedIds(UserId blocker) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<UserId> result;
+    for (const auto &[owner, blocked] : state_.blocks)
+        if (owner == blocker)
+            result.push_back(blocked);
+    return result;
+}
+
+bool InMemoryStore::updateLastActive(UserId user, TimePoint now)
+{
+    std::lock_guard lock(mutex_);
+    if (!state_.users.contains(user))
+        return false;
+    state_.lastActive[user] = now;
+    return true;
+}
+
+std::optional<TimePoint> InMemoryStore::lastActive(UserId user) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.lastActive.find(user);
+    return found == state_.lastActive.end()
+               ? std::nullopt : std::optional<TimePoint>{found->second};
+}
+
 Conversation InMemoryStore::createConversation(
     Conversation conversation, std::vector<ConversationMember> members)
 {

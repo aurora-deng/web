@@ -142,6 +142,9 @@ public:
     /** @brief 注册 PATCH 路由，供 REST 资源的部分更新使用。 */
     void PATCH(const std::string &path, Handler handler, RouteOptions options = {});
 
+    /** @brief 注册 DELETE 路由，供资源关系解除与删除使用。 */
+    void DEL(const std::string &path, Handler handler, RouteOptions options = {});
+
     /**
      * @brief 注册中间件
      * @param mw 中间件回调

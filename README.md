@@ -1,11 +1,10 @@
-# web-test 2.0 · Phase 13（本地开发分支）
+# web-test 2.0 · Phase 14（本地开发分支）
 
-> Phase 13 在 Phase 12 上补齐群主、管理员、普通成员的权限矩阵，加入群资料、禁言、移除、退出、
-> 管理员撤回和软解散。Release、Debug、ASan+LSan+UBSan 均为 93/93 通过，真实 PostgreSQL +
-> HTTP + WebSocket + SSE 黑盒也已验证。完整设计、流程、接口、文件索引和证据见
-> [Phase 13：群聊治理与权限闭环](docs/architecture/phase13.md)。当前改动只保存在本地 `phase13`
-> 分支，尚未推送远程仓库；Phase 12 消息生命周期见
-> [Phase 12](docs/architecture/phase12.md)。
+> Phase 14 在 Phase 13 上补齐好友备注、消息免打扰、删除好友、黑名单、多设备 WebSocket 与最后活跃。
+> Release、Debug、ASan+LSan+UBSan 均为 93/93 通过，真实 PostgreSQL + HTTP + WebSocket + SSE
+> 黑盒也验证了两个设备同时收件、离线状态和服务端权限阻断。完整设计、流程、接口、文件索引和证据见
+> [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/phase14.md)。当前改动只保存在本地
+> `phase14` 分支，尚未推送远程仓库；群聊治理见 [Phase 13](docs/architecture/phase13.md)。
 
 > Function1.0 以 [test9.1](https://github.com/aurora-deng/web/tree/test9.1) 为基线，
 > 保留 Phase 10 的 HTTP/gRPC 性能路径，并加入完整的 Phase 11 应用层：账号、PostgreSQL、
@@ -168,6 +167,8 @@ gRPC C++ 1.82.0 完成了以下检查：
   均为 **93/93**，并通过真实好友、离线消息、持久未读、ACK、已读、幂等重发和撤回整链黑盒。
 - Phase 13 完成数据库版本 3 迁移；Release、Debug、ASan+LSan+UBSan 三套 CTest 均为 **93/93**，
   并通过真实群角色、邀请、资料、禁言、管理员撤回、退出与软解散整链黑盒。
+- Phase 14 完成数据库版本 4 迁移；Release、Debug、ASan+LSan+UBSan 三套 CTest 均为 **93/93**，
+  并通过联系人备注/免打扰、黑名单、删除好友、双设备广播、离线最后活跃和旧会话权限阻断整链黑盒。
 
 最终测试数字与发现过的问题记录在
 [Phase 9 验证记录](docs/architecture/phase9.md#11-验证记录)。
@@ -185,5 +186,6 @@ gRPC C++ 1.82.0 完成了以下检查：
 9. [Phase 11：账号、社交聊天与 AI 推理平台](docs/architecture/phase11.md)
 10. [Phase 12：持久消息生命周期](docs/architecture/phase12.md)
 11. [Phase 13：群聊治理与权限闭环](docs/architecture/phase13.md)
-12. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
-13. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)
+12. [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/phase14.md)
+13. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
+14. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)

@@ -10,6 +10,7 @@
 #include <utility>
 
 class Router;
+class WebSocketSessionManager;
 
 namespace webserver::phase11::transport
 {
@@ -21,9 +22,10 @@ public:
     Phase11SocialChatHttp(Phase11AuthHttp &authentication,
                           ISocialBusiness &social,
                           IChatBusiness &chat,
-                          DatabaseExecutor &databaseExecutor)
+                          DatabaseExecutor &databaseExecutor,
+                          WebSocketSessionManager &webSockets)
         : authentication_(authentication), social_(social), chat_(chat),
-          databaseExecutor_(databaseExecutor)
+          databaseExecutor_(databaseExecutor), webSockets_(webSockets)
     {
     }
 
@@ -65,6 +67,7 @@ private:
     ISocialBusiness &social_;
     IChatBusiness &chat_;
     DatabaseExecutor &databaseExecutor_;
+    WebSocketSessionManager &webSockets_;
 };
 
 } // namespace webserver::phase11::transport

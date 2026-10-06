@@ -282,6 +282,22 @@ def run(host: str, port: int, ai_user_id: int = 0,
     if status != 200 or accepted.get("state") != "accepted":
         raise AssertionError(("friend accept", status, accepted))
 
+    # Phase 14 联系人设置是有方向的：Alice 给 Bob 的备注和免打扰，只影响
+    # Alice 自己看到的联系人资料与 Alice 收到的提醒，不会改写 Bob 的设置。
+    status, updated_contact = alice.request(
+        "PATCH", f"/api/friends/{bob.user_id}",
+        {"remark": "Runtime Bob", "notificationsMuted": "true"},
+    )
+    if status != 200 or updated_contact.get("remark") != "Runtime Bob" \
+            or updated_contact.get("notificationsMuted") is not True:
+        raise AssertionError(("contact settings", status, updated_contact))
+    status, alice_contacts = alice.request("GET", "/api/friends")
+    bob_contact = next(
+        (item for item in alice_contacts if int(item["id"]) == bob.user_id), None
+    )
+    if status != 200 or not bob_contact or bob_contact.get("remark") != "Runtime Bob":
+        raise AssertionError(("contact settings persisted", status, alice_contacts))
+
     status, conversation = alice.request(
         "POST", "/api/conversations", {"kind": "direct", "peerId": str(bob.user_id)}
     )
@@ -300,8 +316,19 @@ def run(host: str, port: int, ai_user_id: int = 0,
 
     alice_socket, alice_ws = alice.open_websocket()
     bob_socket, bob_ws = bob.open_websocket()
+    bob_second_socket, bob_second_ws = bob.open_websocket()
     bob_sse_socket, bob_sse = bob.open_sse()
     try:
+        # 同一账号的两条 WebSocket 都应登记在 Presence 中；这模拟电脑和手机
+        # 同时在线。HTTP 联系人视图从会话目录实时读取连接数。
+        status, alice_contacts = alice.request("GET", "/api/friends")
+        bob_contact = next(
+            (item for item in alice_contacts if int(item["id"]) == bob.user_id), None
+        )
+        if status != 200 or not bob_contact or not bob_contact.get("online") \
+                or int(bob_contact.get("connections", 0)) != 2:
+            raise AssertionError(("multi-device presence", status, bob_contact))
+
         client_message_id = "runtime-" + suffix
         outbound = {
             "v": 1,
@@ -316,11 +343,16 @@ def run(host: str, port: int, ai_user_id: int = 0,
         accepted_ws = wait_for_ws(alice_ws, "chat.accepted")
         alice_event = wait_for_ws(alice_ws, "chat.message")
         bob_event = wait_for_ws(bob_ws, "chat.message")
+        bob_second_event = wait_for_ws(bob_second_ws, "chat.message")
         sse_event = wait_for_sse(bob_sse, "message.notification")
         if accepted_ws.get("status") != "inserted":
             raise AssertionError(("first send was not inserted", accepted_ws))
-        if alice_event.get("body") != "hello durable realtime" or bob_event != alice_event:
-            raise AssertionError(("broadcast mismatch", alice_event, bob_event))
+        if alice_event.get("body") != "hello durable realtime" \
+                or bob_event != alice_event or bob_second_event != alice_event:
+            raise AssertionError(
+                ("multi-device broadcast mismatch", alice_event,
+                 bob_event, bob_second_event)
+            )
         if "hello durable realtime" not in sse_event:
             raise AssertionError(("SSE payload mismatch", sse_event))
 
@@ -414,7 +446,24 @@ def run(host: str, port: int, ai_user_id: int = 0,
     finally:
         alice_socket.close()
         bob_socket.close()
+        bob_second_socket.close()
         bob_sse_socket.close()
+
+    # 所有 Bob WebSocket 断开后，Presence Bridge 会把最后活跃时间异步落库。
+    # 轮询只等待业务状态收敛，不直接访问数据库绕过 HTTP 边界。
+    bob_contact = None
+    for _ in range(30):
+        status, alice_contacts = alice.request("GET", "/api/friends")
+        bob_contact = next(
+            (item for item in alice_contacts if int(item["id"]) == bob.user_id), None
+        )
+        if status == 200 and bob_contact and not bob_contact.get("online") \
+                and bob_contact.get("lastActiveAt"):
+            break
+        time.sleep(0.05)
+    if not bob_contact or bob_contact.get("online") \
+            or not bob_contact.get("lastActiveAt"):
+        raise AssertionError(("offline last-active presence", status, bob_contact))
 
     # Phase 13 群聊治理链路：所有权限判断都必须由业务层执行，前端隐藏按钮
     # 只能改善体验，不能成为安全边界。
@@ -557,6 +606,47 @@ def run(host: str, port: int, ai_user_id: int = 0,
         bob_group_socket.close()
         if charlie_group_socket:
             charlie_group_socket.close()
+
+    # 黑名单是双向业务闸门：Alice 拉黑 Charlie 后，Charlie 即使知道 Alice 的
+    # 用户 id，也不能绕过前端直接创建好友申请。解除后才能恢复正常社交路径。
+    status, result = alice.request("POST", f"/api/blocks/{charlie.user_id}", {})
+    if status != 200:
+        raise AssertionError(("block user", status, result))
+    status, blocked = alice.request("GET", "/api/blocks")
+    if status != 200 or not any(int(item["id"]) == charlie.user_id for item in blocked):
+        raise AssertionError(("blocked list", status, blocked))
+    status, blocked_request = charlie.request(
+        "POST", "/api/friend-requests", {"receiverId": str(alice.user_id)}
+    )
+    if status != 403:
+        raise AssertionError(("blocked friend request", status, blocked_request))
+    status, result = alice.request("DELETE", f"/api/blocks/{charlie.user_id}")
+    if status != 200:
+        raise AssertionError(("unblock user", status, result))
+
+    # 删除好友不删除历史消息，但会关闭旧私聊的继续发送权限。这里故意拿着旧
+    # conversationId 发送，证明权限检查在业务层，而不是只靠前端隐藏按钮。
+    status, result = alice.request("DELETE", f"/api/friends/{bob.user_id}")
+    if status != 200:
+        raise AssertionError(("remove friendship", status, result))
+    status, alice_contacts = alice.request("GET", "/api/friends")
+    if status != 200 or any(int(item["id"]) == bob.user_id for item in alice_contacts):
+        raise AssertionError(("removed contact remained", status, alice_contacts))
+    denied_socket, denied_ws = alice.open_websocket()
+    try:
+        denied_id = "removed-friend-" + suffix
+        denied_socket.sendall(masked_frame(json.dumps({
+            "v": 1,
+            "type": "chat.send",
+            "id": denied_id,
+            "conversationId": conversation_id,
+            "content": "must fail after deleting friendship",
+        }, separators=(",", ":")).encode()))
+        denied = wait_for_ws(denied_ws, "chat.error", 12)
+        if denied.get("replyTo") != denied_id:
+            raise AssertionError(("removed friend send", denied))
+    finally:
+        denied_socket.close()
 
     ai_result = None
     if ai_user_id:
@@ -704,6 +794,9 @@ def run(host: str, port: int, ai_user_id: int = 0,
             "conversation": conversation_id,
             "group": group_id,
             "sequence": bob_event["sequence"],
+            "multiDeviceConnections": 2,
+            "lastActiveAt": bob_contact["lastActiveAt"],
+            "contacts": "settings-block-remove-ok",
             "ai": ai_result,
         }, separators=(",", ":")),
     )

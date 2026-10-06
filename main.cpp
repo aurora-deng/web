@@ -323,6 +323,8 @@ int main()
             phase11OutboxSink;
         std::unique_ptr<webserver::phase11::transport::Phase11OutboxPump>
             phase11OutboxPump;
+        std::unique_ptr<webserver::phase11::transport::Phase11PresenceBridge>
+            phase11PresenceBridge;
 #endif
         std::cout << "worker pools: http=" << server.httpWorkerCount()
                   << ", websocket=" << server.webSocketWorkerCount() << '\n';
@@ -414,7 +416,7 @@ int main()
             phase11SocialChatHttp = std::make_unique<
                 webserver::phase11::transport::Phase11SocialChatHttp>(
                     *phase11AuthHttp, *phase11Social, *phase11Chat,
-                    *phase11DatabaseExecutor);
+                    *phase11DatabaseExecutor, server.wsManager());
             phase11AiEvents = std::make_unique<
                 webserver::phase11::transport::Phase11AiEventSink>(
                     server.sseManager());
@@ -543,11 +545,16 @@ int main()
             phase11Realtime->registerHandlers(server.wsDispatcher());
             phase11OutboxSink = std::make_unique<
                 webserver::phase11::transport::Phase11RealtimeOutboxSink>(
-                    *phase11Store, *phase11Store, server.wsManager(),
+                    *phase11Store, *phase11Store, *phase11Store,
+                    server.wsManager(),
                     server.sseManager());
             phase11OutboxPump = std::make_unique<
                 webserver::phase11::transport::Phase11OutboxPump>(
                     *phase11Store, *phase11OutboxSink);
+            phase11PresenceBridge = std::make_unique<
+                webserver::phase11::transport::Phase11PresenceBridge>(
+                    *phase11Social, *phase11DatabaseExecutor,
+                    server.wsManager());
             std::cout << "Phase 11 authentication enabled\n";
         }
         else if (environmentFlag("WEB_PHASE11_REQUIRED"))

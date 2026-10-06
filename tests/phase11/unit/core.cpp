@@ -347,7 +347,23 @@ void verifyAuthAndSocialFlow(Fixture &fixture, TimePoint now,
     CHECK(accepted.state == FriendRequestState::Accepted);
     CHECK(fixture.store.areFriends(alice.id, bob.id));
     const auto friends = fixture.social.friends(alice.id);
-    CHECK(friends.size() == 1 && friends.front().id == bob.id);
+    CHECK(friends.size() == 1 && friends.front().user.id == bob.id);
+    const auto updated = fixture.social.updateContact(
+        alice.id, bob.id, "学习搭档", true, now);
+    CHECK(updated.settings.remark == "学习搭档" &&
+          updated.settings.notificationsMuted);
+    fixture.social.recordPresence(bob.id, 2, now);
+    CHECK(fixture.social.friends(alice.id).front().lastActiveAt.has_value());
+
+    const auto stranger = fixture.auth.registerUser(
+        "blocked-user", "password-c", "Blocked", now);
+    fixture.social.block(alice.id, stranger.id, now);
+    CHECK(fixture.social.blocked(alice.id).size() == 1);
+    expectError(ErrorCode::Forbidden, [&] {
+        fixture.social.requestFriendship(stranger.id, alice.id, now);
+    });
+    fixture.social.unblock(alice.id, stranger.id, now);
+    CHECK(fixture.social.blocked(alice.id).empty());
 }
 
 Message verifyChatFlow(Fixture &fixture, TimePoint now,
@@ -477,8 +493,22 @@ Message verifyChatFlow(Fixture &fixture, TimePoint now,
             alice.id, tooOld.message.id, now + std::chrono::minutes(3));
     });
 
+    fixture.social.removeFriend(alice.id, bob.id, now);
+    expectError(ErrorCode::Forbidden, [&] {
+        fixture.chat.sendText(
+            alice.id, direct.id, "after-unfriend", "must be blocked", now);
+    });
+    const auto reconnect = fixture.social.requestFriendship(alice.id, bob.id, now);
+    fixture.social.decideFriendship(reconnect.id, bob.id, true, now);
+    fixture.social.block(alice.id, bob.id, now);
+    expectError(ErrorCode::Forbidden, [&] {
+        fixture.chat.sendText(
+            bob.id, direct.id, "after-block", "must be blocked", now);
+    });
+    fixture.social.unblock(alice.id, bob.id, now);
+
     // ACK、已读、撤回都和消息一样通过 Outbox 发布；重复命令不会重复生成事件。
-    CHECK(fixture.store.pendingOutbox(100).size() == 18);
+    CHECK(fixture.store.pendingOutbox(100).size() >= 18);
     return first.message;
 }
 

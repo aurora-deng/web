@@ -11,6 +11,7 @@
 #include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #include "server/response/StringBody.h"
 #include "server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
+#include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -157,7 +158,9 @@ void verifyHttpFlow()
     Phase11AuthHttpConfig config;
     config.secureCookie = false;
     Phase11AuthHttp adapter(auth, databaseExecutor, config);
-    Phase11SocialChatHttp socialChat(adapter, social, chat, databaseExecutor);
+    WebSocketSessionManager webSockets;
+    Phase11SocialChatHttp socialChat(
+        adapter, social, chat, databaseExecutor, webSockets);
     Router router;
     adapter.registerRoutes(router);
     socialChat.registerRoutes(router);
@@ -259,6 +262,15 @@ void verifyHttpFlow()
     CHECK(members.body.find("\"role\":\"member\"") != std::string::npos);
     CHECK(request(router, "GET", "/api/friends", {}, cookie).body.find(
               "\"username\":\"bob\"") != std::string::npos);
+    const auto contactUpdate = request(
+        router, "PATCH", "/api/friends/" + std::to_string(bobId),
+        R"({"remark":"Study partner","notificationsMuted":"true"})",
+        cookie, csrf);
+    CHECK(contactUpdate.status == 200);
+    CHECK(contactUpdate.body.find("\"remark\":\"Study partner\"") !=
+          std::string::npos);
+    CHECK(contactUpdate.body.find("\"notificationsMuted\":true") !=
+          std::string::npos);
 
     WebSocketDispatcher dispatcher;
     Phase11Realtime realtime(chat, databaseExecutor);
@@ -287,6 +299,13 @@ void verifyHttpFlow()
     ack.inbound.sequence = sentSequence;
     CHECK(dispatcher.dispatch(ack));
     CHECK(ack.outbound.text.find("accepted") != std::string::npos);
+
+    CHECK(request(router, "POST", "/api/blocks/" + std::to_string(bobId),
+                  {}, cookie, csrf).status == 200);
+    CHECK(request(router, "GET", "/api/blocks", {}, cookie).body.find(
+              "\"username\":\"bob\"") != std::string::npos);
+    CHECK(request(router, "DELETE", "/api/blocks/" + std::to_string(bobId),
+                  {}, cookie, csrf).status == 200);
 
     const auto logout = request(router, "POST", "/api/auth/logout",
                                 {}, cookie, csrf);
