@@ -1,4 +1,10 @@
-# web-test 2.0 · Phase 14（本地开发分支）
+# web-test 2.0 · Phase 15（本地开发分支）
+
+> Phase 15 新增真实业务性能基线：使用隔离 PostgreSQL 数据库从 HTTP、WebSocket 和 SSE 入口
+> 驱动登录、列表、私聊、8 人群发、离线历史、连接重建和混合流量。Linux 三轮总错误为 0，
+> 并将“数据库已接收”和“用户真正收到”拆开测量，定位到当前 250 ms Outbox 轮询是实时消息
+> P50 的主要优化候选。完整方法、结果和限制见
+> [Phase 15：真实业务性能基线](docs/architecture/phase15.md)。
 
 > Phase 14 在 Phase 13 上补齐好友备注、消息免打扰、删除好友、黑名单、多设备 WebSocket 与最后活跃。
 > Release、Debug、ASan+LSan+UBSan 均为 93/93 通过，真实 PostgreSQL + HTTP + WebSocket + SSE
@@ -169,6 +175,9 @@ gRPC C++ 1.82.0 完成了以下检查：
   并通过真实群角色、邀请、资料、禁言、管理员撤回、退出与软解散整链黑盒。
 - Phase 14 完成数据库版本 4 迁移；Release、Debug、ASan+LSan+UBSan 三套 CTest 均为 **93/93**，
   并通过联系人备注/免打扰、黑名单、删除好友、双设备广播、离线最后活跃和旧会话权限阻断整链黑盒。
+- Phase 15 在专用 `phase15_benchmark` 数据库和 18091 端口完成三轮真实业务基准，8 个场景总错误为
+  **0**；私聊事务确认 P50 为 **32.16 ms**，接收端到达 P50 为 **310.36 ms**，原始 JSON、环境和
+  二进制 SHA-256 均已随文档保留。这是当前虚拟机与固定并发下的回归基线，不代表最大容量。
 
 最终测试数字与发现过的问题记录在
 [Phase 9 验证记录](docs/architecture/phase9.md#11-验证记录)。
@@ -187,5 +196,6 @@ gRPC C++ 1.82.0 完成了以下检查：
 10. [Phase 12：持久消息生命周期](docs/architecture/phase12.md)
 11. [Phase 13：群聊治理与权限闭环](docs/architecture/phase13.md)
 12. [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/phase14.md)
-13. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
-14. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)
+13. [Phase 15：真实业务性能基线](docs/architecture/phase15.md)
+14. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
+15. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)

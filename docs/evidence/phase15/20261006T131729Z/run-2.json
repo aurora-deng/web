@@ -1,0 +1,190 @@
+{
+  "schema": "phase15-business-benchmark-v1",
+  "generatedAt": "2026-10-06T13:19:00Z",
+  "target": "http://127.0.0.1:18091",
+  "serverPid": 110367,
+  "prefix": "p15_*_358216597",
+  "configuration": {
+    "workers": 4,
+    "operations": 80,
+    "groupSize": 8,
+    "groupOperations": 20,
+    "historyMessages": 50,
+    "historyReads": 30,
+    "connectionOperations": 30,
+    "aiUserId": null,
+    "aiJobs": 0,
+    "aiConcurrency": 0
+  },
+  "elapsedSeconds": 42.497,
+  "results": [
+    {
+      "name": "login-session-write",
+      "operations": 80,
+      "units": 80,
+      "elapsedSeconds": 7.90152,
+      "operationsPerSecond": 10.125,
+      "unitsPerSecond": 10.125,
+      "latencyMs": {
+        "average": 387.598,
+        "p50": 390.832,
+        "p95": 522.117,
+        "p99": 548.458,
+        "maximum": 558.05
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    {
+      "name": "conversation-list",
+      "operations": 80,
+      "units": 80,
+      "elapsedSeconds": 0.740046,
+      "operationsPerSecond": 108.101,
+      "unitsPerSecond": 108.101,
+      "latencyMs": {
+        "average": 36.707,
+        "p50": 16.487,
+        "p95": 104.269,
+        "p99": 159.265,
+        "maximum": 183.209
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    {
+      "name": "direct-message-end-to-end",
+      "operations": 80,
+      "units": 80,
+      "elapsedSeconds": 6.931136,
+      "operationsPerSecond": 11.542,
+      "unitsPerSecond": 11.542,
+      "latencyMs": {
+        "average": 342.246,
+        "p50": 334.288,
+        "p95": 442.561,
+        "p99": 486.309,
+        "maximum": 502.567
+      },
+      "errors": 0,
+      "errorSamples": [],
+      "databaseAcceptedLatencyMs": {
+        "p50": 32.721,
+        "p95": 113.517,
+        "p99": 125.147
+      }
+    },
+    {
+      "name": "group-message-all-recipients",
+      "operations": 20,
+      "units": 160,
+      "elapsedSeconds": 5.713905,
+      "operationsPerSecond": 3.5,
+      "unitsPerSecond": 28.002,
+      "latencyMs": {
+        "average": 285.684,
+        "p50": 278.663,
+        "p95": 339.241,
+        "p99": 342.217,
+        "maximum": 342.961
+      },
+      "errors": 0,
+      "errorSamples": [],
+      "groupSize": 8,
+      "databaseAcceptedLatencyMs": {
+        "p50": 26.413,
+        "p95": 85.612,
+        "p99": 157.647
+      }
+    },
+    {
+      "name": "offline-history-page",
+      "operations": 30,
+      "units": 1500,
+      "elapsedSeconds": 0.391346,
+      "operationsPerSecond": 76.658,
+      "unitsPerSecond": 3832.924,
+      "latencyMs": {
+        "average": 12.954,
+        "p50": 6.923,
+        "p95": 42.199,
+        "p99": 49.525,
+        "maximum": 50.616
+      },
+      "errors": 0,
+      "errorSamples": [],
+      "messagesPerPage": 50
+    },
+    {
+      "name": "websocket-handshake",
+      "operations": 30,
+      "units": 30,
+      "elapsedSeconds": 0.349294,
+      "operationsPerSecond": 85.887,
+      "unitsPerSecond": 85.887,
+      "latencyMs": {
+        "average": 35.703,
+        "p50": 23.837,
+        "p95": 170.96,
+        "p99": 197.227,
+        "maximum": 199.958
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    {
+      "name": "sse-ready-reconnect",
+      "operations": 30,
+      "units": 30,
+      "elapsedSeconds": 0.068526,
+      "operationsPerSecond": 437.792,
+      "unitsPerSecond": 437.792,
+      "latencyMs": {
+        "average": 7.428,
+        "p50": 4.314,
+        "p95": 22.313,
+        "p99": 26.507,
+        "maximum": 26.828
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    {
+      "name": "mixed-50-list-20-history-30-send",
+      "operations": 80,
+      "units": 80,
+      "elapsedSeconds": 2.220423,
+      "operationsPerSecond": 36.029,
+      "unitsPerSecond": 36.029,
+      "latencyMs": {
+        "average": 103.081,
+        "p50": 14.045,
+        "p95": 346.531,
+        "p99": 406.529,
+        "maximum": 424.363
+      },
+      "errors": 0,
+      "errorSamples": []
+    }
+  ],
+  "resources": {
+    "available": true,
+    "samples": 205,
+    "rssKiB": {
+      "average": 62468.8,
+      "peak": 152508
+    },
+    "fileDescriptors": {
+      "average": 41.6,
+      "peak": 65
+    },
+    "threads": {
+      "average": 20.0,
+      "peak": 20
+    },
+    "cpuPercent": {
+      "average": 69.19,
+      "peak": 188.64
+    }
+  }
+}

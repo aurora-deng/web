@@ -20,6 +20,7 @@
 | 持久未读、送达/已读回执与消息撤回（Phase 12，本地分支） | [architecture/phase12.md](architecture/phase12.md) |
 | 群主、管理员、禁言、退出与软解散（Phase 13，本地分支） | [architecture/phase13.md](architecture/phase13.md) |
 | 好友备注、免打扰、黑名单与多设备 Presence（Phase 14，本地分支） | [architecture/phase14.md](architecture/phase14.md) |
+| HTTP/WS/SSE/PostgreSQL 真实业务性能基线（Phase 15，本地分支） | [architecture/phase15.md](architecture/phase15.md) |
 | Phase 11 外部依赖审批、位置和卸载说明 | [architecture/phase11-dependency-gates.md](architecture/phase11-dependency-gates.md) |
 | Phase 11 PostgreSQL 表结构、关系和业务写入流程 | [database/README.md](database/README.md) |
 | WebSocket 课程演进 | [architecture/websocket-lessons/README.md](architecture/websocket-lessons/README.md) |
@@ -27,7 +28,7 @@
 | WebSocket 初次接入 | [architecture/phase4_upgrade.md](architecture/phase4_upgrade.md) |
 | 测试说明 | [testing/TESTING.md](testing/TESTING.md) |
 | 测试学习材料 | [testing/learning/测试学习综合讲义和笔记/README.md](testing/learning/测试学习综合讲义和笔记/README.md) |
-| 性能 | [performance/BENCHMARK.md](performance/BENCHMARK.md) |
+| 性能实验方法与 Phase 15 实测入口 | [performance/BENCHMARK.md](performance/BENCHMARK.md)、[architecture/phase15.md](architecture/phase15.md) |
 | 调试 | [debugging/CHEATSHEET.md](debugging/CHEATSHEET.md) |
 | 部署环境 | [ops/environment.md](ops/environment.md) |
 | 停机与收尾 | [closeout/CLOSEOUT.md](closeout/CLOSEOUT.md) |

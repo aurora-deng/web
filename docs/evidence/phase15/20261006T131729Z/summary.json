@@ -1,0 +1,155 @@
+{
+  "schema": "phase15-business-benchmark-summary-v1",
+  "runCount": 3,
+  "configuration": {
+    "workers": 4,
+    "operations": 80,
+    "groupSize": 8,
+    "groupOperations": 20,
+    "historyMessages": 50,
+    "historyReads": 30,
+    "connectionOperations": 30,
+    "aiUserId": null,
+    "aiJobs": 0,
+    "aiConcurrency": 0
+  },
+  "target": "http://127.0.0.1:18091",
+  "elapsedSecondsMedian": 42.545,
+  "totalErrors": 0,
+  "scenarios": [
+    {
+      "name": "login-session-write",
+      "runs": 3,
+      "operationsPerSecondMedian": 10.08,
+      "unitsPerSecondMedian": 10.08,
+      "latencyMsMedian": {
+        "average": 387.598,
+        "p50": 390.225,
+        "p95": 502.237,
+        "p99": 548.458,
+        "maximum": 558.05
+      },
+      "errors": 0
+    },
+    {
+      "name": "conversation-list",
+      "runs": 3,
+      "operationsPerSecondMedian": 111.828,
+      "unitsPerSecondMedian": 111.828,
+      "latencyMsMedian": {
+        "average": 34.778,
+        "p50": 21.884,
+        "p95": 78.96,
+        "p99": 87.734,
+        "maximum": 89.325
+      },
+      "errors": 0
+    },
+    {
+      "name": "direct-message-end-to-end",
+      "runs": 3,
+      "operationsPerSecondMedian": 12.719,
+      "unitsPerSecondMedian": 12.719,
+      "latencyMsMedian": {
+        "average": 314.001,
+        "p50": 310.362,
+        "p95": 376.851,
+        "p99": 446.314,
+        "maximum": 460.03
+      },
+      "errors": 0,
+      "databaseAcceptedLatencyMsMedian": {
+        "p50": 32.163,
+        "p95": 103.354,
+        "p99": 125.147
+      }
+    },
+    {
+      "name": "group-message-all-recipients",
+      "runs": 3,
+      "operationsPerSecondMedian": 3.619,
+      "unitsPerSecondMedian": 28.954,
+      "latencyMsMedian": {
+        "average": 276.263,
+        "p50": 278.663,
+        "p95": 316.47,
+        "p99": 323.736,
+        "maximum": 325.553
+      },
+      "errors": 0,
+      "databaseAcceptedLatencyMsMedian": {
+        "p50": 26.413,
+        "p95": 85.612,
+        "p99": 103.064
+      }
+    },
+    {
+      "name": "offline-history-page",
+      "runs": 3,
+      "operationsPerSecondMedian": 72.448,
+      "unitsPerSecondMedian": 3622.411,
+      "latencyMsMedian": {
+        "average": 13.772,
+        "p50": 7.97,
+        "p95": 42.199,
+        "p99": 63.524,
+        "maximum": 70.758
+      },
+      "errors": 0
+    },
+    {
+      "name": "websocket-handshake",
+      "runs": 3,
+      "operationsPerSecondMedian": 85.887,
+      "unitsPerSecondMedian": 85.887,
+      "latencyMsMedian": {
+        "average": 35.703,
+        "p50": 28.204,
+        "p95": 169.348,
+        "p99": 186.147,
+        "maximum": 189.236
+      },
+      "errors": 0
+    },
+    {
+      "name": "sse-ready-reconnect",
+      "runs": 3,
+      "operationsPerSecondMedian": 139.267,
+      "unitsPerSecondMedian": 139.267,
+      "latencyMsMedian": {
+        "average": 24.006,
+        "p50": 15.772,
+        "p95": 70.892,
+        "p99": 103.939,
+        "maximum": 114.347
+      },
+      "errors": 0
+    },
+    {
+      "name": "mixed-50-list-20-history-30-send",
+      "runs": 3,
+      "operationsPerSecondMedian": 32.826,
+      "unitsPerSecondMedian": 32.826,
+      "latencyMsMedian": {
+        "average": 111.262,
+        "p50": 27.712,
+        "p95": 346.531,
+        "p99": 406.529,
+        "maximum": 418.315
+      },
+      "errors": 0
+    }
+  ],
+  "resourcePeakMedian": {
+    "rssKiB": 152508.0,
+    "fileDescriptors": 65.0,
+    "threads": 20.0,
+    "cpuAveragePercent": 69.19,
+    "cpuPeakPercent": 188.64
+  },
+  "sourceReports": [
+    "artifacts/benchmarks/phase15/20261006T131729Z/run-1.json",
+    "artifacts/benchmarks/phase15/20261006T131729Z/run-2.json",
+    "artifacts/benchmarks/phase15/20261006T131729Z/run-3.json"
+  ]
+}
