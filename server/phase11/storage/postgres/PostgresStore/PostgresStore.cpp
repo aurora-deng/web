@@ -155,6 +155,13 @@ MemberRole memberRole(std::string_view role)
     throw std::runtime_error("unknown persisted member role");
 }
 
+MessageState messageState(std::string_view state)
+{
+    if (state == "active") return MessageState::Active;
+    if (state == "recalled") return MessageState::Recalled;
+    throw std::runtime_error("unknown persisted message state");
+}
+
 std::string nodeKind(ModelNodeKind kind)
 {
     return kind == ModelNodeKind::Root ? "root" : "specialist";
@@ -281,6 +288,9 @@ Message readMessage(const Result &result, int row)
     message.modelTrace.versionId = decodeOptionalId(result, row, 7);
     message.modelTrace.adapterName = result.value(row, 8);
     message.createdAt = decodeTime(result, row, 9);
+    message.state = messageState(result.value(row, 10));
+    message.recalledBy = decodeOptionalId(result, row, 11);
+    message.recalledAt = decodeOptionalTime(result, row, 12);
     return message;
 }
 
@@ -344,7 +354,8 @@ constexpr std::string_view kMemberColumns =
 constexpr std::string_view kMessageColumns =
     "id, conversation_id, conversation_seq, sender_id, client_message_id, body, "
     "model_node_id, model_version_id, adapter_name, "
-    "(extract(epoch FROM created_at) * 1000000)::bigint";
+    "(extract(epoch FROM created_at) * 1000000)::bigint, state, recalled_by, "
+    "(extract(epoch FROM recalled_at) * 1000000)::bigint";
 constexpr std::string_view kOutboxColumns =
     "id, event_type, aggregate_type, aggregate_id, payload, "
     "(extract(epoch FROM created_at) * 1000000)::bigint, "
@@ -701,6 +712,26 @@ std::vector<Conversation> PostgresStore::listConversations(UserId user) const
     return conversations;
 }
 
+std::vector<ConversationSummary> PostgresStore::listConversationSummaries(
+    UserId user) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kQualifiedConversationColumns) +
+        ",m.last_delivered_sequence,m.last_read_sequence,"
+        "GREATEST(c.next_sequence-1-m.last_read_sequence,0) "
+        "FROM conversations c JOIN conversation_members m ON m.conversation_id=c.id "
+        "WHERE m.user_id=$1::bigint ORDER BY c.id", {number(user)});
+    std::vector<ConversationSummary> summaries;
+    summaries.reserve(result.rows());
+    for (int row = 0; row < result.rows(); ++row)
+        summaries.push_back({readConversation(result, row),
+                             std::stoull(result.value(row, 6)),
+                             std::stoull(result.value(row, 7)),
+                             std::stoull(result.value(row, 8))});
+    return summaries;
+}
+
 std::vector<ConversationMember> PostgresStore::listMembers(
     ConversationId conversation) const
 {
@@ -735,7 +766,8 @@ bool PostgresStore::updateDelivered(ConversationId conversation, UserId user,
     auto scope = connection();
     return query(scope.connection,
         "UPDATE conversation_members SET last_delivered_sequence=GREATEST(last_delivered_sequence,$3::bigint) "
-        "WHERE conversation_id=$1::bigint AND user_id=$2::bigint RETURNING 1",
+        "WHERE conversation_id=$1::bigint AND user_id=$2::bigint "
+        "AND last_delivered_sequence<$3::bigint RETURNING 1",
         {number(conversation), number(user), number(sequence)}).rows() == 1;
 }
 
@@ -746,7 +778,8 @@ bool PostgresStore::updateRead(ConversationId conversation, UserId user,
     return query(scope.connection,
         "UPDATE conversation_members SET last_read_sequence=GREATEST(last_read_sequence,$3::bigint), "
         "last_delivered_sequence=GREATEST(last_delivered_sequence,$3::bigint) "
-        "WHERE conversation_id=$1::bigint AND user_id=$2::bigint RETURNING 1",
+        "WHERE conversation_id=$1::bigint AND user_id=$2::bigint "
+        "AND last_read_sequence<$3::bigint RETURNING 1",
         {number(conversation), number(user), number(sequence)}).rows() == 1;
 }
 
@@ -822,7 +855,8 @@ std::vector<Message> PostgresStore::searchMessages(
     auto scope = connection();
     const auto result = query(scope.connection,
         "SELECT " + std::string(kMessageColumns) +
-        " FROM messages WHERE conversation_id=$1::bigint AND body ILIKE '%' || $2 || '%' "
+        " FROM messages WHERE conversation_id=$1::bigint AND state='active' "
+        "AND body ILIKE '%' || $2 || '%' "
         "ORDER BY conversation_seq LIMIT $3::bigint",
         {number(conversation), std::string(text), number(limit)});
     std::vector<Message> messages;
@@ -840,6 +874,25 @@ std::optional<Message> PostgresStore::findMessage(MessageId id) const
         " FROM messages WHERE id=$1::bigint", {number(id)});
     return result.rows() ? std::optional<Message>{readMessage(result, 0)}
                          : std::nullopt;
+}
+
+RecallMessageResult PostgresStore::recallMessage(MessageId id, UserId actor,
+                                                 TimePoint now)
+{
+    auto scope = connection();
+    const auto changed = query(scope.connection,
+        "UPDATE messages SET state='recalled',recalled_by=$2::bigint,"
+        "recalled_at=to_timestamp($3::double precision/1000000.0) "
+        "WHERE id=$1::bigint AND state='active' RETURNING " +
+        std::string(kMessageColumns),
+        {number(id), number(actor), encodeTime(now)});
+    if (changed.rows())
+        return {readMessage(changed, 0), true};
+    const auto existing = query(scope.connection,
+        "SELECT " + std::string(kMessageColumns) +
+        " FROM messages WHERE id=$1::bigint", {number(id)});
+    return existing.rows() ? RecallMessageResult{readMessage(existing, 0), false}
+                           : RecallMessageResult{};
 }
 
 OutboxEvent PostgresStore::appendOutbox(OutboxEvent event)

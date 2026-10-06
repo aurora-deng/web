@@ -61,18 +61,43 @@ bool handleRealtime(WsMessageContext &context, std::string_view errorType,
     return true;
 }
 
-std::string persistedMessageJson(const Message &message)
+std::string persistedMessageJson(const Message &message,
+                                 std::string_view type = "chat.message")
 {
     const auto createdAt = std::chrono::duration_cast<std::chrono::milliseconds>(
                                message.createdAt.time_since_epoch()).count();
-    return "{\"type\":\"chat.message\",\"id\":" +
+    const bool recalled = message.state == MessageState::Recalled;
+    std::string json = "{\"type\":" + quoteJson(type) + ",\"id\":" +
            quoteJson(std::to_string(message.id)) +
            ",\"conversationId\":" + std::to_string(message.conversationId) +
            ",\"sequence\":" + std::to_string(message.sequence) +
            ",\"senderId\":" + std::to_string(message.senderId) +
            ",\"clientMessageId\":" + quoteJson(message.clientMessageId) +
-           ",\"body\":" + quoteJson(message.body) +
-           ",\"createdAt\":" + std::to_string(createdAt) + "}";
+           ",\"body\":" + quoteJson(recalled ? "" : message.body) +
+           ",\"createdAt\":" + std::to_string(createdAt) +
+           ",\"state\":" + quoteJson(recalled ? "recalled" : "active") +
+           ",\"recalledBy\":" +
+           (message.recalledBy ? std::to_string(*message.recalledBy) : "null") +
+           ",\"recalledAt\":";
+    if (message.recalledAt)
+        json += std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  message.recalledAt->time_since_epoch()).count());
+    else
+        json += "null";
+    return json + "}";
+}
+
+std::pair<UserId, std::uint64_t> receiptPayload(std::string_view payload)
+{
+    const auto separator = payload.find(':');
+    if (separator == std::string_view::npos)
+        throw std::invalid_argument("invalid receipt payload");
+    const auto user = static_cast<UserId>(
+        std::stoull(std::string(payload.substr(0, separator))));
+    const auto sequence = std::stoull(std::string(payload.substr(separator + 1)));
+    if (!user || !sequence)
+        throw std::invalid_argument("invalid receipt payload");
+    return {user, sequence};
 }
 
 } // namespace
@@ -108,7 +133,7 @@ void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
                          conversation = context.inbound.conversationId,
                          sequence = context.inbound.sequence]
             {
-                chat_.acknowledgeDelivery(user, conversation, sequence);
+                chat_.acknowledgeDelivery(user, conversation, sequence, now());
             });
             setReply(context, "chat.acknowledged", "accepted");
         });
@@ -122,9 +147,31 @@ void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
                          conversation = context.inbound.conversationId,
                          sequence = context.inbound.sequence]
             {
-                chat_.markRead(user, conversation, sequence);
+                chat_.markRead(user, conversation, sequence, now());
             });
             setReply(context, "chat.read", "accepted");
+        });
+    });
+
+    dispatcher.on("chat.recall", [this](WsMessageContext &context)
+    {
+        return handleRealtime(context, "chat.error", [&]
+        {
+            if (context.uid == 0 || context.inbound.replyTo.empty())
+                throw ApplicationError(ErrorCode::InvalidArgument,
+                                       "message id is required");
+            MessageId message = 0;
+            try { message = std::stoull(context.inbound.replyTo); }
+            catch (...) {}
+            if (!message)
+                throw ApplicationError(ErrorCode::InvalidArgument,
+                                       "message id is invalid");
+            const auto result = runDatabase(
+                [this, actor = static_cast<UserId>(context.uid), message]
+                { return chat_.recallMessage(actor, message, now()); });
+            setReply(context, "chat.recall.accepted",
+                     result.changed ? "recalled" : "already_recalled",
+                     &result.message);
         });
     });
 
@@ -233,6 +280,62 @@ bool Phase11RealtimeOutboxSink::publish(const OutboxEvent &event)
         }
         // 零在线连接不算失败：消息已经持久化，离线用户会从 history 按 sequence 恢复。
         return true;
+    }
+
+    if (event.type == "message.recalled")
+    {
+        const auto message = messages_.findMessage(event.aggregateId);
+        if (!message || message->state != MessageState::Recalled)
+            return false;
+        const auto members = conversations_.listMembers(message->conversationId);
+        std::vector<UserId> users;
+        users.reserve(members.size());
+        for (const auto &member : members)
+            users.push_back(member.userId);
+        const auto json = persistedMessageJson(*message, "chat.message-recalled");
+        (void)webSockets_.broadcastText(users, json);
+        for (const auto user : users)
+        {
+            SseEvent notification;
+            notification.id = std::to_string(event.id);
+            notification.eventName = "message.recalled";
+            notification.data = json;
+            (void)sse_.publish(user, notification);
+        }
+        return true;
+    }
+
+    if (event.type == "message.delivered" || event.type == "message.read")
+    {
+        try
+        {
+            const auto [user, sequence] = receiptPayload(event.payload);
+            const auto members = conversations_.listMembers(event.aggregateId);
+            std::vector<UserId> users;
+            users.reserve(members.size());
+            for (const auto &member : members)
+                users.push_back(member.userId);
+            const auto state = event.type == "message.read" ? "read" : "delivered";
+            const auto json = "{\"type\":\"chat.receipt\",\"conversationId\":" +
+                              std::to_string(event.aggregateId) +
+                              ",\"userId\":" + std::to_string(user) +
+                              ",\"sequence\":" + std::to_string(sequence) +
+                              ",\"state\":" + quoteJson(state) + "}";
+            (void)webSockets_.broadcastText(users, json);
+            for (const auto recipient : users)
+            {
+                SseEvent notification;
+                notification.id = std::to_string(event.id);
+                notification.eventName = "message.receipt";
+                notification.data = json;
+                (void)sse_.publish(recipient, notification);
+            }
+            return true;
+        }
+        catch (...)
+        {
+            return false;
+        }
     }
 
     if (event.type == "conversation.created")

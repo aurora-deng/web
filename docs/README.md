@@ -17,6 +17,7 @@
 | test9.1 → Function1.0 完整差异 | [architecture/function1.0-vs-test9.1.md](architecture/function1.0-vs-test9.1.md) |
 | HTTP/gRPC 性能路径、架构拆分与 Linux 实测（Phase 10） | [architecture/phase10.md](architecture/phase10.md) |
 | 账号、社交聊天、AI Provider 与模型治理地基（Phase 11，Function1.0） | [architecture/phase11.md](architecture/phase11.md) |
+| 持久未读、送达/已读回执与消息撤回（Phase 12，本地分支） | [architecture/phase12.md](architecture/phase12.md) |
 | Phase 11 外部依赖审批、位置和卸载说明 | [architecture/phase11-dependency-gates.md](architecture/phase11-dependency-gates.md) |
 | Phase 11 PostgreSQL 表结构、关系和业务写入流程 | [database/README.md](database/README.md) |
 | WebSocket 课程演进 | [architecture/websocket-lessons/README.md](architecture/websocket-lessons/README.md) |

@@ -98,11 +98,29 @@ struct ConversationMember
     TimePoint joinedAt{};
 };
 
+/**
+ * 会话列表所需的持久视图。未读数不是浏览器临时猜测，而是由会话最新序号和
+ * 当前用户的已读游标计算出来，因此刷新页面或更换设备后仍然一致。
+ */
+struct ConversationSummary
+{
+    Conversation conversation;
+    std::uint64_t lastDeliveredSequence = 0;
+    std::uint64_t lastReadSequence = 0;
+    std::uint64_t unreadCount = 0;
+};
+
 struct MessageModelTrace
 {
     std::optional<ModelNodeId> nodeId;
     std::optional<ModelVersionId> versionId;
     std::string adapterName;
+};
+
+enum class MessageState
+{
+    Active,
+    Recalled
 };
 
 struct Message
@@ -115,6 +133,9 @@ struct Message
     std::string body;
     MessageModelTrace modelTrace;
     TimePoint createdAt{};
+    MessageState state = MessageState::Active;
+    std::optional<UserId> recalledBy;
+    std::optional<TimePoint> recalledAt;
 };
 
 /** 消息幂等写入结果同时属于 Repository 与业务层的公共领域数据。 */
@@ -122,6 +143,12 @@ struct AppendMessageResult
 {
     Message message;
     bool inserted = false;
+};
+
+struct RecallMessageResult
+{
+    Message message;
+    bool changed = false;
 };
 
 struct OutboxEvent

@@ -78,6 +78,8 @@ public:
         UserId first, UserId second) const = 0;
     [[nodiscard]] virtual std::vector<Conversation> listConversations(
         UserId user) const = 0;
+    [[nodiscard]] virtual std::vector<ConversationSummary>
+    listConversationSummaries(UserId user) const = 0;
     [[nodiscard]] virtual std::vector<ConversationMember> listMembers(
         ConversationId conversation) const = 0;
     virtual bool addMember(ConversationMember member) = 0;
@@ -99,6 +101,8 @@ public:
         ConversationId conversation, std::string_view query,
         std::size_t limit) const = 0;
     [[nodiscard]] virtual std::optional<Message> findMessage(MessageId id) const = 0;
+    virtual RecallMessageResult recallMessage(MessageId id, UserId actor,
+                                              TimePoint now) = 0;
 };
 
 class IOutboxRepository

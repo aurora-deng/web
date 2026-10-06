@@ -134,6 +134,7 @@ struct SseEvent
 inline constexpr std::string_view kChatSend = "chat.send";
 inline constexpr std::string_view kChatAck = "chat.ack";
 inline constexpr std::string_view kChatRead = "chat.read";
+inline constexpr std::string_view kChatRecall = "chat.recall";
 inline constexpr std::string_view kPresenceSubscribe = "presence.subscribe";
 inline constexpr std::string_view kPresenceUpdate = "presence.update";
 inline constexpr std::string_view kAiGenerate = "ai.generate";

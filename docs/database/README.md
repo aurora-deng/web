@@ -1,7 +1,8 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
-这份文档对应当前唯一的数据库迁移
-[001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql)。它解释当前真实代码中的
+这份文档对应当前两份数据库迁移：建库基线
+[001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) 和消息生命周期增量
+[002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)。它解释当前真实代码中的
 16 张表（1 张迁移登记表和 15 张业务表），不把规划中的功能写成已经实现。
 
 当前虚拟机的实际行数、AI 绑定和本地测试账号统一记录在同目录的
@@ -52,11 +53,12 @@ erDiagram
 
 | 字段 | 含义 |
 |---|---|
-| `version` | 迁移版本号，当前为 `1` |
+| `version` | 迁移版本号，当前最新为 `2` |
 | `description` | 该版本做了什么 |
 | `applied_at` | 迁移执行时间 |
 
-它像数据库的“装修记录”。应用以后增加 `002_xxx.sql` 时，可以据此判断哪些改动已经执行，避免重复建表。
+它像数据库的“装修记录”。迁移脚本会按编号依次检查和执行尚未登记的文件，因此已有版本 1 的数据库只应用
+版本 2，新建空库则依次应用版本 1、2。
 
 ### `users`：用户花名册
 
@@ -144,8 +146,15 @@ user_low_id=3, user_high_id=8
 | `client_message_id` | 浏览器生成的幂等 ID，重试不会重复写入 |
 | `body` | 1–16384 字节的文字正文 |
 | `model_node_id / model_version_id / adapter_name` | AI 回复的模型来源；普通消息为空 |
+| `state` | `active` 表示正常消息，`recalled` 表示已经撤回 |
+| `recalled_by` | 执行撤回的发送者 ID；正常消息为空 |
+| `recalled_at` | 撤回时间；正常消息为空 |
 
 消息先写 PostgreSQL，所以接收人不在线也不影响发送。对方再次登录后，服务端依据会话序号恢复漏掉的消息。
+
+撤回不会删除数据库行，也不会重新使用 `conversation_seq`。它更像在信件上盖“已撤回”章：HTTP 历史、
+WebSocket 和 SSE 只返回撤回状态，不返回原正文；搜索也排除撤回消息，但数据库仍保留原记录供审计和后续治理。
+`messages_recall_shape` 约束保证 `state='recalled'` 时撤回人和时间必须同时存在。
 
 `messages_body_search_idx` 是全文检索索引。当前使用 PostgreSQL `simple` 分词配置，适合教学和基础搜索；它不是完整的
 中文分词系统，复杂中文搜索以后可接专用分词或搜索引擎。
@@ -251,6 +260,37 @@ submitted → approved → exported
 在线成员立即收到；离线成员以后按 sequence 恢复
 ```
 
+发送者写入成功时，自己的 `last_delivered_sequence` 和 `last_read_sequence` 会推进到新消息序号，避免自己的消息
+反过来计入自己的未读数。接收者的游标只在真实 `chat.ack` / `chat.read` 到达后前进。
+
+### 送达、已读与持久未读
+
+```text
+浏览器收到消息
+    ├─ chat.ack  → last_delivered_sequence 单调前进
+    └─ chat.read → last_read_sequence 与 last_delivered_sequence 单调前进
+                         ↓ 同一事务
+                    outbox_events
+                         ↓
+             chat.receipt / message.receipt
+```
+
+会话列表的未读数由 `next_sequence - 1 - last_read_sequence` 计算，因此刷新页面或换设备后不会丢失。
+重复或倒退的 ACK/已读命令不会改写游标，也不会重复产生 Outbox 事件。
+
+### 两分钟内撤回
+
+```text
+发送者 chat.recall(message_id)
+       ↓ 校验成员身份、发送者、两分钟窗口
+messages.state = recalled
+recalled_by / recalled_at 写入
+       ↓ 同一事务
+message.recalled Outbox
+       ↓
+WebSocket + SSE 通知所有会话成员
+```
+
 ## 8. 在 Navicat 中建议先看的内容
 
 先注册两个测试账号，再按下面顺序观察：
@@ -261,6 +301,8 @@ submitted → approved → exported
 4. 创建私聊，观察一行 `conversations` 和两行 `conversation_members`。
 5. 让接收者离线后发送消息，确认 `messages` 仍然新增。
 6. 查看 `outbox_events.published_at`，理解落库和实时通知是两个阶段。
+7. 让接收者打开会话，观察 `conversation_members` 的两个游标只增不减。
+8. 两分钟内撤回一条消息，观察 `messages.state/recalled_by/recalled_at`，并确认前端不再显示正文。
 
 只读查询示例：
 
@@ -269,7 +311,9 @@ SELECT id, username, display_name, ai_account, created_at
 FROM users
 ORDER BY id;
 
-SELECT conversation_id, conversation_seq, sender_id, body, created_at
+SELECT conversation_id, conversation_seq, sender_id, state,
+       CASE WHEN state = 'active' THEN body ELSE '[已撤回]' END AS visible_body,
+       recalled_by, recalled_at, created_at
 FROM messages
 ORDER BY conversation_id, conversation_seq;
 
@@ -286,7 +330,8 @@ ORDER BY id DESC;
 
 | 内容 | 文件 |
 |---|---|
-| 表、约束和索引 | [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) |
+| 基础表、约束和索引 | [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) |
+| 消息状态与撤回约束 | [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql) |
 | PostgreSQL Repository | [PostgresStore.cpp](../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 连接池 | [PostgresConnectionPool.cpp](../../server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
 | Repository 业务接口 | [Ports.h](../../server/phase11/ports/Ports/Ports.h) |

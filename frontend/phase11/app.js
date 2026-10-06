@@ -33,6 +33,8 @@ const state = {
   reconnectTimer: null,
   activeGenerations: new Map(),
   unread: new Map(),
+  seenMessageIds: new Set(),
+  pendingRecalls: new Map(),
   members: [],
   aiConversations: new Set(),
   conversationFilter: 'all',
@@ -81,6 +83,33 @@ function createClientId() {
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   }
   return `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * 记录已经处理过的持久化消息，阻止 WebSocket 与 SSE 的同一事件重复渲染。
+ * Set 像一个临时“验票册”，只保留最近 4096 张票，避免页面长期打开后无限占用内存。
+ * 返回 true 表示该消息此前已经处理过。
+ */
+function rememberMessageId(messageId) {
+  if (messageId === undefined || messageId === null) return false;
+  const key = String(messageId);
+  if (state.seenMessageIds.has(key)) return true;
+  state.seenMessageIds.add(key);
+  if (state.seenMessageIds.size > 4096) {
+    state.seenMessageIds.delete(state.seenMessageIds.values().next().value);
+  }
+  return false;
+}
+
+function advanceConversationSequence(conversationId, sequence) {
+  const conversation = state.conversations.find(
+    item => Number(item.id) === Number(conversationId),
+  );
+  if (!conversation) return;
+  conversation.nextSequence = Math.max(
+    Number(conversation.nextSequence) || 1,
+    Number(sequence || 0) + 1,
+  );
 }
 
 function conversationTitle(conversation) {
@@ -181,6 +210,9 @@ function showLoggedOut() {
   state.conversation = null;
   state.conversations = [];
   state.members = [];
+  state.unread.clear();
+  state.seenMessageIds.clear();
+  state.pendingRecalls.clear();
   clearTimeout(state.reconnectTimer);
   state.socket?.close();
   state.events?.close();
@@ -240,6 +272,13 @@ async function loadConversations() {
   elements.conversationLoading.classList.remove('hidden');
   try {
     state.conversations = await api('/api/conversations');
+    state.unread.clear();
+    state.conversations.forEach(conversation => {
+      const unread = Math.max(0, Number(conversation.unreadCount) || 0);
+      if (unread && Number(conversation.id) !== Number(state.conversation?.id)) {
+        state.unread.set(Number(conversation.id), unread);
+      }
+    });
     if (state.conversation) {
       state.conversation = state.conversations.find(
         item => Number(item.id) === Number(state.conversation.id),
@@ -340,6 +379,47 @@ function formatMessageTime(value) {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 
+function deliveryLabel(message) {
+  if (message.state === 'recalled') return '已撤回';
+  if (message.deliveryState === 'sending') return '发送中…';
+  if (message.deliveryState === 'failed') return '发送失败';
+  if (Number(message.senderId) !== Number(state.me?.id) || !message.sequence) return '';
+  const peers = state.members.filter(member => Number(member.userId) !== Number(state.me?.id));
+  if (!peers.length) return '已保存';
+  const read = peers.filter(member => Number(member.lastReadSequence) >= Number(message.sequence)).length;
+  const delivered = peers.filter(member => Number(member.lastDeliveredSequence) >= Number(message.sequence)).length;
+  if (read === peers.length) return peers.length === 1 ? '已读' : `全部已读 ${read}/${peers.length}`;
+  if (read) return `已读 ${read}/${peers.length}`;
+  if (delivered === peers.length) return peers.length === 1 ? '已送达' : `全部送达 ${delivered}/${peers.length}`;
+  if (delivered) return `已送达 ${delivered}/${peers.length}`;
+  return '已保存';
+}
+
+function canRecall(message) {
+  if (message.state === 'recalled' || !message.id ||
+      Number(message.senderId) !== Number(state.me?.id)) return false;
+  const createdAt = Number(message.createdAt);
+  return createdAt > 0 && Date.now() - createdAt <= 2 * 60 * 1000;
+}
+
+function requestRecall(message, button) {
+  const commandId = createClientId();
+  const sent = sendSocket({
+    v: 1,
+    type: 'chat.recall',
+    id: commandId,
+    conversationId: Number(message.conversationId),
+    replyTo: String(message.id),
+  });
+  if (!sent) {
+    setStatus(elements.chatStatus, '消息撤回失败：实时连接当前不可写。', 'error');
+    return;
+  }
+  state.pendingRecalls.set(commandId, String(message.id));
+  button.disabled = true;
+  button.textContent = '撤回中…';
+}
+
 function createMessageElement(message, options = {}) {
   const mine = Number(message.senderId) === Number(state.me?.id);
   const aiMessage = Boolean(options.ai || message.clientMessageId?.startsWith('ai:'));
@@ -347,7 +427,9 @@ function createMessageElement(message, options = {}) {
   item.className = 'message';
   item.classList.toggle('mine', mine);
   item.classList.toggle('ai-streaming', Boolean(options.streaming));
+  item.classList.toggle('message-recalled', message.state === 'recalled');
   if (message.id !== undefined) item.dataset.messageId = String(message.id);
+  if (message.clientMessageId) item.dataset.clientMessageId = message.clientMessageId;
   if (options.generationId) item.dataset.generationId = options.generationId;
   if (message.sequence !== undefined) item.dataset.sequence = String(message.sequence);
 
@@ -364,13 +446,31 @@ function createMessageElement(message, options = {}) {
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble';
   bubble.classList.toggle('typing-caret', Boolean(options.streaming));
-  bubble.textContent = message.body || '';
-  content.append(meta, bubble);
+  bubble.classList.toggle('recalled', message.state === 'recalled');
+  bubble.textContent = message.state === 'recalled' ? '这条消息已被撤回' : (message.body || '');
+  const footer = document.createElement('div');
+  footer.className = 'message-footer';
+  const status = document.createElement('span');
+  status.className = `message-delivery ${message.deliveryState || ''}`.trim();
+  status.textContent = deliveryLabel(message);
+  footer.append(status);
+  if (canRecall(message)) {
+    const recall = document.createElement('button');
+    recall.type = 'button';
+    recall.className = 'message-recall';
+    recall.textContent = '撤回';
+    recall.addEventListener('click', () => requestRecall(message, recall));
+    footer.append(recall);
+  }
+  content.append(meta, bubble, footer);
   item.append(avatar, content);
   return item;
 }
 
 function renderMessages(messages) {
+  messages.forEach(message => {
+    rememberMessageId(message.id);
+  });
   elements.messageList.replaceChildren(...messages.map(message => createMessageElement(message)));
   if (!messages.length) {
     const empty = document.createElement('li');
@@ -389,18 +489,84 @@ function existingMessage(messageId) {
   return [...elements.messageList.children].find(item => item.dataset.messageId === String(messageId));
 }
 
+function messageByClientId(clientMessageId) {
+  return [...elements.messageList.children]
+    .find(item => item.dataset.clientMessageId === String(clientMessageId));
+}
+
+function refreshMessageReceipts() {
+  elements.messageList.querySelectorAll('.message.mine').forEach(item => {
+    const status = item.querySelector('.message-delivery');
+    if (!status || !item.dataset.sequence) return;
+    status.textContent = deliveryLabel({
+      senderId: state.me?.id,
+      sequence: Number(item.dataset.sequence),
+      state: item.classList.contains('message-recalled') ? 'recalled' : 'active',
+    });
+  });
+}
+
 function generationElement(generationId) {
   return [...elements.messageList.children].find(item => item.dataset.generationId === String(generationId));
 }
 
 function appendMessage(message) {
-  if (!message || existingMessage(message.id)) return;
+  if (!message) return;
+  const pending = message.clientMessageId && messageByClientId(message.clientMessageId);
+  if (pending) {
+    pending.replaceWith(createMessageElement(message));
+    rememberMessageId(message.id);
+    scrollMessages();
+    return;
+  }
+  if (existingMessage(message.id)) return;
   if (message.clientMessageId?.startsWith('ai:')) {
     generationElement(message.clientMessageId.slice(3))?.remove();
   }
   elements.messageList.querySelector('.list-empty')?.remove();
   elements.messageList.append(createMessageElement(message));
+  rememberMessageId(message.id);
   scrollMessages();
+}
+
+function acceptPendingMessage(message) {
+  const pending = messageByClientId(message.replyTo);
+  if (!pending) return;
+  // Outbox 广播可能比命令回执先到。若 DOM 已经是同一条持久消息，就保留广播携带的
+  // 准确 createdAt/state，不再用回执中的精简字段覆盖它。
+  if (pending.dataset.messageId === String(message.id)) return;
+  const body = pending.querySelector('.message-bubble')?.textContent || '';
+  const accepted = {
+    id: message.id,
+    conversationId: message.conversationId,
+    sequence: message.sequence,
+    senderId: state.me?.id,
+    clientMessageId: message.replyTo,
+    body,
+    // chat.accepted 只证明已经落库，不携带服务端时间。先不显示依赖时间窗的撤回按钮，
+    // 随后的 chat.message / SSE 持久事件会用完整记录替换这个临时状态。
+    createdAt: 0,
+    state: 'active',
+  };
+  pending.replaceWith(createMessageElement(accepted));
+  advanceConversationSequence(message.conversationId, message.sequence);
+  renderConversations();
+}
+
+function applyRecall(message) {
+  const existing = existingMessage(message.id);
+  if (existing) existing.replaceWith(createMessageElement(message));
+}
+
+function failPendingMessage(clientMessageId) {
+  const pending = messageByClientId(clientMessageId);
+  if (!pending) return;
+  pending.classList.add('send-failed');
+  const status = pending.querySelector('.message-delivery');
+  if (status) {
+    status.textContent = '发送失败';
+    status.classList.add('failed');
+  }
 }
 
 function sendSocket(payload) {
@@ -435,24 +601,78 @@ function refreshCancelButton() {
 
 function onRealtimeMessage(message) {
   if (message.type === 'chat.message') {
+    if (rememberMessageId(message.id)) return;
+    advanceConversationSequence(message.conversationId, message.sequence);
     const isCurrent = Number(message.conversationId) === Number(state.conversation?.id);
     if (isCurrent) {
       appendMessage(message);
       acknowledge(message);
     } else {
       const id = Number(message.conversationId);
-      state.unread.set(id, (state.unread.get(id) || 0) + 1);
+      // 同一账号的另一浏览器标签页可能收到自己刚发送的广播；发送者游标已经在
+      // 服务端推进，因此这里只给真正来自其他成员的消息增加本地未读数。
+      if (Number(message.senderId) !== Number(state.me?.id)) {
+        state.unread.set(id, (state.unread.get(id) || 0) + 1);
+      }
+      renderConversations();
+    }
+    return;
+  }
+  if (message.type === 'chat.message-recalled') {
+    if (Number(message.conversationId) === Number(state.conversation?.id)) {
+      applyRecall(message);
+      setStatus(elements.chatStatus, '消息已撤回。', 'success');
+    }
+    return;
+  }
+  if (message.type === 'chat.receipt') {
+    if (Number(message.conversationId) === Number(state.conversation?.id)) {
+      const member = state.members.find(item => Number(item.userId) === Number(message.userId));
+      if (member) {
+        if (message.state === 'read') {
+          member.lastReadSequence = Math.max(Number(member.lastReadSequence) || 0, Number(message.sequence));
+          member.lastDeliveredSequence = Math.max(Number(member.lastDeliveredSequence) || 0, Number(message.sequence));
+        } else {
+          member.lastDeliveredSequence = Math.max(Number(member.lastDeliveredSequence) || 0, Number(message.sequence));
+        }
+        renderConversationMembers();
+        refreshMessageReceipts();
+      }
+    }
+    if (message.state === 'read' && Number(message.userId) === Number(state.me?.id)) {
+      const conversation = state.conversations.find(item => Number(item.id) === Number(message.conversationId));
+      const latest = Math.max(0, Number(conversation?.nextSequence || 1) - 1);
+      const remaining = Math.max(0, latest - Number(message.sequence));
+      if (remaining) state.unread.set(Number(message.conversationId), remaining);
+      else state.unread.delete(Number(message.conversationId));
       renderConversations();
     }
     return;
   }
   if (message.type === 'chat.accepted') {
+    acceptPendingMessage(message);
+    acknowledge(message);
     const text = message.status === 'duplicate'
       ? '重复消息已由服务器安全去重。'
       : '消息已由服务器持久化；接收方离线也可以稍后恢复。';
     setStatus(elements.chatStatus, text, 'success');
   } else if (message.type === 'chat.error') {
+    failPendingMessage(message.replyTo);
+    const recalledMessage = state.pendingRecalls.get(message.replyTo);
+    if (recalledMessage) {
+      state.pendingRecalls.delete(message.replyTo);
+      const recall = existingMessage(recalledMessage)?.querySelector('.message-recall');
+      if (recall) {
+        recall.disabled = false;
+        recall.textContent = '撤回';
+      }
+    }
     setStatus(elements.chatStatus, message.status || '消息发送失败', 'error');
+  } else if (message.type === 'chat.recall.accepted') {
+    state.pendingRecalls.delete(message.replyTo);
+    setStatus(elements.chatStatus,
+      message.status === 'already_recalled' ? '该消息已经撤回。' : '撤回请求已提交。',
+      'success');
   } else if (message.type === 'ai.error') {
     state.activeGenerations.delete(message.replyTo);
     refreshCancelButton();
@@ -493,6 +713,12 @@ function connectRealtime() {
   events.addEventListener('error', () => setRealtimeState('sse', state.me ? 'error' : 'offline'));
   events.addEventListener('message.notification', event => {
     try { onRealtimeMessage(JSON.parse(event.data)); } catch { /* EventSource will keep running. */ }
+  });
+  events.addEventListener('message.recalled', event => {
+    try { onRealtimeMessage(JSON.parse(event.data)); } catch { /* WebSocket or history can recover it. */ }
+  });
+  events.addEventListener('message.receipt', event => {
+    try { onRealtimeMessage(JSON.parse(event.data)); } catch { /* Receipt cursors remain persisted. */ }
   });
   events.addEventListener('conversation.invited', async event => {
     try {
@@ -783,6 +1009,15 @@ elements.messageForm.addEventListener('submit', event => {
     refreshCancelButton();
     setStatus(elements.chatStatus, 'AI 请求已进入后台队列。', 'success');
   } else {
+    appendMessage({
+      conversationId: Number(state.conversation.id),
+      senderId: Number(state.me.id),
+      clientMessageId: messageId,
+      body: content,
+      createdAt: Date.now(),
+      state: 'active',
+      deliveryState: 'sending',
+    });
     setStatus(elements.chatStatus);
   }
   input.value = '';

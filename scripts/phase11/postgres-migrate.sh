@@ -9,7 +9,7 @@ postgres_root="${PHASE11_POSTGRES_ROOT:-${phase11_home}/phase11-deps/postgresql/
 database="${1:-phase11}"
 pgpass_file="${2:-${phase11_home}/phase11-data/secrets/phase11.pgpass}"
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-migration="${project_root}/server/phase11/storage/postgres/migrations/001_phase11.sql"
+migration_dir="${project_root}/server/phase11/storage/postgres/migrations"
 
 if [[ ! -x "${postgres_root}/bin/psql" ]]; then
     echo "psql is missing below ${postgres_root}." >&2
@@ -19,23 +19,39 @@ if [[ ! -r "${pgpass_file}" ]]; then
     echo "pgpass file is missing or unreadable: ${pgpass_file}" >&2
     exit 1
 fi
-if [[ ! -r "${migration}" ]]; then
-    echo "migration is missing: ${migration}" >&2
+if [[ ! -d "${migration_dir}" ]]; then
+    echo "migration directory is missing: ${migration_dir}" >&2
     exit 1
 fi
 
 psql=("${postgres_root}/bin/psql" -h 127.0.0.1 -p 5432
       -U phase11_app -d "${database}" -v ON_ERROR_STOP=1)
 
-has_migration_table="$(PGPASSFILE="${pgpass_file}" "${psql[@]}" -Atqc \
-    "SELECT to_regclass('public.phase11_schema_migrations') IS NOT NULL")"
-if [[ "${has_migration_table}" == "t" ]]; then
-    already_applied="$(PGPASSFILE="${pgpass_file}" "${psql[@]}" -Atqc \
-        "SELECT EXISTS(SELECT 1 FROM phase11_schema_migrations WHERE version=1)")"
-    if [[ "${already_applied}" == "t" ]]; then
-        echo "Phase 11 migration 1 is already applied to ${database}."
-        exit 0
-    fi
-fi
+found=0
+for migration in "${migration_dir}"/[0-9][0-9][0-9]_*.sql; do
+    [[ -e "${migration}" ]] || continue
+    found=1
+    filename="$(basename "${migration}")"
+    version_text="${filename%%_*}"
+    version="$((10#${version_text}))"
 
-PGPASSFILE="${pgpass_file}" "${psql[@]}" -f "${migration}"
+    has_migration_table="$(PGPASSFILE="${pgpass_file}" "${psql[@]}" -Atqc \
+        "SELECT to_regclass('public.phase11_schema_migrations') IS NOT NULL")"
+    already_applied="f"
+    if [[ "${has_migration_table}" == "t" ]]; then
+        already_applied="$(PGPASSFILE="${pgpass_file}" "${psql[@]}" -Atqc \
+            "SELECT EXISTS(SELECT 1 FROM phase11_schema_migrations WHERE version=${version})")"
+    fi
+    if [[ "${already_applied}" == "t" ]]; then
+        echo "Migration ${version} is already applied to ${database}."
+        continue
+    fi
+
+    echo "Applying migration ${version}: ${filename}"
+    PGPASSFILE="${pgpass_file}" "${psql[@]}" -f "${migration}"
+done
+
+if [[ "${found}" -eq 0 ]]; then
+    echo "No migrations found below ${migration_dir}." >&2
+    exit 1
+fi

@@ -108,11 +108,13 @@ public:
                                          std::string clientMessageId,
                                          std::string body, TimePoint now,
                                          MessageModelTrace trace = {}) = 0;
+    virtual RecallMessageResult recallMessage(UserId actor, MessageId message,
+                                              TimePoint now) = 0;
     virtual void acknowledgeDelivery(UserId user, ConversationId conversation,
-                                     std::uint64_t sequence) = 0;
+                                     std::uint64_t sequence, TimePoint now) = 0;
     virtual void markRead(UserId user, ConversationId conversation,
-                          std::uint64_t sequence) = 0;
-    [[nodiscard]] virtual std::vector<Conversation> conversations(
+                          std::uint64_t sequence, TimePoint now) = 0;
+    [[nodiscard]] virtual std::vector<ConversationSummary> conversations(
         UserId user) const = 0;
     [[nodiscard]] virtual std::vector<ConversationParticipant> members(
         UserId user, ConversationId conversation) const = 0;

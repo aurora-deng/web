@@ -69,6 +69,8 @@ public:
     std::optional<Conversation> findDirectConversation(
         UserId first, UserId second) const override;
     std::vector<Conversation> listConversations(UserId user) const override;
+    std::vector<ConversationSummary> listConversationSummaries(
+        UserId user) const override;
     std::vector<ConversationMember> listMembers(
         ConversationId conversation) const override;
     bool addMember(ConversationMember member) override;
@@ -85,6 +87,8 @@ public:
                                         std::string_view query,
                                         std::size_t limit) const override;
     std::optional<Message> findMessage(MessageId id) const override;
+    RecallMessageResult recallMessage(MessageId id, UserId actor,
+                                      TimePoint now) override;
 
     OutboxEvent appendOutbox(OutboxEvent event) override;
     std::vector<OutboxEvent> pendingOutbox(std::size_t limit) const override;

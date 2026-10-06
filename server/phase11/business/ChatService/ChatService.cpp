@@ -1,6 +1,7 @@
 #include "server/phase11/business/ChatService/ChatService.h"
 
 #include <algorithm>
+#include <chrono>
 #include <set>
 
 namespace webserver::phase11
@@ -137,6 +138,7 @@ AppendMessageResult ChatService::sendText(
                                "message body length is out of range");
 
     auto transaction = database_.beginTransaction();
+    const auto originalBody = body;
     auto appended = messages_.appendMessage(
         {0, conversation, 0, sender, std::move(clientMessageId),
          body, std::move(trace), now});
@@ -144,12 +146,16 @@ AppendMessageResult ChatService::sendText(
     {
         // 相同幂等键只允许重放完全相同的命令。若正文不同，说明客户端错误复用了 ID。
         const auto &existing = appended.message;
-        if (existing.body != body)
+        if (existing.body != originalBody)
             throw ApplicationError(ErrorCode::Conflict,
                                    "client message id was reused with different content");
         transaction->commit();
         return appended;
     }
+    // 能发出消息，说明发送者已经进入并阅读到当前会话位置。同步推进自己的游标，
+    // 避免刚发出的消息在刷新页面后反过来计入自己的未读数。
+    (void)conversations_.updateRead(conversation, sender,
+                                    appended.message.sequence);
     outbox_.appendOutbox({0, "message.created", "message",
                           appended.message.id,
                           std::to_string(appended.message.id), now, {}});
@@ -157,34 +163,82 @@ AppendMessageResult ChatService::sendText(
     return appended;
 }
 
+RecallMessageResult ChatService::recallMessage(UserId actor,
+                                               MessageId message,
+                                               TimePoint now)
+{
+    auto transaction = database_.beginTransaction();
+    const auto existing = messages_.findMessage(message);
+    if (!existing)
+        throw ApplicationError(ErrorCode::NotFound, "message not found");
+    requireMember(actor, existing->conversationId);
+    if (existing->senderId != actor)
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "only the sender can recall this message");
+    if (existing->state == MessageState::Recalled)
+    {
+        transaction->commit();
+        return {*existing, false};
+    }
+    constexpr auto recallWindow = std::chrono::minutes(2);
+    if (now < existing->createdAt || now - existing->createdAt > recallWindow)
+        throw ApplicationError(ErrorCode::Conflict,
+                               "message recall window has expired");
+
+    auto recalled = messages_.recallMessage(message, actor, now);
+    if (!recalled.message.id)
+        throw ApplicationError(ErrorCode::NotFound, "message not found");
+    if (recalled.changed)
+        outbox_.appendOutbox({0, "message.recalled", "message", message,
+                              std::to_string(existing->conversationId), now, {}});
+    transaction->commit();
+    return recalled;
+}
+
 void ChatService::acknowledgeDelivery(UserId user,
                                       ConversationId conversation,
-                                      std::uint64_t sequence)
+                                      std::uint64_t sequence,
+                                      TimePoint now)
 {
     const auto current = requireConversation(conversation);
-    requireMember(user, conversation);
-    if (sequence >= current.nextSequence ||
-        !conversations_.updateDelivered(conversation, user, sequence))
+    const auto member = requireMember(user, conversation);
+    if (sequence >= current.nextSequence)
         throw ApplicationError(ErrorCode::InvalidArgument,
                                "delivery sequence is invalid");
+    if (sequence <= member.lastDeliveredSequence)
+        return;
+    auto transaction = database_.beginTransaction();
+    if (conversations_.updateDelivered(conversation, user, sequence))
+        outbox_.appendOutbox({0, "message.delivered", "conversation",
+                              conversation,
+                              std::to_string(user) + ":" +
+                                  std::to_string(sequence), now, {}});
+    transaction->commit();
 }
 
 void ChatService::markRead(UserId user, ConversationId conversation,
-                           std::uint64_t sequence)
+                           std::uint64_t sequence, TimePoint now)
 {
     const auto current = requireConversation(conversation);
-    requireMember(user, conversation);
-    if (sequence >= current.nextSequence ||
-        !conversations_.updateRead(conversation, user, sequence))
+    const auto member = requireMember(user, conversation);
+    if (sequence >= current.nextSequence)
         throw ApplicationError(ErrorCode::InvalidArgument,
                                "read sequence is invalid");
+    if (sequence <= member.lastReadSequence)
+        return;
+    auto transaction = database_.beginTransaction();
+    if (conversations_.updateRead(conversation, user, sequence))
+        outbox_.appendOutbox({0, "message.read", "conversation", conversation,
+                              std::to_string(user) + ":" +
+                                  std::to_string(sequence), now, {}});
+    transaction->commit();
 }
 
-std::vector<Conversation> ChatService::conversations(UserId user) const
+std::vector<ConversationSummary> ChatService::conversations(UserId user) const
 {
     if (!users_.findUser(user))
         throw ApplicationError(ErrorCode::NotFound, "user not found");
-    return conversations_.listConversations(user);
+    return conversations_.listConversationSummaries(user);
 }
 
 std::vector<ConversationParticipant> ChatService::members(

@@ -21,7 +21,7 @@ class WebSocketSessionManager;
 namespace webserver::phase11::transport
 {
 
-/** chat.send / chat.ack / chat.read 的 WebSocket 业务适配器。 */
+/** chat.send / chat.ack / chat.read / chat.recall 的 WebSocket 业务适配器。 */
 class Phase11Realtime final
 {
 public:

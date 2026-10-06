@@ -95,6 +95,12 @@ inline void runRepositoryContract(RepositoryBundle repositories,
     contractRequire(repositories.messages.messagesAfter(
                         conversation.id, 0, 10).size() == 1,
                     "history contains an unexpected message count");
+    const auto bobSummaries =
+        repositories.conversations.listConversationSummaries(bob.id);
+    contractRequire(bobSummaries.size() == 1 &&
+                        bobSummaries.front().unreadCount == 1 &&
+                        bobSummaries.front().lastReadSequence == 0,
+                    "persistent unread summary is incorrect");
     contractRequire(repositories.outbox.pendingOutbox(10).size() == 1,
                     "outbox event was not persisted with the message");
     contractRequire(repositories.outbox.markPublished(event.id, now),

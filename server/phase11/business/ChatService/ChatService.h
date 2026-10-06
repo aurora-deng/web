@@ -32,11 +32,13 @@ public:
                                  std::string clientMessageId,
                                  std::string body, TimePoint now,
                                  MessageModelTrace trace = {}) override;
+    RecallMessageResult recallMessage(UserId actor, MessageId message,
+                                      TimePoint now) override;
     void acknowledgeDelivery(UserId user, ConversationId conversation,
-                             std::uint64_t sequence) override;
+                             std::uint64_t sequence, TimePoint now) override;
     void markRead(UserId user, ConversationId conversation,
-                  std::uint64_t sequence) override;
-    std::vector<Conversation> conversations(UserId user) const override;
+                  std::uint64_t sequence, TimePoint now) override;
+    std::vector<ConversationSummary> conversations(UserId user) const override;
     std::vector<ConversationParticipant> members(
         UserId user, ConversationId conversation) const override;
     std::vector<Message> history(UserId user, ConversationId conversation,

@@ -181,7 +181,10 @@ struct CompletionWaiter final
     GenerationCompletion wait()
     {
         std::unique_lock lock(mutex);
-        CHECK(changed.wait_for(lock, 5s, [this] { return done; }));
+        // Sanitizer 会显著放大 libcurl worker 和本地假服务器的调度时间。
+        // 这里的 15 秒只是测试夹具的“总等待护栏”；Provider 自身的请求超时仍由
+        // OllamaModelProviderConfig 验证，放宽夹具不会改变生产超时语义。
+        CHECK(changed.wait_for(lock, 15s, [this] { return done; }));
         return completion;
     }
 
@@ -342,7 +345,10 @@ void verifyCancellationAndAdmissionBound()
 {
     FakeOllamaServer server(
         200,
-        {"{\"message\":{\"content\":\"first\"},\"done\":false}\n",
+        {// 先保持连接占用一个并发槽，再发送首个 token 触发取消。
+         // 这样第二次 generate 必然发生在第一个请求仍 Active 的阶段，测试不依赖线程调度速度。
+         "",
+         "{\"message\":{\"content\":\"first\"},\"done\":false}\n",
          "{\"message\":{\"content\":\"late\"},\"done\":false}\n"
          "{\"done\":true}\n"},
         1200ms);

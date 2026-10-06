@@ -382,11 +382,20 @@ Message verifyChatFlow(Fixture &fixture, TimePoint now,
     const auto history = fixture.chat.history(bob.id, direct.id, 0, 20);
     CHECK(history.size() == 1 && history.front().body == "hello phase11");
     CHECK(fixture.chat.search(bob.id, direct.id, "phase11", 10).size() == 1);
-    fixture.chat.acknowledgeDelivery(bob.id, direct.id, 1);
-    fixture.chat.markRead(bob.id, direct.id, 1);
+    const auto unread = fixture.chat.conversations(bob.id);
+    CHECK(unread.size() == 1 && unread.front().unreadCount == 1);
+    const auto senderSummary = fixture.chat.conversations(alice.id);
+    CHECK(senderSummary.size() == 1 && senderSummary.front().unreadCount == 0 &&
+          senderSummary.front().lastReadSequence == 1);
+    fixture.chat.acknowledgeDelivery(bob.id, direct.id, 1, now);
+    fixture.chat.markRead(bob.id, direct.id, 1, now);
+    // 游标只能前进；重复 ACK/已读是幂等操作，不会重复生成 Outbox 事件。
+    fixture.chat.acknowledgeDelivery(bob.id, direct.id, 1, now);
+    fixture.chat.markRead(bob.id, direct.id, 1, now);
     const auto bobState = fixture.store.findMember(direct.id, bob.id);
     CHECK(bobState && bobState->lastDeliveredSequence == 1 &&
            bobState->lastReadSequence == 1);
+    CHECK(fixture.chat.conversations(bob.id).front().unreadCount == 0);
 
     const auto group = fixture.chat.createGroupConversation(
         alice.id, "Study", {bob.id}, now);
@@ -406,10 +415,26 @@ Message verifyChatFlow(Fixture &fixture, TimePoint now,
     CHECK(fixture.chat.history(bob.id, group.id, 0, 20).size() == 1);
     CHECK(fixture.chat.history(charlie.id, group.id, 0, 20).size() == 1);
 
-    // 前面的好友申请，加上 direct conversation + message + group + member-added 和
-    // 离线群消息共六条
-    // Outbox；重放同一消息不会再写一条 message.created。
-    CHECK(fixture.store.pendingOutbox(20).size() == 6);
+    expectError(ErrorCode::Forbidden, [&] {
+        fixture.chat.recallMessage(bob.id, first.message.id, now);
+    });
+    const auto recalled = fixture.chat.recallMessage(
+        alice.id, first.message.id, now + std::chrono::seconds(30));
+    CHECK(recalled.changed && recalled.message.state == MessageState::Recalled &&
+          recalled.message.recalledBy == alice.id);
+    CHECK(!fixture.chat.recallMessage(
+        alice.id, first.message.id, now + std::chrono::seconds(31)).changed);
+    CHECK(fixture.chat.search(bob.id, direct.id, "phase11", 10).empty());
+
+    const auto tooOld = fixture.chat.sendText(
+        alice.id, direct.id, "client-expired-recall", "too old", now);
+    expectError(ErrorCode::Conflict, [&] {
+        fixture.chat.recallMessage(
+            alice.id, tooOld.message.id, now + std::chrono::minutes(3));
+    });
+
+    // ACK、已读、撤回都和消息一样通过 Outbox 发布；重复命令不会重复生成事件。
+    CHECK(fixture.store.pendingOutbox(20).size() == 10);
     return first.message;
 }
 
@@ -563,5 +588,3 @@ int main()
     verifyTrainingConsent(fixture, now, alice, message);
     return 0;
 }
-
-\n

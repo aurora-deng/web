@@ -108,6 +108,9 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
             "delivery cursor update failed");
     require(store.updateRead(direct->id, bob->id, 1),
             "read cursor update failed");
+    require(!store.updateDelivered(direct->id, bob->id, 1) &&
+                !store.updateRead(direct->id, bob->id, 1),
+            "cursor update was not idempotent");
     const auto member = store.findMember(direct->id, bob->id);
     require(member && member->lastDeliveredSequence == 1 &&
                 member->lastReadSequence == 1,
@@ -117,6 +120,13 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
                 store.findMessage(messages.front().id).has_value() &&
                 store.searchMessages(direct->id, "ell", 10).size() == 1,
             "message lookup or search failed");
+    const auto recalled = store.recallMessage(messages.front().id, alice->id, now);
+    const auto recalledAgain =
+        store.recallMessage(messages.front().id, alice->id, now);
+    require(recalled.changed && !recalledAgain.changed &&
+                recalled.message.state == MessageState::Recalled &&
+                store.searchMessages(direct->id, "ell", 10).empty(),
+            "message recall persistence failed");
 
     User charlie{0, "contract-charlie", "Charlie", {}, "hash-c",
                  false, false, now};

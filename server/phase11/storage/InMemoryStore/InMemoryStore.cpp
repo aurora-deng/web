@@ -263,6 +263,27 @@ std::vector<Conversation> InMemoryStore::listConversations(UserId user) const
     return result;
 }
 
+std::vector<ConversationSummary> InMemoryStore::listConversationSummaries(
+    UserId user) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<ConversationSummary> result;
+    for (const auto &[key, member] : state_.members)
+    {
+        if (key.second != user)
+            continue;
+        const auto &conversation = state_.conversations.at(key.first);
+        const auto latest = conversation.nextSequence > 0
+                                ? conversation.nextSequence - 1 : 0;
+        result.push_back({conversation,
+                          member.lastDeliveredSequence,
+                          member.lastReadSequence,
+                          latest > member.lastReadSequence
+                              ? latest - member.lastReadSequence : 0});
+    }
+    return result;
+}
+
 std::vector<ConversationMember> InMemoryStore::listMembers(
     ConversationId conversation) const
 {
@@ -291,6 +312,8 @@ bool InMemoryStore::updateDelivered(ConversationId conversation, UserId user,
     const auto found = state_.members.find({conversation, user});
     if (found == state_.members.end())
         return false;
+    if (sequence <= found->second.lastDeliveredSequence)
+        return false;
     found->second.lastDeliveredSequence =
         std::max(found->second.lastDeliveredSequence, sequence);
     return true;
@@ -302,6 +325,8 @@ bool InMemoryStore::updateRead(ConversationId conversation, UserId user,
     std::lock_guard lock(mutex_);
     const auto found = state_.members.find({conversation, user});
     if (found == state_.members.end())
+        return false;
+    if (sequence <= found->second.lastReadSequence)
         return false;
     found->second.lastReadSequence =
         std::max(found->second.lastReadSequence, sequence);
@@ -366,7 +391,8 @@ std::vector<Message> InMemoryStore::searchMessages(
     for (const auto id : found->second)
     {
         const auto &message = state_.messages.at(id);
-        if (message.body.find(query) != std::string::npos)
+        if (message.state == MessageState::Active &&
+            message.body.find(query) != std::string::npos)
         {
             result.push_back(message);
             if (result.size() == limit)
@@ -383,6 +409,21 @@ std::optional<Message> InMemoryStore::findMessage(MessageId id) const
     return found == state_.messages.end()
                ? std::nullopt
                : std::optional<Message>{found->second};
+}
+
+RecallMessageResult InMemoryStore::recallMessage(MessageId id, UserId actor,
+                                                 TimePoint now)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.messages.find(id);
+    if (found == state_.messages.end())
+        return {};
+    if (found->second.state == MessageState::Recalled)
+        return {found->second, false};
+    found->second.state = MessageState::Recalled;
+    found->second.recalledBy = actor;
+    found->second.recalledAt = now;
+    return {found->second, true};
 }
 
 OutboxEvent InMemoryStore::appendOutbox(OutboxEvent event)

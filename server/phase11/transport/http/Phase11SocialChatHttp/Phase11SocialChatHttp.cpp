@@ -194,6 +194,23 @@ std::string conversationJson(const Conversation &conversation)
            std::to_string(conversation.nextSequence) + "}";
 }
 
+std::string conversationSummaryJson(const ConversationSummary &summary)
+{
+    const auto &conversation = summary.conversation;
+    return "{\"id\":" + std::to_string(conversation.id) +
+           ",\"kind\":" +
+           quoteJson(conversation.kind == ConversationKind::Direct
+                         ? "direct" : "group") +
+           ",\"title\":" + quoteJson(conversation.title) +
+           ",\"createdBy\":" + std::to_string(conversation.createdBy) +
+           ",\"nextSequence\":" + std::to_string(conversation.nextSequence) +
+           ",\"lastDeliveredSequence\":" +
+           std::to_string(summary.lastDeliveredSequence) +
+           ",\"lastReadSequence\":" +
+           std::to_string(summary.lastReadSequence) +
+           ",\"unreadCount\":" + std::to_string(summary.unreadCount) + "}";
+}
+
 std::int64_t epochMilliseconds(TimePoint value)
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -220,13 +237,20 @@ std::string memberJson(const ConversationParticipant &participant)
 
 std::string messageJson(const Message &message)
 {
+    const bool recalled = message.state == MessageState::Recalled;
     return "{\"id\":" + std::to_string(message.id) +
            ",\"conversationId\":" + std::to_string(message.conversationId) +
            ",\"sequence\":" + std::to_string(message.sequence) +
            ",\"senderId\":" + std::to_string(message.senderId) +
            ",\"clientMessageId\":" + quoteJson(message.clientMessageId) +
-           ",\"body\":" + quoteJson(message.body) +
+           ",\"body\":" + quoteJson(recalled ? "" : message.body) +
            ",\"createdAt\":" + std::to_string(epochMilliseconds(message.createdAt)) +
+           ",\"state\":" + quoteJson(recalled ? "recalled" : "active") +
+           ",\"recalledBy\":" +
+           (message.recalledBy ? std::to_string(*message.recalledBy) : "null") +
+           ",\"recalledAt\":" +
+           (message.recalledAt
+                ? std::to_string(epochMilliseconds(*message.recalledAt)) : "null") +
            ",\"modelNodeId\":" +
            (message.modelTrace.nodeId
                 ? std::to_string(*message.modelTrace.nodeId) : "null") +
@@ -325,7 +349,8 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             const auto conversations = runDatabase(
                 [this, user = identity.user.id]
                 { return chat_.conversations(user); });
-            reply(context, 200, arrayJson(conversations, conversationJson));
+            reply(context, 200,
+                  arrayJson(conversations, conversationSummaryJson));
         });
     });
 

@@ -311,6 +311,14 @@ def run(host: str, port: int, ai_user_id: int = 0,
         if "hello durable realtime" not in sse_event:
             raise AssertionError(("SSE payload mismatch", sse_event))
 
+        status, bob_conversations = bob.request("GET", "/api/conversations")
+        bob_summary = next(
+            (item for item in bob_conversations
+             if int(item["id"]) == conversation_id), None
+        )
+        if status != 200 or not bob_summary or int(bob_summary["unreadCount"]) != 1:
+            raise AssertionError(("persistent unread before read", status, bob_summary))
+
         bob_socket.sendall(masked_frame(json.dumps({
             "v": 1,
             "type": "chat.ack",
@@ -320,6 +328,29 @@ def run(host: str, port: int, ai_user_id: int = 0,
         }, separators=(",", ":")).encode()))
         if wait_for_ws(bob_ws, "chat.acknowledged").get("status") != "accepted":
             raise AssertionError("chat ACK was rejected")
+        delivered = wait_for_ws(alice_ws, "chat.receipt")
+        if delivered.get("state") != "delivered" or int(delivered["userId"]) != bob.user_id:
+            raise AssertionError(("delivery receipt", delivered))
+
+        bob_socket.sendall(masked_frame(json.dumps({
+            "v": 1,
+            "type": "chat.read",
+            "id": "read-" + suffix,
+            "conversationId": conversation_id,
+            "sequence": int(bob_event["sequence"]),
+        }, separators=(",", ":")).encode()))
+        if wait_for_ws(bob_ws, "chat.read").get("status") != "accepted":
+            raise AssertionError("chat read receipt was rejected")
+        read_receipt = wait_for_ws(alice_ws, "chat.receipt")
+        if read_receipt.get("state") != "read":
+            raise AssertionError(("read receipt", read_receipt))
+        status, bob_conversations = bob.request("GET", "/api/conversations")
+        bob_summary = next(
+            (item for item in bob_conversations
+             if int(item["id"]) == conversation_id), None
+        )
+        if status != 200 or not bob_summary or int(bob_summary["unreadCount"]) != 0:
+            raise AssertionError(("persistent unread after read", status, bob_summary))
 
         # 相同 client message id 重发时必须命中幂等记录，不能生成第二条消息。
         alice_socket.sendall(masked_frame(encoded))
@@ -332,6 +363,41 @@ def run(host: str, port: int, ai_user_id: int = 0,
         matches = [item for item in history if item.get("clientMessageId") == client_message_id]
         if status != 200 or len(matches) != 1:
             raise AssertionError(("idempotent history", status, matches))
+
+        alice_socket.sendall(masked_frame(json.dumps({
+            "v": 1,
+            "type": "chat.recall",
+            "id": "recall-" + suffix,
+            "conversationId": conversation_id,
+            "replyTo": str(alice_event["id"]),
+        }, separators=(",", ":")).encode()))
+        recalled_ack = wait_for_ws(alice_ws, "chat.recall.accepted")
+        if recalled_ack.get("status") != "recalled":
+            raise AssertionError(("recall acknowledgement", recalled_ack))
+        recalled_alice = wait_for_ws(alice_ws, "chat.message-recalled")
+        recalled_bob = wait_for_ws(bob_ws, "chat.message-recalled")
+        recalled_sse = sse_json(wait_for_sse(bob_sse, "message.recalled"))
+        for recalled in (recalled_alice, recalled_bob, recalled_sse):
+            if recalled.get("state") != "recalled" or recalled.get("body") != "":
+                raise AssertionError(("recalled message leaked body", recalled))
+
+        status, history = bob.request(
+            "GET", f"/api/conversations/{conversation_id}/messages?after=0&limit=100"
+        )
+        recalled_history = [
+            item for item in history if item.get("clientMessageId") == client_message_id
+        ]
+        if status != 200 or len(recalled_history) != 1 \
+                or recalled_history[0].get("state") != "recalled" \
+                or recalled_history[0].get("body") != "":
+            raise AssertionError(("recalled history", status, recalled_history))
+        status, search = bob.request(
+            "GET",
+            f"/api/search/messages?conversationId={conversation_id}"
+            "&query=durable&limit=50",
+        )
+        if status != 200 or search:
+            raise AssertionError(("recalled message remained searchable", status, search))
     finally:
         alice_socket.close()
         bob_socket.close()
