@@ -287,6 +287,15 @@ int main()
             if (!check.get())
                 throw std::runtime_error("concurrent pool health check failed");
 
+        const auto pool = store.poolSnapshot();
+        require(pool.size == 4 && pool.available == 4 && pool.inUse == 0,
+                "pool gauges did not return to idle");
+        require(pool.acquires > 0 && pool.inUseHighWatermark > 0 &&
+                    pool.inUseHighWatermark <= pool.size,
+                "pool acquisition counters are invalid");
+        require(pool.timeouts == 0,
+                "pool unexpectedly timed out during its contract test");
+
         std::cout << "phase11 PostgreSQL repository contract passed\n";
         return 0;
     }

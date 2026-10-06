@@ -66,6 +66,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <memory>
 #include <sstream>
@@ -326,6 +327,8 @@ int main()
         std::unique_ptr<webserver::phase11::transport::Phase11PresenceBridge>
             phase11PresenceBridge;
 #endif
+        std::function<std::string()> phase11MetricsText = [] { return std::string{}; };
+        std::function<bool()> phase11Ready = [] { return true; };
         std::cout << "worker pools: http=" << server.httpWorkerCount()
                   << ", websocket=" << server.webSocketWorkerCount() << '\n';
         server.setMaxConnections(
@@ -413,10 +416,6 @@ int main()
                 webserver::phase11::transport::Phase11AuthHttp>(
                     *phase11Auth, *phase11DatabaseExecutor,
                     std::move(httpConfig));
-            phase11SocialChatHttp = std::make_unique<
-                webserver::phase11::transport::Phase11SocialChatHttp>(
-                    *phase11AuthHttp, *phase11Social, *phase11Chat,
-                    *phase11DatabaseExecutor, server.wsManager());
             phase11AiEvents = std::make_unique<
                 webserver::phase11::transport::Phase11AiEventSink>(
                     server.sseManager());
@@ -538,11 +537,6 @@ int main()
                 *phase11Chat, *phase11Store, *phase11Store,
                 *phase11ModelRouter, *phase11DatabaseExecutor,
                 *phase11AiEvents);
-            phase11Realtime = std::make_unique<
-                webserver::phase11::transport::Phase11Realtime>(
-                    *phase11Chat, *phase11DatabaseExecutor,
-                    phase11AiChat.get());
-            phase11Realtime->registerHandlers(server.wsDispatcher());
             phase11OutboxSink = std::make_unique<
                 webserver::phase11::transport::Phase11RealtimeOutboxSink>(
                     *phase11Store, *phase11Store, *phase11Store,
@@ -551,10 +545,80 @@ int main()
             phase11OutboxPump = std::make_unique<
                 webserver::phase11::transport::Phase11OutboxPump>(
                     *phase11Store, *phase11OutboxSink);
+            const bool notifyOutboxAfterCommit =
+                !environmentFlag("WEB_PHASE11_OUTBOX_POLL_ONLY");
+            const auto notifyOutbox =
+                [pump = phase11OutboxPump.get(), notifyOutboxAfterCommit]
+            {
+                if (notifyOutboxAfterCommit)
+                    pump->notifyCommitted();
+            };
+            phase11SocialChatHttp = std::make_unique<
+                webserver::phase11::transport::Phase11SocialChatHttp>(
+                    *phase11AuthHttp, *phase11Social, *phase11Chat,
+                    *phase11DatabaseExecutor, server.wsManager(), notifyOutbox);
+            phase11Realtime = std::make_unique<
+                webserver::phase11::transport::Phase11Realtime>(
+                    *phase11Chat, *phase11DatabaseExecutor,
+                    phase11AiChat.get(), notifyOutbox);
+            phase11Realtime->registerHandlers(server.wsDispatcher());
             phase11PresenceBridge = std::make_unique<
                 webserver::phase11::transport::Phase11PresenceBridge>(
                     *phase11Social, *phase11DatabaseExecutor,
-                    server.wsManager());
+                    server.wsManager(), notifyOutbox);
+            phase11MetricsText = [store = phase11Store.get(),
+                                  executor = phase11DatabaseExecutor.get(),
+                                  pump = phase11OutboxPump.get()]
+            {
+                const auto pool = store->poolSnapshot();
+                const auto queue = executor->snapshot();
+                const auto outbox = pump->snapshot();
+                std::ostringstream text;
+                text << "# TYPE webserver_phase11_db_executor_submitted_total counter\n"
+                     << "webserver_phase11_db_executor_submitted_total " << queue.submitted << '\n'
+                     << "webserver_phase11_db_executor_rejected_total " << queue.rejected << '\n'
+                     << "webserver_phase11_db_executor_completed_total " << queue.completed << '\n'
+                     << "webserver_phase11_db_executor_failed_total " << queue.failed << '\n'
+                     << "# TYPE webserver_phase11_db_executor_active gauge\n"
+                     << "webserver_phase11_db_executor_active " << queue.active << '\n'
+                     << "webserver_phase11_db_executor_queued " << queue.queued << '\n'
+                     << "webserver_phase11_db_executor_queue_high_watermark "
+                     << queue.queueHighWatermark << '\n'
+                     << "webserver_phase11_db_executor_capacity " << queue.capacity << '\n'
+                     << "# TYPE webserver_phase11_postgres_pool_in_use gauge\n"
+                     << "webserver_phase11_postgres_pool_size " << pool.size << '\n'
+                     << "webserver_phase11_postgres_pool_available " << pool.available << '\n'
+                     << "webserver_phase11_postgres_pool_in_use " << pool.inUse << '\n'
+                     << "webserver_phase11_postgres_pool_in_use_high_watermark "
+                     << pool.inUseHighWatermark << '\n'
+                     << "webserver_phase11_postgres_pool_acquires_total " << pool.acquires << '\n'
+                     << "webserver_phase11_postgres_pool_waited_acquires_total "
+                     << pool.waitedAcquires << '\n'
+                     << "webserver_phase11_postgres_pool_timeouts_total " << pool.timeouts << '\n'
+                     << "webserver_phase11_postgres_pool_acquire_wait_microseconds_total "
+                     << pool.totalAcquireWaitMicroseconds << '\n'
+                     << "# TYPE webserver_phase11_outbox_published_total counter\n"
+                     << "webserver_phase11_outbox_cycles_total " << outbox.cycles << '\n'
+                     << "webserver_phase11_outbox_wakeups_total " << outbox.wakeups << '\n'
+                     << "webserver_phase11_outbox_attempted_total " << outbox.attempted << '\n'
+                     << "webserver_phase11_outbox_published_total " << outbox.published << '\n'
+                     << "webserver_phase11_outbox_blocked_total " << outbox.blocked << '\n'
+                     << "webserver_phase11_outbox_failures_total " << outbox.failures << '\n'
+                     << "# TYPE webserver_phase11_outbox_last_batch gauge\n"
+                     << "webserver_phase11_outbox_last_batch " << outbox.lastBatch << '\n'
+                     << "webserver_phase11_outbox_batch_high_watermark "
+                     << outbox.batchHighWatermark << '\n'
+                     << "webserver_phase11_outbox_oldest_attempt_age_microseconds "
+                     << outbox.oldestAttemptAgeMicroseconds << '\n';
+                return text.str();
+            };
+            // Readiness is a dependency check, not only a listening-socket check.
+            // It runs on the HTTP worker lane below, so a slow database lease never
+            // blocks the owning Reactor thread.
+            phase11Ready = [store = phase11Store.get()]
+            {
+                return store->healthy();
+            };
             std::cout << "Phase 11 authentication enabled\n";
         }
         else if (environmentFlag("WEB_PHASE11_REQUIRED"))
@@ -738,21 +802,23 @@ int main()
         ctx.response->json("{\"status\":\"alive\"}");
         return true; }, RouteOptions{ExecutionPolicy::ReactorSafe});
 
-        server.router().GET("/health/ready", [&server](RequestContext &ctx) -> bool
+        server.router().GET("/health/ready", [&server, phase11Ready](RequestContext &ctx) -> bool
                             {
-        if (!server.ready())
+        const bool ready = server.ready() && phase11Ready();
+        if (!ready)
         {
             ctx.response->status = 503;
             ctx.response->statusText = "Service Unavailable";
         }
-        ctx.response->json(server.ready()
+        ctx.response->json(ready
                                ? "{\"status\":\"ready\"}"
                                : "{\"status\":\"starting\"}");
-        return true; }, RouteOptions{ExecutionPolicy::ReactorSafe});
+        return true; });
 
         server.router().GET(
             "/metrics",
-            [&server, operationalMetrics](RequestContext &ctx) -> bool
+            [&server, operationalMetrics,
+             phase11MetricsText](RequestContext &ctx) -> bool
             {
                 const auto sse = server.sseManager().metrics();
                 auto body = operationalMetrics->prometheus(
@@ -768,6 +834,7 @@ int main()
                         std::to_string(sse.replayedEvents) + "\n";
                 body += "webserver_sse_replay_gaps_total " +
                         std::to_string(sse.replayGaps) + "\n";
+                body += phase11MetricsText();
                 ctx.response->text(body);
                 ctx.response->setHeader(
                     "Content-Type", "text/plain; version=0.0.4; charset=utf-8");

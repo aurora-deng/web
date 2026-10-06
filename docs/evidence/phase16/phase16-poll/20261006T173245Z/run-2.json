@@ -1,0 +1,262 @@
+{
+  "schema": "phase15-business-benchmark-v1",
+  "generatedAt": "2026-10-06T17:33:31Z",
+  "target": "http://127.0.0.1:18091",
+  "serverPid": 9865,
+  "prefix": "p15_*_151415358",
+  "configuration": {
+    "workers": 4,
+    "operations": 80,
+    "groupSize": 8,
+    "groupOperations": 20,
+    "historyMessages": 50,
+    "historyReads": 30,
+    "connectionOperations": 30,
+    "aiUserId": null,
+    "aiJobs": 0,
+    "aiConcurrency": 0
+  },
+  "elapsedSeconds": 22.973,
+  "results": [
+    {
+      "name": "login-session-write",
+      "operations": 80,
+      "units": 80,
+      "elapsedSeconds": 3.113188,
+      "operationsPerSecond": 25.697,
+      "unitsPerSecond": 25.697,
+      "latencyMs": {
+        "average": 152.559,
+        "p50": 152.123,
+        "p95": 177.161,
+        "p99": 184.506,
+        "maximum": 186.512
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    {
+      "name": "conversation-list",
+      "operations": 80,
+      "units": 80,
+      "elapsedSeconds": 0.092522,
+      "operationsPerSecond": 864.661,
+      "unitsPerSecond": 864.661,
+      "latencyMs": {
+        "average": 4.472,
+        "p50": 4.041,
+        "p95": 6.304,
+        "p99": 7.977,
+        "maximum": 8.838
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    {
+      "name": "direct-message-end-to-end",
+      "operations": 80,
+      "units": 80,
+      "elapsedSeconds": 5.272348,
+      "operationsPerSecond": 15.174,
+      "unitsPerSecond": 15.174,
+      "latencyMs": {
+        "average": 263.245,
+        "p50": 263.597,
+        "p95": 279.042,
+        "p99": 338.908,
+        "maximum": 341.445
+      },
+      "errors": 0,
+      "errorSamples": [],
+      "databaseAcceptedLatencyMs": {
+        "p50": 6.597,
+        "p95": 15.43,
+        "p99": 17.59
+      }
+    },
+    {
+      "name": "group-message-all-recipients",
+      "operations": 20,
+      "units": 160,
+      "elapsedSeconds": 4.944308,
+      "operationsPerSecond": 4.045,
+      "unitsPerSecond": 32.36,
+      "latencyMs": {
+        "average": 247.205,
+        "p50": 253.72,
+        "p95": 255.128,
+        "p99": 257.038,
+        "maximum": 257.515
+      },
+      "errors": 0,
+      "errorSamples": [],
+      "groupSize": 8,
+      "databaseAcceptedLatencyMs": {
+        "p50": 3.711,
+        "p95": 5.593,
+        "p99": 7.585
+      }
+    },
+    {
+      "name": "offline-history-page",
+      "operations": 30,
+      "units": 1500,
+      "elapsedSeconds": 0.067766,
+      "operationsPerSecond": 442.699,
+      "unitsPerSecond": 22134.942,
+      "latencyMs": {
+        "average": 2.233,
+        "p50": 2.117,
+        "p95": 2.856,
+        "p99": 2.886,
+        "maximum": 2.888
+      },
+      "errors": 0,
+      "errorSamples": [],
+      "messagesPerPage": 50
+    },
+    {
+      "name": "websocket-handshake",
+      "operations": 30,
+      "units": 30,
+      "elapsedSeconds": 0.039691,
+      "operationsPerSecond": 755.839,
+      "unitsPerSecond": 755.839,
+      "latencyMs": {
+        "average": 4.597,
+        "p50": 4.143,
+        "p95": 7.341,
+        "p99": 9.7,
+        "maximum": 10.648
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    {
+      "name": "sse-ready-reconnect",
+      "operations": 30,
+      "units": 30,
+      "elapsedSeconds": 0.020646,
+      "operationsPerSecond": 1453.063,
+      "unitsPerSecond": 1453.063,
+      "latencyMs": {
+        "average": 2.286,
+        "p50": 2.203,
+        "p95": 3.402,
+        "p99": 4.441,
+        "maximum": 4.796
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    {
+      "name": "mixed-50-list-20-history-30-send",
+      "operations": 80,
+      "units": 80,
+      "elapsedSeconds": 1.920288,
+      "operationsPerSecond": 41.66,
+      "unitsPerSecond": 41.66,
+      "latencyMs": {
+        "average": 92.534,
+        "p50": 4.955,
+        "p95": 275.468,
+        "p99": 283.559,
+        "maximum": 286.789
+      },
+      "errors": 0,
+      "errorSamples": []
+    }
+  ],
+  "resources": {
+    "available": true,
+    "samples": 114,
+    "rssKiB": {
+      "average": 54904.1,
+      "peak": 152680
+    },
+    "fileDescriptors": {
+      "average": 45.6,
+      "peak": 69
+    },
+    "threads": {
+      "average": 20.0,
+      "peak": 20
+    },
+    "cpuPercent": {
+      "average": 56.39,
+      "peak": 194.06
+    }
+  },
+  "applicationMetrics": {
+    "before": {
+      "webserver_phase11_db_executor_submitted_total": 943.0,
+      "webserver_phase11_db_executor_rejected_total": 0.0,
+      "webserver_phase11_db_executor_completed_total": 943.0,
+      "webserver_phase11_db_executor_failed_total": 0.0,
+      "webserver_phase11_db_executor_active": 0.0,
+      "webserver_phase11_db_executor_queued": 0.0,
+      "webserver_phase11_db_executor_queue_high_watermark": 7.0,
+      "webserver_phase11_db_executor_capacity": 256.0,
+      "webserver_phase11_postgres_pool_size": 4.0,
+      "webserver_phase11_postgres_pool_available": 4.0,
+      "webserver_phase11_postgres_pool_in_use": 0.0,
+      "webserver_phase11_postgres_pool_in_use_high_watermark": 4.0,
+      "webserver_phase11_postgres_pool_acquires_total": 3114.0,
+      "webserver_phase11_postgres_pool_waited_acquires_total": 4.0,
+      "webserver_phase11_postgres_pool_timeouts_total": 0.0,
+      "webserver_phase11_postgres_pool_acquire_wait_microseconds_total": 4572.0,
+      "webserver_phase11_outbox_cycles_total": 88.0,
+      "webserver_phase11_outbox_wakeups_total": 0.0,
+      "webserver_phase11_outbox_attempted_total": 325.0,
+      "webserver_phase11_outbox_published_total": 325.0,
+      "webserver_phase11_outbox_blocked_total": 0.0,
+      "webserver_phase11_outbox_failures_total": 0.0,
+      "webserver_phase11_outbox_last_batch": 3.0,
+      "webserver_phase11_outbox_batch_high_watermark": 60.0,
+      "webserver_phase11_outbox_oldest_attempt_age_microseconds": 325784.0
+    },
+    "after": {
+      "webserver_phase11_db_executor_submitted_total": 1886.0,
+      "webserver_phase11_db_executor_rejected_total": 0.0,
+      "webserver_phase11_db_executor_completed_total": 1879.0,
+      "webserver_phase11_db_executor_failed_total": 0.0,
+      "webserver_phase11_db_executor_active": 4.0,
+      "webserver_phase11_db_executor_queued": 3.0,
+      "webserver_phase11_db_executor_queue_high_watermark": 8.0,
+      "webserver_phase11_db_executor_capacity": 256.0,
+      "webserver_phase11_postgres_pool_size": 4.0,
+      "webserver_phase11_postgres_pool_available": 0.0,
+      "webserver_phase11_postgres_pool_in_use": 4.0,
+      "webserver_phase11_postgres_pool_in_use_high_watermark": 4.0,
+      "webserver_phase11_postgres_pool_acquires_total": 6241.0,
+      "webserver_phase11_postgres_pool_waited_acquires_total": 6.0,
+      "webserver_phase11_postgres_pool_timeouts_total": 0.0,
+      "webserver_phase11_postgres_pool_acquire_wait_microseconds_total": 6953.0,
+      "webserver_phase11_outbox_cycles_total": 177.0,
+      "webserver_phase11_outbox_wakeups_total": 0.0,
+      "webserver_phase11_outbox_attempted_total": 658.0,
+      "webserver_phase11_outbox_published_total": 658.0,
+      "webserver_phase11_outbox_blocked_total": 0.0,
+      "webserver_phase11_outbox_failures_total": 0.0,
+      "webserver_phase11_outbox_last_batch": 3.0,
+      "webserver_phase11_outbox_batch_high_watermark": 60.0,
+      "webserver_phase11_outbox_oldest_attempt_age_microseconds": 325784.0
+    },
+    "counterDeltas": {
+      "webserver_phase11_db_executor_submitted_total": 943.0,
+      "webserver_phase11_db_executor_rejected_total": 0.0,
+      "webserver_phase11_db_executor_completed_total": 936.0,
+      "webserver_phase11_db_executor_failed_total": 0.0,
+      "webserver_phase11_postgres_pool_acquires_total": 3127.0,
+      "webserver_phase11_postgres_pool_waited_acquires_total": 2.0,
+      "webserver_phase11_postgres_pool_timeouts_total": 0.0,
+      "webserver_phase11_postgres_pool_acquire_wait_microseconds_total": 2381.0,
+      "webserver_phase11_outbox_cycles_total": 89.0,
+      "webserver_phase11_outbox_wakeups_total": 0.0,
+      "webserver_phase11_outbox_attempted_total": 333.0,
+      "webserver_phase11_outbox_published_total": 333.0,
+      "webserver_phase11_outbox_blocked_total": 0.0,
+      "webserver_phase11_outbox_failures_total": 0.0
+    }
+  }
+}

@@ -7,8 +7,10 @@
 #include "server/phase11/runtime/BoundedExecutor/BoundedExecutor.h"
 
 #include <atomic>
+#include <cstdint>
 #include <condition_variable>
 #include <future>
+#include <functional>
 #include <mutex>
 #include <thread>
 #include <type_traits>
@@ -26,8 +28,10 @@ class Phase11Realtime final
 {
 public:
     Phase11Realtime(IChatBusiness &chat, DatabaseExecutor &databaseExecutor,
-                    IAiChatBusiness *aiChat = nullptr)
-        : chat_(chat), databaseExecutor_(databaseExecutor), aiChat_(aiChat)
+                    IAiChatBusiness *aiChat = nullptr,
+                    std::function<void()> outboxCommitted = {})
+        : chat_(chat), databaseExecutor_(databaseExecutor), aiChat_(aiChat),
+          outboxCommitted_(std::move(outboxCommitted))
     {
     }
 
@@ -68,6 +72,7 @@ private:
     IChatBusiness &chat_;
     DatabaseExecutor &databaseExecutor_;
     IAiChatBusiness *aiChat_;
+    std::function<void()> outboxCommitted_;
 };
 
 /** 把协议无关的 AI token/完成事件编码成可重放的 SSE 事件。 */
@@ -92,7 +97,8 @@ class Phase11PresenceBridge final
 public:
     Phase11PresenceBridge(ISocialBusiness &social,
                           DatabaseExecutor &databaseExecutor,
-                          WebSocketSessionManager &webSockets);
+                          WebSocketSessionManager &webSockets,
+                          std::function<void()> outboxCommitted = {});
     ~Phase11PresenceBridge();
 
     Phase11PresenceBridge(const Phase11PresenceBridge &) = delete;
@@ -133,6 +139,19 @@ private:
 class Phase11OutboxPump final
 {
 public:
+    struct Snapshot
+    {
+        std::uint64_t cycles = 0;
+        std::uint64_t wakeups = 0;
+        std::uint64_t attempted = 0;
+        std::uint64_t published = 0;
+        std::uint64_t blocked = 0;
+        std::uint64_t failures = 0;
+        std::size_t lastBatch = 0;
+        std::size_t batchHighWatermark = 0;
+        std::uint64_t oldestAttemptAgeMicroseconds = 0;
+    };
+
     Phase11OutboxPump(IOutboxRepository &outbox, IOutboxEventSink &sink);
     ~Phase11OutboxPump();
 
@@ -140,6 +159,9 @@ public:
     Phase11OutboxPump &operator=(const Phase11OutboxPump &) = delete;
 
     void stop() noexcept;
+    /** 事务提交后叫醒搬运线程；250 ms 轮询只保留为漏通知兜底。 */
+    void notifyCommitted() noexcept;
+    [[nodiscard]] Snapshot snapshot() const noexcept;
 
 private:
     void run() noexcept;
@@ -148,7 +170,17 @@ private:
     std::atomic<bool> stopping_{false};
     std::mutex mutex_;
     std::condition_variable wake_;
+    std::uint64_t wakeGeneration_ = 0;
     std::thread worker_;
+    std::atomic<std::uint64_t> cycles_{0};
+    std::atomic<std::uint64_t> wakeups_{0};
+    std::atomic<std::uint64_t> attempted_{0};
+    std::atomic<std::uint64_t> published_{0};
+    std::atomic<std::uint64_t> blocked_{0};
+    std::atomic<std::uint64_t> failures_{0};
+    std::atomic<std::size_t> lastBatch_{0};
+    std::atomic<std::size_t> batchHighWatermark_{0};
+    std::atomic<std::uint64_t> oldestAttemptAgeMicroseconds_{0};
 };
 
 } // namespace webserver::phase11::transport

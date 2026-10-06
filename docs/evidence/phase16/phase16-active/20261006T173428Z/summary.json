@@ -1,0 +1,198 @@
+{
+  "schema": "phase15-business-benchmark-summary-v1",
+  "runCount": 3,
+  "configuration": {
+    "workers": 4,
+    "operations": 80,
+    "groupSize": 8,
+    "groupOperations": 20,
+    "historyMessages": 50,
+    "historyReads": 30,
+    "connectionOperations": 30,
+    "aiUserId": null,
+    "aiJobs": 0,
+    "aiConcurrency": 0
+  },
+  "target": "http://127.0.0.1:18091",
+  "elapsedSecondsMedian": 10.741,
+  "totalErrors": 0,
+  "scenarios": [
+    {
+      "name": "login-session-write",
+      "runs": 3,
+      "operationsPerSecondMedian": 24.859,
+      "unitsPerSecondMedian": 24.859,
+      "latencyMsMedian": {
+        "average": 158.286,
+        "p50": 158.594,
+        "p95": 186.812,
+        "p99": 204.332,
+        "maximum": 204.738
+      },
+      "errors": 0
+    },
+    {
+      "name": "conversation-list",
+      "runs": 3,
+      "operationsPerSecondMedian": 1036.954,
+      "unitsPerSecondMedian": 1036.954,
+      "latencyMsMedian": {
+        "average": 3.706,
+        "p50": 3.546,
+        "p95": 5.259,
+        "p99": 5.869,
+        "maximum": 6.281
+      },
+      "errors": 0
+    },
+    {
+      "name": "direct-message-end-to-end",
+      "runs": 3,
+      "operationsPerSecondMedian": 397.629,
+      "unitsPerSecondMedian": 397.629,
+      "latencyMsMedian": {
+        "average": 9.781,
+        "p50": 9.325,
+        "p95": 14.317,
+        "p99": 16.49,
+        "maximum": 17.469
+      },
+      "errors": 0,
+      "databaseAcceptedLatencyMsMedian": {
+        "p50": 7.05,
+        "p95": 11.223,
+        "p99": 12.749
+      }
+    },
+    {
+      "name": "group-message-all-recipients",
+      "runs": 3,
+      "operationsPerSecondMedian": 214.726,
+      "unitsPerSecondMedian": 1717.805,
+      "latencyMsMedian": {
+        "average": 4.651,
+        "p50": 4.593,
+        "p95": 6.246,
+        "p99": 6.672,
+        "maximum": 6.779
+      },
+      "errors": 0,
+      "databaseAcceptedLatencyMsMedian": {
+        "p50": 3.505,
+        "p95": 5.272,
+        "p99": 5.352
+      }
+    },
+    {
+      "name": "offline-history-page",
+      "runs": 3,
+      "operationsPerSecondMedian": 431.677,
+      "unitsPerSecondMedian": 21583.847,
+      "latencyMsMedian": {
+        "average": 2.292,
+        "p50": 2.228,
+        "p95": 3.256,
+        "p99": 3.894,
+        "maximum": 4.111
+      },
+      "errors": 0
+    },
+    {
+      "name": "websocket-handshake",
+      "runs": 3,
+      "operationsPerSecondMedian": 580.691,
+      "unitsPerSecondMedian": 580.691,
+      "latencyMsMedian": {
+        "average": 6.037,
+        "p50": 5.76,
+        "p95": 9.288,
+        "p99": 10.59,
+        "maximum": 11.055
+      },
+      "errors": 0
+    },
+    {
+      "name": "sse-ready-reconnect",
+      "runs": 3,
+      "operationsPerSecondMedian": 1327.245,
+      "unitsPerSecondMedian": 1327.245,
+      "latencyMsMedian": {
+        "average": 2.526,
+        "p50": 2.327,
+        "p95": 4.708,
+        "p99": 5.019,
+        "maximum": 5.142
+      },
+      "errors": 0
+    },
+    {
+      "name": "mixed-50-list-20-history-30-send",
+      "runs": 3,
+      "operationsPerSecondMedian": 722.842,
+      "unitsPerSecondMedian": 722.842,
+      "latencyMsMedian": {
+        "average": 5.247,
+        "p50": 3.548,
+        "p95": 12.462,
+        "p99": 18.012,
+        "maximum": 18.538
+      },
+      "errors": 0
+    }
+  ],
+  "resourcePeakMedian": {
+    "rssKiB": 152692.0,
+    "fileDescriptors": 69.0,
+    "threads": 20.0,
+    "cpuAveragePercent": 117.76,
+    "cpuPeakPercent": 194.11
+  },
+  "applicationMetricDeltaMedian": {
+    "webserver_phase11_db_executor_completed_total": 938.0,
+    "webserver_phase11_db_executor_failed_total": 0.0,
+    "webserver_phase11_db_executor_rejected_total": 0.0,
+    "webserver_phase11_db_executor_submitted_total": 946.0,
+    "webserver_phase11_outbox_attempted_total": 322.0,
+    "webserver_phase11_outbox_blocked_total": 0.0,
+    "webserver_phase11_outbox_cycles_total": 264.0,
+    "webserver_phase11_outbox_failures_total": 0.0,
+    "webserver_phase11_outbox_published_total": 322.0,
+    "webserver_phase11_outbox_wakeups_total": 322.0,
+    "webserver_phase11_postgres_pool_acquire_wait_microseconds_total": 57730.0,
+    "webserver_phase11_postgres_pool_acquires_total": 3285.0,
+    "webserver_phase11_postgres_pool_timeouts_total": 0.0,
+    "webserver_phase11_postgres_pool_waited_acquires_total": 30.0
+  },
+  "applicationMetricFinal": {
+    "webserver_phase11_db_executor_submitted_total": 2838.0,
+    "webserver_phase11_db_executor_rejected_total": 0.0,
+    "webserver_phase11_db_executor_completed_total": 2830.0,
+    "webserver_phase11_db_executor_failed_total": 0.0,
+    "webserver_phase11_db_executor_active": 4.0,
+    "webserver_phase11_db_executor_queued": 4.0,
+    "webserver_phase11_db_executor_queue_high_watermark": 7.0,
+    "webserver_phase11_db_executor_capacity": 256.0,
+    "webserver_phase11_postgres_pool_size": 4.0,
+    "webserver_phase11_postgres_pool_available": 0.0,
+    "webserver_phase11_postgres_pool_in_use": 4.0,
+    "webserver_phase11_postgres_pool_in_use_high_watermark": 4.0,
+    "webserver_phase11_postgres_pool_acquires_total": 9896.0,
+    "webserver_phase11_postgres_pool_waited_acquires_total": 107.0,
+    "webserver_phase11_postgres_pool_timeouts_total": 0.0,
+    "webserver_phase11_postgres_pool_acquire_wait_microseconds_total": 169551.0,
+    "webserver_phase11_outbox_cycles_total": 810.0,
+    "webserver_phase11_outbox_wakeups_total": 982.0,
+    "webserver_phase11_outbox_attempted_total": 981.0,
+    "webserver_phase11_outbox_published_total": 981.0,
+    "webserver_phase11_outbox_blocked_total": 0.0,
+    "webserver_phase11_outbox_failures_total": 0.0,
+    "webserver_phase11_outbox_last_batch": 1.0,
+    "webserver_phase11_outbox_batch_high_watermark": 23.0,
+    "webserver_phase11_outbox_oldest_attempt_age_microseconds": 31274.0
+  },
+  "sourceReports": [
+    "/home/pikachu/phase11-full-src/artifacts/benchmarks/phase16-active/20261006T173428Z/run-1.json",
+    "/home/pikachu/phase11-full-src/artifacts/benchmarks/phase16-active/20261006T173428Z/run-2.json",
+    "/home/pikachu/phase11-full-src/artifacts/benchmarks/phase16-active/20261006T173428Z/run-3.json"
+  ]
+}

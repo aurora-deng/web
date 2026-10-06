@@ -110,6 +110,12 @@ public:
     std::vector<OutboxEvent> pendingOutbox(std::size_t limit) const override;
     bool markPublished(OutboxEventId id, TimePoint now) override;
 
+    /** 只读运行指标，不把 libpq 类型暴露给业务接口。 */
+    [[nodiscard]] PostgresConnectionPool::Snapshot poolSnapshot() const noexcept
+    {
+        return pool_.snapshot();
+    }
+
     ModelNode createModelNode(ModelNode node) override;
     ModelVersion createModelVersion(ModelVersion version) override;
     ModelEdge createModelEdge(ModelEdge edge) override;

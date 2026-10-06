@@ -418,6 +418,29 @@ class BusinessBenchmark:
         self.pairs: list[PairFixture] = []
         self.results: list[dict] = []
 
+    def application_metrics(self) -> dict[str, float]:
+        connection = http.client.HTTPConnection(
+            self.args.host, self.args.port, timeout=self.args.timeout)
+        try:
+            connection.request("GET", "/metrics", headers={"Accept": "text/plain"})
+            response = connection.getresponse()
+            body = response.read().decode("utf-8", "replace")
+            if response.status != 200:
+                raise AssertionError(("metrics", response.status, body[:200]))
+        finally:
+            connection.close()
+        values: dict[str, float] = {}
+        for line in body.splitlines():
+            if not line.startswith("webserver_phase11_"):
+                continue
+            fields = line.split()
+            if len(fields) == 2:
+                try:
+                    values[fields[0]] = float(fields[1])
+                except ValueError:
+                    pass
+        return values
+
     def create_user(self, label: str) -> UserFixture:
         username = f"p15_{label}_{self.suffix}"[:32]
         password = "phase15-correct-password"
@@ -794,6 +817,8 @@ class BusinessBenchmark:
         sampler = ResourceSampler(self.args.server_pid)
         sampler.start()
         started = time.time()
+        metrics_before = self.application_metrics()
+        metrics_after: dict[str, float] = {}
         try:
             self.benchmark_login()
             self.benchmark_conversation_list()
@@ -804,9 +829,15 @@ class BusinessBenchmark:
             self.benchmark_mixed()
             self.benchmark_ai()
         finally:
+            metrics_after = self.application_metrics()
             resources = sampler.stop()
             for user in self.users:
                 user.api.close()
+        metric_deltas = {
+            name: round(value - metrics_before.get(name, 0.0), 3)
+            for name, value in metrics_after.items()
+            if name.endswith("_total")
+        }
         return {
             "schema": "phase15-business-benchmark-v1",
             "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -828,6 +859,11 @@ class BusinessBenchmark:
             "elapsedSeconds": round(time.time() - started, 3),
             "results": self.results,
             "resources": resources,
+            "applicationMetrics": {
+                "before": metrics_before,
+                "after": metrics_after,
+                "counterDeltas": metric_deltas,
+            },
         }
 
 

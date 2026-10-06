@@ -14,7 +14,9 @@
 #include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
 
 #include <cstdlib>
+#include <condition_variable>
 #include <iostream>
+#include <mutex>
 #include <string>
 
 using namespace webserver::phase11;
@@ -67,6 +69,49 @@ public:
 private:
     mutable std::uint64_t counter_ = 0;
 };
+
+class AwaitingOutboxSink final : public IOutboxEventSink
+{
+public:
+    bool publish(const OutboxEvent &) override
+    {
+        {
+            std::lock_guard lock(mutex_);
+            ++published_;
+        }
+        changed_.notify_all();
+        return true;
+    }
+
+    bool waitForPublish(std::chrono::milliseconds timeout)
+    {
+        std::unique_lock lock(mutex_);
+        return changed_.wait_for(lock, timeout,
+                                [this] { return published_ > 0; });
+    }
+
+private:
+    std::mutex mutex_;
+    std::condition_variable changed_;
+    std::size_t published_ = 0;
+};
+
+void verifyOutboxCommitWakeup()
+{
+    InMemoryStore store;
+    AwaitingOutboxSink sink;
+    Phase11OutboxPump pump(store, sink);
+    store.appendOutbox({0, "test.created", "test", 1, "{}",
+                        std::chrono::system_clock::now(), {}});
+    pump.notifyCommitted();
+    CHECK(sink.waitForPublish(std::chrono::seconds(1)));
+    pump.stop();
+    const auto metrics = pump.snapshot();
+    CHECK(metrics.wakeups == 1);
+    CHECK(metrics.published == 1);
+    CHECK(metrics.attempted == 1);
+    CHECK(metrics.failures == 0);
+}
 
 std::string responseBody(const HttpResponse &response)
 {
@@ -322,6 +367,7 @@ void verifyHttpFlow()
 int main()
 {
     verifyFlatJsonBoundary();
+    verifyOutboxCommitWakeup();
     verifyHttpFlow();
     std::cout << "phase11 HTTP auth tests passed\n";
 }

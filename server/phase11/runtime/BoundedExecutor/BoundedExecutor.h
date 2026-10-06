@@ -6,6 +6,7 @@
 #include <functional>
 #include <mutex>
 #include <thread>
+#include <cstdint>
 #include <vector>
 
 namespace webserver::phase11
@@ -27,6 +28,20 @@ class BoundedExecutor final
 public:
     using Task = std::function<void()>;
 
+    struct Snapshot
+    {
+        std::uint64_t submitted = 0;
+        std::uint64_t rejected = 0;
+        std::uint64_t completed = 0;
+        std::uint64_t failed = 0;
+        std::size_t active = 0;
+        std::size_t queued = 0;
+        std::size_t queueHighWatermark = 0;
+        std::size_t workers = 0;
+        std::size_t capacity = 0;
+        bool accepting = false;
+    };
+
     BoundedExecutor(std::size_t workerCount, std::size_t capacity);
     ~BoundedExecutor();
 
@@ -41,6 +56,7 @@ public:
     [[nodiscard]] std::size_t queued() const noexcept;
     [[nodiscard]] std::size_t capacity() const noexcept { return capacity_; }
     [[nodiscard]] bool accepting() const noexcept;
+    [[nodiscard]] Snapshot snapshot() const noexcept;
 
 private:
     void workerLoop() noexcept;
@@ -51,6 +67,12 @@ private:
     std::condition_variable ready_;
     std::deque<Task> tasks_;
     std::vector<std::thread> workers_;
+    std::uint64_t submitted_ = 0;
+    std::uint64_t rejected_ = 0;
+    std::uint64_t completed_ = 0;
+    std::uint64_t failed_ = 0;
+    std::size_t active_ = 0;
+    std::size_t queueHighWatermark_ = 0;
     bool stopping_ = false;
 };
 

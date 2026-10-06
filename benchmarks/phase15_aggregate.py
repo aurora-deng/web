@@ -72,6 +72,11 @@ def main() -> int:
                  for report in reports
                  if report["resources"].get("available") and
                  report["resources"]["cpuPercent"].get("peak") is not None]
+    delta_names = sorted({
+        name for report in reports
+        for name in report.get("applicationMetrics", {})
+                          .get("counterDeltas", {})
+    })
     summary = {
         "schema": "phase15-business-benchmark-summary-v1",
         "runCount": len(reports),
@@ -88,6 +93,16 @@ def main() -> int:
             "cpuAveragePercent": median(cpu_averages),
             "cpuPeakPercent": median(cpu_peaks),
         },
+        "applicationMetricDeltaMedian": {
+            name: median([
+                float(report.get("applicationMetrics", {})
+                            .get("counterDeltas", {}).get(name, 0.0))
+                for report in reports
+            ])
+            for name in delta_names
+        },
+        "applicationMetricFinal": reports[-1].get(
+            "applicationMetrics", {}).get("after", {}),
         "sourceReports": [str(path) for path in args.reports],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

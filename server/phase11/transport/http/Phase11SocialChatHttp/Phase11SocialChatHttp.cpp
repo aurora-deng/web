@@ -354,7 +354,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             if (mutedValue != "true" && mutedValue != "false")
                 throw ApplicationError(ErrorCode::InvalidArgument,
                                        "notificationsMuted must be true or false");
-            const auto updated = runDatabase(
+            const auto updated = runMutation(
                 [this, owner = identity.user.id, contact,
                  remark = std::move(remark), muted = mutedValue == "true"]() mutable
                 {
@@ -372,7 +372,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
         {
             const auto identity = authentication_.authorizeRequest(context, true);
             const auto contact = unsignedValue(context.param("id"), "contactId");
-            runDatabase([this, user = identity.user.id, contact]
+            runMutation([this, user = identity.user.id, contact]
             { social_.removeFriend(user, contact, currentTime()); });
             reply(context, 200, "{\"ok\":true}");
         });
@@ -395,7 +395,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
         {
             const auto identity = authentication_.authorizeRequest(context, true);
             const auto target = unsignedValue(context.param("id"), "targetId");
-            runDatabase([this, user = identity.user.id, target]
+            runMutation([this, user = identity.user.id, target]
             { social_.block(user, target, currentTime()); });
             reply(context, 200, "{\"ok\":true}");
         });
@@ -407,7 +407,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
         {
             const auto identity = authentication_.authorizeRequest(context, true);
             const auto target = unsignedValue(context.param("id"), "targetId");
-            runDatabase([this, user = identity.user.id, target]
+            runMutation([this, user = identity.user.id, target]
             { social_.unblock(user, target, currentTime()); });
             reply(context, 200, "{\"ok\":true}");
         });
@@ -421,7 +421,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             const auto fields = bodyObject(context);
             const auto receiver = unsignedValue(required(fields, "receiverId"),
                                                 "receiverId");
-            const auto request = runDatabase([this, sender = identity.user.id,
+            const auto request = runMutation([this, sender = identity.user.id,
                                               receiver]
             {
                 return social_.requestFriendship(sender, receiver, currentTime());
@@ -453,7 +453,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             if (decision != "true" && decision != "false")
                 throw ApplicationError(ErrorCode::InvalidArgument,
                                        "accept must be true or false");
-            const auto request = runDatabase(
+            const auto request = runMutation(
                 [this, requestId, receiver = identity.user.id,
                  accept = decision == "true"]
                 {
@@ -488,7 +488,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             if (kind == "direct")
             {
                 const auto peer = unsignedValue(required(fields, "peerId"), "peerId");
-                conversation = runDatabase(
+                conversation = runMutation(
                     [this, user = identity.user.id, peer]
                     { return chat_.createDirectConversation(user, peer, currentTime()); });
             }
@@ -496,7 +496,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             {
                 auto title = required(fields, "title");
                 auto members = idList(required(fields, "memberIds"));
-                conversation = runDatabase(
+                conversation = runMutation(
                     [this, user = identity.user.id, title = std::move(title),
                      members = std::move(members)]() mutable
                     {
@@ -550,7 +550,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
                                                      "conversationId");
             const auto member = unsignedValue(
                 required(bodyObject(context), "memberId"), "memberId");
-            runDatabase([this, actor = identity.user.id, conversation, member]
+            runMutation([this, actor = identity.user.id, conversation, member]
             {
                 chat_.addGroupMember(actor, conversation, member, currentTime());
             });
@@ -568,7 +568,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             const auto fields = bodyObject(context);
             auto title = required(fields, "title");
             auto announcement = required(fields, "announcement");
-            const auto updated = runDatabase(
+            const auto updated = runMutation(
                 [this, actor = identity.user.id, conversation,
                  title = std::move(title),
                  announcement = std::move(announcement)]() mutable
@@ -597,7 +597,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
                               : throw ApplicationError(
                                     ErrorCode::InvalidArgument,
                                     "role must be member or administrator");
-            runDatabase([this, actor = identity.user.id, conversation,
+            runMutation([this, actor = identity.user.id, conversation,
                          member, role]
             {
                 chat_.setGroupMemberRole(actor, conversation, member, role,
@@ -626,7 +626,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             const auto until = seconds == 0
                 ? std::optional<TimePoint>{}
                 : std::optional<TimePoint>{now + std::chrono::seconds(seconds)};
-            runDatabase([this, actor = identity.user.id, conversation,
+            runMutation([this, actor = identity.user.id, conversation,
                          member, until, now]
             {
                 chat_.setGroupMemberMute(actor, conversation, member, until, now);
@@ -645,7 +645,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
                                                      "conversationId");
             const auto member = unsignedValue(context.param("memberId"),
                                                "memberId");
-            runDatabase([this, actor = identity.user.id, conversation, member]
+            runMutation([this, actor = identity.user.id, conversation, member]
             {
                 chat_.removeGroupMember(actor, conversation, member, currentTime());
             });
@@ -660,7 +660,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             const auto identity = authentication_.authorizeRequest(context, true);
             const auto conversation = unsignedValue(context.param("id"),
                                                      "conversationId");
-            runDatabase([this, user = identity.user.id, conversation]
+            runMutation([this, user = identity.user.id, conversation]
             {
                 chat_.leaveGroup(user, conversation, currentTime());
             });
@@ -675,7 +675,7 @@ void Phase11SocialChatHttp::registerRoutes(Router &router)
             const auto identity = authentication_.authorizeRequest(context, true);
             const auto conversation = unsignedValue(context.param("id"),
                                                      "conversationId");
-            runDatabase([this, actor = identity.user.id, conversation]
+            runMutation([this, actor = identity.user.id, conversation]
             {
                 chat_.dissolveGroup(actor, conversation, currentTime());
             });

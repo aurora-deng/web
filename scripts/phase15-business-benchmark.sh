@@ -56,11 +56,14 @@ trap cleanup EXIT INT TERM
     printf 'generated_utc=%s\n' "${stamp}"
     printf 'database=%s\nport=%s\nruns=%s\n' "${database}" "${port}" "${runs}"
     printf 'binary=%s\n' "${binary}"
+    printf 'outbox_poll_only=%s\n' "${WEB_PHASE11_OUTBOX_POLL_ONLY:-0}"
     sha256sum "${binary}"
     uname -a
     "${postgres_root}/bin/postgres" --version
     python3 --version
-    lscpu | grep -E '^(Architecture|CPU\(s\)|Model name|Thread|Core|Socket)'
+    # 虚拟机可能使用中文 locale；固定 C 输出，且精简 CPU 信息失败不能中止测试。
+    LC_ALL=C lscpu | grep -E \
+        '^(Architecture|CPU\(s\)|Model name|Thread|Core|Socket)' || true
 } >"${result_dir}/environment.txt"
 
 if "${service_script}" status >/dev/null 2>&1; then

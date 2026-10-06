@@ -1,5 +1,6 @@
 #include "server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
 
@@ -89,16 +90,38 @@ PostgresConnectionPool::~PostgresConnectionPool()
 
 PostgresConnectionPool::Lease PostgresConnectionPool::acquire()
 {
+    const auto started = std::chrono::steady_clock::now();
     std::unique_lock lock(mutex_);
+    const bool waited = available_.empty() && !stopping_;
+    if (waited)
+        ++waitedAcquires_;
     if (!availableChanged_.wait_for(lock, config_.acquireTimeout, [this] {
             return stopping_ || !available_.empty();
         }))
+    {
+        ++timeouts_;
         throw std::runtime_error("PostgreSQL connection pool exhausted");
+    }
     if (stopping_)
         throw std::runtime_error("PostgreSQL connection pool is stopping");
     auto *connection = available_.back();
     available_.pop_back();
+    ++acquires_;
+    const auto wait = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now() - started).count();
+    totalAcquireWaitMicroseconds_ += static_cast<std::uint64_t>(
+        std::max<std::int64_t>(0, wait));
+    inUseHighWatermark_ = std::max(
+        inUseHighWatermark_, all_.size() - available_.size());
     return Lease(this, connection);
+}
+
+PostgresConnectionPool::Snapshot PostgresConnectionPool::snapshot() const noexcept
+{
+    std::lock_guard lock(mutex_);
+    return {all_.size(), available_.size(), all_.size() - available_.size(),
+            inUseHighWatermark_, acquires_, waitedAcquires_, timeouts_,
+            totalAcquireWaitMicroseconds_};
 }
 
 void PostgresConnectionPool::restoreIdleConnection(PGconn *connection) noexcept

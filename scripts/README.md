@@ -10,6 +10,11 @@
 | `benchmark.sh` | 自动化压测驱动 | 启动服务器 → wrk 施压 → 采样资源 → 生成原始数据 |
 | `run_tests.sh` | 编译+运行单元测试 | CMake 配置构建 → 编译全部测试 → CTest 执行 |
 | `wrk_report.lua` | wrk Lua 输出适配器 | 将 wrk 内部数据转为机器可读的 KEY=VALUE 格式 |
+| `phase15-business-benchmark.sh` | 真实业务 A/B | 隔离数据库驱动 HTTP、WebSocket、SSE、聊天与 Outbox，并聚合三轮结果 |
+| `phase11/postgres-migration-status.sh` | 迁移审计 | 只读对比仓库迁移和数据库已应用版本 |
+| `phase11/postgres-backup.sh` | 数据保护 | 创建/校验逻辑备份，并在隔离数据库完成恢复演练 |
+| `phase11/phase16-soak.py` | 稳定性巡检 | 有界采样 liveness、readiness 和 metrics，输出 JSONL |
+| `phase11/webserver-user-service.sh` | 用户态服务管理 | readiness 启停、磁盘门槛、日志轮转和结构化运维事件 |
 
 ## 🚀 快速开始（推荐）
 

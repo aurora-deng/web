@@ -1,5 +1,7 @@
 #include "server/phase11/business/OutboxDispatcher/OutboxDispatcher.h"
 
+#include <algorithm>
+
 namespace webserver::phase11
 {
 
@@ -14,6 +16,11 @@ OutboxDispatchResult OutboxDispatcher::dispatchPending(
     for (const auto &event : outbox_.pendingOutbox(limit))
     {
         ++result.attempted;
+        result.oldestAttemptAge = std::max(
+            result.oldestAttemptAge,
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                now > event.createdAt ? now - event.createdAt
+                                      : TimePoint::duration::zero()));
         bool accepted = false;
         try
         {

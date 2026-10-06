@@ -13,6 +13,44 @@ data_root="${PHASE11_DATA_ROOT:-/home/pikachu/phase11-data}"
 model_root="${WEB_PHASE11_ONNX_MODEL_ROOT:-/home/pikachu/phase11-models}"
 pid_file="${data_root}/webserver.pid"
 log_file="${data_root}/webserver.log"
+operations_log="${data_root}/operations.jsonl"
+max_log_bytes="${WEB_PHASE11_MAX_LOG_BYTES:-104857600}"
+min_free_kib="${WEB_PHASE11_MIN_FREE_KIB:-524288}"
+
+audit_event() {
+    local event="$1" pid="${2:-0}"
+    printf '{"time":"%s","component":"phase11-webserver-service","event":"%s","pid":%s}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${event}" "${pid}" >> "${operations_log}"
+}
+
+rotate_stopped_log() {
+    [[ -f "${log_file}" ]] || return 0
+    local size stamp rotated
+    size="$(wc -c < "${log_file}")"
+    [[ "${size}" -ge "${max_log_bytes}" ]] || return 0
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    rotated="${log_file}.${stamp}"
+    mv -- "${log_file}" "${rotated}"
+    if command -v gzip >/dev/null 2>&1; then
+        gzip -- "${rotated}"
+        rotated="${rotated}.gz"
+    fi
+    printf 'Rotated stopped webserver log to %s.\n' "${rotated}"
+}
+
+require_disk_budget() {
+    local free_kib
+    free_kib="$(df -Pk "${data_root}" | awk 'NR==2 {print $4}')"
+    [[ "${free_kib}" =~ ^[0-9]+$ ]] || {
+        printf 'Cannot determine free disk space below %s.\n' "${data_root}" >&2
+        return 1
+    }
+    if [[ "${free_kib}" -lt "${min_free_kib}" ]]; then
+        printf 'Refusing startup: only %s KiB free below %s (minimum %s KiB).\n' \
+            "${free_kib}" "${data_root}" "${min_free_kib}" >&2
+        return 1
+    fi
+}
 
 running_pid() {
     [[ -r "${pid_file}" ]] || return 1
@@ -43,6 +81,8 @@ start_server() {
     }
 
     mkdir -p "${data_root}"
+    require_disk_budget
+    rotate_stopped_log
     export LD_LIBRARY_PATH="${PHASE11_LIBRARY_PATH:-/home/pikachu/.local/lib:/home/pikachu/.local/lib64}:${LD_LIBRARY_PATH:-}"
     export WEB_SERVER_PORT="${WEB_SERVER_PORT:-18090}"
     export WEB_GRPC_ADDRESS="${WEB_GRPC_ADDRESS:-127.0.0.1:50051}"
@@ -64,9 +104,11 @@ start_server() {
             rm -f "${pid_file}"
             return 1
         fi
-        if (echo > "/dev/tcp/127.0.0.1/${WEB_SERVER_PORT}") 2>/dev/null; then
+        if curl --fail --silent --show-error --max-time 1 \
+            "http://127.0.0.1:${WEB_SERVER_PORT}/health/ready" >/dev/null 2>&1; then
             printf 'Phase 11 webserver started (pid=%s, port=%s, ONNX enabled).\n' \
                 "${pid}" "${WEB_SERVER_PORT}"
+            audit_event "started" "${pid}"
             return 0
         fi
         sleep 0.1
@@ -89,6 +131,7 @@ stop_server() {
         if ! kill -0 "${pid}" 2>/dev/null; then
             rm -f "${pid_file}"
             printf 'Phase 11 webserver stopped.\n'
+            audit_event "stopped" "${pid}"
             return 0
         fi
         sleep 0.1
@@ -108,14 +151,42 @@ status_server() {
     fi
 }
 
+rotate_log() {
+    local was_running=0
+    if running_pid >/dev/null; then
+        was_running=1
+        stop_server
+    fi
+    # Explicit rotate always archives a non-empty stopped log, regardless of
+    # the automatic size threshold.
+    if [[ -s "${log_file}" ]]; then
+        local stamp rotated
+        stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+        rotated="${log_file}.${stamp}"
+        mv -- "${log_file}" "${rotated}"
+        if command -v gzip >/dev/null 2>&1; then
+            gzip -- "${rotated}"
+            rotated="${rotated}.gz"
+        fi
+        printf 'Rotated webserver log to %s.\n' "${rotated}"
+        audit_event "log_rotated" 0
+    else
+        printf 'No non-empty webserver log to rotate.\n'
+    fi
+    if [[ "${was_running}" -eq 1 ]]; then
+        start_server
+    fi
+}
+
 case "${1:-status}" in
     start) start_server ;;
     stop) stop_server ;;
     restart) stop_server; start_server ;;
     status) status_server ;;
     logs) tail -f "${log_file}" ;;
+    rotate) rotate_log ;;
     *)
-        printf 'Usage: %s {start|stop|restart|status|logs}\n' "$0" >&2
+        printf 'Usage: %s {start|stop|restart|status|logs|rotate}\n' "$0" >&2
         exit 2
         ;;
 esac

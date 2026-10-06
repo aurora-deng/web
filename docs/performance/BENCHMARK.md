@@ -3,6 +3,9 @@
 > Phase 15 已把本方法扩展到账号、PostgreSQL、WebSocket、SSE、Outbox、私聊和群聊。真实业务
 > 三轮结果、脚本和原始 JSON 见 [Phase 15：真实业务性能基线](../architecture/phase15.md)。本页后续
 > 的 `/fast`/wrk 方法用于网络热路径和容量曲线，不能代替业务端到端结果。
+>
+> Phase 16 使用同一业务脚本完成固定轮询与主动唤醒的同二进制 A/B，并采集执行器、连接池和 Outbox
+> 内部指标，见 [Phase 16：可观测性与运维闭环](../architecture/phase16.md)。
 
 本文给出实验协议和结果模板。虚拟机上一次 `GET /` 快照见 [../closeout/CLOSEOUT.md](../closeout/CLOSEOUT.md)；
 **不能**外推为物理机上限或与 nginx 的正式对比结论。

@@ -6,6 +6,7 @@
 #include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
 
 #include <future>
+#include <functional>
 #include <type_traits>
 #include <utility>
 
@@ -23,9 +24,11 @@ public:
                           ISocialBusiness &social,
                           IChatBusiness &chat,
                           DatabaseExecutor &databaseExecutor,
-                          WebSocketSessionManager &webSockets)
+                          WebSocketSessionManager &webSockets,
+                          std::function<void()> outboxCommitted = {})
         : authentication_(authentication), social_(social), chat_(chat),
-          databaseExecutor_(databaseExecutor), webSockets_(webSockets)
+          databaseExecutor_(databaseExecutor), webSockets_(webSockets),
+          outboxCommitted_(std::move(outboxCommitted))
     {
     }
 
@@ -63,11 +66,31 @@ private:
         return result.get();
     }
 
+    /** 写操作已提交后再叫醒 Outbox；失败事务不会发出虚假通知。 */
+    template<class Operation>
+    auto runMutation(Operation &&operation)
+        -> std::invoke_result_t<std::decay_t<Operation>>
+    {
+        using Result = std::invoke_result_t<std::decay_t<Operation>>;
+        if constexpr (std::is_void_v<Result>)
+        {
+            runDatabase(std::forward<Operation>(operation));
+            if (outboxCommitted_) outboxCommitted_();
+        }
+        else
+        {
+            auto result = runDatabase(std::forward<Operation>(operation));
+            if (outboxCommitted_) outboxCommitted_();
+            return result;
+        }
+    }
+
     Phase11AuthHttp &authentication_;
     ISocialBusiness &social_;
     IChatBusiness &chat_;
     DatabaseExecutor &databaseExecutor_;
     WebSocketSessionManager &webSockets_;
+    std::function<void()> outboxCommitted_;
 };
 
 } // namespace webserver::phase11::transport

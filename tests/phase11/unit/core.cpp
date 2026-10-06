@@ -307,6 +307,12 @@ void verifyDatabaseExecutorBackpressure()
     CHECK(executor.submit([&] { ++completed; }));
     CHECK(executor.queued() == 2);
     CHECK(!executor.submit([&] { ++completed; }));
+    const auto saturated = executor.snapshot();
+    CHECK(saturated.submitted == 3);
+    CHECK(saturated.rejected == 1);
+    CHECK(saturated.active == 1);
+    CHECK(saturated.queued == 2);
+    CHECK(saturated.queueHighWatermark == 2);
     {
         std::lock_guard lock(mutex);
         mayFinish = true;
@@ -316,6 +322,11 @@ void verifyDatabaseExecutorBackpressure()
     CHECK(completed == 2);
     CHECK(!executor.accepting());
     CHECK(!executor.submit([] {}));
+    const auto stopped = executor.snapshot();
+    CHECK(stopped.completed == 3);
+    CHECK(stopped.failed == 1);
+    CHECK(stopped.rejected == 2);
+    CHECK(stopped.active == 0 && stopped.queued == 0);
 }
 
 void verifyAuthAndSocialFlow(Fixture &fixture, TimePoint now,

@@ -4,6 +4,7 @@
 #include "server/phase11/ports/Ports/Ports.h"
 
 #include <cstddef>
+#include <chrono>
 
 namespace webserver::phase11
 {
@@ -23,6 +24,7 @@ struct OutboxDispatchResult
     std::size_t attempted = 0;
     std::size_t published = 0;
     bool blocked = false;
+    std::chrono::microseconds oldestAttemptAge{0};
 };
 
 /**

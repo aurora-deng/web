@@ -5,6 +5,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
+#include <cstdint>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -26,6 +27,18 @@ struct PostgresPoolConfig
 class PostgresConnectionPool final
 {
 public:
+    struct Snapshot
+    {
+        std::size_t size = 0;
+        std::size_t available = 0;
+        std::size_t inUse = 0;
+        std::size_t inUseHighWatermark = 0;
+        std::uint64_t acquires = 0;
+        std::uint64_t waitedAcquires = 0;
+        std::uint64_t timeouts = 0;
+        std::uint64_t totalAcquireWaitMicroseconds = 0;
+    };
+
     class Lease final
     {
     public:
@@ -60,6 +73,7 @@ public:
 
     [[nodiscard]] Lease acquire();
     [[nodiscard]] std::size_t size() const noexcept { return all_.size(); }
+    [[nodiscard]] Snapshot snapshot() const noexcept;
 
 private:
     void release(PGconn *connection) noexcept;
@@ -70,6 +84,11 @@ private:
     std::condition_variable availableChanged_;
     std::vector<PGconn *> all_;
     std::vector<PGconn *> available_;
+    std::size_t inUseHighWatermark_ = 0;
+    std::uint64_t acquires_ = 0;
+    std::uint64_t waitedAcquires_ = 0;
+    std::uint64_t timeouts_ = 0;
+    std::uint64_t totalAcquireWaitMicroseconds_ = 0;
     bool stopping_ = false;
 };
 

@@ -1,4 +1,10 @@
-# web-test 2.0 · Phase 15（本地开发分支）
+# web-test 2.0 · Phase 16（本地开发分支）
+
+> Phase 16 增加数据库执行器、PostgreSQL 连接池和 Outbox 指标，并把 250 ms 固定轮询改为
+> “事务提交后主动唤醒 + 轮询兜底”。同二进制 A/B 三轮均为 0 错误，私聊端到端 P50 从
+> **262.088 ms 降到 9.325 ms**，8 人群聊从 **253.389 ms 降到 4.593 ms**。同时补齐数据库感知
+> readiness、迁移审计、备份/隔离恢复演练、日志磁盘边界和稳定性探针。详见
+> [Phase 16：可观测性、Outbox 主动唤醒与运维闭环](docs/architecture/phase16.md)。
 
 > Phase 15 新增真实业务性能基线：使用隔离 PostgreSQL 数据库从 HTTP、WebSocket 和 SSE 入口
 > 驱动登录、列表、私聊、8 人群发、离线历史、连接重建和混合流量。Linux 三轮总错误为 0，
@@ -178,6 +184,10 @@ gRPC C++ 1.82.0 完成了以下检查：
 - Phase 15 在专用 `phase15_benchmark` 数据库和 18091 端口完成三轮真实业务基准，8 个场景总错误为
   **0**；私聊事务确认 P50 为 **32.16 ms**，接收端到达 P50 为 **310.36 ms**，原始 JSON、环境和
   二进制 SHA-256 均已随文档保留。这是当前虚拟机与固定并发下的回归基线，不代表最大容量。
+- Phase 16 的 Release、Debug、ASan+LSan+UBSan 均为 **93/93**。同二进制 A/B 中主动唤醒将私聊
+  P50 从 **262.088 ms** 降到 **9.325 ms**、群聊从 **253.389 ms** 降到 **4.593 ms**，两组错误均为
+  0；数据库停止时 liveness 保持 200、readiness 返回 503，恢复后无需重启 Web 进程即回到 200。
+  备份校验和隔离恢复演练恢复出 4 个迁移版本、59 个用户、39 个会话和 58 条消息。
 
 最终测试数字与发现过的问题记录在
 [Phase 9 验证记录](docs/architecture/phase9.md#11-验证记录)。
@@ -197,5 +207,6 @@ gRPC C++ 1.82.0 完成了以下检查：
 11. [Phase 13：群聊治理与权限闭环](docs/architecture/phase13.md)
 12. [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/phase14.md)
 13. [Phase 15：真实业务性能基线](docs/architecture/phase15.md)
-14. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
-15. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)
+14. [Phase 16：可观测性、Outbox 主动唤醒与运维闭环](docs/architecture/phase16.md)
+15. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
+16. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)

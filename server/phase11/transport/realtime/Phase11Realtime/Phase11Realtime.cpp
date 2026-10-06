@@ -106,16 +106,24 @@ std::pair<UserId, std::uint64_t> receiptPayload(std::string_view payload)
 
 Phase11PresenceBridge::Phase11PresenceBridge(
     ISocialBusiness &social, DatabaseExecutor &databaseExecutor,
-    WebSocketSessionManager &webSockets)
+    WebSocketSessionManager &webSockets,
+    std::function<void()> outboxCommitted)
     : webSockets_(webSockets)
 {
     // 回调只把工作单放进有界数据库队列，不在 Reactor 线程里执行 SQL。
     webSockets_.setPresenceObserver(
-        [&social, &databaseExecutor](UserId user, std::size_t connections)
+        [&social, &databaseExecutor,
+         outboxCommitted = std::move(outboxCommitted)](
+            UserId user, std::size_t connections)
         {
-            (void)databaseExecutor.submit([&social, user, connections]
+            (void)databaseExecutor.submit(
+                [&social, user, connections, outboxCommitted]
             {
-                try { social.recordPresence(user, connections, now()); }
+                try
+                {
+                    social.recordPresence(user, connections, now());
+                    if (outboxCommitted) outboxCommitted();
+                }
                 catch (...) { /* 下次连接变化会刷新 last-active。 */ }
             });
         });
@@ -143,6 +151,7 @@ void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
                 {
                     return chat_.sendText(sender, conversation, id, body, now());
                 });
+            if (outboxCommitted_) outboxCommitted_();
             setReply(context, "chat.accepted",
                      result.inserted ? "inserted" : "duplicate",
                      &result.message);
@@ -159,6 +168,7 @@ void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
             {
                 chat_.acknowledgeDelivery(user, conversation, sequence, now());
             });
+            if (outboxCommitted_) outboxCommitted_();
             setReply(context, "chat.acknowledged", "accepted");
         });
     });
@@ -173,6 +183,7 @@ void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
             {
                 chat_.markRead(user, conversation, sequence, now());
             });
+            if (outboxCommitted_) outboxCommitted_();
             setReply(context, "chat.read", "accepted");
         });
     });
@@ -193,6 +204,7 @@ void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
             const auto result = runDatabase(
                 [this, actor = static_cast<UserId>(context.uid), message]
                 { return chat_.recallMessage(actor, message, now()); });
+            if (outboxCommitted_) outboxCommitted_();
             setReply(context, "chat.recall.accepted",
                      result.changed ? "recalled" : "already_recalled",
                      &result.message);
@@ -572,14 +584,59 @@ void Phase11OutboxPump::stop() noexcept
         worker_.join();
 }
 
+void Phase11OutboxPump::notifyCommitted() noexcept
+{
+    {
+        std::lock_guard lock(mutex_);
+        ++wakeGeneration_;
+    }
+    wakeups_.fetch_add(1, std::memory_order_relaxed);
+    wake_.notify_one();
+}
+
+Phase11OutboxPump::Snapshot Phase11OutboxPump::snapshot() const noexcept
+{
+    return {cycles_.load(std::memory_order_relaxed),
+            wakeups_.load(std::memory_order_relaxed),
+            attempted_.load(std::memory_order_relaxed),
+            published_.load(std::memory_order_relaxed),
+            blocked_.load(std::memory_order_relaxed),
+            failures_.load(std::memory_order_relaxed),
+            lastBatch_.load(std::memory_order_relaxed),
+            batchHighWatermark_.load(std::memory_order_relaxed),
+            oldestAttemptAgeMicroseconds_.load(std::memory_order_relaxed)};
+}
+
 void Phase11OutboxPump::run() noexcept
 {
     while (!stopping_.load(std::memory_order_acquire))
     {
+        std::uint64_t observedGeneration = 0;
+        {
+            std::lock_guard lock(mutex_);
+            observedGeneration = wakeGeneration_;
+        }
         std::chrono::milliseconds delay{250};
         try
         {
             const auto result = dispatcher_.dispatchPending(100, now());
+            cycles_.fetch_add(1, std::memory_order_relaxed);
+            attempted_.fetch_add(result.attempted, std::memory_order_relaxed);
+            published_.fetch_add(result.published, std::memory_order_relaxed);
+            if (result.blocked)
+                blocked_.fetch_add(1, std::memory_order_relaxed);
+            lastBatch_.store(result.attempted, std::memory_order_relaxed);
+            auto high = batchHighWatermark_.load(std::memory_order_relaxed);
+            while (high < result.attempted &&
+                   !batchHighWatermark_.compare_exchange_weak(
+                       high, result.attempted, std::memory_order_relaxed)) {}
+            auto oldest = oldestAttemptAgeMicroseconds_.load(
+                std::memory_order_relaxed);
+            const auto age = static_cast<std::uint64_t>(
+                result.oldestAttemptAge.count());
+            while (oldest < age &&
+                   !oldestAttemptAgeMicroseconds_.compare_exchange_weak(
+                       oldest, age, std::memory_order_relaxed)) {}
             if (result.published == 100)
                 delay = std::chrono::milliseconds{1};
             else if (result.blocked)
@@ -587,12 +644,14 @@ void Phase11OutboxPump::run() noexcept
         }
         catch (...)
         {
+            failures_.fetch_add(1, std::memory_order_relaxed);
             delay = std::chrono::seconds{1};
         }
         std::unique_lock lock(mutex_);
-        wake_.wait_for(lock, delay, [this]
+        wake_.wait_for(lock, delay, [this, observedGeneration]
         {
-            return stopping_.load(std::memory_order_acquire);
+            return stopping_.load(std::memory_order_acquire) ||
+                   wakeGeneration_ != observedGeneration;
         });
     }
 }

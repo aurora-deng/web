@@ -1,5 +1,6 @@
 #include "server/phase11/runtime/BoundedExecutor/BoundedExecutor.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
 
@@ -37,12 +38,21 @@ BoundedExecutor::~BoundedExecutor()
 bool BoundedExecutor::submit(Task task)
 {
     if (!task)
+    {
+        std::lock_guard lock(mutex_);
+        ++rejected_;
         return false;
+    }
     {
         std::lock_guard lock(mutex_);
         if (stopping_ || tasks_.size() >= capacity_)
+        {
+            ++rejected_;
             return false;
+        }
         tasks_.push_back(std::move(task));
+        ++submitted_;
+        queueHighWatermark_ = std::max(queueHighWatermark_, tasks_.size());
     }
     ready_.notify_one();
     return true;
@@ -77,6 +87,13 @@ bool BoundedExecutor::accepting() const noexcept
     return !stopping_;
 }
 
+BoundedExecutor::Snapshot BoundedExecutor::snapshot() const noexcept
+{
+    std::lock_guard lock(mutex_);
+    return {submitted_, rejected_, completed_, failed_, active_, tasks_.size(),
+            queueHighWatermark_, workers_.size(), capacity_, !stopping_};
+}
+
 void BoundedExecutor::workerLoop() noexcept
 {
     for (;;)
@@ -89,15 +106,25 @@ void BoundedExecutor::workerLoop() noexcept
                 return;
             task = std::move(tasks_.front());
             tasks_.pop_front();
+            ++active_;
         }
 
+        bool failed = false;
         try
         {
             task();
         }
         catch (...)
         {
+            failed = true;
             // 线程入口绝不能放出异常。任务需要反馈错误时应自行投递完成事件。
+        }
+        {
+            std::lock_guard lock(mutex_);
+            --active_;
+            ++completed_;
+            if (failed)
+                ++failed_;
         }
     }
 }
