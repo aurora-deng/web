@@ -20,7 +20,7 @@
 // =============================================================================
 #include "OutboundQueue.h"
 
-#include "log/logger/logger.h"
+#include "server/observability/logger/logger.h"
 
 #include <cerrno>
 #include <cstring>

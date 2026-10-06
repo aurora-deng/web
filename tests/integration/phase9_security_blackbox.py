@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 HOST = "127.0.0.1"
-PORT = 8080
+PORT = int(os.environ.get("WEB_TEST_PORT", "8080"))
 SECRET = "phase9-blackbox-auth-secret-at-least-32-bytes"
 ORIGIN = "https://learning.example"
 
@@ -160,6 +160,7 @@ def main() -> int:
         env = dict(os.environ)
         env.update({
             "WEB_SERVER_REACTORS": "2",
+            "WEB_SERVER_PORT": str(PORT),
             "WEB_AUTH_SECRET": SECRET,
             "WEB_ALLOWED_ORIGINS": ORIGIN,
             "WEB_GRPC_ADDRESS": "off",

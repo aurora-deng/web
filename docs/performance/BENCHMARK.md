@@ -73,7 +73,7 @@ taskset -c 0-7 bash scripts/benchmark.sh
 6. TERM 整个服务进程组，超时后 KILL，任何退出路径都执行清理；
 7. 如果设置 `BASELINE_URL`，再以同一负载测试 baseline。
 
-默认输出目录为 `benchmark-results/<UTC 时间>/`：
+默认输出目录为 `artifacts/benchmarks/<UTC 时间>/`：
 
 - `environment.txt`：OS、内核、CPU、内存、ulimit、关键 sysctl、工具版本和服务二进制 SHA-256；
 - `commands.txt`：可直接审计的完整 warm-up/测量命令；

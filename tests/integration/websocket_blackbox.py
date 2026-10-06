@@ -19,7 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "examples"))
 from reliable_websocket_consumer import ConsumeStatus, ReliableInbox
 
 HOST = "127.0.0.1"
-PORT = 8080
+PORT = int(os.environ.get("WEB_TEST_PORT", "8080"))
 TIMEOUT = 3.0
 
 
@@ -443,7 +443,8 @@ def main() -> int:
         process = subprocess.Popen(
             [str(server)],
             cwd=server.parent,
-            env={**os.environ, "WEB_SERVER_REACTORS": "1"},
+            env={**os.environ, "WEB_SERVER_REACTORS": "1",
+                 "WEB_SERVER_PORT": str(PORT)},
             stdout=log,
             stderr=subprocess.STDOUT,
             start_new_session=True,

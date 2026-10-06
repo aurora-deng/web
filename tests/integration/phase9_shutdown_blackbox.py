@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Tuple
 
 HOST = "127.0.0.1"
-PORT = 8080
+PORT = int(os.environ.get("WEB_TEST_PORT", "8080"))
 
 
 def wait_ready(process: subprocess.Popen) -> None:
@@ -61,7 +61,8 @@ def stop(process: subprocess.Popen) -> None:
 def launch(server: Path, log) -> subprocess.Popen:
     process = subprocess.Popen(
         [str(server)], cwd=server.parent,
-        env={**os.environ, "WEB_SERVER_REACTORS": "2", "WEB_GRPC_ADDRESS": "off"},
+        env={**os.environ, "WEB_SERVER_REACTORS": "2",
+             "WEB_SERVER_PORT": str(PORT), "WEB_GRPC_ADDRESS": "off"},
         stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
     )
     wait_ready(process)

@@ -93,6 +93,17 @@ option(WEBSERVER_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(WEBSERVER_BUILD_FUZZER "Build the libFuzzer HttpParser harness (Clang only)" OFF)
 option(WEBSERVER_ENABLE_GRPC "Build the optional gRPC service on a separate listener" OFF)
 option(WEBSERVER_BUILD_BENCHMARKS "Build repeatable Phase 10 benchmark clients" OFF)
+option(WEBSERVER_ENABLE_PHASE11 "Build the dependency-free Phase 11 domain/application core" ON)
+option(WEBSERVER_ENABLE_POSTGRES "Enable the Phase 11 PostgreSQL adapter (never auto-downloads)" OFF)
+option(WEBSERVER_ENABLE_SODIUM "Enable the Phase 11 libsodium credential adapter (never auto-downloads)" OFF)
+option(WEBSERVER_ENABLE_CURL_CLIENT "Enable the Phase 11 libcurl model client (never auto-downloads)" OFF)
+option(WEBSERVER_ENABLE_ONNX_GENAI "Enable the Phase 11 ONNX Runtime GenAI provider (never auto-downloads)" OFF)
+
+if((WEBSERVER_ENABLE_POSTGRES OR WEBSERVER_ENABLE_SODIUM OR
+    WEBSERVER_ENABLE_CURL_CLIENT OR WEBSERVER_ENABLE_ONNX_GENAI) AND
+   NOT WEBSERVER_ENABLE_PHASE11)
+    message(FATAL_ERROR "Phase 11 dependency adapters require WEBSERVER_ENABLE_PHASE11=ON")
+endif()
 
 if(WEBSERVER_BUILD_BENCHMARKS AND NOT WEBSERVER_ENABLE_GRPC)
     message(FATAL_ERROR "WEBSERVER_BUILD_BENCHMARKS requires WEBSERVER_ENABLE_GRPC=ON")
@@ -135,6 +146,143 @@ target_include_directories(webserver_security PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(webserver_security PUBLIC OpenSSL::Crypto webserver_sanitizers)
 
 # ==============================================================================
+# Phase 11 业务核心
+#
+# 默认目标只有标准 C++ 依赖，因此在 PostgreSQL/libsodium/libcurl/ONNX 尚未安装时也能
+# 构建和验证领域规则。四个外部适配器必须由用户显式打开；CMake 只查找指定环境中
+# 已存在的库，绝不使用 FetchContent 或在配置时联网下载。
+# ==============================================================================
+if(WEBSERVER_ENABLE_PHASE11)
+    add_library(webserver_phase11
+        server/phase11/storage/InMemoryStore/InMemoryStore.cpp
+        server/phase11/runtime/BoundedExecutor/BoundedExecutor.cpp
+        server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp
+        server/phase11/business/AuthService/AuthService.cpp
+        server/phase11/business/SocialService/SocialService.cpp
+        server/phase11/business/ChatService/ChatService.cpp
+        server/phase11/business/AiChatService/AiChatService.cpp
+        server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp
+        server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp
+        server/phase11/training/TrainingDataService/TrainingDataService.cpp
+        server/phase11/transport/FlatJson/FlatJson.cpp)
+    target_include_directories(webserver_phase11 PUBLIC ${PROJECT_SOURCE_DIR})
+    target_link_libraries(webserver_phase11 PUBLIC Threads::Threads webserver_sanitizers)
+
+    if(WEBSERVER_ENABLE_POSTGRES)
+        # 只接受用户已经安装好的 PostgreSQL。WEBSERVER_POSTGRES_ROOT 可以指向
+        # 自定义前缀（例如 /home/pikachu/phase11-deps/postgresql/18.6）；这里不会
+        # 下载源码、运行包管理器或修改系统搜索路径。
+        set(WEBSERVER_POSTGRES_ROOT "" CACHE PATH
+            "User-approved PostgreSQL installation prefix")
+        if(WEBSERVER_POSTGRES_ROOT)
+            list(PREPEND CMAKE_PREFIX_PATH "${WEBSERVER_POSTGRES_ROOT}")
+            set(PostgreSQL_ROOT "${WEBSERVER_POSTGRES_ROOT}")
+        endif()
+        find_package(PostgreSQL REQUIRED)
+        target_sources(webserver_phase11 PRIVATE
+            server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp
+            server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp)
+        target_link_libraries(webserver_phase11 PUBLIC PostgreSQL::PostgreSQL)
+        target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_POSTGRES=1)
+    endif()
+
+    if(WEBSERVER_ENABLE_SODIUM)
+        set(WEBSERVER_SODIUM_ROOT "" CACHE PATH
+            "User-approved libsodium installation prefix")
+        find_path(WEBSERVER_SODIUM_INCLUDE_DIR sodium.h
+            HINTS "${WEBSERVER_SODIUM_ROOT}"
+            PATH_SUFFIXES include
+            NO_DEFAULT_PATH)
+        find_library(WEBSERVER_SODIUM_LIBRARY NAMES sodium libsodium
+            HINTS "${WEBSERVER_SODIUM_ROOT}"
+            PATH_SUFFIXES lib lib64
+            NO_DEFAULT_PATH)
+        if(NOT WEBSERVER_SODIUM_INCLUDE_DIR OR NOT WEBSERVER_SODIUM_LIBRARY)
+            message(FATAL_ERROR
+                "WEBSERVER_ENABLE_SODIUM=ON requires an already installed libsodium. "
+                "Choose its location first, then set WEBSERVER_SODIUM_ROOT. "
+                "This project will not download or install it automatically.")
+        endif()
+        target_sources(webserver_phase11 PRIVATE
+            server/phase11/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)
+        target_include_directories(webserver_phase11 PUBLIC ${WEBSERVER_SODIUM_INCLUDE_DIR})
+        target_link_libraries(webserver_phase11 PUBLIC ${WEBSERVER_SODIUM_LIBRARY})
+        target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_SODIUM=1)
+    endif()
+
+    if(WEBSERVER_ENABLE_CURL_CLIENT)
+        # libcurl 与数据库/密码库一样只从用户已批准的前缀查找。显式 Root 既避免
+        # 误连系统旧版本，也不会修改全局 PATH 或 LD_LIBRARY_PATH。
+        set(WEBSERVER_CURL_ROOT "" CACHE PATH
+            "User-approved curl/libcurl installation prefix")
+        if(WEBSERVER_CURL_ROOT)
+            list(PREPEND CMAKE_PREFIX_PATH "${WEBSERVER_CURL_ROOT}")
+            set(CURL_ROOT "${WEBSERVER_CURL_ROOT}")
+        endif()
+        find_package(CURL 8.0 REQUIRED)
+        target_sources(webserver_phase11 PRIVATE
+            server/phase11/ai/OllamaStreamDecoder/OllamaStreamDecoder.cpp
+            server/phase11/ai/OllamaModelProvider/OllamaModelProvider.cpp)
+        target_link_libraries(webserver_phase11 PUBLIC CURL::libcurl)
+        target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_CURL_CLIENT=1)
+    endif()
+
+    if(WEBSERVER_ENABLE_ONNX_GENAI)
+        set(WEBSERVER_ONNX_RUNTIME_ROOT "" CACHE PATH
+            "User-approved ONNX Runtime installation prefix")
+        set(WEBSERVER_ONNX_GENAI_ROOT "" CACHE PATH
+            "User-approved ONNX Runtime GenAI installation prefix")
+        find_path(WEBSERVER_ONNX_RUNTIME_INCLUDE_DIR onnxruntime_c_api.h
+            HINTS "${WEBSERVER_ONNX_RUNTIME_ROOT}"
+            PATH_SUFFIXES include
+            NO_DEFAULT_PATH)
+        find_library(WEBSERVER_ONNX_RUNTIME_LIBRARY
+            NAMES onnxruntime
+            HINTS "${WEBSERVER_ONNX_RUNTIME_ROOT}"
+            PATH_SUFFIXES lib lib64
+            NO_DEFAULT_PATH)
+        find_path(WEBSERVER_ONNX_GENAI_INCLUDE_DIR ort_genai.h
+            HINTS "${WEBSERVER_ONNX_GENAI_ROOT}"
+            PATH_SUFFIXES include
+            NO_DEFAULT_PATH)
+        find_library(WEBSERVER_ONNX_GENAI_LIBRARY
+            NAMES onnxruntime-genai onnxruntime_genai
+            HINTS "${WEBSERVER_ONNX_GENAI_ROOT}"
+            PATH_SUFFIXES lib lib64
+            NO_DEFAULT_PATH)
+        if(NOT WEBSERVER_ONNX_RUNTIME_INCLUDE_DIR OR
+           NOT WEBSERVER_ONNX_RUNTIME_LIBRARY OR
+           NOT WEBSERVER_ONNX_GENAI_INCLUDE_DIR OR
+           NOT WEBSERVER_ONNX_GENAI_LIBRARY)
+            message(FATAL_ERROR
+                "WEBSERVER_ENABLE_ONNX_GENAI=ON requires already installed ONNX Runtime and GenAI. "
+                "Choose their locations first, then set WEBSERVER_ONNX_RUNTIME_ROOT and "
+                "WEBSERVER_ONNX_GENAI_ROOT. "
+                "This project will not download or install it automatically.")
+        endif()
+        if(EXISTS "${WEBSERVER_ONNX_RUNTIME_ROOT}/VERSION_NUMBER")
+            file(STRINGS "${WEBSERVER_ONNX_RUNTIME_ROOT}/VERSION_NUMBER"
+                WEBSERVER_ONNX_RUNTIME_VERSION LIMIT_COUNT 1)
+            if(NOT WEBSERVER_ONNX_RUNTIME_VERSION STREQUAL "1.28.0")
+                message(FATAL_ERROR
+                    "Phase 11 ONNX provider is validated with ONNX Runtime 1.28.0; "
+                    "found ${WEBSERVER_ONNX_RUNTIME_VERSION}.")
+            endif()
+        endif()
+        target_sources(webserver_phase11 PRIVATE
+            server/phase11/ai/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp)
+        target_include_directories(webserver_phase11 PUBLIC
+            ${WEBSERVER_ONNX_RUNTIME_INCLUDE_DIR}
+            ${WEBSERVER_ONNX_GENAI_INCLUDE_DIR})
+        target_link_libraries(webserver_phase11 PUBLIC
+            ${WEBSERVER_ONNX_GENAI_LIBRARY}
+            ${WEBSERVER_ONNX_RUNTIME_LIBRARY}
+            OpenSSL::Crypto)
+        target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_ONNX_GENAI=1)
+    endif()
+endif()
+
+# ==============================================================================
 # 核心业务静态库 webserver_core
 # 架构设计分离：业务逻辑全部收敛进库，main.cpp只负责组装逻辑、启动服务
 # 优势：单元测试、模糊测试、主程序可以复用同一套源码，避免代码重复；便于模块化拆分
@@ -148,7 +296,7 @@ target_sources(webserver_core PRIVATE
     server/Buffer/Buffer.cpp
     server/buffer_pool/BufferPoll.cpp
     server/thread_pool/thread_pool.cpp
-    log/logger/logger.cpp
+    server/observability/logger/logger.cpp
     server/SubReactor/SubReactor.cpp
     server/Reactor/ReactorGroup.cpp
     server/Runtime/ServerRuntime.cpp
@@ -212,6 +360,18 @@ target_include_directories(webserver_core PUBLIC ${NGHTTP2_INCLUDE_DIR})
 # 链接依赖：系统线程库 + sanitizer编译选项接口库
 target_link_libraries(webserver_core PUBLIC Threads::Threads webserver_sanitizers webserver_security ${NGHTTP2_LIBRARY} OpenSSL::SSL OpenSSL::Crypto)
 
+if(WEBSERVER_ENABLE_PHASE11)
+    # HTTP 适配层同时依赖协议核心与 Phase 11 业务核心，因此在两个底层库都定义后
+    # 单独组装，避免让领域模型反向依赖 HttpRequest/Router。
+    add_library(webserver_phase11_http
+        server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp
+        server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp
+        server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)
+    target_include_directories(webserver_phase11_http PUBLIC ${PROJECT_SOURCE_DIR})
+    target_link_libraries(webserver_phase11_http PUBLIC
+        webserver_core webserver_phase11)
+endif()
+
 # ==============================================================================
 # 主程序可执行文件 webserver
 # 服务入口，main.cpp，只负责初始化组件、启动Reactor
@@ -219,6 +379,21 @@ target_link_libraries(webserver_core PUBLIC Threads::Threads webserver_sanitizer
 add_executable(webserver main.cpp)
 # 链接核心业务库
 target_link_libraries(webserver PRIVATE webserver_core)
+if(WEBSERVER_ENABLE_PHASE11)
+    target_link_libraries(webserver PRIVATE webserver_phase11_http)
+
+    # Web 可执行文件通常从 build 目录启动。每次构建都同步前端资源，避免二进制能启动，
+    # 但相对路径找不到 CSS/JavaScript，最终退化成浏览器默认样式。
+    add_custom_target(phase11_frontend_assets ALL
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${PROJECT_BINARY_DIR}/frontend"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${PROJECT_SOURCE_DIR}/frontend/phase11"
+                "${PROJECT_BINARY_DIR}/frontend/phase11"
+        COMMENT "Syncing Phase 11 frontend assets"
+        VERBATIM)
+    add_dependencies(webserver phase11_frontend_assets)
+endif()
 
 # ==============================================================================
 # 可选 gRPC 服务：官方 gRPC C++ 负责它自己的 HTTP/2、HPACK、stream 与 trailers。
@@ -294,6 +469,32 @@ if(WEBSERVER_ENABLE_GRPC)
     add_executable(webserver-grpc server/grpc/GrpcMain.cpp)
     target_link_libraries(webserver-grpc PRIVATE webserver_grpc)
 
+    if(WEBSERVER_ENABLE_PHASE11 AND WEBSERVER_ENABLE_ONNX_GENAI)
+        # 独立推理进程与聊天进程的客户端适配器共用同一份生成协议。模型仍只在
+        # webserver-onnx-worker 内加载，聊天主进程链接此库不会创建 OgaModel。
+        add_library(webserver_phase11_grpc_onnx
+            server/phase11/ai/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp
+            server/phase11/ai/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp)
+        target_include_directories(webserver_phase11_grpc_onnx PUBLIC
+            ${PROJECT_SOURCE_DIR}
+            ${WEBSERVER_GRPC_GENERATED_DIR})
+        target_link_libraries(webserver_phase11_grpc_onnx PUBLIC
+            webserver_phase11
+            webserver_grpc)
+        target_link_libraries(webserver_phase11_grpc_onnx PRIVATE
+            webserver_sanitizers)
+
+        add_executable(webserver-onnx-worker
+            server/phase11/ai/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp)
+        target_link_libraries(webserver-onnx-worker PRIVATE
+            webserver_phase11_grpc_onnx)
+
+        target_compile_definitions(webserver PRIVATE
+            WEBSERVER_HAS_PHASE11_GRPC_ONNX=1)
+        target_link_libraries(webserver PRIVATE
+            webserver_phase11_grpc_onnx)
+    endif()
+
     if(WEBSERVER_BUILD_BENCHMARKS)
         add_executable(grpc_benchmark benchmarks/grpc_benchmark.cpp)
         target_link_libraries(grpc_benchmark PRIVATE webserver_grpc)
@@ -316,6 +517,86 @@ add_custom_command(
 # 策略：只寻找系统预装GTest，不自动下载源码编译，保证构建环境可控、支持离线编译
 # ==============================================================================
 if(BUILD_TESTING)
+    if(WEBSERVER_ENABLE_PHASE11)
+        add_executable(phase11_core_tests tests/phase11/unit/core.cpp)
+        target_link_libraries(phase11_core_tests PRIVATE webserver_phase11)
+        add_test(NAME phase11_core_tests COMMAND phase11_core_tests)
+
+        add_executable(phase11_http_auth_tests tests/phase11/unit/http_auth.cpp)
+        target_link_libraries(phase11_http_auth_tests PRIVATE
+            webserver_phase11_http)
+        add_test(NAME phase11_http_auth_tests COMMAND phase11_http_auth_tests)
+        set_tests_properties(phase11_http_auth_tests PROPERTIES TIMEOUT 30)
+
+        add_executable(phase11_ai_chat_tests tests/phase11/unit/ai_chat.cpp)
+        target_link_libraries(phase11_ai_chat_tests PRIVATE
+            webserver_phase11_http)
+        add_test(NAME phase11_ai_chat_tests COMMAND phase11_ai_chat_tests)
+        set_tests_properties(phase11_ai_chat_tests PROPERTIES TIMEOUT 30)
+
+        if(WEBSERVER_ENABLE_POSTGRES)
+            add_executable(phase11_postgres_contract_tests
+                tests/phase11/unit/postgres_contract.cpp)
+            target_link_libraries(phase11_postgres_contract_tests PRIVATE
+                webserver_phase11)
+            add_test(NAME phase11_postgres_contract_tests
+                COMMAND phase11_postgres_contract_tests)
+            set_tests_properties(phase11_postgres_contract_tests PROPERTIES
+                TIMEOUT 60 RUN_SERIAL TRUE)
+        endif()
+
+        if(WEBSERVER_ENABLE_SODIUM)
+            add_executable(phase11_sodium_credentials_tests
+                tests/phase11/unit/sodium_credentials.cpp)
+            target_link_libraries(phase11_sodium_credentials_tests PRIVATE
+                webserver_phase11)
+            add_test(NAME phase11_sodium_credentials_tests
+                COMMAND phase11_sodium_credentials_tests)
+            set_tests_properties(phase11_sodium_credentials_tests PROPERTIES
+                TIMEOUT 60)
+        endif()
+
+        if(WEBSERVER_ENABLE_CURL_CLIENT)
+            add_executable(phase11_ollama_provider_tests
+                tests/phase11/unit/ollama_provider.cpp)
+            target_link_libraries(phase11_ollama_provider_tests PRIVATE
+                webserver_phase11)
+            add_test(NAME phase11_ollama_provider_tests
+                COMMAND phase11_ollama_provider_tests)
+            set_tests_properties(phase11_ollama_provider_tests PROPERTIES
+                TIMEOUT 30)
+        endif()
+
+        if(WEBSERVER_ENABLE_ONNX_GENAI)
+            add_executable(phase11_onnx_provider_tests
+                tests/phase11/unit/onnx_provider.cpp)
+            target_link_libraries(phase11_onnx_provider_tests PRIVATE
+                webserver_phase11)
+            add_test(NAME phase11_onnx_provider_tests
+                COMMAND phase11_onnx_provider_tests)
+            set_tests_properties(phase11_onnx_provider_tests PROPERTIES
+                TIMEOUT 60)
+
+            # 真实模型体积较大且必须单独获得下载许可，因此 smoke 工具只参与编译，
+            # 不自动注册进 CTest。模型准备好后由操作者显式传入根目录和相对目录。
+            add_executable(phase11_onnx_model_smoke
+                tests/phase11/smoke/onnx_model_smoke.cpp)
+            target_link_libraries(phase11_onnx_model_smoke PRIVATE
+                webserver_phase11)
+
+            if(WEBSERVER_ENABLE_GRPC)
+                add_executable(phase11_grpc_onnx_provider_tests
+                    tests/phase11/unit/grpc_onnx_provider.cpp)
+                target_link_libraries(phase11_grpc_onnx_provider_tests PRIVATE
+                    webserver_phase11_grpc_onnx)
+                add_test(NAME phase11_grpc_onnx_provider_tests
+                    COMMAND phase11_grpc_onnx_provider_tests)
+                set_tests_properties(phase11_grpc_onnx_provider_tests PROPERTIES
+                    TIMEOUT 30)
+            endif()
+        endif()
+    endif()
+
     add_executable(phase9_foundation_tests
         tests/phase9_foundation.cpp
         server/sse/SseReplayBuffer.cpp)
@@ -486,13 +767,13 @@ if(WEBSERVER_BUILD_FUZZER)
         message(FATAL_ERROR "WEBSERVER_BUILD_FUZZER requires Clang with libFuzzer support.")
     endif()
     # 模糊测试程序
-    add_executable(http_parser_fuzz fuzz/http_parser_fuzz.cpp)
+    add_executable(http_parser_fuzz tests/fuzz/http_parser_fuzz.cpp)
     target_link_libraries(http_parser_fuzz PRIVATE webserver_core)
     # 开启libFuzzer编译与链接标志
     target_compile_options(http_parser_fuzz PRIVATE -fsanitize=fuzzer)
     target_link_options(http_parser_fuzz PRIVATE -fsanitize=fuzzer)
 
-    add_executable(websocket_parser_fuzz fuzz/websocket_parser_fuzz.cpp)
+    add_executable(websocket_parser_fuzz tests/fuzz/websocket_parser_fuzz.cpp)
     target_link_libraries(websocket_parser_fuzz PRIVATE webserver_core)
     target_compile_options(websocket_parser_fuzz PRIVATE -fsanitize=fuzzer)
     target_link_options(websocket_parser_fuzz PRIVATE -fsanitize=fuzzer)

@@ -39,8 +39,9 @@ from pathlib import Path
 # ===================== 全局基础配置（统一修改入口） =====================
 # 待测服务监听回环地址，禁止使用0.0.0.0避免外部网络干扰测试结果
 HOST = "127.0.0.1"
-# HTTP服务固定监听端口，待测框架必须监听8080
-PORT = 8080
+# 默认保持原来的 8080；共享开发机可通过 WEB_TEST_PORT 选择隔离端口，避免测试为了
+# 抢端口而停止用户正在运行的 nginx 或其他服务。
+PORT = int(os.environ.get("WEB_TEST_PORT", "8080"))
 # Socket读写超时阈值
 # 关键作用：一旦服务死锁、挂死、无响应，测试脚本不会无限阻塞卡住CI流水线
 TIMEOUT = 3.0
@@ -195,38 +196,20 @@ def reclaim_port_for_server(server: Path) -> None:
     端口清理工具函数
     使用场景：上一轮测试异常崩溃，待测服务僵尸进程未正常退出，持续占用8080端口
     执行策略：
-    1. 优先调用项目内置端口清理脚本（如果存在）；
-    2. 不存在辅助脚本，则通过pkill信号终止包含程序路径的进程；
-    3. 循环等待端口释放，最大等待3秒
+    1. 只有默认8080且项目清理脚本存在时才执行定向清理；
+    2. 自定义端口或没有清理脚本时不猜测进程归属，由后续检查安全地报占用。
+
+    旧实现用 ``pkill -f <server-path>``，但测试 Python 自身的 ``--server`` 参数也
+    包含该路径，会把测试进程一起杀掉；更严重的是可能影响用户正在运行的服务。
     """
     # 约定项目目录层级：二进制位于 /bin，脚本目录 /scripts
     root = server.resolve().parent.parent
     helper = root / "scripts" / "free_port_8080.py"
-    if helper.is_file():
+    if PORT == 8080 and helper.is_file():
         subprocess.run(
             [sys.executable, str(helper), str(server.resolve())],
             check=False,
         )
-        return
-    # 无辅助清理脚本，使用进程名匹配杀死旧实例
-    proc_hint = str(server.resolve())
-    # 先发送优雅退出信号，超时再强制杀死
-    for sig in (signal.SIGTERM, signal.SIGKILL):
-        try:
-            subprocess.run(
-                ["pkill", f"-{int(sig)}", "-f", proc_hint],
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except OSError:
-            pass
-        # 轮询检测端口状态，直到端口空闲或超时
-        deadline = time.monotonic() + 3
-        while time.monotonic() < deadline:
-            if not _has_tcp_listen(PORT):
-                return
-            time.sleep(0.1)
 
 
 def _has_tcp_listen(port: int) -> bool:
@@ -636,6 +619,7 @@ def main() -> int:
         proc = subprocess.Popen(
             [str(server_bin)],
             cwd=server_bin.parent,
+            env={**os.environ, "WEB_SERVER_PORT": str(PORT)},
             stdout=log_buffer,
             stderr=subprocess.STDOUT,  # stderr重定向到stdout，统一保存日志
             start_new_session=True,    # 创建独立进程组，方便killpg整体回收

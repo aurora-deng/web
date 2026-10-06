@@ -133,8 +133,8 @@ CC=clang CXX=clang++ cmake -S . -B build-fuzz \
   -DWEBSERVER_ENABLE_ASAN=ON \
   -DWEBSERVER_ENABLE_UBSAN=ON
 cmake --build build-fuzz --target http_parser_fuzz --parallel
-mkdir -p fuzz-corpus
-./build-fuzz/http_parser_fuzz fuzz-corpus -max_len=2097152
+mkdir -p tests/fuzz/corpus
+./build-fuzz/http_parser_fuzz tests/fuzz/corpus -max_len=2097152
 ```
 
 The harness feeds input incrementally to exercise streaming request parsing,

@@ -74,3 +74,17 @@ vcpkg_installed/
 /out.perf
 /perf.data*
 /server/CoroutineScheduler/test
+
+# Phase 11 runtime data and secrets. Schema/source stay tracked; generated data and
+# model weights never enter Git.
+.env
+.env.*
+!.env.example
+/runtime-data/
+/models/
+/docs/database/*.local.md
+*.onnx
+*.onnx_adapter
+*.gguf
+*.safetensors
+*.ckpt

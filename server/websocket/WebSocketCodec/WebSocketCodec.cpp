@@ -541,9 +541,13 @@ void parseInboundType(WebSocketMessage &msg)
             msg.attempt = static_cast<std::uint32_t>(attempt);
         msg.ackRequested = extractJsonBool(payload, "ack");
         msg.fromUserId = extractJsonUint(payload, "from");
+        msg.conversationId = extractJsonUint(payload, "conversationId");
+        msg.sequence = extractJsonUint(payload, "sequence");
         msg.toUserId = extractJsonUint(payload, "to");
         if (msg.toUserId == 0)
             msg.toUserId = extractJsonUint(payload, "room");
+        if (msg.conversationId == 0)
+            msg.conversationId = msg.toUserId;
         // content / text / msg 三选一，作为消息正文
         const auto content = extractJsonString(payload, "content");
         const auto text = extractJsonString(payload, "text");
@@ -676,6 +680,8 @@ std::string WebSocketCodec::serializeApplicationMessage(
     addString("replyTo", message.replyTo);
     addUser("from", message.fromUserId);
     addUser("to", message.toUserId);
+    addUser("conversationId", message.conversationId);
+    addUser("sequence", message.sequence);
     addString("status", message.status);
     if (message.attempt != 0)
         json += ",\"attempt\":" + std::to_string(message.attempt);

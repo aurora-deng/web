@@ -17,7 +17,7 @@ CURRENT_URL="${CURRENT_URL:-http://127.0.0.1:8080/}"
 BASELINE_URL="${BASELINE_URL:-}"
 BASELINE_PID="${BASELINE_PID:-}"
 SERVER_BIN="${SERVER_BIN:-${ROOT_DIR}/build-release/webserver}"
-RESULTS_ROOT="${RESULTS_ROOT:-${ROOT_DIR}/benchmark-results}"
+RESULTS_ROOT="${RESULTS_ROOT:-${ROOT_DIR}/artifacts/benchmarks}"
 RUN_ID="${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 RESULT_DIR="${RESULTS_ROOT}/${RUN_ID}"
 LUA_REPORT="${LUA_REPORT:-${ROOT_DIR}/scripts/wrk_report.lua}"
@@ -41,7 +41,7 @@ Key variables:
   SERVER_BIN=build-release/webserver
   BASELINE_URL=http://127.0.0.1:8081/   Optional comparison target
   BASELINE_PID=1234        Optional local baseline PID for RSS/CPU sampling
-  RESULTS_ROOT=benchmark-results
+  RESULTS_ROOT=artifacts/benchmarks
   RUN_ID=custom-name
 
 The current server always binds port 8080. Run this script on Linux from a

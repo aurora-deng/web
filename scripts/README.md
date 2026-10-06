@@ -22,7 +22,7 @@ bash scripts/gen_report.sh
 
 # 报告生成位置：
 #   test_report_YYYYMMDD_HHMMSS.md  （项目根目录）
-#   test-output/                    （原始测试输出）
+#   artifacts/test-results/                    （原始测试输出）
 ```
 
 ### 快速模式（仅单元+黑盒测试）
@@ -94,13 +94,13 @@ Phase 7: 生成汇总 Markdown 报告
 ```
 web/
 ├── test_report_YYYYMMDD_HHMMSS.md   ← 汇总报告
-├── test-output/
+├── artifacts/test-results/
 │   ├── env_info.txt                 ← 环境信息
 │   ├── unittest_output.txt           ← 单元测试输出
 │   ├── blackbox_output.txt          ← 黑盒测试输出
 │   ├── benchmark_output.txt         ← 压测输出
 │   └── fuzz_output.txt              ← 模糊测试输出
-└── benchmark-results/
+└── artifacts/benchmarks/
     └── 20260730T120000Z/
         ├── summary.tsv              ← 压测核心指标
         ├── environment.txt          ← 压测环境快照
@@ -172,7 +172,7 @@ THREADS=8 CONNECTIONS=1000 DURATION=60s bash scripts/benchmark.sh
 BASELINE_URL=http://127.0.0.1:8081/ bash scripts/benchmark.sh
 
 # 查看结果
-cat benchmark-results/*/summary.tsv
+cat artifacts/benchmarks/*/summary.tsv
 ```
 
 ### 模糊测试
@@ -187,8 +187,8 @@ CC=clang CXX=clang++ cmake -S . -B build-fuzz \
 cmake --build build-fuzz --target http_parser_fuzz
 
 # 运行
-mkdir -p fuzz-corpus
-./build-fuzz/http_parser_fuzz fuzz-corpus -max_len=2097152
+mkdir -p tests/fuzz/corpus
+./build-fuzz/http_parser_fuzz tests/fuzz/corpus -max_len=2097152
 ```
 
 ---
@@ -207,7 +207,7 @@ mkdir -p fuzz-corpus
 | `CURRENT_URL` | `http://127.0.0.1:8080/` | 待测服务 URL |
 | `BASELINE_URL` | - | 对比基线 URL |
 | `SERVER_BIN` | `build-release/webserver` | 服务器二进制 |
-| `RESULTS_ROOT` | `benchmark-results` | 结果输出目录 |
+| `RESULTS_ROOT` | `artifacts/benchmarks` | 结果输出目录 |
 | `RUN_ID` | 自动生成 | UTC 时间戳 |
 
 ### summary.tsv 字段
@@ -279,3 +279,18 @@ sudo perf script | ~/FlameGraph/stackcollapse-perf.pl | ~/FlameGraph/flamegraph.
 3. **编译依赖**：需要 g++、CMake、Google Test、Python 3、wrk。
 4. **模糊测试**：需要 Clang 编译器（非必需，默认跳过）。
 5. **结果可复现**：每次压测使用独立目录（UTC 时间戳命名），不会覆盖历史结果。
+
+## Phase 11 演示用户初始化
+
+`scripts/phase11/seed-demo-users.py` 使用 Python 标准库调用正在运行的 Phase 11 HTTP API，创建不同
+岗位的演示用户、两两好友关系和“星云全栈协作组”。脚本不直连数据库，也不会在源码中保存密码。
+
+```bash
+install -m 600 /dev/null /home/pikachu/phase11-data/secrets/phase11-demo.password
+# 交互式写入演示密码后再执行；不要把密码放进命令历史或 Git。
+python3 scripts/phase11/seed-demo-users.py \
+  --password-file /home/pikachu/phase11-data/secrets/phase11-demo.password
+```
+
+若要让一个已有联调账号也和全部演示用户互为好友，可额外提供 `--anchor-username` 与
+`--anchor-password-file`。重复执行是安全的：已有账号、好友关系和同名群聊会被复用。

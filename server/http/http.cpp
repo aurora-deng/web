@@ -149,12 +149,15 @@ bool HttpResponse::sendfile(const std::string &path, const HttpRequest &req, Ran
     }
 
     size_t fileSize = file->size;
-    int sendEnd = fileSize - 1, sendBegin = 0;
+    // 文件偏移与文件大小统一使用 size_t，避免大文件超过 int 上限后截断，也避免
+    // 有符号/无符号混合比较让合法 Range 被误判。
+    size_t sendEnd = fileSize - 1;
+    size_t sendBegin = 0;
 
     // ---- 处理 Range 断点续传：把客户端请求的范围换算成实际发送的 [begin, end] ----
     if (range.enable)
     {
-        sendEnd = std::min(range.end, size_t(fileSize - 1));
+        sendEnd = std::min(range.end, fileSize - 1);
         if (!range.suffix)
         {
             sendBegin = range.begin;
@@ -178,7 +181,9 @@ bool HttpResponse::sendfile(const std::string &path, const HttpRequest &req, Ran
     headers["ETag"] = file->etag;
 
     headers["Last-Modified"] = file->lastModified;
-    headers["Cache-Control"] = "public,max-age=3600";
+    // sendfile 提供通用的静态文件缓存默认值，但不能覆盖路由已经明确设置的
+    // no-store/no-cache。否则 Phase 11 更新 HTML/JS 后，浏览器仍会运行旧脚本一小时。
+    headers.try_emplace("Cache-Control", "public,max-age=3600");
 
     // ---- 按文件大小分档选择发送策略：小文件进内存，中大文件走 FileBody ----
     constexpr size_t SMALL = KiB(128);

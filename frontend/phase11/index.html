@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#07101f">
+  <title>Nebula Chat · 星云聊天</title>
+  <link rel="stylesheet" href="/phase11/styles.css">
+</head>
+<body>
+  <div class="space-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <main id="auth-panel" class="auth-view">
+    <section class="auth-hero" aria-labelledby="hero-title">
+      <a class="brand" href="/phase11/" aria-label="Nebula Chat 首页">
+        <span class="brand-cube" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span><strong>NEBULA CHAT</strong><small>星云聊天</small></span>
+      </a>
+      <div class="hero-copy">
+        <p class="eyebrow"><span></span> WEB-TEST 2.0 · PHASE 11</p>
+        <h1 id="hero-title">让连接穿过星云，<br><em>让消息不会错过。</em></h1>
+        <p class="hero-description">支持实时聊天、离线持久化与 AI 流式回答的高性能通信学习平台。</p>
+        <div class="protocol-grid" aria-label="已接入能力">
+          <article><span class="protocol-icon http">H</span><div><strong>HTTP API</strong><small>账号、好友与历史查询</small></div></article>
+          <article><span class="protocol-icon websocket">W</span><div><strong>WebSocket</strong><small>低延迟双向消息</small></div></article>
+          <article><span class="protocol-icon sse">S</span><div><strong>SSE</strong><small>通知与 AI Token 流</small></div></article>
+        </div>
+        <div class="nebula-orbit" aria-hidden="true"><span class="planet-core">✦</span><span class="orbit orbit-a"></span><span class="orbit orbit-b"></span><i class="satellite satellite-a">⌁</i><i class="satellite satellite-b">AI</i><i class="satellite satellite-c">DB</i></div>
+      </div>
+      <div class="hero-proof"><span>✓ 消息可靠保存</span><span>✓ 离线成员可接收</span><span>✓ AI 流式回答</span></div>
+    </section>
+
+    <section class="auth-side">
+      <div class="auth-card">
+        <div class="auth-tabs" role="tablist" aria-label="账号入口"><button class="active" type="button" role="tab" aria-selected="true">登录</button><button id="show-register" type="button" role="tab" aria-selected="false">注册</button></div>
+        <div class="auth-card-head"><span class="welcome-icon" aria-hidden="true">✦</span><h2>欢迎回来</h2><p>登录后继续实时协作与 AI 对话。</p></div>
+        <form id="login-form" class="stack-form">
+          <label><span>用户名</span><span class="input-shell"><b aria-hidden="true">◎</b><input name="username" autocomplete="username" placeholder="输入用户名" required minlength="3" maxlength="32"></span></label>
+          <label><span>密码</span><span class="input-shell"><b aria-hidden="true">◇</b><input name="password" type="password" autocomplete="current-password" placeholder="至少 8 位" required minlength="8"></span></label>
+          <button class="primary-button auth-submit" type="submit"><span>登录并进入</span><span aria-hidden="true">→</span></button>
+        </form>
+        <p class="form-status" id="auth-status" role="status" aria-live="polite"></p>
+        <div class="security-note"><span aria-hidden="true">♢</span><span>登录状态由 HttpOnly Cookie 与 CSRF 双重保护</span></div>
+      </div>
+    </section>
+  </main>
+
+  <main id="chat-panel" class="chat-app hidden">
+    <aside class="sidebar">
+      <header class="sidebar-brand"><a class="brand compact" href="/phase11/"><span class="brand-cube mini" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>NEBULA CHAT</strong><small>星云聊天</small></span></a></header>
+      <section class="profile-card">
+        <span id="profile-avatar" class="avatar avatar-large">U</span>
+        <div class="profile-copy"><strong id="profile-name">未登录</strong><small id="profile-handle">用户资料</small><span><i class="status-dot online"></i>在线</span></div>
+        <button id="show-profile" class="profile-edit" type="button">个人资料</button><button id="logout" class="profile-logout" type="button">退出</button>
+      </section>
+      <nav class="side-actions" aria-label="主要功能">
+        <button id="show-conversations" class="side-action active" type="button"><span class="nav-glyph">◉</span><span>最近会话</span><span id="total-unread" class="badge hidden">0</span></button>
+        <button id="show-friends" class="side-action" type="button"><span class="nav-glyph">♧</span><span>联系人</span></button>
+        <button id="show-requests" class="side-action" type="button"><span class="nav-glyph">♙</span><span>好友申请</span><span id="friend-badge" class="badge warning hidden">0</span></button>
+        <button id="open-global-search" class="side-action" type="button"><span class="nav-glyph">⌕</span><span>消息搜索</span></button>
+        <button id="show-model-status" class="side-action" type="button"><span class="nav-glyph">✦</span><span>模型状态</span></button>
+      </nav>
+      <section class="friend-preview" aria-labelledby="friend-preview-title">
+        <header>
+          <div><span id="friend-preview-title">我的好友</span><small id="sidebar-friend-count">0</small></div>
+          <button id="manage-friends" type="button">管理</button>
+        </header>
+        <ul id="sidebar-friend-list" aria-live="polite"><li class="list-empty compact">登录后加载好友</li></ul>
+      </section>
+      <div class="conversation-heading"><div><span>会话列表</span><small id="conversation-count">0</small></div></div>
+      <label class="conversation-search"><span aria-hidden="true">⌕</span><input id="conversation-filter-input" type="search" placeholder="搜索会话名称"><kbd>⌘K</kbd></label>
+      <div class="conversation-create-row"><button id="new-direct-conversation" class="primary-soft" type="button">＋ 新建私聊</button><button id="new-group-conversation" class="ghost-soft" type="button">＋ 新建群聊</button><button id="new-conversation" class="hidden" type="button" aria-hidden="true" tabindex="-1"></button></div>
+      <div class="conversation-filters" role="group" aria-label="会话筛选"><button class="active" data-conversation-filter="all" type="button">全部</button><button data-conversation-filter="direct" type="button">私聊</button><button data-conversation-filter="group" type="button">群聊</button><button data-conversation-filter="ai" type="button">含 AI</button></div>
+      <div id="conversation-loading" class="list-skeleton hidden" aria-hidden="true"><span></span><span></span><span></span></div>
+      <ul id="conversation-list" class="conversation-list"></ul>
+      <p id="conversation-empty" class="empty-hint hidden">暂时没有会话<br><button id="empty-create-conversation" type="button">开始新对话</button></p>
+      <footer class="sidebar-footer"><p class="form-status" id="chat-status" role="status" aria-live="polite"></p><span>Phase 11 · Durable Messaging</span></footer>
+    </aside>
+
+    <section class="conversation-pane">
+      <header class="conversation-header">
+        <button id="mobile-back" class="mobile-back" type="button">‹ 返回</button><div class="current-conversation"><span id="conversation-avatar" class="avatar avatar-chat">✦</span><div><h1 id="conversation-title">请选择会话</h1><p id="conversation-subtitle">选择左侧会话，开始交流</p></div></div>
+        <div class="header-actions"><span class="header-connection"><i id="header-ws-dot" class="status-dot"></i><b id="header-ws-state">WebSocket 连接中</b></span><button id="search-messages" class="outline-button" type="button" disabled><span aria-hidden="true">⌕</span>当前会话搜索</button><button id="toggle-details" class="outline-button" type="button">查看详情</button><button id="add-member" class="primary-soft hidden" type="button">邀请成员</button></div>
+      </header>
+      <div id="reconnect-banner" class="reconnect-banner hidden"><span class="spinner"></span><div><strong>正在重新连接实时通道</strong><small>已经落库的历史消息不会丢失</small></div></div>
+      <section id="empty-conversation" class="welcome-state">
+        <div class="orbital-illustration" aria-hidden="true"><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><span class="planet">✦</span><i></i><b></b></div>
+        <p class="eyebrow"><span></span> READY TO CONNECT</p><h2>从一段会话开始</h2><p>创建私聊或群聊。对方即使不在线，消息也会先保存在 PostgreSQL，等待其下次登录恢复。</p><button id="welcome-create-conversation" class="primary-button" type="button">创建会话</button>
+      </section>
+      <ol id="message-list" class="message-list hidden" aria-live="polite"></ol>
+      <form id="message-form" class="composer hidden">
+        <div class="composer-context"><span>发送至：<strong id="composer-destination">当前会话</strong></span><span class="durable-hint"><i>✓</i> 对方无需在线，服务端确认后消息已持久化</span></div>
+        <div id="ai-target-wrap" class="ai-target hidden"><span>AI 模式</span><label>AI 账号 <input name="aiUserId" type="number" inputmode="numeric" min="1" placeholder="进入 AI 会话后自动识别"></label><small>在含 AI 账号的会话中会自动选择目标；生成过程通过 SSE 逐步返回并持久化。</small></div>
+        <div class="composer-main"><textarea name="message" maxlength="16384" rows="1" placeholder="输入文字消息…" required></textarea><div class="composer-bottom"><span>Enter 发送　 Shift + Enter 换行</span><div><button id="toggle-ai" class="ai-toggle" type="button" aria-pressed="false"><i></i>AI 模式</button><button id="cancel-generation" class="cancel-button hidden" type="button">停止生成</button><button class="send-button" type="submit"><span>发送</span><span aria-hidden="true">➤</span></button></div></div></div>
+      </form>
+    </section>
+
+    <aside id="detail-pane" class="detail-pane">
+      <header><h2>会话详情</h2><button id="close-details" class="dialog-close" type="button">×</button></header>
+      <section class="detail-identity"><span id="detail-avatar" class="avatar avatar-xl">✦</span><div><h3 id="detail-title">尚未选择会话</h3><p id="detail-kind">选择会话后显示详情</p></div></section>
+      <section class="detail-card"><div class="detail-card-head"><h3>成员 <span id="detail-member-count">0</span></h3></div><ul id="detail-member-list" class="member-list"><li class="detail-empty">暂无成员信息</li></ul></section>
+      <section class="detail-card connection-card"><div class="detail-card-head"><h3>连接状态</h3></div><div class="health-row"><span><i class="health-dot ok"></i>HTTP API</span><b id="http-health">正常</b></div><div class="health-row"><span><i id="detail-ws-dot" class="health-dot"></i>WebSocket</span><b id="detail-ws-state">连接中</b></div><div class="health-row"><span><i id="detail-sse-dot" class="health-dot"></i>SSE 通知</span><b id="detail-sse-state">连接中</b></div></section>
+      <section class="detail-card delivery-card"><span class="delivery-icon">DB</span><div><h3>离线投递已启用</h3><p>接收成员不在线也可以发送。消息与 Outbox 在同一事务内保存，上线后按序恢复。</p></div></section>
+    </aside>
+  </main>
+
+  <dialog id="register-dialog"><form id="register-form" class="dialog-card auth-dialog"><header><div><p class="eyebrow">CREATE ACCOUNT</p><h2>创建您的账号</h2><p>加入 Nebula Chat，开始可靠的实时交流。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>用户名<input name="username" autocomplete="username" placeholder="3–32 个字符" required minlength="3" maxlength="32"><small>用于登录，创建后不可随意修改</small></label><label>显示名称<input name="displayName" placeholder="其他用户看到的名字" required maxlength="64"></label><label>密码<input name="password" type="password" autocomplete="new-password" placeholder="至少 8 位" required minlength="8"></label><p class="form-status" id="register-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>返回登录</button><button type="submit" class="primary-button">创建账号 →</button></footer></form></dialog>
+
+  <dialog id="friend-dialog"><section class="dialog-card dialog-wide contacts-dialog"><header><div><p class="eyebrow">CONTACTS</p><h2>好友与联系人</h2><p>好友是创建私聊的入口，申请通过 SSE 实时到达。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="dialog-columns friend-columns"><section class="dialog-section"><span class="step-number">1</span><h3>发送好友申请</h3><form id="friend-request-form" class="stack-form compact"><label>对方用户 ID<input name="receiverId" inputmode="numeric" placeholder="输入正整数用户 ID" required></label><button type="submit" class="primary-button">发送好友申请</button></form><p class="form-status" id="friend-status" role="status"></p></section><section class="dialog-section"><span class="step-number">2</span><h3>待处理申请 <span id="request-count">0</span></h3><ul class="action-list" id="friend-request-list"></ul></section><section class="dialog-section"><span class="step-number">3</span><h3>联系人 <span id="friend-count">0</span></h3><ul class="action-list" id="friend-list"></ul></section></div></section></dialog>
+
+  <dialog id="conversation-dialog"><section class="dialog-card dialog-wide"><header><div><p class="eyebrow">NEW CONVERSATION</p><h2>创建会话</h2><p>私聊与群聊都支持成员离线时持久化消息。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="conversation-tabs"><button class="active" type="button" data-conversation-tab="direct">新建私聊</button><button type="button" data-conversation-tab="group">新建群聊</button></div><div class="dialog-columns creation-columns"><form id="direct-conversation-form" class="creation-card"><span class="creation-icon">◎</span><h3>和一位好友交流</h3><p>即使好友暂时离线，你仍然可以给该会话发送消息。</p><label>好友用户 ID<input name="peerId" inputmode="numeric" required placeholder="例如 2"></label><button type="submit" class="primary-button">开始私聊</button></form><form id="group-conversation-form" class="creation-card"><span class="creation-icon">◌</span><h3>建立群聊空间</h3><p>创建者可以继续邀请成员，所有消息统一持久化。</p><label>群名称<input name="title" maxlength="80" required placeholder="项目讨论组"></label><label>初始成员 ID<input name="memberIds" required placeholder="2,3,4（英文逗号分隔）"></label><button type="submit" class="primary-button">创建群聊</button></form></div><p class="form-status" id="conversation-status" role="status"></p></section></dialog>
+
+  <dialog id="profile-dialog"><form id="profile-form" class="dialog-card profile-dialog-card"><header><div><p class="eyebrow">PROFILE</p><h2>个人资料</h2><p id="profile-id-hint">用户 ID</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="profile-preview"><span id="profile-dialog-avatar" class="avatar avatar-xl">U</span><p>这些信息会在星云聊天中展示</p></div><label>显示名称<input name="displayName" maxlength="64" required></label><label>个人简介<textarea name="biography" maxlength="240" rows="4" placeholder="介绍一下自己"></textarea></label><p class="form-status" id="profile-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">保存资料</button></footer></form></dialog>
+
+  <dialog id="search-dialog"><section class="dialog-card dialog-wide search-dialog-card"><header><div><p class="eyebrow">HISTORY SEARCH</p><h2>历史消息搜索</h2><p>只搜索当前有权访问的会话内容。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><form id="search-form" class="inline-form"><label>关键词<input name="query" maxlength="120" required placeholder="输入消息关键词"></label><button type="submit" class="primary-button">搜索</button></form><ol id="search-results" class="search-results"></ol><p class="form-status" id="search-status" role="status"></p></section></dialog>
+
+  <dialog id="member-dialog"><form id="member-form" class="dialog-card"><header><div><p class="eyebrow">GROUP MEMBER</p><h2>邀请群成员</h2><p>当前接口只允许群创建者添加成员。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>用户 ID<input name="memberId" inputmode="numeric" required placeholder="输入要邀请的用户 ID"></label><p class="form-status" id="member-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">邀请成员</button></footer></form></dialog>
+
+  <dialog id="model-dialog"><section class="dialog-card dialog-wide model-dialog-card"><header><div><p class="eyebrow">RUNTIME STATUS</p><h2>模型与通道状态</h2><p>只展示浏览器能够真实确认的连接，不伪造模型探测结果。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="model-status-grid"><article><span class="model-orb">H</span><div><h3>HTTP 业务接口</h3><p>账号、好友、会话、历史与搜索</p></div><b class="status-chip ok">可用</b></article><article><span class="model-orb">W</span><div><h3>WebSocket 消息</h3><p>发送、ACK、已读与实时广播</p></div><b id="model-ws-status" class="status-chip">连接中</b></article><article><span class="model-orb">S</span><div><h3>SSE 事件流</h3><p>好友、邀请、通知与 AI Token</p></div><b id="model-sse-status" class="status-chip">连接中</b></article><article><span class="model-orb ai">AI</span><div><h3>AI Provider 路由</h3><p>Ollama / ONNX 进程内 / gRPC Worker</p></div><b class="status-chip neutral">按账号路由</b></article></div><div class="model-explain"><strong>AI 状态说明</strong><p>当前公共接口没有主动模型探测操作。发起生成后，实际成功、取消或错误状态会通过 SSE 返回。</p></div></section></dialog>
+
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <!-- 版本参数让已经打开过旧页面的浏览器重新获取修复后的 ES Module。 -->
+  <script type="module" src="/phase11/app.js?v=20261006-friend-directory"></script>
+</body>
+</html>

@@ -50,8 +50,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_RELEASE="${ROOT_DIR}/build-release"
 BUILD_TESTS="${ROOT_DIR}/build-tests"
 BUILD_FUZZ="${ROOT_DIR}/build-fuzz"
-RESULTS_ROOT="${ROOT_DIR}/benchmark-results"
-TEST_OUTPUT_DIR="${ROOT_DIR}/test-output"
+RESULTS_ROOT="${ROOT_DIR}/artifacts/benchmarks"
+TEST_OUTPUT_DIR="${ROOT_DIR}/artifacts/test-results"
 
 # ---------- 默认配置 ----------
 THREADS="${THREADS:-4}"
@@ -591,7 +591,7 @@ phase_fuzz() {
     fi
 
     local fuzz_bin="${BUILD_FUZZ}/http_parser_fuzz"
-    local fuzz_corpus="${ROOT_DIR}/fuzz-corpus"
+    local fuzz_corpus="${ROOT_DIR}/tests/fuzz/corpus"
 
     # 构建模糊测试目标
     if [[ ! -f "${fuzz_bin}" ]]; then
@@ -943,7 +943,7 @@ EOF
 
 ```text
 EOF
-        printf '目录：benchmark-results/%s/\n' "${BENCH_RUN_ID}" >> "${REPORT_FILE}"
+        printf '目录：artifacts/benchmarks/%s/\n' "${BENCH_RUN_ID}" >> "${REPORT_FILE}"
         ls -la "${result_dir}/" >> "${REPORT_FILE}" 2>/dev/null || echo "  (无法列出)" >> "${REPORT_FILE}"
         cat >> "${REPORT_FILE}" << 'EOF'
 ```
@@ -1108,8 +1108,8 @@ bash scripts/benchmark.sh
 # 模糊测试
 CC=clang CXX=clang++ cmake -S . -B build-fuzz -DWEBSERVER_BUILD_FUZZER=ON
 cmake --build build-fuzz --target http_parser_fuzz
-mkdir -p fuzz-corpus
-./build-fuzz/http_parser_fuzz fuzz-corpus -max_len=2097152
+mkdir -p tests/fuzz/corpus
+./build-fuzz/http_parser_fuzz tests/fuzz/corpus -max_len=2097152
 ```
 
 ### 6.4 生成报告
@@ -1226,13 +1226,13 @@ BUILD_DIR=build-tsan bash scripts/run_tests.sh -DWEBSERVER_ENABLE_TSAN=ON
 | 文件路径 | 说明 |
 |---------|------|
 | `test_report_*.md` | 本汇总报告 |
-| `test-output/unit_test_output.txt` | 单元测试原始输出 |
-| `test-output/blackbox_output.txt` | 黑盒测试原始输出 |
-| `test-output/env_info.txt` | 环境信息采集 |
-| `benchmark-results/*/summary.tsv` | 压测核心指标 |
-| `benchmark-results/*/environment.txt` | 压测环境快照 |
-| `benchmark-results/*/raw/*.txt` | wrk 原始输出 |
-| `benchmark-results/*/samples/*.tsv` | 每秒资源采样 |
+| `artifacts/test-results/unit_test_output.txt` | 单元测试原始输出 |
+| `artifacts/test-results/blackbox_output.txt` | 黑盒测试原始输出 |
+| `artifacts/test-results/env_info.txt` | 环境信息采集 |
+| `artifacts/benchmarks/*/summary.tsv` | 压测核心指标 |
+| `artifacts/benchmarks/*/environment.txt` | 压测环境快照 |
+| `artifacts/benchmarks/*/raw/*.txt` | wrk 原始输出 |
+| `artifacts/benchmarks/*/samples/*.tsv` | 每秒资源采样 |
 | `build-tests/Testing/Temporary/` | CTest 日志 |
 | `scripts/gen_report.sh` | 本报告生成脚本 |
 | `scripts/benchmark.sh` | 压测驱动脚本 |

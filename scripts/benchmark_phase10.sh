@@ -4,7 +4,7 @@ set -euo pipefail
 # Phase 10 同机复现脚本：HTTP 和 gRPC 分开启动，避免两个入口争抢 CPU 后把
 # “代码改进”与“资源竞争”混在一个数字里。每个场景跑 5 次，原始输出全部留档。
 BUILD_DIR="${BUILD_DIR:-build-release}"
-RESULT_ROOT="${RESULT_ROOT:-benchmark-results}"
+RESULT_ROOT="${RESULT_ROOT:-artifacts/benchmarks}"
 HTTP_URL="${HTTP_URL:-http://127.0.0.1:8080/fast}"
 HTTP_CONNECTIONS="${HTTP_CONNECTIONS:-128}"
 HTTP_THREADS="${HTTP_THREADS:-4}"

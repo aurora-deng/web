@@ -232,8 +232,8 @@ bash scripts/benchmark_phase10.sh
 
 ```bash
 python3 scripts/compare_phase10_results.py \
-  benchmark-results/baseline/summary.json \
-  benchmark-results/current/summary.json
+  artifacts/benchmarks/baseline/summary.json \
+  artifacts/benchmarks/current/summary.json
 ```
 
 验收门槛：

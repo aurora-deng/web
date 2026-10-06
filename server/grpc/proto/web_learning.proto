@@ -11,6 +11,57 @@ service LearningService {
   rpc Chat(stream ChatMessage) returns (stream ChatMessage);
 }
 
+// OnnxInferenceService 是聊天进程与独立模型进程之间的内部 RPC。
+// Generate 使用 server streaming：一个 HTTP/2 stream 依次返回 Token，最后返回且只
+// 返回一个 completed 事件。业务消息仍由聊天进程写 PostgreSQL，模型进程不接触账号、
+// Cookie、会话或 Outbox。
+service OnnxInferenceService {
+  rpc Generate(OnnxGenerateRequest) returns (stream OnnxGenerateEvent);
+  rpc Validate(OnnxValidateRequest) returns (OnnxValidateReply);
+}
+
+message OnnxPromptMessage {
+  string role = 1;
+  string content = 2;
+}
+
+message OnnxGenerateRequest {
+  string request_id = 1;
+  uint64 requester = 2;
+  uint64 model_node = 3;
+  repeated OnnxPromptMessage messages = 4;
+  uint64 max_output_tokens = 5;
+  string model_artifact = 6;
+  string adapter_artifact = 7;
+  string model_checksum = 8;
+}
+
+message OnnxGenerationCompleted {
+  bool success = 1;
+  bool cancelled = 2;
+  string error = 3;
+}
+
+message OnnxGenerateEvent {
+  oneof payload {
+    string token = 1;
+    OnnxGenerationCompleted completed = 2;
+  }
+}
+
+message OnnxValidateRequest {
+  uint64 version_id = 1;
+  uint64 node_id = 2;
+  string model_artifact = 3;
+  string adapter_artifact = 4;
+  string model_checksum = 5;
+}
+
+message OnnxValidateReply {
+  bool valid = 1;
+  string error = 2;
+}
+
 message EchoRequest {
   string message = 1;
 }

@@ -31,7 +31,30 @@
 #include "server/websocket/WebSocketCodec/WebSocketCodec.h"
 #include "server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
 #include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
-#include "log/logger/logger.h"
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+#include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
+#ifdef WEBSERVER_HAS_CURL_CLIENT
+#include "server/phase11/ai/OllamaModelProvider/OllamaModelProvider.h"
+#endif
+#ifdef WEBSERVER_HAS_ONNX_GENAI
+#include "server/phase11/ai/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
+#endif
+#ifdef WEBSERVER_HAS_PHASE11_GRPC_ONNX
+#include "server/phase11/ai/GrpcOnnxModelProvider/GrpcOnnxModelProvider.h"
+#endif
+#include "server/phase11/business/AiChatService/AiChatService.h"
+#include "server/phase11/business/AuthService/AuthService.h"
+#include "server/phase11/business/ChatService/ChatService.h"
+#include "server/phase11/business/SocialService/SocialService.h"
+#include "server/phase11/runtime/BoundedExecutor/BoundedExecutor.h"
+#include "server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
+#include "server/phase11/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
+#include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
+#include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
+#include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
+#endif
+#include "server/observability/logger/logger.h"
 #ifdef WEBSERVER_HAS_GRPC
 #include "server/grpc/GrpcServer.h"
 #endif
@@ -42,6 +65,8 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -49,6 +74,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <sys/stat.h>
 
 namespace
 {
@@ -79,6 +105,51 @@ std::size_t boundedEnvironmentSize(const char *name,
         throw std::invalid_argument(std::string(name) + " is outside the allowed range");
     return static_cast<std::size_t>(value);
 }
+
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+std::string readPrivateHexKey(const char *path)
+{
+    if (!path || *path == '\0')
+        throw std::invalid_argument("WEB_PHASE11_TOKEN_KEY_FILE is required");
+
+    struct stat metadata{};
+    if (::stat(path, &metadata) != 0 || !S_ISREG(metadata.st_mode))
+        throw std::invalid_argument(
+            "WEB_PHASE11_TOKEN_KEY_FILE must name a readable regular file");
+    if ((metadata.st_mode & (S_IRWXG | S_IRWXO)) != 0)
+        throw std::invalid_argument(
+            "WEB_PHASE11_TOKEN_KEY_FILE must not grant group/other permissions");
+
+    std::ifstream input(path, std::ios::binary);
+    if (!input)
+        throw std::invalid_argument("cannot read WEB_PHASE11_TOKEN_KEY_FILE");
+    std::string key{std::istreambuf_iterator<char>(input),
+                    std::istreambuf_iterator<char>()};
+    while (!key.empty() && (key.back() == '\n' || key.back() == '\r'))
+        key.pop_back();
+    if (key.size() != 64)
+        throw std::invalid_argument(
+            "WEB_PHASE11_TOKEN_KEY_FILE must contain 64 hexadecimal characters");
+    return key;
+}
+
+#ifdef WEBSERVER_HAS_PHASE11_GRPC_ONNX
+std::string readPhase11RegularFile(const char *name, const char *path)
+{
+    if (!path || *path == '\0')
+        throw std::invalid_argument(std::string(name) + " is required");
+    struct stat metadata{};
+    if (::stat(path, &metadata) != 0 || !S_ISREG(metadata.st_mode))
+        throw std::invalid_argument(std::string(name) +
+                                    " must name a readable regular file");
+    std::ifstream input(path, std::ios::binary);
+    if (!input)
+        throw std::invalid_argument(std::string("cannot read ") + name);
+    return {std::istreambuf_iterator<char>(input),
+            std::istreambuf_iterator<char>()};
+}
+#endif
+#endif
 
 std::unordered_set<std::string> commaSeparatedSet(const char *raw)
 {
@@ -216,10 +287,43 @@ int main()
             std::chrono::minutes(1),
             boundedEnvironmentSize("WEB_RATE_LIMIT_IDENTITIES", 65'536, 1, 10'000'000));
 
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+        // 这些对象先于 ServerRuntime 声明，因此退出时 ServerRuntime 会先停止网络线程，
+        // 然后认证适配器、数据库执行器和连接池才依次销毁，避免路由捕获悬空对象。
+        std::unique_ptr<webserver::phase11::PostgresStore> phase11Store;
+        std::unique_ptr<webserver::phase11::SodiumCredentialCodec> phase11Credentials;
+        std::unique_ptr<webserver::phase11::InMemoryLoginRateLimiter>
+            phase11LoginLimiter;
+        std::unique_ptr<webserver::phase11::AuthService> phase11Auth;
+        std::unique_ptr<webserver::phase11::SocialService> phase11Social;
+        std::unique_ptr<webserver::phase11::ChatService> phase11Chat;
+        std::unique_ptr<webserver::phase11::DatabaseExecutor> phase11DatabaseExecutor;
+        std::unique_ptr<webserver::phase11::transport::Phase11AuthHttp>
+            phase11AuthHttp;
+        std::unique_ptr<webserver::phase11::transport::Phase11SocialChatHttp>
+            phase11SocialChatHttp;
+#endif
+
         const ServerRuntimeOptions runtimeOptions{
             boundedEnvironmentSize("WEB_HTTP_WORKERS", 0, 1, 32),
             boundedEnvironmentSize("WEB_WS_WORKERS", 0, 1, 32)};
         ServerRuntime server(runtimeOptions);
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+        // 这些实时适配器依赖 ServerRuntime 内的 WS/SSE 目录，因此在 server 之后声明；
+        // 声明顺序也规定退出顺序：先停 Outbox，再停 AI 编排，然后销毁 Provider/SSE。
+        std::unique_ptr<webserver::phase11::transport::Phase11AiEventSink>
+            phase11AiEvents;
+        std::unique_ptr<webserver::phase11::ModelRouter> phase11ModelRouter;
+        std::vector<std::shared_ptr<webserver::phase11::IModelProvider>>
+            phase11ModelProviders;
+        std::unique_ptr<webserver::phase11::AiChatService> phase11AiChat;
+        std::unique_ptr<webserver::phase11::transport::Phase11Realtime>
+            phase11Realtime;
+        std::unique_ptr<webserver::phase11::transport::Phase11RealtimeOutboxSink>
+            phase11OutboxSink;
+        std::unique_ptr<webserver::phase11::transport::Phase11OutboxPump>
+            phase11OutboxPump;
+#endif
         std::cout << "worker pools: http=" << server.httpWorkerCount()
                   << ", websocket=" << server.webSocketWorkerCount() << '\n';
         server.setMaxConnections(
@@ -256,6 +360,200 @@ int main()
         if (productionMode && !std::getenv("WEB_TLS_CERT"))
             throw std::invalid_argument(
                 "WEB_PRODUCTION_MODE requires WEB_TLS_CERT and WEB_TLS_KEY");
+
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+        const char *phase11Database = std::getenv("WEB_PHASE11_DATABASE");
+        const char *phase11KeyFile = std::getenv("WEB_PHASE11_TOKEN_KEY_FILE");
+        if ((phase11Database && *phase11Database) !=
+            (phase11KeyFile && *phase11KeyFile))
+            throw std::invalid_argument(
+                "WEB_PHASE11_DATABASE and WEB_PHASE11_TOKEN_KEY_FILE must be set together");
+        if (phase11Database && *phase11Database)
+        {
+            const auto sessionLifetime = std::chrono::seconds(
+                boundedEnvironmentSize("WEB_PHASE11_SESSION_SECONDS", 86'400,
+                                       60, 31'536'000));
+            phase11Store = std::make_unique<webserver::phase11::PostgresStore>(
+                webserver::phase11::PostgresPoolConfig{
+                    phase11Database,
+                    boundedEnvironmentSize("WEB_PHASE11_DB_POOL", 4, 1, 32),
+                    std::chrono::milliseconds(
+                        boundedEnvironmentSize("WEB_PHASE11_DB_ACQUIRE_MS",
+                                               5'000, 10, 60'000))});
+            if (!phase11Store->healthy())
+                throw std::runtime_error("Phase 11 PostgreSQL health check failed");
+            phase11Credentials =
+                std::make_unique<webserver::phase11::SodiumCredentialCodec>(
+                    readPrivateHexKey(phase11KeyFile));
+            phase11LoginLimiter = std::make_unique<
+                webserver::phase11::InMemoryLoginRateLimiter>();
+            phase11Auth = std::make_unique<webserver::phase11::AuthService>(
+                *phase11Store, *phase11Store, *phase11Credentials,
+                *phase11LoginLimiter, sessionLifetime);
+            phase11Social = std::make_unique<webserver::phase11::SocialService>(
+                *phase11Store, *phase11Store, *phase11Store, *phase11Store);
+            phase11Chat = std::make_unique<webserver::phase11::ChatService>(
+                *phase11Store, *phase11Store, *phase11Store, *phase11Store,
+                *phase11Store, *phase11Store);
+            phase11DatabaseExecutor = std::make_unique<
+                webserver::phase11::DatabaseExecutor>(
+                    boundedEnvironmentSize("WEB_PHASE11_DB_WORKERS", 4, 1, 32),
+                    boundedEnvironmentSize("WEB_PHASE11_DB_QUEUE", 256, 1,
+                                           65'536));
+            webserver::phase11::transport::Phase11AuthHttpConfig httpConfig;
+            httpConfig.secureCookie = productionMode ||
+                                      environmentFlag("WEB_PHASE11_SECURE_COOKIE");
+            httpConfig.sessionLifetime = sessionLifetime;
+            if (const char *header =
+                    std::getenv("WEB_PHASE11_TRUSTED_CLIENT_IP_HEADER"))
+                httpConfig.trustedClientIpHeader = header;
+            phase11AuthHttp = std::make_unique<
+                webserver::phase11::transport::Phase11AuthHttp>(
+                    *phase11Auth, *phase11DatabaseExecutor,
+                    std::move(httpConfig));
+            phase11SocialChatHttp = std::make_unique<
+                webserver::phase11::transport::Phase11SocialChatHttp>(
+                    *phase11AuthHttp, *phase11Social, *phase11Chat,
+                    *phase11DatabaseExecutor);
+            phase11AiEvents = std::make_unique<
+                webserver::phase11::transport::Phase11AiEventSink>(
+                    server.sseManager());
+            phase11ModelRouter =
+                std::make_unique<webserver::phase11::ModelRouter>(*phase11Store);
+#ifdef WEBSERVER_HAS_CURL_CLIENT
+            if (const char *ollamaUrl = std::getenv("WEB_PHASE11_OLLAMA_URL");
+                ollamaUrl && *ollamaUrl)
+            {
+                webserver::phase11::OllamaModelProviderConfig ollamaConfig;
+                ollamaConfig.baseUrl = ollamaUrl;
+                ollamaConfig.maxConcurrent = boundedEnvironmentSize(
+                    "WEB_PHASE11_OLLAMA_CONCURRENT", 4, 1, 64);
+                ollamaConfig.maxQueued = boundedEnvironmentSize(
+                    "WEB_PHASE11_OLLAMA_QUEUE", 64, 1, 65'536);
+                ollamaConfig.connectTimeout = std::chrono::milliseconds(
+                    boundedEnvironmentSize("WEB_PHASE11_OLLAMA_CONNECT_MS",
+                                           2'000, 10, 60'000));
+                ollamaConfig.requestTimeout = std::chrono::milliseconds(
+                    boundedEnvironmentSize("WEB_PHASE11_OLLAMA_REQUEST_MS",
+                                           120'000, 100, 3'600'000));
+                auto provider = std::make_shared<
+                    webserver::phase11::OllamaModelProvider>(
+                        std::move(ollamaConfig));
+                phase11ModelRouter->registerProvider(provider);
+                phase11ModelProviders.push_back(std::move(provider));
+                std::cout << "Phase 11 Ollama provider enabled\n";
+            }
+#else
+            if (const char *ollamaUrl = std::getenv("WEB_PHASE11_OLLAMA_URL");
+                ollamaUrl && *ollamaUrl)
+                throw std::invalid_argument(
+                    "WEB_PHASE11_OLLAMA_URL requires WEBSERVER_ENABLE_CURL_CLIENT");
+#endif
+#ifdef WEBSERVER_HAS_ONNX_GENAI
+            if (const char *modelRoot =
+                    std::getenv("WEB_PHASE11_ONNX_MODEL_ROOT");
+                modelRoot && *modelRoot)
+            {
+                webserver::phase11::InProcessOnnxModelProviderConfig onnxConfig;
+                onnxConfig.modelRoot = modelRoot;
+                onnxConfig.workerCount = boundedEnvironmentSize(
+                    "WEB_PHASE11_ONNX_WORKERS", 1, 1, 16);
+                onnxConfig.maxQueued = boundedEnvironmentSize(
+                    "WEB_PHASE11_ONNX_QUEUE", 8, 1, 1024);
+                onnxConfig.maxLoadedModels = boundedEnvironmentSize(
+                    "WEB_PHASE11_ONNX_MODELS", 2, 1, 32);
+                onnxConfig.maxAdaptersPerModel = boundedEnvironmentSize(
+                    "WEB_PHASE11_ONNX_ADAPTERS", 8, 1, 128);
+                onnxConfig.maxPromptBytes = boundedEnvironmentSize(
+                    "WEB_PHASE11_ONNX_PROMPT_BYTES", 1024 * 1024,
+                    1024, 16 * 1024 * 1024);
+                auto provider = std::make_shared<
+                    webserver::phase11::InProcessOnnxModelProvider>(
+                        std::move(onnxConfig));
+                phase11ModelRouter->registerProvider(provider);
+                phase11ModelProviders.push_back(std::move(provider));
+                std::cout << "Phase 11 in-process ONNX provider enabled\n";
+            }
+#else
+            if (const char *modelRoot =
+                    std::getenv("WEB_PHASE11_ONNX_MODEL_ROOT");
+                modelRoot && *modelRoot)
+                throw std::invalid_argument(
+                    "WEB_PHASE11_ONNX_MODEL_ROOT requires WEBSERVER_ENABLE_ONNX_GENAI");
+#endif
+#ifdef WEBSERVER_HAS_PHASE11_GRPC_ONNX
+            if (const char *target =
+                    std::getenv("WEB_PHASE11_ONNX_GRPC_TARGET");
+                target && *target)
+            {
+                webserver::phase11::GrpcOnnxModelProviderConfig grpcOnnxConfig;
+                grpcOnnxConfig.target = target;
+                if (const char *token =
+                        std::getenv("WEB_PHASE11_ONNX_RPC_TOKEN"))
+                    grpcOnnxConfig.authenticationToken = token;
+                if (productionMode &&
+                    grpcOnnxConfig.authenticationToken.size() < 32)
+                    throw std::invalid_argument(
+                        "production remote ONNX requires WEB_PHASE11_ONNX_RPC_TOKEN with at least 32 bytes");
+                if (const char *ca =
+                        std::getenv("WEB_PHASE11_ONNX_GRPC_TLS_CA"))
+                    grpcOnnxConfig.rootCertificates = readPhase11RegularFile(
+                        "WEB_PHASE11_ONNX_GRPC_TLS_CA", ca);
+                else if (productionMode)
+                    throw std::invalid_argument(
+                        "production remote ONNX requires WEB_PHASE11_ONNX_GRPC_TLS_CA");
+                if (const char *name =
+                        std::getenv("WEB_PHASE11_ONNX_GRPC_TLS_NAME"))
+                    grpcOnnxConfig.tlsServerName = name;
+                grpcOnnxConfig.workerCount = boundedEnvironmentSize(
+                    "WEB_PHASE11_ONNX_GRPC_WORKERS", 2, 1, 32);
+                grpcOnnxConfig.maxQueued = boundedEnvironmentSize(
+                    "WEB_PHASE11_ONNX_GRPC_QUEUE", 32, 1, 4096);
+                grpcOnnxConfig.maxStreamBytes = boundedEnvironmentSize(
+                    "WEB_PHASE11_ONNX_GRPC_STREAM_BYTES", 1024 * 1024,
+                    1024, 16 * 1024 * 1024);
+                grpcOnnxConfig.rpcTimeout = std::chrono::milliseconds(
+                    boundedEnvironmentSize("WEB_PHASE11_ONNX_GRPC_RPC_MS",
+                                           300'000, 100, 3'600'000));
+                grpcOnnxConfig.validationTimeout = std::chrono::milliseconds(
+                    boundedEnvironmentSize("WEB_PHASE11_ONNX_GRPC_VALIDATE_MS",
+                                           120'000, 100, 3'600'000));
+                auto provider = std::make_shared<
+                    webserver::phase11::GrpcOnnxModelProvider>(
+                    std::move(grpcOnnxConfig));
+                phase11ModelRouter->registerProvider(provider);
+                phase11ModelProviders.push_back(std::move(provider));
+                std::cout << "Phase 11 remote ONNX provider enabled\n";
+            }
+#else
+            if (const char *target =
+                    std::getenv("WEB_PHASE11_ONNX_GRPC_TARGET");
+                target && *target)
+                throw std::invalid_argument(
+                    "WEB_PHASE11_ONNX_GRPC_TARGET requires gRPC and ONNX GenAI");
+#endif
+            phase11AiChat = std::make_unique<webserver::phase11::AiChatService>(
+                *phase11Chat, *phase11Store, *phase11Store,
+                *phase11ModelRouter, *phase11DatabaseExecutor,
+                *phase11AiEvents);
+            phase11Realtime = std::make_unique<
+                webserver::phase11::transport::Phase11Realtime>(
+                    *phase11Chat, *phase11DatabaseExecutor,
+                    phase11AiChat.get());
+            phase11Realtime->registerHandlers(server.wsDispatcher());
+            phase11OutboxSink = std::make_unique<
+                webserver::phase11::transport::Phase11RealtimeOutboxSink>(
+                    *phase11Store, *phase11Store, server.wsManager(),
+                    server.sseManager());
+            phase11OutboxPump = std::make_unique<
+                webserver::phase11::transport::Phase11OutboxPump>(
+                    *phase11Store, *phase11OutboxSink);
+            std::cout << "Phase 11 authentication enabled\n";
+        }
+        else if (environmentFlag("WEB_PHASE11_REQUIRED"))
+            throw std::invalid_argument(
+                "WEB_PHASE11_REQUIRED needs database and token-key configuration");
+#endif
         // 可重复的并发测试需要固定 Reactor 数；生产环境不设置时仍按 CPU 自动选择。
         if (const char *raw = std::getenv("WEB_SERVER_REACTORS"))
         {
@@ -284,9 +582,16 @@ int main()
 
         // 统一安检：HTTP、WebSocket 握手和 SSE 握手先在这里得到可信身份。
         // 长连接接管后只复制 ctx 中已校验的 userId，不能信任客户端随意填写的 uid。
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+        auto *phase11RequestAuth = phase11AuthHttp.get();
+#endif
         server.router().use(
             [authTokens, allowedOrigins, operationalMetrics, rateLimiter,
-             productionMode](RequestContext &ctx, auto next)
+             productionMode
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+             , phase11RequestAuth
+#endif
+             ](RequestContext &ctx, auto next)
             {
         if (!protectedPath(ctx.request.path))
         {
@@ -294,8 +599,44 @@ int main()
             return;
         }
 
-        if (!authTokens->enabled())
+        bool phase11Identity = false;
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+        if (phase11RequestAuth &&
+            (ctx.request.path == "/ws" || ctx.request.path == "/events"))
         {
+            try
+            {
+                const auto restored = phase11RequestAuth->authorizeRequest(ctx);
+                ctx.authenticated = true;
+                ctx.authenticatedUserId = restored.user.id;
+                ctx.authenticatedTenant = "phase11";
+                phase11Identity = true;
+            }
+            catch (const webserver::phase11::ApplicationError &error)
+            {
+                if (error.code() == webserver::phase11::ErrorCode::Unavailable)
+                {
+                    reject(ctx, 503, "Service Unavailable",
+                           "phase11 authentication is busy");
+                    return;
+                }
+                // 若还配置了 Phase 9 Bearer Token，允许它继续作为运维/兼容入口。
+            }
+        }
+#endif
+
+        if (!phase11Identity && !authTokens->enabled())
+        {
+            // Phase 11 已启用时，/ws 与 /events 必须携带有效的 Phase 11 Session。
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+            if (phase11RequestAuth &&
+                (ctx.request.path == "/ws" || ctx.request.path == "/events"))
+            {
+                operationalMetrics->recordAuthenticationRejected();
+                reject(ctx, 401, "Unauthorized", "valid phase11 session required");
+                return;
+            }
+#endif
             // 学习模式没有 HMAC 密钥时保留旧版 /admin 中间件契约：
             // 缺少 legacy token 仍要在路由前返回纯文本 401，防止回归测试被 404 掩盖。
             if (ctx.request.path == "/admin" &&
@@ -310,17 +651,20 @@ int main()
             return;
         }
 
-        const auto authenticated = authTokens->authenticateHeaders(
-            ctx.request.headers);
-        if (!authenticated)
+        if (!phase11Identity)
         {
-            operationalMetrics->recordAuthenticationRejected();
-            reject(ctx, 401, "Unauthorized", "valid bearer token required");
-            return;
+            const auto authenticated = authTokens->authenticateHeaders(
+                ctx.request.headers);
+            if (!authenticated)
+            {
+                operationalMetrics->recordAuthenticationRejected();
+                reject(ctx, 401, "Unauthorized", "valid bearer token required");
+                return;
+            }
+            ctx.authenticated = true;
+            ctx.authenticatedUserId = authenticated.identity->userId;
+            ctx.authenticatedTenant = authenticated.identity->tenant;
         }
-        ctx.authenticated = true;
-        ctx.authenticatedUserId = authenticated.identity->userId;
-        ctx.authenticatedTenant = authenticated.identity->tenant;
 
         if (operationsPath(ctx.request) && ctx.authenticatedTenant != "ops")
         {
@@ -354,7 +698,8 @@ int main()
             // 白名单 Origin；否则即使在开发模式，也会留下可被跨站页面利用的 CSRF 缺口。
             const bool missingRequired = (productionMode || cookieStateChange) &&
                                          found == ctx.request.headers.end();
-            const bool untrusted = found != ctx.request.headers.end() &&
+            const bool untrusted = !allowedOrigins->empty() &&
+                                   found != ctx.request.headers.end() &&
                                    !allowedOrigins->contains(found->second);
             if (missingRequired || untrusted)
             {
@@ -466,6 +811,63 @@ int main()
             ctx.response->text("Not Found");
         }
         return true; });
+
+        // Phase 11 静态入口与真实认证 API。依赖未启用时页面仍可打开，认证端点返回
+        // 明确的 503，避免误把 404 理解成前端路径错误。
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+        if (phase11AuthHttp)
+        {
+            phase11AuthHttp->registerRoutes(server.router());
+            phase11SocialChatHttp->registerRoutes(server.router());
+        }
+        else
+#endif
+        {
+            const auto unavailable = [](RequestContext &ctx) -> bool
+            {
+                reject(ctx, 503, "Service Unavailable",
+                       "phase11 authentication is not configured");
+                return true;
+            };
+            server.router().POST("/api/auth/register", unavailable);
+            server.router().POST("/api/auth/login", unavailable);
+            server.router().POST("/api/auth/logout", unavailable);
+            server.router().GET("/api/me", unavailable);
+            server.router().PATCH("/api/me", unavailable);
+        }
+        const auto servePhase11Asset = [](std::string path,
+                                          std::string contentType)
+        {
+            return [path = std::move(path),
+                    contentType = std::move(contentType)](RequestContext &ctx) -> bool
+            {
+                ctx.response->setHeader("Content-Type", contentType);
+                ctx.response->setHeader("Cache-Control", "no-store");
+                if (!ctx.response->sendfile(path, ctx.request, ctx.request.range))
+                {
+                    ctx.response->status = 404;
+                    ctx.response->statusText = "Not Found";
+                    ctx.response->text("Not Found");
+                }
+                return true;
+            };
+        };
+        server.router().GET(
+            "/phase11",
+            servePhase11Asset("./frontend/phase11/index.html",
+                              "text/html; charset=utf-8"));
+        server.router().GET(
+            "/phase11/",
+            servePhase11Asset("./frontend/phase11/index.html",
+                              "text/html; charset=utf-8"));
+        server.router().GET(
+            "/phase11/app.js",
+            servePhase11Asset("./frontend/phase11/app.js",
+                              "text/javascript; charset=utf-8"));
+        server.router().GET(
+            "/phase11/styles.css",
+            servePhase11Asset("./frontend/phase11/styles.css",
+                              "text/css; charset=utf-8"));
 
         // /slow: 验证 Executor 异步执行与协作式超时。
         // 像后厨每做一小步就看一次撤单灯：超过 handler deadline 后尽快停工，

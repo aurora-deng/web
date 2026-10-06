@@ -84,6 +84,8 @@ struct WebSocketMessage
     WsOpcode opcode = WsOpcode::Text;        // payload 类型标记：Text/Binary，业务据此决定怎么解释 text
     UserId toUserId = 0;                     // 收件人 uid（0 表示广播或不指定）——支持私聊/定向推送
     UserId fromUserId = 0;                   // 发件人 uid——便于接收方知道消息来自谁
+    std::uint64_t conversationId = 0;        // Phase 11 持久会话 ID；与网络连接 ID 无关
+    std::uint64_t sequence = 0;              // 会话内单调消息序号，用于 ACK、已读与断线续传
     bool ackRequested = false;               // true 表示接收方应用处理后应回 type=ack/replyTo=id
 
     /**

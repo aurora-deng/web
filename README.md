@@ -1,9 +1,21 @@
-# web-test 2.0 · test9.1
+# web-test 2.0 · Function1.0
 
-> test9.1 完成了 Phase 10 性能升级：HTTP 短路由可显式走 ReactorSafe 快路径，
-> 对象池/指标已分片，并新增独立 gRPC 进程与仓库内基准工具。版本差异见
-> [test9.1 版本说明](docs/architecture/test9.1.md)，实现细节见
-> [Phase 10](docs/architecture/phase10.md)。
+> Function1.0 以 [test9.1](https://github.com/aurora-deng/web/tree/test9.1) 为基线，
+> 保留 Phase 10 的 HTTP/gRPC 性能路径，并加入完整的 Phase 11 应用层：账号、PostgreSQL、
+> 好友、私聊/群聊、离线消息、事务 Outbox、AI Provider 和响应式网页端。完整变化见
+> [Function1.0 与 test9.1 对比](docs/architecture/function1.0-vs-test9.1.md)。
+>
+> 当前版本已接入 PostgreSQL 18.6、libsodium 1.0.22、libcurl 8.22.0、真实账号 HTTP API、
+> 好友/私聊/群聊、WebSocket 实时消息、SSE 通知与事务 Outbox。AI Provider、模型注册以及
+> Ollama API 纵向链路已接通。Linux CPU 版 ONNX Runtime 1.28.0、ONNX Runtime GenAI 0.17.0
+> 和进程内 Provider 也已接入，有界 Worker、模型/Adapter 缓存、模型树摘要、取消和逐 Token
+> 回调均完成验证；独立 `webserver-onnx-worker` 与 `GrpcOnnxModelProvider` 也已用真实模型打通，
+> 模型进程退出时普通聊天仍可继续。模型版本现在会先经真实 Runtime 试装再切换，Adapter 不兼容时保留旧 Active，
+> 并支持重新校验后的显式回滚。已获准的 Phi-3 Mini 4K CPU INT4 真实模型通过 C++ smoke 和
+> WebSocket → PostgreSQL → ONNX → SSE → 持久化整链黑盒；Qwen2.5-0.5B 的 Adapter-ready INT4 图、
+> 独立 `.onnx_adapter`、同图 logits 对照、C++ 加载和相同整链黑盒也已通过。按要求不在 Linux
+> 安装 Ollama；状态、运行方式与代码索引见
+> [Phase 11](docs/architecture/phase11.md)。
 
 这是一个面向 Linux 的 C++20 高级 Web 服务器学习项目。test9.0 以
 [test8.0](https://github.com/aurora-deng/web/tree/test8.0) 的 HTTP/2、TLS/ALPN
@@ -135,6 +147,16 @@ gRPC C++ 1.82.0 完成了以下检查：
 - Phase 10 同机受控五轮中位数：HTTP `/fast` 从 33,957.99 提升到 49,459.19 QPS
   （+45.65%），gRPC Echo 从 12,389.40 提升到 16,389.00 QPS（+32.28%）；
   两者错误为 0，P99 均低于基线。
+- Phase 11 打开 PostgreSQL、libsodium、libcurl、gRPC 与 ONNX GenAI 后，2026-10-06 的
+  Linux Release 全量 CTest 为 **93/93**（数据库契约测试使用隔离测试库）；此前 Debug、
+  ASan+LSan+UBSan 两套记录均为 **92/92**。Phi-3 Mini 4K CPU INT4 真实模型
+  已通过“启用前试装 + Release C++ 逐 Token” smoke；整链黑盒生成 242 个 token、1104 字节，并验证
+  WebSocket Ping/Pong、SSE 完成事件与用户/AI 消息落库。Qwen Adapter 整链另生成 512 个 token、
+  3315 字节，消息追踪包含模型节点、版本和 Adapter，Outbox 无积压。独立 gRPC Worker 整链另收到
+  512 个 token、2424 字节，并验证 Worker 退出时 AI 受控失败而普通聊天存活；真实模型的 gRPC TLS
+  流也已通过 CA/服务名校验。完整 gRPC+ONNX
+  Release 二进制在相同受控配置下 `/fast` 五轮中位数为 **56,929.50 QPS**，相对 test9.1 提升
+  15.10%，错误数为 0。
 
 最终测试数字与发现过的问题记录在
 [Phase 9 验证记录](docs/architecture/phase9.md#11-验证记录)。
@@ -149,3 +171,6 @@ gRPC C++ 1.82.0 完成了以下检查：
 6. [test9.1：相对 test9.0 的版本差异](docs/architecture/test9.1.md)
 7. [Phase 10：HTTP/gRPC 性能路径与架构拆分](docs/architecture/phase10.md)
 8. [文档总导航](docs/README.md)
+9. [Phase 11：账号、社交聊天与 AI 推理平台](docs/architecture/phase11.md)
+10. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
+11. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)

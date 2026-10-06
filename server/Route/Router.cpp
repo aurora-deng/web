@@ -95,6 +95,24 @@ void Router::POST(const std::string &path, Handler handler, RouteOptions options
         staticRoutes[entry.method][path] = std::move(entry);
 }
 
+void Router::PATCH(const std::string &path, Handler handler, RouteOptions options)
+{
+    if (frozen())
+        throw std::logic_error("cannot register PATCH route after Router::freeze()");
+
+    RouteEntry entry;
+    entry.method = "PATCH";
+    entry.path = path;
+    entry.parts = splitPath(path);
+    entry.handler = std::move(handler);
+    entry.execution = options.execution;
+
+    if (isDynamic(entry))
+        dynamicRoutes[entry.method].push_back(std::move(entry));
+    else
+        staticRoutes[entry.method][path] = std::move(entry);
+}
+
 void Router::use(Middleware middleware)
 {
     if (frozen())

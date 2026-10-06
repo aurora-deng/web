@@ -40,6 +40,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <functional>
+#include <fstream>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -595,6 +596,37 @@ TEST(HttpRangeTest, PreservesContentRangeForMemoryAndFileBodies)
             "Content-Range: bytes 10-19/100\r\n",
             fileHeader.find("Content-Range: bytes 10-19/100\r\n") + 1),
         std::string::npos);
+}
+
+/**
+ * @test HttpResponseTest.SendfilePreservesRouteCachePolicy
+ * @brief 路由显式声明 no-store 时，sendfile 只能补默认头，不能把它改回一小时缓存。
+ *
+ * Phase 11 的 HTML/JavaScript 会频繁迭代。如果底层静态文件发送器覆盖业务路由的
+ * Cache-Control，浏览器即使刷新也可能继续运行旧模块，造成“代码已修复、页面仍报旧错”。
+ */
+TEST(HttpResponseTest, SendfilePreservesRouteCachePolicy)
+{
+    const std::string path =
+        "/tmp/webserver-cache-policy-" + std::to_string(::getpid()) + ".txt";
+    {
+        std::ofstream file(path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(file.is_open());
+        file << "phase11-cache-policy";
+    }
+
+    HttpResponse response;
+    HttpRequest request;
+    RangeInfo range;
+    response.setHeader("Cache-Control", "no-store");
+
+    const bool sent = response.sendfile(path, request, range);
+    EXPECT_TRUE(sent);
+    const auto policy = response.headers.find("Cache-Control");
+    ASSERT_NE(policy, response.headers.end());
+    EXPECT_EQ(policy->second, "no-store");
+
+    ::unlink(path.c_str());
 }
 
 // ============================================================================

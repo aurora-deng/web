@@ -116,7 +116,7 @@ flowchart TD
 | WebSocket 协议栈 | [libwebsockets](https://github.com/warmcat/libwebsockets)；`<libwebsockets.h>` | 握手、帧与连接管理 | 更像接入另一套事件驱动框架，可能替换当前 WS Session 与部分 Reactor 设计 |
 | 事件循环与缓冲 | [Libevent](https://libevent.org/doc/)；`<event2/event.h>`、`<event2/bufferevent.h>`、`<event2/http.h>` | 事件通知、缓冲 IO、简单 HTTP 服务 | 会与已有 epoll/SubReactor 重叠，通常是架构替换而非加一个头文件 |
 | HTTP 内容压缩 | [zlib](https://www.zlib.net/manual.html)；`<zlib.h>` | gzip/deflate 压缩与解压 | 接在 HTTP 响应体/请求体处理层；不要与 HPACK 首部压缩混淆 |
-| 日志 | [spdlog](https://github.com/gabime/spdlog)；`<spdlog/spdlog.h>` | 格式化、异步/滚动日志等 | 可替换 `log/logger`，对协议层改动较小 |
+| 日志 | [spdlog](https://github.com/gabime/spdlog)；`<spdlog/spdlog.h>` | 格式化、异步/滚动日志等 | 可替换 `server/observability/logger`，对协议层改动较小 |
 
 选择顺序要看缺的能力：当前 HTTPS/h2 已有 OpenSSL + ALPN 接线，但仍需在 Linux 完成互操作验证；若要减少 HTTP/1 解析代码，可研究 llhttp；若想整体重做事件框架，才考虑 Beast/Libevent/libwebsockets。**SSE 本身只是 HTTP 响应体里的文本格式，没有一个类似 HPACK 的必需协议库。**
 

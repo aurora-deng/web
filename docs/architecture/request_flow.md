@@ -491,4 +491,4 @@ class SubReactor {
 | `server/response/` | `ChunkedBody.h/cpp` | chunked 正文 |
 | `server/response/` | `HeaderBody.h/cpp` | 响应头 |
 | `server/thread_pool/` | `thread_pool.h/cpp` | 线程池（Executor 底层） |
-| `log/logger/` | `logger.h/cpp` | 日志系统 |
+| `server/observability/logger/` | `logger.h/cpp` | 日志系统 |
