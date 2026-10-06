@@ -181,6 +181,27 @@ MessageState messageState(std::string_view state)
     throw std::runtime_error("unknown persisted message state");
 }
 
+std::string fileState(FileState state)
+{
+    switch (state)
+    {
+    case FileState::Pending: return "pending";
+    case FileState::Ready: return "ready";
+    case FileState::Failed: return "failed";
+    case FileState::Deleted: return "deleted";
+    }
+    throw std::logic_error("unknown file state");
+}
+
+FileState fileState(std::string_view state)
+{
+    if (state == "pending") return FileState::Pending;
+    if (state == "ready") return FileState::Ready;
+    if (state == "failed") return FileState::Failed;
+    if (state == "deleted") return FileState::Deleted;
+    throw std::runtime_error("unknown persisted file state");
+}
+
 std::string nodeKind(ModelNodeKind kind)
 {
     return kind == ModelNodeKind::Root ? "root" : "specialist";
@@ -258,7 +279,7 @@ User readUser(const Result &result, int row)
     return {std::stoull(result.value(row, 0)), result.value(row, 1),
             result.value(row, 2), result.value(row, 3), result.value(row, 4),
             decodeBool(result, row, 5), decodeBool(result, row, 6),
-            decodeTime(result, row, 7)};
+            decodeTime(result, row, 7), decodeOptionalId(result, row, 8)};
 }
 
 Session readSession(const Result &result, int row)
@@ -317,6 +338,16 @@ Message readMessage(const Result &result, int row)
     return message;
 }
 
+FileObject readFile(const Result &result, int row)
+{
+    return {std::stoull(result.value(row, 0)),
+            std::stoull(result.value(row, 1)), result.value(row, 2),
+            result.value(row, 3), std::stoull(result.value(row, 4)),
+            std::stoull(result.value(row, 5)), result.value(row, 6),
+            fileState(result.value(row, 7)), decodeTime(result, row, 8),
+            decodeOptionalTime(result, row, 9)};
+}
+
 OutboxEvent readOutbox(const Result &result, int row)
 {
     return {std::stoull(result.value(row, 0)), result.value(row, 1),
@@ -355,7 +386,7 @@ thread_local std::unordered_map<const PostgresStore *, PGconn *>
 
 constexpr std::string_view kUserColumns =
     "id, username, display_name, biography, password_hash, disabled, ai_account, "
-    "(extract(epoch FROM created_at) * 1000000)::bigint";
+    "(extract(epoch FROM created_at) * 1000000)::bigint, avatar_file_id";
 constexpr std::string_view kSessionColumns =
     "id, user_id, token_hash, csrf_hash, "
     "(extract(epoch FROM created_at) * 1000000)::bigint, "
@@ -382,10 +413,38 @@ constexpr std::string_view kMessageColumns =
     "model_node_id, model_version_id, adapter_name, "
     "(extract(epoch FROM created_at) * 1000000)::bigint, state, recalled_by, "
     "(extract(epoch FROM recalled_at) * 1000000)::bigint";
+constexpr std::string_view kFileColumns =
+    "id, owner_id, original_name, media_type, expected_size, uploaded_size, "
+    "sha256, state, (extract(epoch FROM created_at) * 1000000)::bigint, "
+    "(extract(epoch FROM ready_at) * 1000000)::bigint";
 constexpr std::string_view kOutboxColumns =
     "id, event_type, aggregate_type, aggregate_id, payload, "
     "(extract(epoch FROM created_at) * 1000000)::bigint, "
     "(extract(epoch FROM published_at) * 1000000)::bigint";
+
+std::vector<MessageAttachment> readAttachments(PGconn *connection,
+                                                MessageId message)
+{
+    const auto result = query(connection,
+        "SELECT f.id,f.original_name,f.media_type,f.expected_size,f.sha256 "
+        "FROM message_attachments a JOIN file_objects f ON f.id=a.file_id "
+        "WHERE a.message_id=$1::bigint AND f.state='ready' "
+        "ORDER BY a.position", {number(message)});
+    std::vector<MessageAttachment> attachments;
+    attachments.reserve(result.rows());
+    for (int row = 0; row < result.rows(); ++row)
+        attachments.push_back({std::stoull(result.value(row, 0)),
+                               result.value(row, 1), result.value(row, 2),
+                               std::stoull(result.value(row, 3)),
+                               result.value(row, 4)});
+    return attachments;
+}
+
+Message hydrateMessage(PGconn *connection, Message message)
+{
+    message.attachments = readAttachments(connection, message.id);
+    return message;
+}
 constexpr std::string_view kNodeColumns =
     "id, name, kind, active_version_id, "
     "(extract(epoch FROM created_at) * 1000000)::bigint";
@@ -532,6 +591,18 @@ bool PostgresStore::updateProfile(UserId id, std::string displayName,
     return query(scope.connection,
         "UPDATE users SET display_name=$2, biography=$3 WHERE id=$1::bigint RETURNING 1",
         {number(id), std::move(displayName), std::move(biography)}).rows() == 1;
+}
+
+bool PostgresStore::updateAvatar(UserId id, std::optional<FileId> avatar)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "UPDATE users SET avatar_file_id=$2::bigint WHERE id=$1::bigint "
+        "AND ($2::bigint IS NULL OR EXISTS(SELECT 1 FROM file_objects f "
+        "WHERE f.id=$2::bigint AND f.owner_id=$1::bigint AND f.state='ready')) "
+        "RETURNING 1",
+        {number(id), avatar ? std::optional<std::string>{number(*avatar)}
+                            : std::nullopt}).rows() == 1;
 }
 
 Session PostgresStore::createSession(Session session)
@@ -1027,7 +1098,8 @@ AppendMessageResult PostgresStore::appendMessage(Message message)
         if (existing.rows())
         {
             if (localTransaction) command(scope.connection, "COMMIT");
-            return {readMessage(existing, 0), false};
+            return {hydrateMessage(scope.connection, readMessage(existing, 0)),
+                    false};
         }
 
         const auto allocated = query(scope.connection,
@@ -1072,7 +1144,8 @@ std::vector<Message> PostgresStore::messagesAfter(
     std::vector<Message> messages;
     messages.reserve(result.rows());
     for (int row = 0; row < result.rows(); ++row)
-        messages.push_back(readMessage(result, row));
+        messages.push_back(hydrateMessage(scope.connection,
+                                          readMessage(result, row)));
     return messages;
 }
 
@@ -1090,7 +1163,8 @@ std::vector<Message> PostgresStore::searchMessages(
     std::vector<Message> messages;
     messages.reserve(result.rows());
     for (int row = 0; row < result.rows(); ++row)
-        messages.push_back(readMessage(result, row));
+        messages.push_back(hydrateMessage(scope.connection,
+                                          readMessage(result, row)));
     return messages;
 }
 
@@ -1100,7 +1174,8 @@ std::optional<Message> PostgresStore::findMessage(MessageId id) const
     const auto result = query(scope.connection,
         "SELECT " + std::string(kMessageColumns) +
         " FROM messages WHERE id=$1::bigint", {number(id)});
-    return result.rows() ? std::optional<Message>{readMessage(result, 0)}
+    return result.rows() ? std::optional<Message>{hydrateMessage(
+                               scope.connection, readMessage(result, 0))}
                          : std::nullopt;
 }
 
@@ -1115,12 +1190,105 @@ RecallMessageResult PostgresStore::recallMessage(MessageId id, UserId actor,
         std::string(kMessageColumns),
         {number(id), number(actor), encodeTime(now)});
     if (changed.rows())
-        return {readMessage(changed, 0), true};
+        return {hydrateMessage(scope.connection, readMessage(changed, 0)), true};
     const auto existing = query(scope.connection,
         "SELECT " + std::string(kMessageColumns) +
         " FROM messages WHERE id=$1::bigint", {number(id)});
-    return existing.rows() ? RecallMessageResult{readMessage(existing, 0), false}
+    return existing.rows() ? RecallMessageResult{hydrateMessage(
+                                 scope.connection, readMessage(existing, 0)), false}
                            : RecallMessageResult{};
+}
+
+FileObject PostgresStore::createFile(FileObject file)
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "INSERT INTO file_objects(owner_id,original_name,media_type,expected_size,"
+        "uploaded_size,sha256,state,created_at,ready_at) "
+        "VALUES($1::bigint,$2,$3,$4::bigint,$5::bigint,$6,$7,"
+        "to_timestamp($8::double precision/1000000.0),NULL) RETURNING " +
+        std::string(kFileColumns),
+        {number(file.ownerId), file.originalName, file.mediaType,
+         number(file.expectedSize), number(file.uploadedSize), file.sha256,
+         fileState(file.state), encodeTime(file.createdAt)});
+    return readFile(result, 0);
+}
+
+std::optional<FileObject> PostgresStore::findFile(FileId id) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kFileColumns) +
+        " FROM file_objects WHERE id=$1::bigint", {number(id)});
+    return result.rows() ? std::optional<FileObject>{readFile(result, 0)}
+                         : std::nullopt;
+}
+
+bool PostgresStore::updateFileProgress(FileId id, UserId owner,
+                                       std::uint64_t expectedOffset,
+                                       std::uint64_t uploadedSize)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "UPDATE file_objects SET uploaded_size=$4::bigint "
+        "WHERE id=$1::bigint AND owner_id=$2::bigint AND state='pending' "
+        "AND uploaded_size=$3::bigint AND $4::bigint BETWEEN $3::bigint AND expected_size "
+        "RETURNING 1",
+        {number(id), number(owner), number(expectedOffset),
+         number(uploadedSize)}).rows() == 1;
+}
+
+bool PostgresStore::completeFile(FileId id, UserId owner,
+                                 std::string sha256, TimePoint now)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "UPDATE file_objects SET state='ready',sha256=$3,"
+        "ready_at=to_timestamp($4::double precision/1000000.0) "
+        "WHERE id=$1::bigint AND owner_id=$2::bigint AND state='pending' "
+        "AND uploaded_size=expected_size AND length($3)=64 RETURNING 1",
+        {number(id), number(owner), std::move(sha256), encodeTime(now)}).rows() == 1;
+}
+
+bool PostgresStore::failFile(FileId id, UserId owner)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "UPDATE file_objects SET state='failed' WHERE id=$1::bigint "
+        "AND owner_id=$2::bigint AND state='pending' RETURNING 1",
+        {number(id), number(owner)}).rows() == 1;
+}
+
+bool PostgresStore::attachFile(MessageId message, FileId file)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "INSERT INTO message_attachments(message_id,file_id,position) "
+        "SELECT m.id,f.id,0 FROM messages m JOIN file_objects f ON f.id=$2::bigint "
+        "WHERE m.id=$1::bigint AND f.state='ready' AND f.owner_id=m.sender_id "
+        "AND NOT EXISTS(SELECT 1 FROM message_attachments a WHERE a.message_id=m.id) "
+        "RETURNING 1", {number(message), number(file)}).rows() == 1;
+}
+
+std::vector<MessageAttachment> PostgresStore::attachmentsForMessage(
+    MessageId message) const
+{
+    auto scope = connection();
+    return readAttachments(scope.connection, message);
+}
+
+bool PostgresStore::canAccessFile(UserId user, FileId file) const
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "SELECT 1 FROM file_objects f WHERE f.id=$2::bigint AND f.state='ready' "
+        "AND (f.owner_id=$1::bigint "
+        "OR EXISTS(SELECT 1 FROM users u WHERE u.avatar_file_id=f.id) "
+        "OR EXISTS(SELECT 1 FROM message_attachments a "
+        "JOIN messages m ON m.id=a.message_id "
+        "JOIN conversation_members cm ON cm.conversation_id=m.conversation_id "
+        "WHERE a.file_id=f.id AND cm.user_id=$1::bigint)) LIMIT 1",
+        {number(user), number(file)}).rows() == 1;
 }
 
 OutboxEvent PostgresStore::appendOutbox(OutboxEvent event)

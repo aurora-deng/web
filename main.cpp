@@ -45,12 +45,15 @@
 #include "server/phase11/business/AiChatService/AiChatService.h"
 #include "server/phase11/business/AuthService/AuthService.h"
 #include "server/phase11/business/ChatService/ChatService.h"
+#include "server/phase11/business/FileService/FileService.h"
 #include "server/phase11/business/SocialService/SocialService.h"
 #include "server/phase11/runtime/BoundedExecutor/BoundedExecutor.h"
 #include "server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
 #include "server/phase11/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
 #include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
+#include "server/phase11/storage/files/LocalFileStorage/LocalFileStorage.h"
 #include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.h"
 #include "server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
 #include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #endif
@@ -298,11 +301,16 @@ int main()
         std::unique_ptr<webserver::phase11::AuthService> phase11Auth;
         std::unique_ptr<webserver::phase11::SocialService> phase11Social;
         std::unique_ptr<webserver::phase11::ChatService> phase11Chat;
+        std::unique_ptr<webserver::phase11::LocalFileStorage> phase11FileStorage;
+        std::unique_ptr<webserver::phase11::FileService> phase11Files;
         std::unique_ptr<webserver::phase11::DatabaseExecutor> phase11DatabaseExecutor;
+        std::unique_ptr<webserver::phase11::BoundedExecutor> phase11FileExecutor;
         std::unique_ptr<webserver::phase11::transport::Phase11AuthHttp>
             phase11AuthHttp;
         std::unique_ptr<webserver::phase11::transport::Phase11SocialChatHttp>
             phase11SocialChatHttp;
+        std::unique_ptr<webserver::phase11::transport::Phase11FileHttp>
+            phase11FileHttp;
 #endif
 
         const ServerRuntimeOptions runtimeOptions{
@@ -399,12 +407,26 @@ int main()
                 *phase11Store, *phase11Store, *phase11Store, *phase11Store);
             phase11Chat = std::make_unique<webserver::phase11::ChatService>(
                 *phase11Store, *phase11Store, *phase11Store, *phase11Store,
-                *phase11Store, *phase11Store);
+                *phase11Store, *phase11Store, *phase11Store);
             phase11DatabaseExecutor = std::make_unique<
                 webserver::phase11::DatabaseExecutor>(
                     boundedEnvironmentSize("WEB_PHASE11_DB_WORKERS", 4, 1, 32),
                     boundedEnvironmentSize("WEB_PHASE11_DB_QUEUE", 256, 1,
                                            65'536));
+            const std::string fileRoot =
+                std::getenv("WEB_PHASE11_FILE_ROOT")
+                    ? std::getenv("WEB_PHASE11_FILE_ROOT")
+                    : "phase11-files";
+            phase11FileStorage = std::make_unique<
+                webserver::phase11::LocalFileStorage>(fileRoot);
+            phase11Files = std::make_unique<webserver::phase11::FileService>(
+                *phase11Store, *phase11Store, *phase11Store,
+                *phase11FileStorage);
+            phase11FileExecutor = std::make_unique<
+                webserver::phase11::BoundedExecutor>(
+                    boundedEnvironmentSize("WEB_PHASE11_FILE_WORKERS", 2, 1, 16),
+                    boundedEnvironmentSize("WEB_PHASE11_FILE_QUEUE", 64, 1,
+                                           4096));
             webserver::phase11::transport::Phase11AuthHttpConfig httpConfig;
             httpConfig.secureCookie = productionMode ||
                                       environmentFlag("WEB_PHASE11_SECURE_COOKIE");
@@ -557,6 +579,10 @@ int main()
                 webserver::phase11::transport::Phase11SocialChatHttp>(
                     *phase11AuthHttp, *phase11Social, *phase11Chat,
                     *phase11DatabaseExecutor, server.wsManager(), notifyOutbox);
+            phase11FileHttp = std::make_unique<
+                webserver::phase11::transport::Phase11FileHttp>(
+                    *phase11AuthHttp, *phase11Files, *phase11Chat,
+                    *phase11FileExecutor, notifyOutbox);
             phase11Realtime = std::make_unique<
                 webserver::phase11::transport::Phase11Realtime>(
                     *phase11Chat, *phase11DatabaseExecutor,
@@ -568,10 +594,12 @@ int main()
                     server.wsManager(), notifyOutbox);
             phase11MetricsText = [store = phase11Store.get(),
                                   executor = phase11DatabaseExecutor.get(),
+                                  fileExecutor = phase11FileExecutor.get(),
                                   pump = phase11OutboxPump.get()]
             {
                 const auto pool = store->poolSnapshot();
                 const auto queue = executor->snapshot();
+                const auto files = fileExecutor->snapshot();
                 const auto outbox = pump->snapshot();
                 std::ostringstream text;
                 text << "# TYPE webserver_phase11_db_executor_submitted_total counter\n"
@@ -585,6 +613,14 @@ int main()
                      << "webserver_phase11_db_executor_queue_high_watermark "
                      << queue.queueHighWatermark << '\n'
                      << "webserver_phase11_db_executor_capacity " << queue.capacity << '\n'
+                     << "# TYPE webserver_phase11_file_executor_active gauge\n"
+                     << "webserver_phase11_file_executor_submitted_total " << files.submitted << '\n'
+                     << "webserver_phase11_file_executor_rejected_total " << files.rejected << '\n'
+                     << "webserver_phase11_file_executor_failed_total " << files.failed << '\n'
+                     << "webserver_phase11_file_executor_active " << files.active << '\n'
+                     << "webserver_phase11_file_executor_queued " << files.queued << '\n'
+                     << "webserver_phase11_file_executor_queue_high_watermark "
+                     << files.queueHighWatermark << '\n'
                      << "# TYPE webserver_phase11_postgres_pool_in_use gauge\n"
                      << "webserver_phase11_postgres_pool_size " << pool.size << '\n'
                      << "webserver_phase11_postgres_pool_available " << pool.available << '\n'
@@ -893,6 +929,7 @@ int main()
         {
             phase11AuthHttp->registerRoutes(server.router());
             phase11SocialChatHttp->registerRoutes(server.router());
+            phase11FileHttp->registerRoutes(server.router());
         }
         else
 #endif

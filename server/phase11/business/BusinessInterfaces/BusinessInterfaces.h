@@ -137,6 +137,11 @@ public:
                                          std::string clientMessageId,
                                          std::string body, TimePoint now,
                                          MessageModelTrace trace = {}) = 0;
+    virtual AppendMessageResult sendFile(UserId sender,
+                                         ConversationId conversation,
+                                         std::string clientMessageId,
+                                         std::string caption, FileId file,
+                                         TimePoint now) = 0;
     virtual RecallMessageResult recallMessage(UserId actor, MessageId message,
                                               TimePoint now) = 0;
     virtual void acknowledgeDelivery(UserId user, ConversationId conversation,
@@ -153,6 +158,24 @@ public:
     [[nodiscard]] virtual std::vector<Message> search(
         UserId user, ConversationId conversation, std::string_view query,
         std::size_t limit) const = 0;
+};
+
+class IFileBusiness
+{
+public:
+    virtual ~IFileBusiness() = default;
+    virtual FileObject createUpload(UserId owner, std::string originalName,
+                                    std::string mediaType,
+                                    std::uint64_t expectedSize,
+                                    TimePoint now) = 0;
+    virtual FileObject appendChunk(UserId owner, FileId file,
+                                   std::uint64_t offset,
+                                   std::string_view bytes) = 0;
+    virtual FileObject completeUpload(UserId owner, FileId file,
+                                      TimePoint now) = 0;
+    [[nodiscard]] virtual FileDownload download(UserId requester,
+                                                FileId file) const = 0;
+    virtual User useAsAvatar(UserId owner, FileId file) = 0;
 };
 
 class IAiChatBusiness

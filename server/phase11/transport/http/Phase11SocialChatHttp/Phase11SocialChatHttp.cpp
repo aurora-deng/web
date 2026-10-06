@@ -3,6 +3,7 @@
 #include "server/Route/Router.h"
 #include "server/http/RequestContext/RequestContext.h"
 #include "server/phase11/transport/FlatJson/FlatJson.h"
+#include "server/phase11/transport/serialization/MessageJson/MessageJson.h"
 #include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
 
 #include <charconv>
@@ -181,7 +182,13 @@ std::string userJson(const User &user)
            ",\"username\":" + quoteJson(user.username) +
            ",\"displayName\":" + quoteJson(user.displayName) +
            ",\"biography\":" + quoteJson(user.biography) +
-           ",\"aiAccount\":" + (user.aiAccount ? "true" : "false") + "}";
+           ",\"aiAccount\":" + (user.aiAccount ? "true" : "false") +
+           ",\"avatarFileId\":" +
+           (user.avatarFileId ? std::to_string(*user.avatarFileId) : "null") +
+           ",\"avatarUrl\":" +
+           (user.avatarFileId
+                ? quoteJson("/api/files/" + std::to_string(*user.avatarFileId))
+                : "null") + "}";
 }
 
 std::string friendRequestJson(const FriendRequest &request)
@@ -268,6 +275,10 @@ std::string memberJson(const ConversationParticipant &participant)
            ",\"username\":" + quoteJson(user.username) +
            ",\"displayName\":" + quoteJson(user.displayName) +
            ",\"aiAccount\":" + (user.aiAccount ? "true" : "false") +
+           ",\"avatarUrl\":" +
+           (user.avatarFileId
+                ? quoteJson("/api/files/" + std::to_string(*user.avatarFileId))
+                : "null") +
            ",\"role\":" +
            quoteJson(member.role == MemberRole::Owner ? "owner" :
                      member.role == MemberRole::Administrator
@@ -285,27 +296,7 @@ std::string memberJson(const ConversationParticipant &participant)
 
 std::string messageJson(const Message &message)
 {
-    const bool recalled = message.state == MessageState::Recalled;
-    return "{\"id\":" + std::to_string(message.id) +
-           ",\"conversationId\":" + std::to_string(message.conversationId) +
-           ",\"sequence\":" + std::to_string(message.sequence) +
-           ",\"senderId\":" + std::to_string(message.senderId) +
-           ",\"clientMessageId\":" + quoteJson(message.clientMessageId) +
-           ",\"body\":" + quoteJson(recalled ? "" : message.body) +
-           ",\"createdAt\":" + std::to_string(epochMilliseconds(message.createdAt)) +
-           ",\"state\":" + quoteJson(recalled ? "recalled" : "active") +
-           ",\"recalledBy\":" +
-           (message.recalledBy ? std::to_string(*message.recalledBy) : "null") +
-           ",\"recalledAt\":" +
-           (message.recalledAt
-                ? std::to_string(epochMilliseconds(*message.recalledAt)) : "null") +
-           ",\"modelNodeId\":" +
-           (message.modelTrace.nodeId
-                ? std::to_string(*message.modelTrace.nodeId) : "null") +
-           ",\"modelVersionId\":" +
-           (message.modelTrace.versionId
-                ? std::to_string(*message.modelTrace.versionId) : "null") +
-           ",\"adapterName\":" + quoteJson(message.modelTrace.adapterName) + "}";
+    return serializeMessageJson(message);
 }
 
 template<class Range, class Serializer>

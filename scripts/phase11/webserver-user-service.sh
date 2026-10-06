@@ -88,6 +88,9 @@ start_server() {
     export WEB_GRPC_ADDRESS="${WEB_GRPC_ADDRESS:-127.0.0.1:50051}"
     export WEB_PHASE11_DATABASE="${WEB_PHASE11_DATABASE:-host=${data_root}/postgresql/run dbname=phase11 user=pikachu connect_timeout=3}"
     export WEB_PHASE11_TOKEN_KEY_FILE="${WEB_PHASE11_TOKEN_KEY_FILE:-${data_root}/secrets/phase11-token-hash.key}"
+    # 文件正文与数据库元数据分开保存；服务脚本显式放入数据目录，避免二进制
+    # 因为从不同工作目录启动而把附件散落到 build 或源码目录。
+    export WEB_PHASE11_FILE_ROOT="${WEB_PHASE11_FILE_ROOT:-${data_root}/files}"
     export WEB_PHASE11_ONNX_MODEL_ROOT="${model_root}"
     export WEB_PHASE11_ONNX_WORKERS="${WEB_PHASE11_ONNX_WORKERS:-1}"
     export WEB_PHASE11_ONNX_QUEUE="${WEB_PHASE11_ONNX_QUEUE:-8}"

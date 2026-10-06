@@ -160,13 +160,16 @@ if(WEBSERVER_ENABLE_PHASE11)
         server/phase11/business/AuthService/AuthService.cpp
         server/phase11/business/SocialService/SocialService.cpp
         server/phase11/business/ChatService/ChatService.cpp
+        server/phase11/business/FileService/FileService.cpp
         server/phase11/business/AiChatService/AiChatService.cpp
         server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp
         server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp
         server/phase11/training/TrainingDataService/TrainingDataService.cpp
-        server/phase11/transport/FlatJson/FlatJson.cpp)
+        server/phase11/transport/FlatJson/FlatJson.cpp
+        server/phase11/storage/files/LocalFileStorage/LocalFileStorage.cpp)
     target_include_directories(webserver_phase11 PUBLIC ${PROJECT_SOURCE_DIR})
-    target_link_libraries(webserver_phase11 PUBLIC Threads::Threads webserver_sanitizers)
+    target_link_libraries(webserver_phase11 PUBLIC Threads::Threads
+        webserver_sanitizers OpenSSL::Crypto)
 
     if(WEBSERVER_ENABLE_POSTGRES)
         # 只接受用户已经安装好的 PostgreSQL。WEBSERVER_POSTGRES_ROOT 可以指向
@@ -366,6 +369,8 @@ if(WEBSERVER_ENABLE_PHASE11)
     add_library(webserver_phase11_http
         server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp
         server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp
+        server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.cpp
+        server/phase11/transport/serialization/MessageJson/MessageJson.cpp
         server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)
     target_include_directories(webserver_phase11_http PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_phase11_http PUBLIC
@@ -533,6 +538,13 @@ if(BUILD_TESTING)
             webserver_phase11_http)
         add_test(NAME phase11_ai_chat_tests COMMAND phase11_ai_chat_tests)
         set_tests_properties(phase11_ai_chat_tests PROPERTIES TIMEOUT 30)
+
+        # 文件正文在独立目录、元数据在 Repository。这个契约测试同时覆盖分片游标、
+        # SHA-256 封存、附件权限、头像公开读取与伪装文件拒绝。
+        add_executable(phase11_file_tests tests/phase11/unit/files.cpp)
+        target_link_libraries(phase11_file_tests PRIVATE webserver_phase11)
+        add_test(NAME phase11_file_tests COMMAND phase11_file_tests)
+        set_tests_properties(phase11_file_tests PROPERTIES TIMEOUT 30)
 
         if(WEBSERVER_ENABLE_POSTGRES)
             add_executable(phase11_postgres_contract_tests

@@ -20,7 +20,7 @@ web/
 │  │  ├─ ports/Ports/             Repository、事务和安全端口
 │  │  ├─ runtime/<Component>/     Phase 11 有界执行器
 │  │  ├─ security/<Component>/    限流与凭据实现
-│  │  ├─ storage/<Component>/     内存与 PostgreSQL 存储适配器
+│  │  ├─ storage/<Component>/     内存、PostgreSQL 与文件正文存储适配器
 │  │  ├─ training/<Component>/    训练数据授权与导出
 │  │  └─ transport/               HTTP、WebSocket、SSE DTO 与协议适配器
 │  ├─ http/ websocket/ sse/       HTTP/1.1、WebSocket、SSE 协议层
@@ -129,6 +129,7 @@ server/phase11/
 │  ├─ AuthService/
 │  ├─ SocialService/
 │  ├─ ChatService/
+│  ├─ FileService/                分片上传、封存、下载权限与头像绑定
 │  ├─ AiChatService/
 │  └─ OutboxDispatcher/
 ├─ domain/Domain/
@@ -139,6 +140,7 @@ server/phase11/
 │  └─ SodiumCredentialCodec/
 ├─ storage/
 │  ├─ InMemoryStore/
+│  ├─ files/LocalFileStorage/     文件正文、哈希和原子封存
 │  └─ postgres/
 │     ├─ PostgresConnectionPool/
 │     ├─ PostgresStore/
@@ -149,7 +151,9 @@ server/phase11/
    ├─ FlatJson/
    ├─ http/
    │  ├─ Phase11AuthHttp/
-   │  └─ Phase11SocialChatHttp/
+   │  ├─ Phase11SocialChatHttp/
+   │  └─ Phase11FileHttp/
+   ├─ serialization/MessageJson/  HTTP/WS/SSE 共用消息格式
    └─ realtime/Phase11Realtime/
 ```
 

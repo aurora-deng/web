@@ -15,9 +15,11 @@ public:
                 ISocialRepository &social,
                 IConversationRepository &conversations,
                 IMessageRepository &messages,
-                IOutboxRepository &outbox)
+                IOutboxRepository &outbox,
+                IFileRepository &files)
         : database_(database), users_(users), social_(social),
-          conversations_(conversations), messages_(messages), outbox_(outbox)
+          conversations_(conversations), messages_(messages), outbox_(outbox),
+          files_(files)
     {
     }
 
@@ -49,6 +51,10 @@ public:
                                  std::string clientMessageId,
                                  std::string body, TimePoint now,
                                  MessageModelTrace trace = {}) override;
+    AppendMessageResult sendFile(UserId sender, ConversationId conversation,
+                                 std::string clientMessageId,
+                                 std::string caption, FileId file,
+                                 TimePoint now) override;
     RecallMessageResult recallMessage(UserId actor, MessageId message,
                                       TimePoint now) override;
     void acknowledgeDelivery(UserId user, ConversationId conversation,
@@ -70,6 +76,13 @@ private:
                                      ConversationId conversation) const;
     Conversation requireConversation(ConversationId conversation) const;
     Conversation requireActiveGroup(ConversationId conversation) const;
+    AppendMessageResult sendMessage(UserId sender,
+                                    ConversationId conversation,
+                                    std::string clientMessageId,
+                                    std::string body,
+                                    std::optional<FileId> file,
+                                    TimePoint now,
+                                    MessageModelTrace trace);
 
     IDatabase &database_;
     IUserRepository &users_;
@@ -77,6 +90,7 @@ private:
     IConversationRepository &conversations_;
     IMessageRepository &messages_;
     IOutboxRepository &outbox_;
+    IFileRepository &files_;
 };
 
 } // namespace webserver::phase11

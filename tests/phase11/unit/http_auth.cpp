@@ -2,11 +2,14 @@
 #include "server/http/RequestContext/RequestContext.h"
 #include "server/phase11/business/AuthService/AuthService.h"
 #include "server/phase11/business/ChatService/ChatService.h"
+#include "server/phase11/business/FileService/FileService.h"
 #include "server/phase11/business/SocialService/SocialService.h"
 #include "server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
 #include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
+#include "server/phase11/storage/files/LocalFileStorage/LocalFileStorage.h"
 #include "server/phase11/transport/FlatJson/FlatJson.h"
 #include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.h"
 #include "server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
 #include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #include "server/response/StringBody.h"
@@ -15,6 +18,7 @@
 
 #include <cstdlib>
 #include <condition_variable>
+#include <filesystem>
 #include <iostream>
 #include <mutex>
 #include <string>
@@ -129,7 +133,8 @@ struct Reply
 
 Reply request(Router &router, std::string method, std::string path,
               std::string body = {}, std::string cookie = {},
-              std::string csrf = {})
+              std::string csrf = {},
+              std::unordered_map<std::string, std::string> headers = {})
 {
     RequestContext context;
     HttpResponse response;
@@ -138,7 +143,9 @@ Reply request(Router &router, std::string method, std::string path,
     context.request.path = std::move(path);
     context.request.bodyData = std::move(body);
     context.request.bodySize = context.request.bodyData.size();
-    if (!context.request.bodyData.empty())
+    context.request.headers = std::move(headers);
+    if (!context.request.bodyData.empty() &&
+        !context.request.headers.contains("content-type"))
         context.request.headers["content-type"] = "application/json; charset=utf-8";
     if (!cookie.empty())
         context.request.headers["cookie"] = std::move(cookie);
@@ -198,17 +205,25 @@ void verifyHttpFlow()
     InMemoryLoginRateLimiter limiter;
     AuthService auth(store, store, credentials, limiter);
     SocialService social(store, store, store, store);
-    ChatService chat(store, store, store, store, store, store);
+    ChatService chat(store, store, store, store, store, store, store);
+    const auto fileRoot = std::filesystem::temp_directory_path() /
+        ("phase11-http-files-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+    LocalFileStorage fileStorage(fileRoot);
+    FileService files(store, store, store, fileStorage);
     DatabaseExecutor databaseExecutor(2, 32);
+    BoundedExecutor fileExecutor(1, 8);
     Phase11AuthHttpConfig config;
     config.secureCookie = false;
     Phase11AuthHttp adapter(auth, databaseExecutor, config);
     WebSocketSessionManager webSockets;
     Phase11SocialChatHttp socialChat(
         adapter, social, chat, databaseExecutor, webSockets);
+    Phase11FileHttp fileHttp(adapter, files, chat, fileExecutor);
     Router router;
     adapter.registerRoutes(router);
     socialChat.registerRoutes(router);
+    fileHttp.registerRoutes(router);
 
     const auto malformed = request(router, "POST", "/api/auth/register",
                                    R"({"username":"alice",})");
@@ -317,6 +332,47 @@ void verifyHttpFlow()
     CHECK(contactUpdate.body.find("\"notificationsMuted\":true") !=
           std::string::npos);
 
+    // 文件 HTTP 流程与业务测试关注点不同：这里验证真实路由、Cookie/CSRF、原始
+    // 二进制请求体和下载响应能连起来，而分片存储细节由 phase11_file_tests 负责。
+    const std::string png =
+        std::string("\x89PNG\r\n\x1a\n", 8) + "http-adapter";
+    const auto createdFile = request(
+        router, "POST", "/api/files/uploads",
+        "{\"name\":\"http.png\",\"mediaType\":\"image/png\",\"size\":\"" +
+            std::to_string(png.size()) + "\"}", cookie, csrf);
+    CHECK(createdFile.status == 201);
+    const auto fileId = jsonUnsignedField(createdFile.body, "id");
+    const auto uploadedFile = request(
+        router, "PATCH", "/api/files/" + std::to_string(fileId) + "/content",
+        png, cookie, csrf,
+        {{"content-type", "application/octet-stream"}, {"upload-offset", "0"}});
+    CHECK(uploadedFile.status == 200 &&
+          jsonUnsignedField(uploadedFile.body, "uploadedSize") == png.size());
+    const auto completedFile = request(
+        router, "POST", "/api/files/" + std::to_string(fileId) + "/complete",
+        {}, cookie, csrf);
+    CHECK(completedFile.status == 200 &&
+          completedFile.body.find("\"state\":\"ready\"") != std::string::npos);
+    const auto fileMessage = request(
+        router, "POST", "/api/conversations/" +
+            std::to_string(conversationId) + "/file-messages",
+        "{\"clientMessageId\":\"http-file-message\",\"fileId\":\"" +
+            std::to_string(fileId) + "\",\"caption\":\"HTTP file\"}",
+        cookie, csrf);
+    CHECK(fileMessage.status == 201 &&
+          fileMessage.body.find("\"attachments\":[{") != std::string::npos);
+    const auto downloaded = request(
+        router, "GET", "/api/files/" + std::to_string(fileId), {}, bobCookie);
+    CHECK(downloaded.status == 200 && downloaded.body == png);
+    CHECK(downloaded.headers.at("Content-Type") == "image/png");
+    CHECK(downloaded.headers.at("X-Content-Type-Options") == "nosniff");
+    CHECK(downloaded.headers.at("Accept-Ranges") == "bytes");
+    const auto avatar = request(
+        router, "POST", "/api/me/avatar",
+        "{\"fileId\":\"" + std::to_string(fileId) + "\"}", cookie, csrf);
+    CHECK(avatar.status == 200 &&
+          avatar.body.find("\"avatarUrl\":\"/api/files/") != std::string::npos);
+
     WebSocketDispatcher dispatcher;
     Phase11Realtime realtime(chat, databaseExecutor);
     realtime.registerHandlers(dispatcher);
@@ -359,7 +415,10 @@ void verifyHttpFlow()
           std::string::npos);
     CHECK(request(router, "GET", "/api/me", {}, cookie).status == 401);
 
+    fileExecutor.shutdown();
     databaseExecutor.shutdown();
+    std::error_code ignored;
+    std::filesystem::remove_all(fileRoot, ignored);
 }
 
 } // namespace

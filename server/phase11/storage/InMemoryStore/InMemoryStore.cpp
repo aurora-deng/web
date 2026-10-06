@@ -95,6 +95,17 @@ bool InMemoryStore::updateProfile(UserId id, std::string displayName,
     return true;
 }
 
+bool InMemoryStore::updateAvatar(UserId id, std::optional<FileId> avatar)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.users.find(id);
+    if (found == state_.users.end() ||
+        (avatar && !state_.files.contains(*avatar)))
+        return false;
+    found->second.avatarFileId = avatar;
+    return true;
+}
+
 Session InMemoryStore::createSession(Session session)
 {
     std::lock_guard lock(mutex_);
@@ -519,7 +530,7 @@ AppendMessageResult InMemoryStore::appendMessage(Message message)
         throw std::invalid_argument("client message id is required");
     if (const auto duplicate = state_.idempotency.find(key);
         duplicate != state_.idempotency.end())
-        return {state_.messages.at(duplicate->second), false};
+        return {hydrateMessageLocked(state_.messages.at(duplicate->second)), false};
 
     const auto conversation = state_.conversations.find(message.conversationId);
     if (conversation == state_.conversations.end())
@@ -532,6 +543,23 @@ AppendMessageResult InMemoryStore::appendMessage(Message message)
     state_.messageIds[message.conversationId].push_back(message.id);
     state_.idempotency.emplace(key, message.id);
     return {message, true};
+}
+
+Message InMemoryStore::hydrateMessageLocked(Message message) const
+{
+    message.attachments.clear();
+    const auto linked = state_.attachments.find(message.id);
+    if (linked == state_.attachments.end()) return message;
+    for (const auto fileId : linked->second)
+    {
+        const auto file = state_.files.find(fileId);
+        if (file == state_.files.end() || file->second.state != FileState::Ready)
+            continue;
+        message.attachments.push_back(
+            {fileId, file->second.originalName, file->second.mediaType,
+             file->second.expectedSize, file->second.sha256});
+    }
+    return message;
 }
 
 std::vector<Message> InMemoryStore::messagesAfter(
@@ -548,7 +576,7 @@ std::vector<Message> InMemoryStore::messagesAfter(
         const auto &message = state_.messages.at(id);
         if (message.sequence > sequence)
         {
-            result.push_back(message);
+            result.push_back(hydrateMessageLocked(message));
             if (result.size() == limit)
                 break;
         }
@@ -571,7 +599,7 @@ std::vector<Message> InMemoryStore::searchMessages(
         if (message.state == MessageState::Active &&
             message.body.find(query) != std::string::npos)
         {
-            result.push_back(message);
+            result.push_back(hydrateMessageLocked(message));
             if (result.size() == limit)
                 break;
         }
@@ -585,7 +613,7 @@ std::optional<Message> InMemoryStore::findMessage(MessageId id) const
     const auto found = state_.messages.find(id);
     return found == state_.messages.end()
                ? std::nullopt
-               : std::optional<Message>{found->second};
+               : std::optional<Message>{hydrateMessageLocked(found->second)};
 }
 
 RecallMessageResult InMemoryStore::recallMessage(MessageId id, UserId actor,
@@ -596,11 +624,116 @@ RecallMessageResult InMemoryStore::recallMessage(MessageId id, UserId actor,
     if (found == state_.messages.end())
         return {};
     if (found->second.state == MessageState::Recalled)
-        return {found->second, false};
+        return {hydrateMessageLocked(found->second), false};
     found->second.state = MessageState::Recalled;
     found->second.recalledBy = actor;
     found->second.recalledAt = now;
-    return {found->second, true};
+    return {hydrateMessageLocked(found->second), true};
+}
+
+FileObject InMemoryStore::createFile(FileObject file)
+{
+    std::lock_guard lock(mutex_);
+    if (!state_.users.contains(file.ownerId) || file.expectedSize == 0)
+        throw std::invalid_argument("invalid file metadata");
+    file.id = state_.nextFileId++;
+    state_.files.emplace(file.id, file);
+    return file;
+}
+
+std::optional<FileObject> InMemoryStore::findFile(FileId id) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.files.find(id);
+    return found == state_.files.end() ? std::nullopt
+                                      : std::optional<FileObject>{found->second};
+}
+
+bool InMemoryStore::updateFileProgress(FileId id, UserId owner,
+                                       std::uint64_t expectedOffset,
+                                       std::uint64_t uploadedSize)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.files.find(id);
+    if (found == state_.files.end() || found->second.ownerId != owner ||
+        found->second.state != FileState::Pending ||
+        found->second.uploadedSize != expectedOffset ||
+        uploadedSize < expectedOffset || uploadedSize > found->second.expectedSize)
+        return false;
+    found->second.uploadedSize = uploadedSize;
+    return true;
+}
+
+bool InMemoryStore::completeFile(FileId id, UserId owner,
+                                 std::string sha256, TimePoint now)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.files.find(id);
+    if (found == state_.files.end() || found->second.ownerId != owner ||
+        found->second.state != FileState::Pending ||
+        found->second.uploadedSize != found->second.expectedSize ||
+        sha256.size() != 64)
+        return false;
+    found->second.sha256 = std::move(sha256);
+    found->second.state = FileState::Ready;
+    found->second.readyAt = now;
+    return true;
+}
+
+bool InMemoryStore::failFile(FileId id, UserId owner)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.files.find(id);
+    if (found == state_.files.end() || found->second.ownerId != owner ||
+        found->second.state != FileState::Pending)
+        return false;
+    found->second.state = FileState::Failed;
+    return true;
+}
+
+bool InMemoryStore::attachFile(MessageId message, FileId file)
+{
+    std::lock_guard lock(mutex_);
+    const auto foundMessage = state_.messages.find(message);
+    const auto foundFile = state_.files.find(file);
+    if (foundMessage == state_.messages.end() || foundFile == state_.files.end() ||
+        foundFile->second.state != FileState::Ready ||
+        foundMessage->second.senderId != foundFile->second.ownerId)
+        return false;
+    auto &linked = state_.attachments[message];
+    if (!linked.empty()) return false;
+    linked.push_back(file);
+    return true;
+}
+
+std::vector<MessageAttachment> InMemoryStore::attachmentsForMessage(
+    MessageId message) const
+{
+    std::lock_guard lock(mutex_);
+    Message stub;
+    stub.id = message;
+    return hydrateMessageLocked(std::move(stub)).attachments;
+}
+
+bool InMemoryStore::canAccessFile(UserId user, FileId file) const
+{
+    std::lock_guard lock(mutex_);
+    const auto foundFile = state_.files.find(file);
+    if (foundFile == state_.files.end() ||
+        foundFile->second.state != FileState::Ready)
+        return false;
+    if (foundFile->second.ownerId == user) return true;
+    for (const auto &[_, profile] : state_.users)
+        if (profile.avatarFileId == file) return true;
+    for (const auto &[messageId, linked] : state_.attachments)
+    {
+        if (std::find(linked.begin(), linked.end(), file) == linked.end()) continue;
+        const auto message = state_.messages.find(messageId);
+        if (message != state_.messages.end() &&
+            state_.members.contains({message->second.conversationId, user}))
+            return true;
+    }
+    return false;
 }
 
 OutboxEvent InMemoryStore::appendOutbox(OutboxEvent event)

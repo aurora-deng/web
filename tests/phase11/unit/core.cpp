@@ -199,7 +199,7 @@ struct Fixture
     Fixture()
         : auth(store, store, credentials, rateLimiter),
           social(store, store, store, store),
-          chat(store, store, store, store, store, store),
+          chat(store, store, store, store, store, store, store),
           models(store), router(store), training(store, store, store, store)
     {
     }
@@ -533,7 +533,8 @@ void verifyMessageOutboxAtomicity(Fixture &fixture, TimePoint now,
 
     ThrowingOutbox failingOutbox(fixture.store);
     ChatService failingChat(fixture.store, fixture.store, fixture.store,
-                            fixture.store, fixture.store, failingOutbox);
+                            fixture.store, fixture.store, failingOutbox,
+                            fixture.store);
     try
     {
         (void)failingChat.sendText(alice.id, direct->id, "rollback-message",

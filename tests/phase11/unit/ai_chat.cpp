@@ -171,7 +171,7 @@ int main()
 {
     const auto now = TimePoint{std::chrono::seconds{10'000}};
     InMemoryStore store;
-    ChatService chat(store, store, store, store, store, store);
+    ChatService chat(store, store, store, store, store, store, store);
     ModelRegistryService registry(store);
     ModelRouter router(store);
     DatabaseExecutor databaseExecutor(2, 32);

@@ -1,11 +1,12 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
-这份文档对应当前四份数据库迁移：建库基线
+这份文档对应当前五份数据库迁移：建库基线
 [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) 和消息生命周期增量
 [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)，以及群聊治理增量
 [003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql)，以及联系人增量
-[004_contacts_presence.sql](../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql)。它解释当前真实代码中的
-19 张表（1 张迁移登记表和 18 张业务表），不把规划中的功能写成已经实现。
+[004_contacts_presence.sql](../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql)，以及文件增量
+[005_files.sql](../../server/phase11/storage/postgres/migrations/005_files.sql)。它解释当前真实代码中的
+21 张表（1 张迁移登记表和 20 张业务表），不把规划中的功能写成已经实现。
 
 当前虚拟机的实际行数、AI 绑定和本地测试账号统一记录在同目录的
 `phase11-app-data.local.md`。该文件包含测试密码并被 `.gitignore` 排除，只保留在本地与虚拟机，
@@ -17,6 +18,7 @@
 - `friend_requests` 是申请单，`friendships` 是已经生效的双向关系；
 - `conversations` 是房间，`conversation_members` 是房间名单；
 - `messages` 是按房间编号保存的信件，`outbox_events` 是等待通知系统领取的发货单；
+- `file_objects` 是文件登记卡，`message_attachments` 把文件贴到消息上；
 - `model_*` 是 AI 模型资产目录，`training_*` 和 `dataset_*` 是经过授权的数据加工区。
 
 ## 1. 总体关系
@@ -36,6 +38,10 @@ erDiagram
     conversations ||--o{ conversation_members : contains
     conversations ||--o{ messages : contains
     users ||--o{ messages : sends
+    users ||--o{ file_objects : owns
+    users }o--o| file_objects : avatar
+    messages ||--o{ message_attachments : carries
+    file_objects ||--o{ message_attachments : attached_as
     users ||--o| model_bindings : may_be_AI
     model_nodes ||--o{ model_versions : versions
     model_nodes ||--o{ model_edges : source
@@ -58,12 +64,12 @@ erDiagram
 
 | 字段 | 含义 |
 |---|---|
-| `version` | 迁移版本号，当前最新为 `4` |
+| `version` | 迁移版本号，当前最新为 `5` |
 | `description` | 该版本做了什么 |
 | `applied_at` | 迁移执行时间 |
 
 它像数据库的“装修记录”。迁移脚本会按编号依次检查和执行尚未登记的文件，因此已有版本 1 的数据库只应用
-版本 2–4，新建空库则依次应用版本 1–4。
+版本 2–5，新建空库则依次应用版本 1–5。
 
 ### `users`：用户花名册
 
@@ -75,6 +81,7 @@ erDiagram
 | `password_hash` | Argon2id 密码散列，不保存明文密码 |
 | `disabled` | 是否停用账号 |
 | `ai_account` | 是否为 AI 特殊账号 |
+| `avatar_file_id` | 当前头像对应的已封存图片；空值表示使用默认头像 |
 
 注册主要写入这张表。`username` 的唯一约束是最后一道并发防线：两个人同时注册同名账号时，只能成功一个。
 
@@ -205,7 +212,45 @@ published_at 标记完成
 如果进程在消息落库后、推送前崩溃，`published_at IS NULL` 的事件仍在，恢复后可以继续处理。这解决了“数据库写成功，
 实时推送却丢了”的双写问题。投递语义是至少一次，接收端仍需按事件或消息 ID 去重。
 
-## 5. AI 模型注册
+## 5. 文件元数据与附件
+
+### `file_objects`：文件登记卡
+
+文件正文不进入 PostgreSQL。数据库只保存一张登记卡：
+
+| 关键字段 | 含义 |
+|---|---|
+| `owner_id` | 上传文件的用户，也是未发送前唯一可读取者 |
+| `original_name` / `media_type` | 展示文件名和经过允许列表校验的 MIME |
+| `expected_size` | 创建上传时申报的最终大小，范围 1–25 MiB |
+| `uploaded_size` | 服务端已落盘并确认的连续游标 |
+| `sha256` | 文件完成时计算的 64 位十六进制指纹 |
+| `state` | `pending`、`ready`、`failed` 或预留的 `deleted` |
+| `ready_at` | 封存完成时间；只有 `ready` 状态可以非空 |
+
+`expected_size` 和 `uploaded_size` 像订单总件数和仓库已收件数。只有二者相等、SHA-256 合法且
+`ready_at` 存在时，数据库约束才允许状态变成 `ready`。正文默认保存到
+`/home/pikachu/phase11-data/files`，数据库备份不会自动包含该目录，运维备份必须把二者作为同一恢复点管理。
+
+### `message_attachments`：消息与文件的装箱单
+
+`message_id` 指向消息，`file_id` 指向文件，`position` 表示附件顺序。数据库允许一条消息 0–7 号共八个
+位置，当前第一版业务只发送一个附件。复合主键阻止同一文件重复贴到同一消息，
+`UNIQUE(message_id, position)` 阻止两个附件占据同一位置。
+
+发送文件消息时，`messages`、`message_attachments` 和 `outbox_events` 在一个事务内提交。接收者不在线时，
+附件关系仍会保留；之后读取历史消息即可得到文件元数据和下载 URL。读取文件的最终权限依据当前会话成员关系，
+不是依据客户端传来的文件名或 URL。
+
+### 头像引用
+
+`users.avatar_file_id` 指向 `file_objects`。绑定头像前，业务层要求文件属于本人、状态为 `ready` 且 MIME
+以 `image/` 开头。附件默认只对会话成员可见；头像是个人资料的一部分，因此绑定后对任意已登录用户可读。
+
+完整上传状态机、磁盘布局、安全边界和 Range 下载见
+[Phase 17](../architecture/phase17.md)。
+
+## 6. AI 模型注册
 
 ### `model_nodes`：逻辑模型节点
 
@@ -227,7 +272,7 @@ published_at 标记完成
 `ai_user_id` 必须来自 `users`，`model_node_id` 指向模型节点。业务收到对某个 AI 账号的生成请求后，通过这张表找到模型，
 再读取它的激活版本和运行时。
 
-## 6. 授权训练数据
+## 7. 授权训练数据
 
 ### `training_candidates`：训练候选样本
 
@@ -250,7 +295,7 @@ submitted → approved → exported
 
 连接数据集版本与候选样本。一份候选样本可以进入不同实验数据集，一个数据集也可以包含多份样本，因此使用多对多表。
 
-## 7. 四条主要业务写入路径
+## 8. 主要业务写入路径
 
 ### 注册和登录
 
@@ -289,6 +334,15 @@ submitted → approved → exported
 在线成员立即收到；离线成员以后按 sequence 恢复
 ```
 
+### 上传并发送文件
+
+```text
+创建上传 → file_objects(state=pending)
+分片落盘 → uploaded_size 比较并推进
+完成核验 → state=ready + sha256 + ready_at
+发送消息 → messages + message_attachments + outbox_events（同一事务）
+```
+
 发送者写入成功时，自己的 `last_delivered_sequence` 和 `last_read_sequence` 会推进到新消息序号，避免自己的消息
 反过来计入自己的未读数。接收者的游标只在真实 `chat.ack` / `chat.read` 到达后前进。
 
@@ -320,7 +374,7 @@ message.recalled Outbox
 WebSocket + SSE 通知所有会话成员
 ```
 
-## 8. 在 Navicat 中建议先看的内容
+## 9. 在 Navicat 中建议先看的内容
 
 先注册两个测试账号，再按下面顺序观察：
 
@@ -334,6 +388,8 @@ WebSocket + SSE 通知所有会话成员
 8. 两分钟内撤回一条消息，观察 `messages.state/recalled_by/recalled_at`，并确认前端不再显示正文。
 9. 修改好友备注和免打扰，观察 `contact_preferences`；拉黑后确认 friendship 和设置被事务清理。
 10. 用同一账号打开两个 WebSocket，关闭后观察 `user_presence.last_active_at` 更新。
+11. 上传文件时观察 `file_objects.uploaded_size` 从 0 推进到最终大小，再变为 `ready`。
+12. 发送文件消息后联查 `messages` 与 `message_attachments`；正文实际字节不会出现在数据库中。
 
 只读查询示例：
 
@@ -357,7 +413,7 @@ ORDER BY id DESC;
 学习时优先执行 `SELECT`。直接在 Navicat 修改游标、序号、Session Hash 或模型激活版本，可能绕开业务层约束，制造
 应用正常操作不会产生的状态。
 
-## 9. 代码索引
+## 10. 代码索引
 
 | 内容 | 文件 |
 |---|---|
@@ -365,6 +421,7 @@ ORDER BY id DESC;
 | 消息状态与撤回约束 | [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql) |
 | 群角色、公告、禁言与软解散约束 | [003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql) |
 | 联系人、黑名单与最后活跃 | [004_contacts_presence.sql](../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql) |
+| 文件元数据、附件与头像 | [005_files.sql](../../server/phase11/storage/postgres/migrations/005_files.sql) |
 | PostgreSQL Repository | [PostgresStore.cpp](../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 连接池 | [PostgresConnectionPool.cpp](../../server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
 | Repository 业务接口 | [Ports.h](../../server/phase11/ports/Ports/Ports.h) |

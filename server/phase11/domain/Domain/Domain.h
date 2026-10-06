@@ -13,6 +13,7 @@ using UserId = std::uint64_t;
 using FriendRequestId = std::uint64_t;
 using ConversationId = std::uint64_t;
 using MessageId = std::uint64_t;
+using FileId = std::uint64_t;
 using OutboxEventId = std::uint64_t;
 using ModelNodeId = std::uint64_t;
 using ModelVersionId = std::uint64_t;
@@ -36,6 +37,7 @@ struct User
     bool disabled = false;
     bool aiAccount = false;
     TimePoint createdAt{};
+    std::optional<FileId> avatarFileId;
 };
 
 struct Session
@@ -149,6 +151,56 @@ struct MessageModelTrace
     std::string adapterName;
 };
 
+enum class FileState
+{
+    Pending,
+    Ready,
+    Failed,
+    Deleted
+};
+
+/**
+ * 文件正文不进入数据库；这里是数据库保存的“货物登记卡”。expectedSize 是客户
+ * 申报值，uploadedSize 是服务端已经落盘并确认的游标，二者分开才能安全续传。
+ */
+struct FileObject
+{
+    FileId id = 0;
+    UserId ownerId = 0;
+    std::string originalName;
+    std::string mediaType;
+    std::uint64_t expectedSize = 0;
+    std::uint64_t uploadedSize = 0;
+    std::string sha256;
+    FileState state = FileState::Pending;
+    TimePoint createdAt{};
+    std::optional<TimePoint> readyAt;
+};
+
+/** 消息只携带文件引用和不可变展示元数据，不复制文件字节。 */
+struct MessageAttachment
+{
+    FileId fileId = 0;
+    std::string originalName;
+    std::string mediaType;
+    std::uint64_t size = 0;
+    std::string sha256;
+};
+
+/** 本地/对象存储完成落盘后交给业务层核验的结果。 */
+struct StoredFileSummary
+{
+    std::uint64_t size = 0;
+    std::string sha256;
+    std::string prefix;
+};
+
+struct FileDownload
+{
+    FileObject file;
+    std::string storagePath;
+};
+
 enum class MessageState
 {
     Active,
@@ -168,6 +220,7 @@ struct Message
     MessageState state = MessageState::Active;
     std::optional<UserId> recalledBy;
     std::optional<TimePoint> recalledAt;
+    std::vector<MessageAttachment> attachments;
 };
 
 /** 消息幂等写入结果同时属于 Repository 与业务层的公共领域数据。 */

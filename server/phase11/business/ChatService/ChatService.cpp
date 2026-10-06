@@ -295,10 +295,31 @@ AppendMessageResult ChatService::sendText(
     std::string clientMessageId, std::string body, TimePoint now,
     MessageModelTrace trace)
 {
+    return sendMessage(sender, conversation, std::move(clientMessageId),
+                       std::move(body), std::nullopt, now, std::move(trace));
+}
+
+AppendMessageResult ChatService::sendFile(
+    UserId sender, ConversationId conversation,
+    std::string clientMessageId, std::string caption, FileId file,
+    TimePoint now)
+{
+    if (!file)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "file id is required");
+    return sendMessage(sender, conversation, std::move(clientMessageId),
+                       std::move(caption), file, now, {});
+}
+
+AppendMessageResult ChatService::sendMessage(
+    UserId sender, ConversationId conversation,
+    std::string clientMessageId, std::string body,
+    std::optional<FileId> file, TimePoint now, MessageModelTrace trace)
+{
     if (clientMessageId.empty() || clientMessageId.size() > 128)
         throw ApplicationError(ErrorCode::InvalidArgument,
                                "invalid client message id");
-    if (body.empty() || body.size() > 16 * 1024)
+    if (body.size() > 16 * 1024 || (!file && body.empty()))
         throw ApplicationError(ErrorCode::InvalidArgument,
                                "message body length is out of range");
 
@@ -330,19 +351,46 @@ AppendMessageResult ChatService::sendText(
             throw ApplicationError(ErrorCode::Forbidden,
                                    "direct messages require friendship");
     }
+    std::optional<FileObject> selectedFile;
+    if (file)
+    {
+        selectedFile = files_.findFile(*file);
+        if (!selectedFile || selectedFile->state != FileState::Ready)
+            throw ApplicationError(ErrorCode::Conflict,
+                                   "file upload is not ready");
+        if (selectedFile->ownerId != sender)
+            throw ApplicationError(ErrorCode::Forbidden,
+                                   "only the file owner can send this upload");
+    }
     const auto originalBody = body;
     auto appended = messages_.appendMessage(
         {0, conversation, 0, sender, std::move(clientMessageId),
          body, std::move(trace), now});
     if (!appended.inserted)
     {
-        // 相同幂等键只允许重放完全相同的命令。若正文不同，说明客户端错误复用了 ID。
+        // 相同幂等键只允许重放完全相同的命令。文件 ID 也属于命令内容，防止
+        // 客户端错误复用 clientMessageId 时把旧消息悄悄换成另一个文件。
         const auto &existing = appended.message;
-        if (existing.body != originalBody)
+        const bool sameFile = !file
+                                  ? existing.attachments.empty()
+                                  : existing.attachments.size() == 1 &&
+                                        existing.attachments.front().fileId == *file;
+        if (existing.body != originalBody || !sameFile)
             throw ApplicationError(ErrorCode::Conflict,
                                    "client message id was reused with different content");
         transaction->commit();
         return appended;
+    }
+    if (file)
+    {
+        if (!files_.attachFile(appended.message.id, *file))
+            throw ApplicationError(ErrorCode::Conflict,
+                                   "file could not be attached to message");
+        const auto hydrated = messages_.findMessage(appended.message.id);
+        if (!hydrated || hydrated->attachments.size() != 1)
+            throw ApplicationError(ErrorCode::Unavailable,
+                                   "file attachment could not be loaded");
+        appended.message = *hydrated;
     }
     // 能发出消息，说明发送者已经进入并阅读到当前会话位置。同步推进自己的游标，
     // 避免刚发出的消息在刷新页面后反过来计入自己的未读数。

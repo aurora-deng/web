@@ -41,6 +41,8 @@ const state = {
   aiConversations: new Set(),
   conversationFilter: 'all',
   conversationQuery: '',
+  selectedFile: null,
+  uploadingFile: false,
   realtime: { ws: 'offline', sse: 'offline' },
   leaving: false,
 };
@@ -181,13 +183,81 @@ async function api(path, options = {}) {
   return data;
 }
 
+function declaredMediaType(file) {
+  if (file.type) return file.type;
+  const extension = file.name.toLowerCase().split('.').pop();
+  return ({
+    md: 'text/markdown', txt: 'text/plain', json: 'application/json',
+    zip: 'application/zip', bin: 'application/octet-stream',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  })[extension] || 'application/octet-stream';
+}
+
+async function uploadFile(file, onProgress = () => {}) {
+  const created = await api('/api/files/uploads', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: file.name,
+      mediaType: declaredMediaType(file),
+      size: String(file.size),
+    }),
+  });
+  const chunkSize = 256 * 1024;
+  let offset = Number(created.uploadedSize || 0);
+  while (offset < file.size) {
+    const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
+    let response;
+    try {
+      response = await fetch(`/api/files/${created.id}/content`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'X-CSRF-Token': state.csrf,
+          'Upload-Offset': String(offset),
+        },
+        body: chunk,
+      });
+    } catch {
+      throw new Error('文件分片上传失败，请检查网络后重试');
+    }
+    const text = await response.text();
+    let result = {};
+    try { result = text ? JSON.parse(text) : {}; } catch { result = { message: text }; }
+    if (!response.ok) throw new Error(result.message || `上传失败（HTTP ${response.status}）`);
+    const next = Number(result.uploadedSize);
+    if (!Number.isSafeInteger(next) || next <= offset)
+      throw new Error('服务器返回了无效的上传游标');
+    offset = next;
+    onProgress(offset / file.size);
+  }
+  return api(`/api/files/${created.id}/complete`, { method: 'POST' });
+}
+
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+}
+
+function paintAvatar(element, user, fallback) {
+  if (!element) return;
+  const url = user?.avatarUrl;
+  element.style.backgroundImage = url ? `url(${JSON.stringify(url).slice(1, -1)})` : '';
+  element.classList.toggle('has-image', Boolean(url));
+  element.textContent = url ? '' : initials(user?.displayName || user?.username, fallback);
+}
+
 function updateProfileView() {
   if (!state.me) return;
   const name = state.me.displayName || state.me.username;
   $('#profile-name').textContent = name;
   $('#profile-handle').textContent = `@${state.me.username} · ID ${state.me.id}`;
-  $('#profile-avatar').textContent = initials(name);
-  $('#profile-dialog-avatar').textContent = initials(name);
+  paintAvatar($('#profile-avatar'), state.me, initials(name));
+  paintAvatar($('#profile-dialog-avatar'), state.me, initials(name));
 }
 
 function setRealtimeState(kind, status) {
@@ -385,10 +455,11 @@ function renderConversationMembers() {
   $('#detail-member-count').textContent = String(state.members.length);
   $('#detail-member-list').replaceChildren(...(state.members.length ? state.members.map(member => {
     const item = document.createElement('li');
-    const avatar = document.createElement('span');
-    avatar.className = 'avatar';
-    avatar.textContent = Number(member.userId) === Number(state.me?.id)
-      ? '我' : (member.aiAccount ? 'AI' : initials(member.displayName || member.username, `#${member.userId}`));
+  const avatar = document.createElement('span');
+  avatar.className = 'avatar';
+  paintAvatar(avatar, Number(member.userId) === Number(state.me?.id) ? state.me : member,
+    Number(member.userId) === Number(state.me?.id)
+      ? '我' : (member.aiAccount ? 'AI' : initials(member.displayName || member.username, `#${member.userId}`)));
     const copy = document.createElement('span');
     copy.className = 'member-copy';
     const name = document.createElement('strong');
@@ -556,7 +627,10 @@ function createMessageElement(message, options = {}) {
 
   const avatar = document.createElement('span');
   avatar.className = 'avatar';
-  avatar.textContent = mine ? initials(state.me?.displayName || state.me?.username) : (aiMessage ? 'AI' : `#${message.senderId || '?'}`);
+  const sender = mine ? state.me : state.members.find(
+    member => Number(member.userId) === Number(message.senderId));
+  paintAvatar(avatar, sender, mine ? initials(state.me?.displayName || state.me?.username)
+    : (aiMessage ? 'AI' : `#${message.senderId || '?'}`));
   const content = document.createElement('div');
   content.className = 'message-content';
   const meta = document.createElement('p');
@@ -569,6 +643,36 @@ function createMessageElement(message, options = {}) {
   bubble.classList.toggle('typing-caret', Boolean(options.streaming));
   bubble.classList.toggle('recalled', message.state === 'recalled');
   bubble.textContent = message.state === 'recalled' ? '这条消息已被撤回' : (message.body || '');
+  if (!bubble.textContent && message.attachments?.length) bubble.classList.add('hidden');
+  const attachments = document.createElement('div');
+  attachments.className = 'message-attachments';
+  (message.state === 'recalled' ? [] : (message.attachments || [])).forEach(file => {
+    const card = file.url && !file.pending ? document.createElement('a') : document.createElement('div');
+    card.className = 'attachment-card';
+    if (file.url && !file.pending) {
+      card.href = file.url;
+      card.target = '_blank';
+      card.rel = 'noopener';
+    }
+    if (String(file.mediaType || '').startsWith('image/') && file.url && !file.pending) {
+      const preview = document.createElement('img');
+      preview.src = file.url;
+      preview.alt = file.name || '聊天图片';
+      preview.loading = 'lazy';
+      card.append(preview);
+    }
+    const icon = document.createElement('span');
+    icon.className = 'attachment-icon';
+    icon.textContent = file.pending ? 'UP' : String(file.mediaType || '').startsWith('image/') ? 'IMG' : 'FILE';
+    const copy = document.createElement('span');
+    const title = document.createElement('strong');
+    title.textContent = file.name || '附件';
+    const size = document.createElement('small');
+    size.textContent = file.pending ? '正在分片上传…' : `${formatBytes(file.size)} · 点击下载`;
+    copy.append(title, size);
+    card.append(icon, copy);
+    attachments.append(card);
+  });
   const footer = document.createElement('div');
   footer.className = 'message-footer';
   const status = document.createElement('span');
@@ -583,7 +687,9 @@ function createMessageElement(message, options = {}) {
     recall.addEventListener('click', () => requestRecall(message, recall));
     footer.append(recall);
   }
-  content.append(meta, bubble, footer);
+  content.append(meta, bubble);
+  if (attachments.childElementCount) content.append(attachments);
+  content.append(footer);
   item.append(avatar, content);
   return item;
 }
@@ -994,7 +1100,7 @@ function contactRow(user) {
   const item = document.createElement('li');
   const avatar = document.createElement('span');
   avatar.className = 'avatar';
-  avatar.textContent = initials(user.displayName || user.username);
+  paintAvatar(avatar, user, initials(user.displayName || user.username));
   const copy = document.createElement('span');
   copy.className = 'item-copy';
   const name = document.createElement('strong');
@@ -1067,7 +1173,7 @@ function sidebarFriendRow(user) {
 
   const avatar = document.createElement('span');
   avatar.className = 'avatar avatar-friend';
-  avatar.textContent = initials(user.displayName || user.username);
+  paintAvatar(avatar, user, initials(user.displayName || user.username));
   const copy = document.createElement('span');
   copy.className = 'friend-copy';
   const name = document.createElement('strong');
@@ -1092,7 +1198,7 @@ function blockedRow(user) {
   const item = document.createElement('li');
   const avatar = document.createElement('span');
   avatar.className = 'avatar';
-  avatar.textContent = initials(user.displayName || user.username);
+  paintAvatar(avatar, user, initials(user.displayName || user.username));
   const copy = document.createElement('span');
   copy.className = 'item-copy';
   const name = document.createElement('strong');
@@ -1263,24 +1369,93 @@ $('#register-form').addEventListener('submit', async event => {
   finally { setButtonBusy(button, false); }
 });
 
-elements.messageForm.addEventListener('submit', event => {
-  event.preventDefault();
-  if (!state.conversation) return;
-  if (state.socket?.readyState !== WebSocket.OPEN) {
-    setStatus(elements.chatStatus, 'WebSocket 正在重连，暂时无法发送。', 'error');
+function showSelectedFile(file, progress = null) {
+  state.selectedFile = file || null;
+  $('#selected-file').classList.toggle('hidden', !file);
+  $('#selected-file-name').textContent = file ? `${file.name} · ${formatBytes(file.size)}` : '';
+  $('#selected-file-progress').textContent = progress === null ? '' : `${Math.round(progress * 100)}%`;
+}
+
+$('#message-file').addEventListener('change', event => {
+  const file = event.currentTarget.files?.[0] || null;
+  if (file && file.size > 25 * 1024 * 1024) {
+    toast('文件不能超过 25 MiB', 'error');
+    event.currentTarget.value = '';
+    showSelectedFile(null);
     return;
   }
-  const input = event.currentTarget.elements.message;
+  showSelectedFile(file);
+});
+
+$('#clear-selected-file').addEventListener('click', () => {
+  $('#message-file').value = '';
+  showSelectedFile(null);
+});
+
+elements.messageForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!state.conversation || state.uploadingFile) return;
+  const form = event.currentTarget;
+  const input = form.elements.message;
   const content = input.value.trim();
-  if (!content) return;
+  const selectedFile = state.selectedFile;
+  if (!content && !selectedFile) return;
   const aiMode = $('#toggle-ai').getAttribute('aria-pressed') === 'true';
-  const aiUserId = event.currentTarget.elements.aiUserId.value.trim();
+  const aiUserId = form.elements.aiUserId.value.trim();
+  if (selectedFile && aiMode) {
+    setStatus(elements.chatStatus, 'AI 模式暂只接收文字提示词；请先关闭 AI 模式再发送文件。', 'error');
+    return;
+  }
   if (aiMode && !aiUserId) {
     setStatus(elements.chatStatus, 'AI 模式需要填写目标 AI 账号 ID。', 'error');
-    event.currentTarget.elements.aiUserId.focus();
+    form.elements.aiUserId.focus();
     return;
   }
   const messageId = createClientId();
+  if (selectedFile) {
+    const sendButton = form.querySelector('.send-button');
+    state.uploadingFile = true;
+    setButtonBusy(sendButton, true, '上传 0%');
+    appendMessage({
+      conversationId: Number(state.conversation.id),
+      senderId: Number(state.me.id),
+      clientMessageId: messageId,
+      body: content,
+      attachments: [{ name: selectedFile.name, size: selectedFile.size,
+        mediaType: declaredMediaType(selectedFile), pending: true }],
+      createdAt: Date.now(),
+      state: 'active',
+      deliveryState: 'sending',
+    });
+    try {
+      const uploaded = await uploadFile(selectedFile, progress => {
+        showSelectedFile(selectedFile, progress);
+        sendButton.textContent = `上传 ${Math.round(progress * 100)}%`;
+      });
+      const result = await api(`/api/conversations/${state.conversation.id}/file-messages`, {
+        method: 'POST',
+        body: JSON.stringify({ fileId: String(uploaded.id),
+          clientMessageId: messageId, caption: content }),
+      });
+      appendMessage(result.message);
+      setStatus(elements.chatStatus, '文件已保存并作为消息发送。', 'success');
+      input.value = '';
+      input.style.height = '';
+      $('#message-file').value = '';
+      showSelectedFile(null);
+    } catch (error) {
+      failPendingMessage(messageId);
+      setStatus(elements.chatStatus, error.message, 'error');
+    } finally {
+      state.uploadingFile = false;
+      setButtonBusy(sendButton, false);
+    }
+    return;
+  }
+  if (state.socket?.readyState !== WebSocket.OPEN) {
+    setStatus(elements.chatStatus, 'WebSocket 正在重连，暂时无法发送文字消息。', 'error');
+    return;
+  }
   const sent = sendSocket({
     v: 1,
     type: aiMode ? 'ai.generate' : 'chat.send',
@@ -1462,10 +1637,25 @@ $('#profile-form').addEventListener('submit', async event => {
   const button = form.querySelector('[type="submit"]');
   setButtonBusy(button, true, '保存中…');
   try {
+    const avatar = form.elements.avatar.files?.[0];
+    if (avatar) {
+      if (avatar.size > 10 * 1024 * 1024) throw new Error('头像不能超过 10 MiB');
+      setButtonBusy(button, true, '上传头像 0%');
+      const uploaded = await uploadFile(avatar, progress => {
+        button.textContent = `上传头像 ${Math.round(progress * 100)}%`;
+      });
+      await api('/api/me/avatar', {
+        method: 'POST', body: JSON.stringify({ fileId: String(uploaded.id) }),
+      });
+    }
     const result = await api('/api/me', {
-      method: 'PATCH', body: JSON.stringify(Object.fromEntries(new FormData(form))),
+      method: 'PATCH', body: JSON.stringify({
+        displayName: form.elements.displayName.value,
+        biography: form.elements.biography.value,
+      }),
     });
     state.me = result.user;
+    form.elements.avatar.value = '';
     updateProfileView();
     setStatus($('#profile-status'), '资料已保存。', 'success');
     toast('个人资料已更新');

@@ -1,10 +1,11 @@
-# web-test 2.0 · Phase 16（本地开发分支）
+# web-test 2.0 · Phase 17（本地开发分支）
 
-> Phase 16 增加数据库执行器、PostgreSQL 连接池和 Outbox 指标，并把 250 ms 固定轮询改为
-> “事务提交后主动唤醒 + 轮询兜底”。同二进制 A/B 三轮均为 0 错误，私聊端到端 P50 从
-> **262.088 ms 降到 9.325 ms**，8 人群聊从 **253.389 ms 降到 4.593 ms**。同时补齐数据库感知
-> readiness、迁移审计、备份/隔离恢复演练、日志磁盘边界和稳定性探针。详见
-> [Phase 16：可观测性、Outbox 主动唤醒与运维闭环](docs/architecture/phase16.md)。
+> Phase 17 增加头像、图片和普通文件消息：正文与 PostgreSQL 元数据分离，支持 256 KiB 有界分片、
+> 上传游标、SHA-256 封存、扩展名/MIME/魔数检查、会话权限下载和 HTTP Range。文件消息仍通过
+> `messages + message_attachments + outbox_events` 持久化，所以接收者离线也能发送并在之后恢复。
+> Release、Debug 和 ASan+LSan+UBSan 均为 **94/94**，真实网络黑盒覆盖错误 offset、离线历史、
+> 整文件/Range 下载、未授权拒绝和头像读取。详见
+> [Phase 17：头像、图片与文件消息](docs/architecture/phase17.md)。
 
 > Phase 15 新增真实业务性能基线：使用隔离 PostgreSQL 数据库从 HTTP、WebSocket 和 SSE 入口
 > 驱动登录、列表、私聊、8 人群发、离线历史、连接重建和混合流量。Linux 三轮总错误为 0，
@@ -188,6 +189,10 @@ gRPC C++ 1.82.0 完成了以下检查：
   P50 从 **262.088 ms** 降到 **9.325 ms**、群聊从 **253.389 ms** 降到 **4.593 ms**，两组错误均为
   0；数据库停止时 liveness 保持 200、readiness 返回 503，恢复后无需重启 Web 进程即回到 200。
   备份校验和隔离恢复演练恢复出 4 个迁移版本、59 个用户、39 个会话和 58 条消息。
+- Phase 17 完成数据库版本 5 迁移；Release、Debug、ASan+LSan+UBSan 三套 CTest 均为
+  **94/94**。文件整链黑盒验证 256 KiB 分片协议、错误 offset 返回 409、接收者离线时文件消息持久化、
+  会话外用户返回 403、整文件与 Range 下载字节一致，以及头像绑定后登录用户可读。文件正文不进入
+  PostgreSQL，并由独立有界文件执行器隔离磁盘 I/O 与哈希工作。
 
 最终测试数字与发现过的问题记录在
 [Phase 9 验证记录](docs/architecture/phase9.md#11-验证记录)。
@@ -208,5 +213,6 @@ gRPC C++ 1.82.0 完成了以下检查：
 12. [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/phase14.md)
 13. [Phase 15：真实业务性能基线](docs/architecture/phase15.md)
 14. [Phase 16：可观测性、Outbox 主动唤醒与运维闭环](docs/architecture/phase16.md)
-15. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
-16. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)
+15. [Phase 17：头像、图片与文件消息](docs/architecture/phase17.md)
+16. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
+17. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)

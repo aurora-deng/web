@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 
 namespace webserver::phase11
@@ -36,6 +37,7 @@ public:
         std::string_view username) const = 0;
     virtual bool updateProfile(UserId id, std::string displayName,
                                std::string biography) = 0;
+    virtual bool updateAvatar(UserId id, std::optional<FileId> avatar) = 0;
 };
 
 class ISessionRepository
@@ -131,6 +133,41 @@ public:
     [[nodiscard]] virtual std::optional<Message> findMessage(MessageId id) const = 0;
     virtual RecallMessageResult recallMessage(MessageId id, UserId actor,
                                               TimePoint now) = 0;
+};
+
+class IFileRepository
+{
+public:
+    virtual ~IFileRepository() = default;
+    virtual FileObject createFile(FileObject file) = 0;
+    [[nodiscard]] virtual std::optional<FileObject> findFile(FileId id) const = 0;
+    virtual bool updateFileProgress(FileId id, UserId owner,
+                                    std::uint64_t expectedOffset,
+                                    std::uint64_t uploadedSize) = 0;
+    virtual bool completeFile(FileId id, UserId owner, std::string sha256,
+                              TimePoint now) = 0;
+    virtual bool failFile(FileId id, UserId owner) = 0;
+    virtual bool attachFile(MessageId message, FileId file) = 0;
+    [[nodiscard]] virtual std::vector<MessageAttachment> attachmentsForMessage(
+        MessageId message) const = 0;
+    [[nodiscard]] virtual bool canAccessFile(UserId user, FileId file) const = 0;
+};
+
+/**
+ * 文件字节仓库端口。业务层只知道“准备、追加、封存、取路径”，不知道本地磁盘
+ * 如何分目录；以后换成对象存储时不需要改聊天规则。
+ */
+class IFileStorage
+{
+public:
+    virtual ~IFileStorage() = default;
+    virtual void prepare(FileId file) = 0;
+    [[nodiscard]] virtual std::uint64_t pendingSize(FileId file) const = 0;
+    virtual std::uint64_t append(FileId file, std::uint64_t offset,
+                                 std::string_view bytes) = 0;
+    virtual StoredFileSummary finalize(FileId file) = 0;
+    [[nodiscard]] virtual std::string readyPath(FileId file) const = 0;
+    virtual void remove(FileId file) noexcept = 0;
 };
 
 class IOutboxRepository

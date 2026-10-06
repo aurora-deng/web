@@ -1145,7 +1145,7 @@ PostgreSQL 契约测试使用隔离的 `phase11_test` 数据库；真实页面�
 本轮依据 Nebula Chat 产品参考稿重新组织前端，同时只呈现项目已经具备的功能：
 
 - 登录页、三栏聊天工作台、好友与申请、创建私聊/群聊、历史搜索、资料和模型通道状态统一为
-  深色星云视觉；Phase 13 已在真实业务接口上补充群管理员和治理操作，语音、文件仍未实现；
+  深色星云视觉；Phase 13 已补充群治理，Phase 17 已补充头像和文件消息，语音/视频仍未实现；
 - 右侧详情通过真实成员接口显示成员、角色和已读游标；HTTP、WebSocket、SSE 分别显示状态；
 - Composer 明确提示“接收方无需在线”，但发送者与服务器断开时仍停止发送，避免把未提交数据
   错误显示成已经成功；
@@ -1230,8 +1230,8 @@ POST /api/conversations 创建协作群
 
 前端侧栏新增常驻“我的好友”区域。它直接读取 `GET /api/friends` 的真实结果，展示显示名称、用户名、
 用户 ID 和简介；点击任意好友会调用 `POST /api/conversations` 获取或创建私聊。好友在线与否不会影响
-创建会话和发送消息：消息先提交到 PostgreSQL，对方下次登录后仍能读取。页面没有伪造在线状态，
-因为当前 Phase 11 尚未实现完整的 Presence 生命周期。
+创建会话和发送消息：消息先提交到 PostgreSQL，对方下次登录后仍能读取。Phase 14 已补齐多设备
+Presence 与最后活跃时间，界面只展示服务器返回的真实连接状态。
 
 相关文件：
 
@@ -1239,3 +1239,13 @@ POST /api/conversations 创建协作群
 - `frontend/phase11/styles.css`：可滚动的紧凑好友卡片；
 - `frontend/phase11/app.js`：加载、渲染和点击私聊逻辑；
 - `scripts/phase11/seed-demo-users.py`：幂等演示数据初始化脚本。
+
+## 16. Phase 17 文件能力（2026-10-07）
+
+Phase 17 在同一分层体系中加入 `IFileBusiness`、`IFileRepository` 和 `IFileStorage`。文件元数据进入
+PostgreSQL，正文进入独立目录；`FileService` 处理分片游标、SHA-256、类型核验与访问权限，
+`ChatService` 在消息事务中写入附件关系和 Outbox。前端增加头像上传、文件选择、上传进度、图片预览
+和普通文件卡片。接收者不需要在线，因为文件消息依然先持久化再实时通知。
+
+完整状态机、安全边界、API、数据表、代码索引和 94/94 三套验证结果见
+[Phase 17：头像、图片与文件消息](phase17.md)。

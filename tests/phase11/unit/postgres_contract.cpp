@@ -120,6 +120,35 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
                 store.findMessage(messages.front().id).has_value() &&
                 store.searchMessages(direct->id, "ell", 10).size() == 1,
             "message lookup or search failed");
+
+    // 文件元数据与正文目录是两套设施：Repository 契约只验证登记卡、附件关系和
+    // 权限查询；字节的分片写入与哈希封存由独立 LocalFileStorage 测试覆盖。
+    auto file = store.createFile(
+        {0, alice->id, "contract.png", "image/png", 8, 0, {},
+         FileState::Pending, now, {}});
+    require(file.id != 0 && store.findFile(file.id).has_value(),
+            "file metadata insert failed");
+    require(store.updateFileProgress(file.id, alice->id, 0, 8) &&
+                !store.updateFileProgress(file.id, alice->id, 0, 8),
+            "file upload cursor compare-and-set failed");
+    const std::string digest(64, 'a');
+    require(store.completeFile(file.id, alice->id, digest, now),
+            "file completion failed");
+    file = *store.findFile(file.id);
+    require(file.state == FileState::Ready && file.sha256 == digest &&
+                file.readyAt.has_value(),
+            "ready file metadata was not persisted");
+    require(store.attachFile(messages.front().id, file.id) &&
+                !store.attachFile(messages.front().id, file.id),
+            "message attachment uniqueness failed");
+    const auto hydratedMessage = store.findMessage(messages.front().id);
+    require(hydratedMessage && hydratedMessage->attachments.size() == 1 &&
+                hydratedMessage->attachments.front().fileId == file.id,
+            "message attachment hydration failed");
+    require(store.canAccessFile(alice->id, file.id) &&
+                store.canAccessFile(bob->id, file.id),
+            "owner or direct member could not access attachment");
+
     const auto recalled = store.recallMessage(messages.front().id, alice->id, now);
     const auto recalledAgain =
         store.recallMessage(messages.front().id, alice->id, now);
@@ -131,6 +160,14 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
     User charlie{0, "contract-charlie", "Charlie", {}, "hash-c",
                  false, false, now};
     charlie = store.create(std::move(charlie));
+    require(!store.canAccessFile(charlie.id, file.id),
+            "non-member accessed a private attachment");
+    require(store.updateAvatar(alice->id, file.id),
+            "avatar reference update failed");
+    const auto avatarOwner = store.findUser(alice->id);
+    require(avatarOwner && avatarOwner->avatarFileId == file.id &&
+                store.canAccessFile(charlie.id, file.id),
+            "authenticated avatar visibility was not persisted");
     const auto pending = store.createFriendRequest(
         {0, bob->id, charlie.id, FriendRequestState::Pending, now, {}});
     require(store.findFriendRequest(pending.id).has_value() &&

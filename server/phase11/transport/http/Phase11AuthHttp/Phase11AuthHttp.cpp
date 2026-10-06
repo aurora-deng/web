@@ -85,7 +85,13 @@ std::string userJson(const User &user)
            ",\"username\":" + quoteJson(user.username) +
            ",\"displayName\":" + quoteJson(user.displayName) +
            ",\"biography\":" + quoteJson(user.biography) +
-           ",\"aiAccount\":" + (user.aiAccount ? "true" : "false") + "}";
+           ",\"aiAccount\":" + (user.aiAccount ? "true" : "false") +
+           ",\"avatarFileId\":" +
+           (user.avatarFileId ? std::to_string(*user.avatarFileId) : "null") +
+           ",\"avatarUrl\":" +
+           (user.avatarFileId
+                ? quoteJson("/api/files/" + std::to_string(*user.avatarFileId))
+                : "null") + "}";
 }
 
 std::string loginJson(const User &user, std::string_view csrfToken)

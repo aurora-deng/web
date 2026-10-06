@@ -1,6 +1,7 @@
 #include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 
 #include "server/phase11/transport/FlatJson/FlatJson.h"
+#include "server/phase11/transport/serialization/MessageJson/MessageJson.h"
 #include "server/sse/SseEvent.h"
 #include "server/sse/SseSessionManager.h"
 #include "server/websocket/WebSocketCodec/WebSocketCodec.h"
@@ -66,27 +67,7 @@ bool handleRealtime(WsMessageContext &context, std::string_view errorType,
 std::string persistedMessageJson(const Message &message,
                                  std::string_view type = "chat.message")
 {
-    const auto createdAt = std::chrono::duration_cast<std::chrono::milliseconds>(
-                               message.createdAt.time_since_epoch()).count();
-    const bool recalled = message.state == MessageState::Recalled;
-    std::string json = "{\"type\":" + quoteJson(type) + ",\"id\":" +
-           quoteJson(std::to_string(message.id)) +
-           ",\"conversationId\":" + std::to_string(message.conversationId) +
-           ",\"sequence\":" + std::to_string(message.sequence) +
-           ",\"senderId\":" + std::to_string(message.senderId) +
-           ",\"clientMessageId\":" + quoteJson(message.clientMessageId) +
-           ",\"body\":" + quoteJson(recalled ? "" : message.body) +
-           ",\"createdAt\":" + std::to_string(createdAt) +
-           ",\"state\":" + quoteJson(recalled ? "recalled" : "active") +
-           ",\"recalledBy\":" +
-           (message.recalledBy ? std::to_string(*message.recalledBy) : "null") +
-           ",\"recalledAt\":";
-    if (message.recalledAt)
-        json += std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                  message.recalledAt->time_since_epoch()).count());
-    else
-        json += "null";
-    return json + "}";
+    return serializeMessageJson(message, type);
 }
 
 std::pair<UserId, std::uint64_t> receiptPayload(std::string_view payload)

@@ -27,6 +27,7 @@ class InMemoryStore final : public IDatabase,
                             public ISocialRepository,
                             public IConversationRepository,
                             public IMessageRepository,
+                            public IFileRepository,
                             public IOutboxRepository,
                             public IModelRepository,
                             public ITrainingRepository
@@ -46,6 +47,7 @@ public:
     std::optional<User> findUserByName(std::string_view username) const override;
     bool updateProfile(UserId id, std::string displayName,
                        std::string biography) override;
+    bool updateAvatar(UserId id, std::optional<FileId> avatar) override;
 
     Session createSession(Session session) override;
     std::optional<Session> findSessionByTokenHash(
@@ -113,6 +115,19 @@ public:
     RecallMessageResult recallMessage(MessageId id, UserId actor,
                                       TimePoint now) override;
 
+    FileObject createFile(FileObject file) override;
+    std::optional<FileObject> findFile(FileId id) const override;
+    bool updateFileProgress(FileId id, UserId owner,
+                            std::uint64_t expectedOffset,
+                            std::uint64_t uploadedSize) override;
+    bool completeFile(FileId id, UserId owner, std::string sha256,
+                      TimePoint now) override;
+    bool failFile(FileId id, UserId owner) override;
+    bool attachFile(MessageId message, FileId file) override;
+    std::vector<MessageAttachment> attachmentsForMessage(
+        MessageId message) const override;
+    bool canAccessFile(UserId user, FileId file) const override;
+
     OutboxEvent appendOutbox(OutboxEvent event) override;
     std::vector<OutboxEvent> pendingOutbox(std::size_t limit) const override;
     bool markPublished(OutboxEventId id, TimePoint now) override;
@@ -144,6 +159,7 @@ private:
         FriendRequestId nextFriendRequestId = 1;
         ConversationId nextConversationId = 1;
         MessageId nextMessageId = 1;
+        FileId nextFileId = 1;
         OutboxEventId nextOutboxEventId = 1;
         ModelNodeId nextModelNodeId = 1;
         ModelVersionId nextModelVersionId = 1;
@@ -165,6 +181,8 @@ private:
         std::unordered_map<MessageId, Message> messages;
         std::unordered_map<ConversationId, std::vector<MessageId>> messageIds;
         std::map<IdempotencyKey, MessageId> idempotency;
+        std::unordered_map<FileId, FileObject> files;
+        std::unordered_map<MessageId, std::vector<FileId>> attachments;
         std::unordered_map<OutboxEventId, OutboxEvent> outbox;
         std::unordered_map<ModelNodeId, ModelNode> modelNodes;
         std::unordered_map<ModelVersionId, ModelVersion> modelVersions;
@@ -177,6 +195,7 @@ private:
     class Transaction;
 
     static UserPair orderedUsers(UserId first, UserId second);
+    Message hydrateMessageLocked(Message message) const;
 
     mutable std::recursive_mutex mutex_;
     State state_;
