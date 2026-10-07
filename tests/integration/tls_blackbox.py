@@ -43,6 +43,19 @@ def connect_tls(port: int, offered: list[str]) -> ssl.SSLSocket:
         raise
 
 
+def receive_headers(sock: ssl.SSLSocket, limit: int = 64 * 1024) -> bytes:
+    """Read through the header terminator; one TLS recv is allowed to be a half packet."""
+    response = bytearray()
+    while b"\r\n\r\n" not in response:
+        chunk = sock.recv(4096)
+        if not chunk:
+            break
+        response.extend(chunk)
+        if len(response) > limit:
+            raise AssertionError("TLS HTTP/1 response headers exceed test limit")
+    return bytes(response)
+
+
 def run(server: Path) -> None:
     if not shutil.which("openssl"):
         raise RuntimeError("openssl command is needed to generate a temporary test certificate")
@@ -74,7 +87,10 @@ def run(server: Path) -> None:
                 with connect_tls(tls_port, ["http/1.1"]) as sock:
                     assert sock.selected_alpn_protocol() == "http/1.1"
                     sock.sendall(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
-                    assert sock.recv(4096).startswith(b"HTTP/1.1 200"), "TLS HTTP/1 response failed"
+                    response = receive_headers(sock)
+                    assert response.startswith(b"HTTP/1.1 200"), (
+                        f"TLS HTTP/1 response failed: {response[:80]!r}"
+                    )
                 # 有 HTTP/2 功能的 curl 才做真实 h2 请求；ALPN h2 检查始终执行。
                 if shutil.which("curl") and "HTTP2" in subprocess.check_output(
                         ["curl", "--version"], text=True).upper():

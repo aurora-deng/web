@@ -94,6 +94,15 @@ start_server() {
     export WEB_PHASE11_ONNX_MODEL_ROOT="${model_root}"
     export WEB_PHASE11_ONNX_WORKERS="${WEB_PHASE11_ONNX_WORKERS:-1}"
     export WEB_PHASE11_ONNX_QUEUE="${WEB_PHASE11_ONNX_QUEUE:-8}"
+    # AI 生成共有三层保险：Provider 自身超时、统一 Provider 看门线程、业务总期限。
+    # 业务期限略长，先让 Provider 完成熔断/备用切换并返回准确故障原因。
+    export WEB_PHASE11_AI_PROVIDER_TIMEOUT_MS="${WEB_PHASE11_AI_PROVIDER_TIMEOUT_MS:-300000}"
+    export WEB_PHASE11_AI_DEADLINE_MS="${WEB_PHASE11_AI_DEADLINE_MS:-330000}"
+    export WEB_PHASE11_AI_MAX_ACTIVE="${WEB_PHASE11_AI_MAX_ACTIVE:-64}"
+    export WEB_PHASE11_AI_MAX_PER_USER="${WEB_PHASE11_AI_MAX_PER_USER:-2}"
+    export WEB_PHASE11_AI_MAX_PER_ACCOUNT="${WEB_PHASE11_AI_MAX_PER_ACCOUNT:-16}"
+    export WEB_PHASE11_AI_CIRCUIT_FAILURES="${WEB_PHASE11_AI_CIRCUIT_FAILURES:-3}"
+    export WEB_PHASE11_AI_CIRCUIT_OPEN_MS="${WEB_PHASE11_AI_CIRCUIT_OPEN_MS:-30000}"
 
     cd "${build_dir}"
     nohup "${binary}" > "${log_file}" 2>&1 &

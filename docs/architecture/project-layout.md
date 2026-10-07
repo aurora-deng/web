@@ -118,6 +118,7 @@ server/phase11/
 ├─ ai/
 │  ├─ ModelProvider/
 │  ├─ ModelRegistryService/
+│  ├─ ResilientModelProvider/    Provider 超时、熔断与同 Runtime 备用端点
 │  ├─ OllamaModelProvider/        libcurl multi 调用与生成生命周期
 │  ├─ OllamaStreamDecoder/        NDJSON 增量解码
 │  ├─ InProcessOnnxModelProvider/

@@ -1249,3 +1249,11 @@ PostgreSQL，正文进入独立目录；`FileService` 处理分片游标、SHA-2
 
 完整状态机、安全边界、API、数据表、代码索引和 94/94 三套验证结果见
 [Phase 17：头像、图片与文件消息](phase17.md)。
+
+## 17. Phase 18 AI 生成韧性（2026-10-07）
+
+Phase 18 在 `ModelRouter` 与具体 Ollama/ONNX Provider 之间加入 `ResilientModelProvider`，并在
+`AiChatService` 增加统一的业务期限和并发配额。现在即使底层 Provider 接受请求后永远不回调，生成
+名额、完成事件和停机流程也能有界收尾；连续故障会触发熔断，同 Runtime 的备用端点可在尚未输出
+Token 时接管。完整流程、配置、指标、代码索引和验证结果见
+[Phase 18：AI 生成韧性与资源治理](phase18.md)。

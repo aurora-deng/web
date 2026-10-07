@@ -6,6 +6,8 @@
 #include "server/phase11/runtime/BoundedExecutor/BoundedExecutor.h"
 
 #include <cstddef>
+#include <chrono>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -13,6 +15,27 @@
 
 namespace webserver::phase11
 {
+
+struct AiChatServiceConfig
+{
+    // 三道闸门分别保护整个进程、单个发起者和单个 AI 账号。它们限制的是在途
+    // 生成，不限制已经持久化的普通聊天消息。
+    std::size_t maxActiveGenerations = 64;
+    std::size_t maxActivePerUser = 2;
+    std::size_t maxActivePerAiAccount = 16;
+    std::chrono::milliseconds generationTimeout{300'000};
+};
+
+struct AiChatMetricsSnapshot
+{
+    std::uint64_t accepted = 0;
+    std::uint64_t quotaRejected = 0;
+    std::uint64_t succeeded = 0;
+    std::uint64_t failed = 0;
+    std::uint64_t cancelled = 0;
+    std::uint64_t timedOut = 0;
+    std::size_t active = 0;
+};
 
 /**
  * 模型每吐出一小段文字就产生一个 token 事件。recipients 是会话成员快照，
@@ -64,7 +87,8 @@ public:
                   IConversationRepository &conversations,
                   ModelRouter &models,
                   DatabaseExecutor &databaseExecutor,
-                  IAiGenerationEventSink &events);
+                  IAiGenerationEventSink &events,
+                  AiChatServiceConfig config = {});
     ~AiChatService();
 
     AiChatService(const AiChatService &) = delete;
@@ -77,7 +101,9 @@ public:
     [[nodiscard]] bool cancel(UserId requester,
                               const std::string &generationId) noexcept override;
 
-    /** 取消在途生成并等待其唯一完成回调收尾。可重复调用。 */
+    [[nodiscard]] AiChatMetricsSnapshot snapshot() const noexcept;
+
+    /** 取消并摘除全部在途生成，再停止统一超时看门线程。可重复调用。 */
     void shutdown() noexcept;
 
 private:

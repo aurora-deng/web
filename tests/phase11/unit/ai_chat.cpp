@@ -104,6 +104,10 @@ public:
             std::lock_guard lock(observationMutex_);
             observed = request;
         }
+        const bool hang = !request.messages.empty() &&
+                          request.messages.back().content == "hang";
+        if (hang)
+            return {request.requestId, cancellation};
         std::thread worker(
             [request, onToken = std::move(onToken),
              onComplete = std::move(onComplete), cancellation]() mutable
@@ -194,7 +198,13 @@ int main()
     registry.bindAiAccount(ai.id, node.id);
     router.registerProvider(provider);
 
-    AiChatService aiChat(chat, store, store, router, databaseExecutor, events);
+    AiChatServiceConfig aiConfig;
+    aiConfig.maxActiveGenerations = 4;
+    aiConfig.maxActivePerUser = 1;
+    aiConfig.maxActivePerAiAccount = 2;
+    aiConfig.generationTimeout = std::chrono::milliseconds(80);
+    AiChatService aiChat(chat, store, store, router, databaseExecutor, events,
+                         aiConfig);
     webserver::phase11::transport::Phase11Realtime realtime(
         chat, databaseExecutor, &aiChat);
     WebSocketDispatcher dispatcher;
@@ -258,7 +268,36 @@ int main()
     const auto cancelled = events.waitFor("generation-cancel");
     CHECK(!cancelled.success && cancelled.cancelled);
 
+    // Provider 即使吞掉完成回调，统一看门线程也会回收名额并给出唯一终态。
+    aiChat.generate({alice.id, ai.id, conversation.id,
+                     "generation-hang", "hang", 64});
+    bool quotaRejected = false;
+    try
+    {
+        aiChat.generate({alice.id, ai.id, conversation.id,
+                         "generation-over-quota", "hang", 64});
+    }
+    catch (const ApplicationError &error)
+    {
+        quotaRejected = error.code() == ErrorCode::RateLimited;
+    }
+    CHECK(quotaRejected);
+    const auto timedOut = events.waitFor("generation-hang");
+    CHECK(!timedOut.success && !timedOut.cancelled);
+    CHECK(timedOut.error.find("deadline") != std::string::npos);
+    const auto metrics = aiChat.snapshot();
+    CHECK(metrics.quotaRejected == 1);
+    CHECK(metrics.timedOut == 1);
+    CHECK(metrics.active == 0);
+
+    // shutdown 不依赖故障 Provider 的回调，取消通知后即可有界返回。
+    aiChat.generate({alice.id, ai.id, conversation.id,
+                     "generation-shutdown", "hang", 64});
+
     aiChat.shutdown();
+    const auto stopped = events.waitFor("generation-shutdown");
+    CHECK(!stopped.success && stopped.cancelled);
+    CHECK(aiChat.snapshot().active == 0);
     databaseExecutor.shutdown();
     return 0;
 }

@@ -1,4 +1,9 @@
-# web-test 2.0 · Phase 17（本地开发分支）
+# web-test 2.0 · Phase 18（本地开发分支）
+
+> Phase 18 为 AI 生成补上生产前必须具备的资源治理：全局/用户/AI 账号三级并发配额、统一期限、
+> 取消与停机强制回收、Provider 熔断、同 Runtime 备用端点和 Prometheus 指标。备用切换只允许发生在
+> 主端点尚未输出 Token 时，避免拼接两个模型的回答。详见
+> [Phase 18：AI 生成韧性与资源治理](docs/architecture/phase18.md)。
 
 > Phase 17 增加头像、图片和普通文件消息：正文与 PostgreSQL 元数据分离，支持 256 KiB 有界分片、
 > 上传游标、SHA-256 封存、扩展名/MIME/魔数检查、会话权限下载和 HTTP Range。文件消息仍通过

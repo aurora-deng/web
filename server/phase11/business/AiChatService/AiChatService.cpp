@@ -2,9 +2,12 @@
 
 #include "server/phase11/business/ApplicationError/ApplicationError.h"
 
+#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <stdexcept>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 
@@ -37,6 +40,7 @@ struct AiChatService::State final
         std::size_t tokenIndex = 0;
         bool completionStarted = false;
         bool outputTooLarge = false;
+        std::chrono::steady_clock::time_point deadline{};
     };
 
     State(ChatService &chatService,
@@ -44,10 +48,12 @@ struct AiChatService::State final
           IConversationRepository &conversationRepository,
           ModelRouter &modelRouter,
           DatabaseExecutor &executor,
-          IAiGenerationEventSink &eventSink)
+          IAiGenerationEventSink &eventSink,
+          AiChatServiceConfig serviceConfig)
         : chat(&chatService), users(&userRepository),
           conversations(&conversationRepository), models(&modelRouter),
-          databaseExecutor(&executor), events(&eventSink)
+          databaseExecutor(&executor), events(&eventSink),
+          config(std::move(serviceConfig))
     {
     }
 
@@ -57,10 +63,13 @@ struct AiChatService::State final
     ModelRouter *models;
     DatabaseExecutor *databaseExecutor;
     IAiGenerationEventSink *events;
+    AiChatServiceConfig config;
 
     std::mutex mutex;
-    std::condition_variable drained;
+    std::condition_variable changed;
     std::unordered_map<std::string, ActiveGeneration> active;
+    AiChatMetricsSnapshot metrics;
+    std::thread watchdog;
     bool stopping = false;
 };
 
@@ -101,9 +110,67 @@ void removeAndPublish(const std::shared_ptr<AiChatService::State> &state,
         event.error = std::move(error);
         event.message = std::move(message);
         state->active.erase(found);
+        if (success)
+            ++state->metrics.succeeded;
+        else if (cancelled)
+            ++state->metrics.cancelled;
+        else
+            ++state->metrics.failed;
     }
-    state->drained.notify_all();
+    state->changed.notify_all();
     publishCompleted(state, std::move(event));
+}
+
+void watchdogLoop(const std::shared_ptr<AiChatService::State> &state) noexcept
+{
+    std::unique_lock lock(state->mutex);
+    while (!state->stopping)
+    {
+        auto nearest = std::chrono::steady_clock::time_point::max();
+        for (const auto &[_, generation] : state->active)
+            if (!generation.completionStarted)
+                nearest = std::min(nearest, generation.deadline);
+
+        if (nearest == std::chrono::steady_clock::time_point::max())
+        {
+            state->changed.wait(lock);
+            continue;
+        }
+        if (state->changed.wait_until(lock, nearest) != std::cv_status::timeout)
+            continue;
+
+        const auto now = std::chrono::steady_clock::now();
+        std::vector<CancellationToken> cancellations;
+        std::vector<AiCompletedEvent> events;
+        for (auto current = state->active.begin(); current != state->active.end();)
+        {
+            auto &generation = current->second;
+            if (generation.completionStarted || generation.deadline > now)
+            {
+                ++current;
+                continue;
+            }
+
+            generation.completionStarted = true;
+            cancellations.push_back(generation.cancellation);
+            AiCompletedEvent event;
+            event.recipients = generation.recipients;
+            event.generationId = current->first;
+            event.conversationId = generation.conversation;
+            event.error = "AI generation deadline exceeded";
+            events.push_back(std::move(event));
+            current = state->active.erase(current);
+            ++state->metrics.failed;
+            ++state->metrics.timedOut;
+        }
+
+        lock.unlock();
+        for (const auto &cancellation : cancellations)
+            cancellation.cancel();
+        for (auto &event : events)
+            publishCompleted(state, std::move(event));
+        lock.lock();
+    }
 }
 
 std::vector<PromptMessage> buildPromptWindow(
@@ -156,6 +223,8 @@ void onToken(const std::shared_ptr<AiChatService::State> &state,
     if (cancelForLimit)
     {
         cancellation.cancel();
+        removeAndPublish(state, generationId, false, false,
+                         "AI response exceeds the message size limit");
         return;
     }
     if (event.text.empty())
@@ -339,10 +408,18 @@ AiChatService::AiChatService(ChatService &chat,
                              IConversationRepository &conversations,
                              ModelRouter &models,
                              DatabaseExecutor &databaseExecutor,
-                             IAiGenerationEventSink &events)
+                             IAiGenerationEventSink &events,
+                             AiChatServiceConfig config)
     : state_(std::make_shared<State>(chat, users, conversations, models,
-                                     databaseExecutor, events))
+                                     databaseExecutor, events,
+                                     std::move(config)))
 {
+    if (state_->config.maxActiveGenerations == 0 ||
+        state_->config.maxActivePerUser == 0 ||
+        state_->config.maxActivePerAiAccount == 0 ||
+        state_->config.generationTimeout <= std::chrono::milliseconds::zero())
+        throw std::invalid_argument("invalid AI chat service configuration");
+    state_->watchdog = std::thread([state = state_] { watchdogLoop(state); });
 }
 
 AiChatService::~AiChatService()
@@ -366,16 +443,36 @@ void AiChatService::generate(AiChatRequest request)
         if (state->stopping)
             throw ApplicationError(ErrorCode::Unavailable,
                                    "AI chat service is stopping");
+        const auto userActive = static_cast<std::size_t>(std::count_if(
+            state->active.begin(), state->active.end(),
+            [&](const auto &entry)
+            { return entry.second.requester == request.requester; }));
+        const auto aiActive = static_cast<std::size_t>(std::count_if(
+            state->active.begin(), state->active.end(),
+            [&](const auto &entry)
+            { return entry.second.aiUser == request.aiUser; }));
+        if (state->active.size() >= state->config.maxActiveGenerations ||
+            userActive >= state->config.maxActivePerUser ||
+            aiActive >= state->config.maxActivePerAiAccount)
+        {
+            ++state->metrics.quotaRejected;
+            throw ApplicationError(ErrorCode::RateLimited,
+                                   "too many active AI generations");
+        }
         State::ActiveGeneration active;
         active.requester = request.requester;
         active.aiUser = request.aiUser;
         active.conversation = request.conversation;
         // 深层异步校验失败时也必须能通知发起者；校验通过后再扩展为会话成员快照。
         active.recipients.push_back(request.requester);
+        active.deadline = std::chrono::steady_clock::now() +
+                          state->config.generationTimeout;
         if (!state->active.emplace(request.requestId, std::move(active)).second)
             throw ApplicationError(ErrorCode::Conflict,
                                    "generation id is already active");
+        ++state->metrics.accepted;
     }
+    state->changed.notify_all();
 
     const auto generationId = request.requestId;
     if (!state->databaseExecutor->submit(
@@ -399,12 +496,27 @@ bool AiChatService::cancel(UserId requester,
         std::lock_guard lock(state_->mutex);
         const auto found = state_->active.find(generationId);
         if (found == state_->active.end() ||
-            found->second.requester != requester)
+            found->second.requester != requester ||
+            found->second.completionStarted)
             return false;
         cancellation = found->second.cancellation;
     }
     cancellation.cancel();
+    removeAndPublish(state_, generationId, false, true,
+                     "generation cancelled");
     return true;
+}
+
+AiChatMetricsSnapshot AiChatService::snapshot() const noexcept
+{
+    AiChatMetricsSnapshot result;
+    const auto state = state_;
+    if (!state)
+        return result;
+    std::lock_guard lock(state->mutex);
+    result = state->metrics;
+    result.active = state->active.size();
+    return result;
 }
 
 void AiChatService::shutdown() noexcept
@@ -413,18 +525,48 @@ void AiChatService::shutdown() noexcept
     if (!state)
         return;
     std::vector<CancellationToken> cancellations;
+    std::vector<AiCompletedEvent> events;
     {
         std::lock_guard lock(state->mutex);
         state->stopping = true;
         cancellations.reserve(state->active.size());
-        for (const auto &[_, generation] : state->active)
+        events.reserve(state->active.size());
+        for (auto current = state->active.begin();
+             current != state->active.end();)
+        {
+            const auto &id = current->first;
+            const auto &generation = current->second;
+            // 模型完成后，AI 回复可能已经进入数据库执行器。这个阶段取消输给完成，
+            // shutdown 在下面等待它持久化，避免先通知 cancelled 后又写入成功消息。
+            if (generation.completionStarted)
+            {
+                ++current;
+                continue;
+            }
             cancellations.push_back(generation.cancellation);
+            AiCompletedEvent event;
+            event.recipients = generation.recipients;
+            event.generationId = id;
+            event.conversationId = generation.conversation;
+            event.cancelled = true;
+            event.error = "AI chat service is stopping";
+            events.push_back(std::move(event));
+            current = state->active.erase(current);
+            ++state->metrics.cancelled;
+        }
     }
+    state->changed.notify_all();
     for (const auto &cancellation : cancellations)
         cancellation.cancel();
+    for (auto &event : events)
+        publishCompleted(state, std::move(event));
+    if (state->watchdog.joinable())
+        state->watchdog.join();
 
+    // 这里只等待已经赢得完成竞态、正在落库的请求；仍在模型端的请求已在上面
+    // 强制摘除，所以一个失联 Provider 不会再拖住关机。
     std::unique_lock lock(state->mutex);
-    state->drained.wait(lock, [&] { return state->active.empty(); });
+    state->changed.wait(lock, [&] { return state->active.empty(); });
 }
 
 } // namespace webserver::phase11

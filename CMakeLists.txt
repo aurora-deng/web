@@ -164,6 +164,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         server/phase11/business/AiChatService/AiChatService.cpp
         server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp
         server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp
+        server/phase11/ai/ResilientModelProvider/ResilientModelProvider.cpp
         server/phase11/training/TrainingDataService/TrainingDataService.cpp
         server/phase11/transport/FlatJson/FlatJson.cpp
         server/phase11/storage/files/LocalFileStorage/LocalFileStorage.cpp)
@@ -538,6 +539,14 @@ if(BUILD_TESTING)
             webserver_phase11_http)
         add_test(NAME phase11_ai_chat_tests COMMAND phase11_ai_chat_tests)
         set_tests_properties(phase11_ai_chat_tests PROPERTIES TIMEOUT 30)
+
+        add_executable(phase11_ai_resilience_tests
+            tests/phase11/unit/ai_resilience.cpp)
+        target_link_libraries(phase11_ai_resilience_tests PRIVATE
+            webserver_phase11)
+        add_test(NAME phase11_ai_resilience_tests
+            COMMAND phase11_ai_resilience_tests)
+        set_tests_properties(phase11_ai_resilience_tests PROPERTIES TIMEOUT 30)
 
         # 文件正文在独立目录、元数据在 Repository。这个契约测试同时覆盖分片游标、
         # SHA-256 封存、附件权限、头像公开读取与伪装文件拒绝。

@@ -33,6 +33,7 @@
 #include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
 #include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
+#include "server/phase11/ai/ResilientModelProvider/ResilientModelProvider.h"
 #ifdef WEBSERVER_HAS_CURL_CLIENT
 #include "server/phase11/ai/OllamaModelProvider/OllamaModelProvider.h"
 #endif
@@ -325,6 +326,8 @@ int main()
         std::unique_ptr<webserver::phase11::ModelRouter> phase11ModelRouter;
         std::vector<std::shared_ptr<webserver::phase11::IModelProvider>>
             phase11ModelProviders;
+        std::vector<std::shared_ptr<webserver::phase11::ResilientModelProvider>>
+            phase11ResilientProviders;
         std::unique_ptr<webserver::phase11::AiChatService> phase11AiChat;
         std::unique_ptr<webserver::phase11::transport::Phase11Realtime>
             phase11Realtime;
@@ -443,6 +446,16 @@ int main()
                     server.sseManager());
             phase11ModelRouter =
                 std::make_unique<webserver::phase11::ModelRouter>(*phase11Store);
+            webserver::phase11::ModelProviderResilienceConfig
+                modelResilienceConfig;
+            modelResilienceConfig.failureThreshold = boundedEnvironmentSize(
+                "WEB_PHASE11_AI_CIRCUIT_FAILURES", 3, 1, 100);
+            modelResilienceConfig.circuitOpenFor = std::chrono::milliseconds(
+                boundedEnvironmentSize("WEB_PHASE11_AI_CIRCUIT_OPEN_MS",
+                                       30'000, 100, 3'600'000));
+            modelResilienceConfig.attemptTimeout = std::chrono::milliseconds(
+                boundedEnvironmentSize("WEB_PHASE11_AI_PROVIDER_TIMEOUT_MS",
+                                       300'000, 100, 3'600'000));
 #ifdef WEBSERVER_HAS_CURL_CLIENT
             if (const char *ollamaUrl = std::getenv("WEB_PHASE11_OLLAMA_URL");
                 ollamaUrl && *ollamaUrl)
@@ -459,12 +472,31 @@ int main()
                 ollamaConfig.requestTimeout = std::chrono::milliseconds(
                     boundedEnvironmentSize("WEB_PHASE11_OLLAMA_REQUEST_MS",
                                            120'000, 100, 3'600'000));
-                auto provider = std::make_shared<
+                auto primary = std::make_shared<
                     webserver::phase11::OllamaModelProvider>(
-                        std::move(ollamaConfig));
+                        ollamaConfig);
+                std::shared_ptr<webserver::phase11::IModelProvider> fallback;
+                if (const char *fallbackUrl =
+                        std::getenv("WEB_PHASE11_OLLAMA_FALLBACK_URL");
+                    fallbackUrl && *fallbackUrl)
+                {
+                    auto fallbackConfig = ollamaConfig;
+                    fallbackConfig.baseUrl = fallbackUrl;
+                    fallback = std::make_shared<
+                        webserver::phase11::OllamaModelProvider>(
+                            std::move(fallbackConfig));
+                }
+                auto provider = std::make_shared<
+                    webserver::phase11::ResilientModelProvider>(
+                        std::move(primary), std::move(fallback),
+                        modelResilienceConfig);
                 phase11ModelRouter->registerProvider(provider);
+                phase11ResilientProviders.push_back(provider);
                 phase11ModelProviders.push_back(std::move(provider));
-                std::cout << "Phase 11 Ollama provider enabled\n";
+                std::cout << "Phase 11 Ollama provider enabled"
+                          << (std::getenv("WEB_PHASE11_OLLAMA_FALLBACK_URL")
+                                  ? " with fallback endpoint\n"
+                                  : "\n");
             }
 #else
             if (const char *ollamaUrl = std::getenv("WEB_PHASE11_OLLAMA_URL");
@@ -490,10 +522,14 @@ int main()
                 onnxConfig.maxPromptBytes = boundedEnvironmentSize(
                     "WEB_PHASE11_ONNX_PROMPT_BYTES", 1024 * 1024,
                     1024, 16 * 1024 * 1024);
-                auto provider = std::make_shared<
+                auto primary = std::make_shared<
                     webserver::phase11::InProcessOnnxModelProvider>(
                         std::move(onnxConfig));
+                auto provider = std::make_shared<
+                    webserver::phase11::ResilientModelProvider>(
+                        std::move(primary), nullptr, modelResilienceConfig);
                 phase11ModelRouter->registerProvider(provider);
+                phase11ResilientProviders.push_back(provider);
                 phase11ModelProviders.push_back(std::move(provider));
                 std::cout << "Phase 11 in-process ONNX provider enabled\n";
             }
@@ -541,10 +577,14 @@ int main()
                 grpcOnnxConfig.validationTimeout = std::chrono::milliseconds(
                     boundedEnvironmentSize("WEB_PHASE11_ONNX_GRPC_VALIDATE_MS",
                                            120'000, 100, 3'600'000));
-                auto provider = std::make_shared<
+                auto primary = std::make_shared<
                     webserver::phase11::GrpcOnnxModelProvider>(
-                    std::move(grpcOnnxConfig));
+                        std::move(grpcOnnxConfig));
+                auto provider = std::make_shared<
+                    webserver::phase11::ResilientModelProvider>(
+                        std::move(primary), nullptr, modelResilienceConfig);
                 phase11ModelRouter->registerProvider(provider);
+                phase11ResilientProviders.push_back(provider);
                 phase11ModelProviders.push_back(std::move(provider));
                 std::cout << "Phase 11 remote ONNX provider enabled\n";
             }
@@ -555,10 +595,20 @@ int main()
                 throw std::invalid_argument(
                     "WEB_PHASE11_ONNX_GRPC_TARGET requires gRPC and ONNX GenAI");
 #endif
+            webserver::phase11::AiChatServiceConfig aiChatConfig;
+            aiChatConfig.maxActiveGenerations = boundedEnvironmentSize(
+                "WEB_PHASE11_AI_MAX_ACTIVE", 64, 1, 65'536);
+            aiChatConfig.maxActivePerUser = boundedEnvironmentSize(
+                "WEB_PHASE11_AI_MAX_PER_USER", 2, 1, 1024);
+            aiChatConfig.maxActivePerAiAccount = boundedEnvironmentSize(
+                "WEB_PHASE11_AI_MAX_PER_ACCOUNT", 16, 1, 65'536);
+            aiChatConfig.generationTimeout = std::chrono::milliseconds(
+                boundedEnvironmentSize("WEB_PHASE11_AI_DEADLINE_MS",
+                                       330'000, 100, 3'600'000));
             phase11AiChat = std::make_unique<webserver::phase11::AiChatService>(
                 *phase11Chat, *phase11Store, *phase11Store,
                 *phase11ModelRouter, *phase11DatabaseExecutor,
-                *phase11AiEvents);
+                *phase11AiEvents, aiChatConfig);
             phase11OutboxSink = std::make_unique<
                 webserver::phase11::transport::Phase11RealtimeOutboxSink>(
                     *phase11Store, *phase11Store, *phase11Store,
@@ -595,12 +645,30 @@ int main()
             phase11MetricsText = [store = phase11Store.get(),
                                   executor = phase11DatabaseExecutor.get(),
                                   fileExecutor = phase11FileExecutor.get(),
-                                  pump = phase11OutboxPump.get()]
+                                  pump = phase11OutboxPump.get(),
+                                  ai = phase11AiChat.get(),
+                                  resilient = phase11ResilientProviders]
             {
                 const auto pool = store->poolSnapshot();
                 const auto queue = executor->snapshot();
                 const auto files = fileExecutor->snapshot();
                 const auto outbox = pump->snapshot();
+                const auto aiChat = ai->snapshot();
+                webserver::phase11::ModelProviderResilienceSnapshot aiProviders;
+                for (const auto &provider : resilient)
+                {
+                    const auto current = provider->snapshot();
+                    aiProviders.requests += current.requests;
+                    aiProviders.primarySuccesses += current.primarySuccesses;
+                    aiProviders.primaryFailures += current.primaryFailures;
+                    aiProviders.fallbackAttempts += current.fallbackAttempts;
+                    aiProviders.fallbackSuccesses += current.fallbackSuccesses;
+                    aiProviders.fallbackFailures += current.fallbackFailures;
+                    aiProviders.circuitOpened += current.circuitOpened;
+                    aiProviders.circuitRejected += current.circuitRejected;
+                    aiProviders.timedOut += current.timedOut;
+                    aiProviders.active += current.active;
+                }
                 std::ostringstream text;
                 text << "# TYPE webserver_phase11_db_executor_submitted_total counter\n"
                      << "webserver_phase11_db_executor_submitted_total " << queue.submitted << '\n'
@@ -645,7 +713,35 @@ int main()
                      << "webserver_phase11_outbox_batch_high_watermark "
                      << outbox.batchHighWatermark << '\n'
                      << "webserver_phase11_outbox_oldest_attempt_age_microseconds "
-                     << outbox.oldestAttemptAgeMicroseconds << '\n';
+                     << outbox.oldestAttemptAgeMicroseconds << '\n'
+                     << "# TYPE webserver_phase11_ai_requests_total counter\n"
+                     << "webserver_phase11_ai_accepted_total " << aiChat.accepted << '\n'
+                     << "webserver_phase11_ai_quota_rejected_total "
+                     << aiChat.quotaRejected << '\n'
+                     << "webserver_phase11_ai_succeeded_total " << aiChat.succeeded << '\n'
+                     << "webserver_phase11_ai_failed_total " << aiChat.failed << '\n'
+                     << "webserver_phase11_ai_cancelled_total " << aiChat.cancelled << '\n'
+                     << "webserver_phase11_ai_timed_out_total " << aiChat.timedOut << '\n'
+                     << "# TYPE webserver_phase11_ai_active gauge\n"
+                     << "webserver_phase11_ai_active " << aiChat.active << '\n'
+                     << "webserver_phase11_ai_provider_requests_total "
+                     << aiProviders.requests << '\n'
+                     << "webserver_phase11_ai_provider_primary_failures_total "
+                     << aiProviders.primaryFailures << '\n'
+                     << "webserver_phase11_ai_provider_fallback_attempts_total "
+                     << aiProviders.fallbackAttempts << '\n'
+                     << "webserver_phase11_ai_provider_fallback_successes_total "
+                     << aiProviders.fallbackSuccesses << '\n'
+                     << "webserver_phase11_ai_provider_fallback_failures_total "
+                     << aiProviders.fallbackFailures << '\n'
+                     << "webserver_phase11_ai_provider_circuit_opened_total "
+                     << aiProviders.circuitOpened << '\n'
+                     << "webserver_phase11_ai_provider_circuit_rejected_total "
+                     << aiProviders.circuitRejected << '\n'
+                     << "webserver_phase11_ai_provider_timed_out_total "
+                     << aiProviders.timedOut << '\n'
+                     << "webserver_phase11_ai_provider_active "
+                     << aiProviders.active << '\n';
                 return text.str();
             };
             // Readiness is a dependency check, not only a listening-socket check.
