@@ -163,6 +163,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         server/phase11/business/FileService/FileService.cpp
         server/phase11/business/AiChatService/AiChatService.cpp
         server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp
+        server/phase11/ai/ModelEvaluationService/ModelEvaluationService.cpp
         server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp
         server/phase11/ai/ResilientModelProvider/ResilientModelProvider.cpp
         server/phase11/training/TrainingDataService/TrainingDataService.cpp

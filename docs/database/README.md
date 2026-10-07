@@ -283,6 +283,22 @@ published_at 标记完成
 和完成时间、终态以及成功回复消息。它不复制 Prompt 或输出正文。`revision` 阻止乱序异步任务用旧快照
 覆盖新终态。完整设计见 [Phase 19](../architecture/phase19.md)。
 
+### `model_evaluation_suites` 与 `model_evaluation_cases`：固定评测试卷
+
+Suite 通过 `name + version` 标识不可变评测版本，并保存内容 `checksum`；Case 保存题目、期望答案、
+权重和是否必答。二者在一个事务中创建，避免留下只有部分题目的评测集；同一 Suite 内题目名称唯一。
+
+### `model_evaluation_runs` 与 `model_evaluation_case_results`：版本化成绩
+
+每个 Run 固定绑定一个 `model_version_id`。单题结果以 `(run_id, case_id)` 为主键，保存分数、通过状态、
+输出 SHA-256 和耗时。总通过数与加权分由业务层根据完整答题卡重新计算，客户端不能直接伪造汇总成绩。
+
+### `model_activation_policies`：模型节点及格线
+
+每个节点最多一条策略，指定评测集、最低通过率、最低加权分和成绩有效期。模型启用读取同版本最新的
+completed Run；缺少成绩、必答题失败、不达标或过期都会拒绝激活。完整设计见
+[Phase 20](../architecture/phase20.md)。
+
 ## 7. 授权训练数据
 
 ### `training_candidates`：训练候选样本

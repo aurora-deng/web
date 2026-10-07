@@ -24,6 +24,7 @@ class PostgresStore final : public IDatabase,
                             public IOutboxRepository,
                             public IModelRepository,
                             public IAiGenerationAuditRepository,
+                            public IModelEvaluationRepository,
                             public ITrainingRepository
 {
 public:
@@ -149,6 +150,27 @@ public:
     bool upsertGenerationAudit(AiGenerationAudit audit) override;
     std::optional<AiGenerationAudit> findGenerationAudit(
         std::string_view generationId) const override;
+
+    ModelEvaluationSuite createEvaluationSuite(
+        ModelEvaluationSuite suite,
+        std::vector<ModelEvaluationCase> cases) override;
+    std::optional<ModelEvaluationSuite> findEvaluationSuite(
+        ModelEvaluationSuiteId id) const override;
+    std::vector<ModelEvaluationCase> evaluationCases(
+        ModelEvaluationSuiteId suite) const override;
+    ModelEvaluationRun createEvaluationRun(ModelEvaluationRun run) override;
+    std::optional<ModelEvaluationRun> findEvaluationRun(
+        ModelEvaluationRunId id) const override;
+    bool appendEvaluationCaseResult(
+        ModelEvaluationCaseResult result) override;
+    std::vector<ModelEvaluationCaseResult> evaluationCaseResults(
+        ModelEvaluationRunId run) const override;
+    bool finishEvaluationRun(ModelEvaluationRun run) override;
+    bool upsertActivationPolicy(ModelActivationPolicy policy) override;
+    std::optional<ModelActivationPolicy> findActivationPolicy(
+        ModelNodeId node) const override;
+    std::optional<ModelEvaluationRun> latestCompletedEvaluationRun(
+        ModelVersionId version, ModelEvaluationSuiteId suite) const override;
 
     TrainingCandidate createTrainingCandidate(TrainingCandidate candidate) override;
     std::optional<TrainingCandidate> findTrainingCandidate(

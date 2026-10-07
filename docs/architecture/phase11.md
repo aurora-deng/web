@@ -1265,3 +1265,11 @@ Phase 19 新增 `model_activation_audits` 和 `ai_generation_audits`。模型成
 成功/失败/取消/超时均保留 revision 快照，Prompt 与输出只保存 SHA-256 和长度，不复制聊天正文。
 Prometheus 同时增加首 Token 和总耗时直方图。完整流程、字段、代码索引、限制与三套 95/95 验证见
 [Phase 19：模型变更审计与 AI 生成追踪](phase19.md)。
+
+## 19. Phase 20 模型评测与激活质量门禁（2026-10-07）
+
+Phase 20 新增不可混淆的评测集/题目、绑定具体模型版本的评测 Run、逐题结果、服务端加权汇总和节点级
+激活策略。`ModelEvaluationService` 实现 `IModelQualityGate`；新版本激活前必须拥有同版本、同评测集、
+未过期且达到通过率/加权分的 completed Run。必答题失败、成绩缺失或过期都会拒绝切换并留下 Phase 19
+失败审计，旧 Active 版本保持不变；紧急回滚仍保留恢复通道。完整流程、表结构、代码索引和三套 95/95
+验证见 [Phase 20：模型评测集、结果对比与激活质量门禁](phase20.md)。

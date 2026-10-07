@@ -1,4 +1,9 @@
-# web-test 2.0 · Phase 19（本地开发分支）
+# web-test 2.0 · Phase 20（本地开发分支）
+
+> Phase 20 新增版本化模型评测集、逐题结果、服务端加权汇总和节点级激活质量门禁。候选版本必须拥有
+> 同版本、同评测集、未过期且达到通过率/加权分的 completed Run，才会继续 Runtime 制品试装与原子切换；
+> 失败原因进入 Phase 19 审计，紧急回滚保留恢复通道。详见
+> [Phase 20：模型评测集、结果对比与激活质量门禁](docs/architecture/phase20.md)。
 
 > Phase 19 为模型启用/回滚增加原子审计，并为每次 AI 生成保存请求身份、Prompt/输出 SHA-256、
 > 模型节点/版本/Adapter、首 Token、终态和回复消息关联。异步快照使用 revision 防止旧状态覆盖终态，

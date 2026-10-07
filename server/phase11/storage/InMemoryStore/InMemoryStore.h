@@ -31,6 +31,7 @@ class InMemoryStore final : public IDatabase,
                             public IOutboxRepository,
                             public IModelRepository,
                             public IAiGenerationAuditRepository,
+                            public IModelEvaluationRepository,
                             public ITrainingRepository
 {
 public:
@@ -151,6 +152,27 @@ public:
     std::optional<AiGenerationAudit> findGenerationAudit(
         std::string_view generationId) const override;
 
+    ModelEvaluationSuite createEvaluationSuite(
+        ModelEvaluationSuite suite,
+        std::vector<ModelEvaluationCase> cases) override;
+    std::optional<ModelEvaluationSuite> findEvaluationSuite(
+        ModelEvaluationSuiteId id) const override;
+    std::vector<ModelEvaluationCase> evaluationCases(
+        ModelEvaluationSuiteId suite) const override;
+    ModelEvaluationRun createEvaluationRun(ModelEvaluationRun run) override;
+    std::optional<ModelEvaluationRun> findEvaluationRun(
+        ModelEvaluationRunId id) const override;
+    bool appendEvaluationCaseResult(
+        ModelEvaluationCaseResult result) override;
+    std::vector<ModelEvaluationCaseResult> evaluationCaseResults(
+        ModelEvaluationRunId run) const override;
+    bool finishEvaluationRun(ModelEvaluationRun run) override;
+    bool upsertActivationPolicy(ModelActivationPolicy policy) override;
+    std::optional<ModelActivationPolicy> findActivationPolicy(
+        ModelNodeId node) const override;
+    std::optional<ModelEvaluationRun> latestCompletedEvaluationRun(
+        ModelVersionId version, ModelEvaluationSuiteId suite) const override;
+
     TrainingCandidate createTrainingCandidate(TrainingCandidate candidate) override;
     std::optional<TrainingCandidate> findTrainingCandidate(
         TrainingCandidateId id) const override;
@@ -174,6 +196,9 @@ private:
         ModelVersionId nextModelVersionId = 1;
         ModelEdgeId nextModelEdgeId = 1;
         ModelActivationAuditId nextModelActivationAuditId = 1;
+        ModelEvaluationSuiteId nextEvaluationSuiteId = 1;
+        ModelEvaluationCaseId nextEvaluationCaseId = 1;
+        ModelEvaluationRunId nextEvaluationRunId = 1;
         TrainingCandidateId nextTrainingCandidateId = 1;
         DatasetVersionId nextDatasetVersionId = 1;
 
@@ -201,6 +226,16 @@ private:
         std::unordered_map<ModelActivationAuditId, ModelActivationAudit>
             modelActivationAudits;
         std::unordered_map<std::string, AiGenerationAudit> generationAudits;
+        std::unordered_map<ModelEvaluationSuiteId, ModelEvaluationSuite>
+            evaluationSuites;
+        std::unordered_map<ModelEvaluationCaseId, ModelEvaluationCase>
+            evaluationCases;
+        std::unordered_map<ModelEvaluationRunId, ModelEvaluationRun>
+            evaluationRuns;
+        std::map<std::pair<ModelEvaluationRunId, ModelEvaluationCaseId>,
+                 ModelEvaluationCaseResult> evaluationResults;
+        std::unordered_map<ModelNodeId, ModelActivationPolicy>
+            activationPolicies;
         std::unordered_map<TrainingCandidateId, TrainingCandidate> trainingCandidates;
         std::unordered_map<DatasetVersionId, DatasetVersion> datasets;
     };

@@ -19,6 +19,9 @@ using ModelNodeId = std::uint64_t;
 using ModelVersionId = std::uint64_t;
 using ModelEdgeId = std::uint64_t;
 using ModelActivationAuditId = std::uint64_t;
+using ModelEvaluationSuiteId = std::uint64_t;
+using ModelEvaluationCaseId = std::uint64_t;
+using ModelEvaluationRunId = std::uint64_t;
 using TrainingCandidateId = std::uint64_t;
 using DatasetVersionId = std::uint64_t;
 using TimePoint = std::chrono::system_clock::time_point;
@@ -372,6 +375,84 @@ struct AiGenerationAudit
     std::optional<MessageId> responseMessageId;
     // 异步数据库任务可能乱序完成；revision 保证旧快照不能覆盖新状态。
     std::uint64_t revision = 1;
+};
+
+/**
+ * 评测集像模型上岗前使用的统一试卷。用例正文和权重属于版本化的评测资产，
+ * 运行结果只引用用例，避免每次评测都复制一份题目。
+ */
+struct ModelEvaluationSuite
+{
+    ModelEvaluationSuiteId id = 0;
+    std::string name;
+    std::string version;
+    std::string checksum;
+    std::string description;
+    TimePoint createdAt{};
+};
+
+struct ModelEvaluationCase
+{
+    ModelEvaluationCaseId id = 0;
+    ModelEvaluationSuiteId suiteId = 0;
+    std::string name;
+    std::string prompt;
+    std::string expectedAnswer;
+    double weight = 1.0;
+    bool required = true;
+};
+
+enum class ModelEvaluationRunStatus
+{
+    Running,
+    Completed,
+    Aborted
+};
+
+/** 一次评测运行固定绑定一个模型版本，汇总值由服务端从逐题结果重新计算。 */
+struct ModelEvaluationRun
+{
+    ModelEvaluationRunId id = 0;
+    ModelEvaluationSuiteId suiteId = 0;
+    ModelVersionId modelVersionId = 0;
+    ModelEvaluationRunStatus status = ModelEvaluationRunStatus::Running;
+    std::uint64_t totalCases = 0;
+    std::uint64_t evaluatedCases = 0;
+    std::uint64_t passedCases = 0;
+    double weightedScore = 0.0;
+    bool requiredCasesPassed = false;
+    std::string detail;
+    TimePoint startedAt{};
+    std::optional<TimePoint> completedAt;
+};
+
+struct ModelEvaluationCaseResult
+{
+    ModelEvaluationRunId runId = 0;
+    ModelEvaluationCaseId caseId = 0;
+    double score = 0.0;
+    bool passed = false;
+    std::string outputSha256;
+    std::uint64_t latencyMs = 0;
+    std::string detail;
+};
+
+/** 每个模型节点可以绑定一张“及格线”，只约束新版本激活，不阻断紧急回滚。 */
+struct ModelActivationPolicy
+{
+    ModelNodeId nodeId = 0;
+    ModelEvaluationSuiteId suiteId = 0;
+    double minimumPassRate = 1.0;
+    double minimumWeightedScore = 0.0;
+    std::uint64_t maxRunAgeSeconds = 86'400;
+    TimePoint updatedAt{};
+};
+
+struct ModelQualityGateDecision
+{
+    bool allowed = false;
+    std::optional<ModelEvaluationRunId> runId;
+    std::string detail;
 };
 
 enum class TrainingCandidateState

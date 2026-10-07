@@ -14,7 +14,11 @@ namespace webserver::phase11
 class ModelRegistryService
 {
 public:
-    explicit ModelRegistryService(IModelRepository &models) : models_(models) {}
+    explicit ModelRegistryService(IModelRepository &models,
+                                  IModelQualityGate *qualityGate = nullptr)
+        : models_(models), qualityGate_(qualityGate)
+    {
+    }
 
     ModelNode createNode(std::string name, ModelNodeKind kind, TimePoint now);
     ModelVersion registerVersion(ModelNodeId node, std::string runtime,
@@ -41,6 +45,7 @@ private:
                              bool rollbackOnly, std::string actor);
 
     IModelRepository &models_;
+    IModelQualityGate *qualityGate_ = nullptr;
     mutable std::mutex validatorsMutex_;
     std::unordered_map<std::string, std::shared_ptr<IModelArtifactValidator>>
         validators_;

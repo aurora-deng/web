@@ -1,4 +1,5 @@
 #include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
+#include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
 #include "server/phase11/business/AuthService/AuthService.h"
 #include "server/phase11/business/ChatService/ChatService.h"
 #include "server/phase11/business/OutboxDispatcher/OutboxDispatcher.h"
@@ -12,6 +13,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <condition_variable>
 #include <cstdlib>
 #include <iomanip>
@@ -200,7 +202,8 @@ struct Fixture
         : auth(store, store, credentials, rateLimiter),
           social(store, store, store, store),
           chat(store, store, store, store, store, store, store),
-          models(store), router(store), training(store, store, store, store)
+          evaluations(store, store), models(store, &evaluations),
+          router(store), training(store, store, store, store)
     {
     }
 
@@ -210,6 +213,7 @@ struct Fixture
     AuthService auth;
     SocialService social;
     ChatService chat;
+    ModelEvaluationService evaluations;
     ModelRegistryService models;
     ModelRouter router;
     TrainingDataService training;
@@ -639,6 +643,81 @@ User verifyModelFlow(Fixture &fixture, TimePoint now)
     return ai;
 }
 
+void verifyModelEvaluationGate(Fixture &fixture, TimePoint now)
+{
+    const auto gateNow = std::chrono::system_clock::now() -
+                         std::chrono::seconds(10);
+    const auto node = fixture.models.createNode(
+        "quality-gated-model", ModelNodeKind::Specialist, now);
+    const auto provider = std::make_shared<ScriptedProvider>();
+    fixture.models.registerValidator(provider);
+    const auto version = fixture.models.registerVersion(
+        node.id, "onnx-inprocess", "models/quality-v1", {},
+        "sha256:quality-v1", now);
+    const auto suite = fixture.evaluations.createSuite(
+        "phase20-quality-gate", "v1", std::string(64, 'e'),
+        "activation regression suite",
+        {{0, 0, "correctness", "2+2", "4", 2.0, true},
+         {0, 0, "style", "answer briefly", "brief", 1.0, false}},
+        gateNow);
+    fixture.evaluations.configurePolicy(
+        node.id, suite.id, 1.0, 0.85, 3'600, gateNow);
+
+    // 配置门禁后，没有评测成绩的新版本不能上岗；失败尝试仍进入 Phase 19 审计。
+    expectError(ErrorCode::Conflict, [&] {
+        fixture.models.activate(node.id, version.id, "quality-admin");
+    });
+    CHECK(!fixture.store.findModelNode(node.id)->activeVersionId);
+
+    const auto cases = fixture.store.evaluationCases(suite.id);
+    CHECK(cases.size() == 2);
+    auto run = fixture.evaluations.startRun(version.id, suite.id, gateNow);
+    fixture.evaluations.recordResult(
+        run.id, cases[0].id, 1.0, true, std::string(64, 'a'), 12);
+    expectError(ErrorCode::Conflict, [&] {
+        fixture.evaluations.recordResult(
+            run.id, cases[0].id, 1.0, true, std::string(64, 'a'), 12);
+    });
+    fixture.evaluations.recordResult(
+        run.id, cases[1].id, 0.8, true, std::string(64, 'b'), 8);
+    run = fixture.evaluations.completeRun(
+        run.id, gateNow + std::chrono::seconds(5));
+    CHECK(run.status == ModelEvaluationRunStatus::Completed &&
+          run.requiredCasesPassed && run.passedCases == 2 &&
+          std::abs(run.weightedScore - (2.8 / 3.0)) < 1e-9);
+    const auto decision = fixture.evaluations.assess(
+        node.id, version.id, gateNow + std::chrono::seconds(6));
+    CHECK(decision.allowed && decision.runId == run.id);
+    fixture.models.activate(node.id, version.id, "quality-admin");
+
+    const auto rejected = fixture.models.registerVersion(
+        node.id, "onnx-inprocess", "models/quality-v2", {},
+        "sha256:quality-v2", gateNow);
+    auto failedRun = fixture.evaluations.startRun(
+        rejected.id, suite.id, gateNow);
+    fixture.evaluations.recordResult(
+        failedRun.id, cases[0].id, 0.2, false, std::string(64, 'c'), 10,
+        "wrong answer");
+    fixture.evaluations.recordResult(
+        failedRun.id, cases[1].id, 1.0, true, std::string(64, 'd'), 9);
+    failedRun = fixture.evaluations.completeRun(
+        failedRun.id, gateNow + std::chrono::seconds(8));
+    CHECK(!failedRun.requiredCasesPassed);
+    expectError(ErrorCode::Conflict, [&] {
+        fixture.models.activate(node.id, rejected.id, "quality-admin");
+    });
+    CHECK(fixture.store.findModelNode(node.id)->activeVersionId == version.id);
+
+    const auto stale = fixture.evaluations.assess(
+        node.id, version.id, gateNow + std::chrono::hours(2));
+    CHECK(!stale.allowed && stale.runId == run.id);
+    auto aborted = fixture.evaluations.startRun(
+        rejected.id, suite.id, gateNow);
+    aborted = fixture.evaluations.abortRun(
+        aborted.id, "worker stopped", gateNow + std::chrono::seconds(9));
+    CHECK(aborted.status == ModelEvaluationRunStatus::Aborted);
+}
+
 void verifyTrainingConsent(Fixture &fixture, TimePoint now,
                            const User &owner, const Message &source)
 {
@@ -687,6 +766,7 @@ int main()
     const auto message = verifyChatFlow(fixture, now, alice, bob);
     verifyMessageOutboxAtomicity(fixture, now, alice, bob);
     (void)verifyModelFlow(fixture, now);
+    verifyModelEvaluationGate(fixture, now);
     verifyTrainingConsent(fixture, now, alice, message);
     return 0;
 }

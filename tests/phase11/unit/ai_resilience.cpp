@@ -123,7 +123,9 @@ int main()
     ModelProviderResilienceConfig config;
     config.failureThreshold = 1;
     config.circuitOpenFor = std::chrono::milliseconds(25);
-    config.attemptTimeout = std::chrono::milliseconds(30);
+    // 熔断测试不应同时依赖一个极短的请求超时；Sanitizer 并行运行时，线程可能
+    // 在真正调用同步 Provider 前被抢占。超时行为在下方使用独立配置测试。
+    config.attemptTimeout = std::chrono::milliseconds(500);
     ResilientModelProvider provider(primary, fallback, config);
 
     std::vector<std::string> tokens;
@@ -183,8 +185,10 @@ int main()
     // 一个不回调的主端点由共享看门线程判定超时，然后才安全切到备用端点。
     auto hangingPrimary = std::make_shared<ScriptedProvider>(ProviderMode::Hang);
     auto timeoutFallback = std::make_shared<ScriptedProvider>(ProviderMode::Success);
+    auto timeoutConfig = config;
+    timeoutConfig.attemptTimeout = std::chrono::milliseconds(30);
     ResilientModelProvider timeoutProvider(hangingPrimary, timeoutFallback,
-                                           config);
+                                           timeoutConfig);
     std::atomic_bool timeoutCompleted{false};
     GenerationCompletion timeoutResult;
     timeoutProvider.generate(
@@ -203,7 +207,8 @@ int main()
 
     // 外部取消也由同一个看门线程清理，不要求底层 Provider 配合回调。
     auto cancelledPrimary = std::make_shared<ScriptedProvider>(ProviderMode::Hang);
-    ResilientModelProvider cancelledProvider(cancelledPrimary, nullptr, config);
+    ResilientModelProvider cancelledProvider(cancelledPrimary, nullptr,
+                                             timeoutConfig);
     CancellationToken cancellation;
     std::atomic_bool cancellationCompleted{false};
     GenerationCompletion cancellationResult;

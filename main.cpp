@@ -32,6 +32,7 @@
 #include "server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
 #include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+#include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
 #include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
 #include "server/phase11/ai/ResilientModelProvider/ResilientModelProvider.h"
 #ifdef WEBSERVER_HAS_CURL_CLIENT
@@ -303,6 +304,10 @@ int main()
         std::unique_ptr<webserver::phase11::AuthService> phase11Auth;
         std::unique_ptr<webserver::phase11::SocialService> phase11Social;
         std::unique_ptr<webserver::phase11::ChatService> phase11Chat;
+        std::unique_ptr<webserver::phase11::ModelEvaluationService>
+            phase11ModelEvaluations;
+        std::unique_ptr<webserver::phase11::ModelRegistryService>
+            phase11ModelRegistry;
         std::unique_ptr<webserver::phase11::LocalFileStorage> phase11FileStorage;
         std::unique_ptr<webserver::phase11::FileService> phase11Files;
         std::unique_ptr<webserver::phase11::DatabaseExecutor> phase11DatabaseExecutor;
@@ -399,6 +404,12 @@ int main()
                                                5'000, 10, 60'000))});
             if (!phase11Store->healthy())
                 throw std::runtime_error("Phase 11 PostgreSQL health check failed");
+            phase11ModelEvaluations = std::make_unique<
+                webserver::phase11::ModelEvaluationService>(
+                    *phase11Store, *phase11Store);
+            phase11ModelRegistry = std::make_unique<
+                webserver::phase11::ModelRegistryService>(
+                    *phase11Store, phase11ModelEvaluations.get());
             phase11Credentials =
                 std::make_unique<webserver::phase11::SodiumCredentialCodec>(
                     readPrivateHexKey(phase11KeyFile));
@@ -526,6 +537,7 @@ int main()
                 auto primary = std::make_shared<
                     webserver::phase11::InProcessOnnxModelProvider>(
                         std::move(onnxConfig));
+                phase11ModelRegistry->registerValidator(primary);
                 auto provider = std::make_shared<
                     webserver::phase11::ResilientModelProvider>(
                         std::move(primary), nullptr, modelResilienceConfig);
@@ -581,6 +593,7 @@ int main()
                 auto primary = std::make_shared<
                     webserver::phase11::GrpcOnnxModelProvider>(
                         std::move(grpcOnnxConfig));
+                phase11ModelRegistry->registerValidator(primary);
                 auto provider = std::make_shared<
                     webserver::phase11::ResilientModelProvider>(
                         std::move(primary), nullptr, modelResilienceConfig);

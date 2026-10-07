@@ -1,4 +1,5 @@
 #include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
+#include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
 #include "tests/phase11/unit/RepositoryContract.h"
 
 #if defined(WEBSERVER_HAS_SODIUM)
@@ -40,7 +41,8 @@ void clearTestDatabase(const std::string &connectionString)
 
     PGresult *result = PQexec(
         connection,
-        "TRUNCATE TABLE users, model_nodes, dataset_versions, outbox_events "
+        "TRUNCATE TABLE users, model_nodes, dataset_versions, "
+        "model_evaluation_suites, outbox_events "
         "RESTART IDENTITY CASCADE");
     const bool succeeded = result && PQresultStatus(result) == PGRES_COMMAND_OK;
     const std::string error = succeeded ? std::string{} : PQerrorMessage(connection);
@@ -202,6 +204,44 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
     const auto rootVersion = store.createModelVersion(
         {0, root.id, "ollama", "root-model", {}, "sha256:root",
          ModelVersionState::Candidate, now});
+
+    ModelEvaluationService evaluations(store, store);
+    const auto evaluationSuite = evaluations.createSuite(
+        "postgres-quality-gate", "v1", std::string(64, 'f'),
+        "PostgreSQL evaluation contract",
+        {{0, 0, "required", "prompt-a", "answer-a", 2.0, true},
+         {0, 0, "optional", "prompt-b", "answer-b", 1.0, false}},
+        now);
+    const auto evaluationCases = store.evaluationCases(evaluationSuite.id);
+    const auto persistedSuite = store.findEvaluationSuite(evaluationSuite.id);
+    require(persistedSuite && persistedSuite->version == "v1" &&
+                persistedSuite->checksum == std::string(64, 'f') &&
+                evaluationCases.size() == 2,
+            "evaluation suite cases were not persisted atomically");
+    require(evaluations.configurePolicy(
+                specialist.id, evaluationSuite.id, 1.0, 0.8, 3'600, now)
+                .suiteId == evaluationSuite.id,
+            "evaluation activation policy was not persisted");
+    auto evaluationRun = evaluations.startRun(
+        specialistVersion.id, evaluationSuite.id, now);
+    evaluations.recordResult(evaluationRun.id, evaluationCases[0].id,
+                             1.0, true, std::string(64, 'd'), 11);
+    evaluations.recordResult(evaluationRun.id, evaluationCases[1].id,
+                             0.7, true, std::string(64, 'e'), 13);
+    evaluationRun = evaluations.completeRun(
+        evaluationRun.id, now + std::chrono::seconds(2));
+    require(evaluationRun.status == ModelEvaluationRunStatus::Completed &&
+                evaluationRun.requiredCasesPassed &&
+                store.evaluationCaseResults(evaluationRun.id).size() == 2,
+            "evaluation run summary or case results were not persisted");
+    const auto persistedPolicy = store.findActivationPolicy(specialist.id);
+    const auto latestEvaluation = store.latestCompletedEvaluationRun(
+        specialistVersion.id, evaluationSuite.id);
+    const auto gateDecision = evaluations.assess(
+        specialist.id, specialistVersion.id, now + std::chrono::seconds(3));
+    require(persistedPolicy && latestEvaluation &&
+                latestEvaluation->id == evaluationRun.id && gateDecision.allowed,
+            "latest evaluation run did not satisfy persisted quality gate");
     require(store.activateModelVersion(
                 specialist.id, specialistVersion.id,
                 {0, specialist.id, {}, specialistVersion.id,

@@ -157,6 +157,26 @@ void ModelRegistryService::validateAndActivate(ModelNodeId node,
                                "rollback target must be a retired version");
     }
 
+    // 质量门禁只拦截新版本上岗。紧急 rollback 仍会做制品兼容性校验，但不会因
+    // 历史评测过期而失去恢复最后稳定版本的通道。
+    std::optional<ModelQualityGateDecision> qualityDecision;
+    const auto checkQualityGate = [&]
+    {
+        if (rollbackOnly || !qualityGate_)
+            return;
+        auto decision = qualityGate_->assess(
+            node, version, std::chrono::system_clock::now());
+        if (!decision.allowed)
+        {
+            auto message = std::string("model quality gate rejected activation: ") +
+                           decision.detail;
+            auditFailure(message);
+            throw ApplicationError(ErrorCode::Conflict, std::move(message));
+        }
+        qualityDecision = std::move(decision);
+    };
+    checkQualityGate();
+
     std::shared_ptr<IModelArtifactValidator> validator;
     {
         std::lock_guard lock(validatorsMutex_);
@@ -199,10 +219,19 @@ void ModelRegistryService::validateAndActivate(ModelNodeId node,
         throw ApplicationError(
             ErrorCode::Conflict, std::move(message));
     }
+    // Runtime 试装可能耗时较长；在真正移动 Active 指针前重新读取策略和最新成绩，
+    // 避免试装期间策略收紧或成绩过期后仍沿用旧决定。
+    checkQualityGate();
+    std::string successDetail = rollbackOnly
+                                    ? "model version rolled back"
+                                    : "model version activated";
+    if (qualityDecision && qualityDecision->runId)
+        successDetail += "; evaluation run " +
+                         std::to_string(*qualityDecision->runId);
     ModelActivationAudit audit{
         0, node, modelNode->activeVersionId, version, action,
         ModelActivationOutcome::Succeeded, std::move(actor),
-        rollbackOnly ? "model version rolled back" : "model version activated",
+        std::move(successDetail),
         std::chrono::system_clock::now()};
     if (!models_.activateModelVersion(node, version, std::move(audit)))
         throw ApplicationError(ErrorCode::InvalidArgument,

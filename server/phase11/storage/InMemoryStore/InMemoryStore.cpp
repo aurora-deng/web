@@ -937,6 +937,150 @@ std::optional<AiGenerationAudit> InMemoryStore::findGenerationAudit(
                : std::optional<AiGenerationAudit>{found->second};
 }
 
+ModelEvaluationSuite InMemoryStore::createEvaluationSuite(
+    ModelEvaluationSuite suite, std::vector<ModelEvaluationCase> cases)
+{
+    std::lock_guard lock(mutex_);
+    if (suite.name.empty() || cases.empty())
+        throw std::invalid_argument("invalid evaluation suite");
+    suite.id = state_.nextEvaluationSuiteId++;
+    for (auto &testCase : cases)
+    {
+        testCase.id = state_.nextEvaluationCaseId++;
+        testCase.suiteId = suite.id;
+    }
+    state_.evaluationSuites.emplace(suite.id, suite);
+    for (auto &testCase : cases)
+        state_.evaluationCases.emplace(testCase.id, std::move(testCase));
+    return suite;
+}
+
+std::optional<ModelEvaluationSuite> InMemoryStore::findEvaluationSuite(
+    ModelEvaluationSuiteId id) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.evaluationSuites.find(id);
+    return found == state_.evaluationSuites.end()
+               ? std::nullopt
+               : std::optional<ModelEvaluationSuite>{found->second};
+}
+
+std::vector<ModelEvaluationCase> InMemoryStore::evaluationCases(
+    ModelEvaluationSuiteId suite) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<ModelEvaluationCase> result;
+    for (const auto &[_, testCase] : state_.evaluationCases)
+        if (testCase.suiteId == suite)
+            result.push_back(testCase);
+    std::sort(result.begin(), result.end(), [](const auto &left, const auto &right)
+              { return left.id < right.id; });
+    return result;
+}
+
+ModelEvaluationRun InMemoryStore::createEvaluationRun(ModelEvaluationRun run)
+{
+    std::lock_guard lock(mutex_);
+    const auto version = state_.modelVersions.find(run.modelVersionId);
+    if (!state_.evaluationSuites.contains(run.suiteId) ||
+        version == state_.modelVersions.end() ||
+        run.status != ModelEvaluationRunStatus::Running || run.totalCases == 0)
+        throw std::invalid_argument("invalid evaluation run");
+    run.id = state_.nextEvaluationRunId++;
+    state_.evaluationRuns.emplace(run.id, run);
+    return run;
+}
+
+std::optional<ModelEvaluationRun> InMemoryStore::findEvaluationRun(
+    ModelEvaluationRunId id) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.evaluationRuns.find(id);
+    return found == state_.evaluationRuns.end()
+               ? std::nullopt
+               : std::optional<ModelEvaluationRun>{found->second};
+}
+
+bool InMemoryStore::appendEvaluationCaseResult(
+    ModelEvaluationCaseResult result)
+{
+    std::lock_guard lock(mutex_);
+    const auto run = state_.evaluationRuns.find(result.runId);
+    const auto testCase = state_.evaluationCases.find(result.caseId);
+    if (run == state_.evaluationRuns.end() ||
+        run->second.status != ModelEvaluationRunStatus::Running ||
+        testCase == state_.evaluationCases.end() ||
+        testCase->second.suiteId != run->second.suiteId)
+        return false;
+    return state_.evaluationResults.emplace(
+        std::make_pair(result.runId, result.caseId), std::move(result)).second;
+}
+
+std::vector<ModelEvaluationCaseResult> InMemoryStore::evaluationCaseResults(
+    ModelEvaluationRunId run) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<ModelEvaluationCaseResult> result;
+    for (const auto &[key, value] : state_.evaluationResults)
+        if (key.first == run)
+            result.push_back(value);
+    return result;
+}
+
+bool InMemoryStore::finishEvaluationRun(ModelEvaluationRun run)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.evaluationRuns.find(run.id);
+    if (found == state_.evaluationRuns.end() ||
+        found->second.status != ModelEvaluationRunStatus::Running ||
+        run.status == ModelEvaluationRunStatus::Running ||
+        run.suiteId != found->second.suiteId ||
+        run.modelVersionId != found->second.modelVersionId ||
+        run.totalCases != found->second.totalCases || !run.completedAt)
+        return false;
+    found->second = std::move(run);
+    return true;
+}
+
+bool InMemoryStore::upsertActivationPolicy(ModelActivationPolicy policy)
+{
+    std::lock_guard lock(mutex_);
+    if (!state_.modelNodes.contains(policy.nodeId) ||
+        !state_.evaluationSuites.contains(policy.suiteId))
+        return false;
+    state_.activationPolicies.insert_or_assign(policy.nodeId, std::move(policy));
+    return true;
+}
+
+std::optional<ModelActivationPolicy> InMemoryStore::findActivationPolicy(
+    ModelNodeId node) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.activationPolicies.find(node);
+    return found == state_.activationPolicies.end()
+               ? std::nullopt
+               : std::optional<ModelActivationPolicy>{found->second};
+}
+
+std::optional<ModelEvaluationRun>
+InMemoryStore::latestCompletedEvaluationRun(
+    ModelVersionId version, ModelEvaluationSuiteId suite) const
+{
+    std::lock_guard lock(mutex_);
+    std::optional<ModelEvaluationRun> latest;
+    for (const auto &[_, run] : state_.evaluationRuns)
+    {
+        if (run.modelVersionId != version || run.suiteId != suite ||
+            run.status != ModelEvaluationRunStatus::Completed ||
+            !run.completedAt)
+            continue;
+        if (!latest || *run.completedAt > *latest->completedAt ||
+            (*run.completedAt == *latest->completedAt && run.id > latest->id))
+            latest = run;
+    }
+    return latest;
+}
+
 TrainingCandidate InMemoryStore::createTrainingCandidate(
     TrainingCandidate candidate)
 {
