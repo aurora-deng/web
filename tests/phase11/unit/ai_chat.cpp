@@ -169,6 +169,22 @@ WsMessageContext generateContext(UserId requester, UserId ai,
     return context;
 }
 
+AiGenerationAudit waitForAudit(InMemoryStore &store, const std::string &id,
+                               AiGenerationStatus status)
+{
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::seconds(3);
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        const auto audit = store.findGenerationAudit(id);
+        if (audit && audit->status == status)
+            return *audit;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    CHECK(false);
+    return {};
+}
+
 } // namespace
 
 int main()
@@ -203,8 +219,8 @@ int main()
     aiConfig.maxActivePerUser = 1;
     aiConfig.maxActivePerAiAccount = 2;
     aiConfig.generationTimeout = std::chrono::milliseconds(80);
-    AiChatService aiChat(chat, store, store, router, databaseExecutor, events,
-                         aiConfig);
+    AiChatService aiChat(chat, store, store, router, databaseExecutor, store,
+                         events, aiConfig);
     webserver::phase11::transport::Phase11Realtime realtime(
         chat, databaseExecutor, &aiChat);
     WebSocketDispatcher dispatcher;
@@ -241,6 +257,16 @@ int main()
     CHECK(observed.adapterArtifact.empty());
     CHECK(!observed.messages.empty() &&
           observed.messages.back().content == "hello model");
+    const auto successAudit = waitForAudit(
+        store, "generation-success", AiGenerationStatus::Succeeded);
+    CHECK(successAudit.modelNodeId == node.id);
+    CHECK(successAudit.modelVersionId == version.id);
+    CHECK(successAudit.runtime == "ollama");
+    CHECK(successAudit.promptSha256.size() == 64);
+    CHECK(successAudit.outputSha256.size() == 64);
+    CHECK(successAudit.outputBytes == 13 && successAudit.outputTokens == 2);
+    CHECK(successAudit.startedAt && successAudit.firstTokenAt &&
+          successAudit.completedAt && successAudit.responseMessageId);
 
     // 普通账号不能冒充 AI；错误通过异步完成事件返回，不阻塞 WebSocket Worker。
     auto invalid = generateContext(alice.id, bob.id, group.id,
@@ -252,6 +278,8 @@ int main()
     CHECK(rejected.recipients.size() == 1 &&
           rejected.recipients.front() == alice.id);
     CHECK(rejected.error.find("not an enabled AI") != std::string::npos);
+    CHECK(waitForAudit(store, "generation-invalid",
+                       AiGenerationStatus::Failed).modelVersionId == std::nullopt);
 
     // 取消命令只能命中该用户自己的在途生成，并最终收到 cancelled 终态。
     auto slow = generateContext(alice.id, ai.id, conversation.id,
@@ -267,6 +295,8 @@ int main()
     CHECK(cancel.outbound.type == "ai.cancel.accepted");
     const auto cancelled = events.waitFor("generation-cancel");
     CHECK(!cancelled.success && cancelled.cancelled);
+    CHECK(waitForAudit(store, "generation-cancel",
+                       AiGenerationStatus::Cancelled).completedAt);
 
     // Provider 即使吞掉完成回调，统一看门线程也会回收名额并给出唯一终态。
     aiChat.generate({alice.id, ai.id, conversation.id,
@@ -285,10 +315,17 @@ int main()
     const auto timedOut = events.waitFor("generation-hang");
     CHECK(!timedOut.success && !timedOut.cancelled);
     CHECK(timedOut.error.find("deadline") != std::string::npos);
+    const auto timeoutAudit = waitForAudit(
+        store, "generation-hang", AiGenerationStatus::TimedOut);
+    CHECK(timeoutAudit.modelVersionId == version.id && timeoutAudit.completedAt);
     const auto metrics = aiChat.snapshot();
     CHECK(metrics.quotaRejected == 1);
     CHECK(metrics.timedOut == 1);
     CHECK(metrics.active == 0);
+    CHECK(metrics.firstTokenLatencyCount == 1);
+    CHECK(metrics.totalLatencyCount == 4);
+    CHECK(metrics.firstTokenLatencyBuckets.back() == 1);
+    CHECK(metrics.totalLatencyBuckets.back() == 4);
 
     // shutdown 不依赖故障 Provider 的回调，取消通知后即可有界返回。
     aiChat.generate({alice.id, ai.id, conversation.id,
@@ -299,5 +336,9 @@ int main()
     CHECK(!stopped.success && stopped.cancelled);
     CHECK(aiChat.snapshot().active == 0);
     databaseExecutor.shutdown();
+    const auto shutdownAudit = store.findGenerationAudit("generation-shutdown");
+    CHECK(shutdownAudit &&
+          shutdownAudit->status == AiGenerationStatus::Cancelled);
+    CHECK(aiChat.snapshot().totalLatencyCount == 5);
     return 0;
 }

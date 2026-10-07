@@ -18,6 +18,7 @@ using OutboxEventId = std::uint64_t;
 using ModelNodeId = std::uint64_t;
 using ModelVersionId = std::uint64_t;
 using ModelEdgeId = std::uint64_t;
+using ModelActivationAuditId = std::uint64_t;
 using TrainingCandidateId = std::uint64_t;
 using DatasetVersionId = std::uint64_t;
 using TimePoint = std::chrono::system_clock::time_point;
@@ -300,6 +301,77 @@ struct ModelBinding
 {
     UserId aiUserId = 0;
     ModelNodeId nodeId = 0;
+};
+
+enum class ModelActivationAction
+{
+    Activate,
+    Rollback
+};
+
+enum class ModelActivationOutcome
+{
+    Succeeded,
+    Failed
+};
+
+/**
+ * 模型切换审计像机房的操作票：不仅记录“现在运行哪个版本”，还保留谁发起、
+ * 从哪个版本切到哪个版本、结果与失败原因。成功记录必须和 Active 指针原子落库。
+ */
+struct ModelActivationAudit
+{
+    ModelActivationAuditId id = 0;
+    ModelNodeId nodeId = 0;
+    std::optional<ModelVersionId> previousVersionId;
+    ModelVersionId targetVersionId = 0;
+    ModelActivationAction action = ModelActivationAction::Activate;
+    ModelActivationOutcome outcome = ModelActivationOutcome::Succeeded;
+    std::string actor;
+    std::string detail;
+    TimePoint createdAt{};
+};
+
+enum class AiGenerationStatus
+{
+    Queued,
+    Running,
+    Succeeded,
+    Failed,
+    Cancelled,
+    TimedOut
+};
+
+/**
+ * 一次生成的可追溯“快递单”。正文不重复保存，只保存 SHA-256、大小、模型版本和
+ * 时间点；既能定位版本问题，也避免审计表变成第二份聊天内容仓库。
+ */
+struct AiGenerationAudit
+{
+    std::string generationId;
+    UserId requesterId = 0;
+    UserId aiUserId = 0;
+    ConversationId conversationId = 0;
+    std::optional<ModelNodeId> modelNodeId;
+    std::optional<ModelVersionId> modelVersionId;
+    std::string runtime;
+    std::string modelArtifact;
+    std::string adapterArtifact;
+    std::string modelChecksum;
+    std::string promptSha256;
+    std::uint64_t promptBytes = 0;
+    std::string outputSha256;
+    std::uint64_t outputBytes = 0;
+    std::uint64_t outputTokens = 0;
+    AiGenerationStatus status = AiGenerationStatus::Queued;
+    std::string errorDetail;
+    TimePoint requestedAt{};
+    std::optional<TimePoint> startedAt;
+    std::optional<TimePoint> firstTokenAt;
+    std::optional<TimePoint> completedAt;
+    std::optional<MessageId> responseMessageId;
+    // 异步数据库任务可能乱序完成；revision 保证旧快照不能覆盖新状态。
+    std::uint64_t revision = 1;
 };
 
 enum class TrainingCandidateState

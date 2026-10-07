@@ -202,10 +202,27 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
     const auto rootVersion = store.createModelVersion(
         {0, root.id, "ollama", "root-model", {}, "sha256:root",
          ModelVersionState::Candidate, now});
-    require(store.activateModelVersion(specialist.id, specialistVersion.id),
+    require(store.activateModelVersion(
+                specialist.id, specialistVersion.id,
+                {0, specialist.id, {}, specialistVersion.id,
+                 ModelActivationAction::Activate,
+                 ModelActivationOutcome::Succeeded, "postgres-contract",
+                 "activate contract model", now}),
             "valid model activation failed");
-    require(!store.activateModelVersion(specialist.id, rootVersion.id),
+    require(!store.activateModelVersion(
+                specialist.id, rootVersion.id,
+                {0, specialist.id, specialistVersion.id, rootVersion.id,
+                 ModelActivationAction::Activate,
+                 ModelActivationOutcome::Succeeded, "postgres-contract",
+                 "invalid cross-node activation", now}),
             "version belonging to another node was activated");
+    const auto activationAudits =
+        store.modelActivationAudits(specialist.id, 10);
+    require(activationAudits.size() == 1 &&
+                activationAudits.front().targetVersionId == specialistVersion.id &&
+                activationAudits.front().outcome ==
+                    ModelActivationOutcome::Succeeded,
+            "successful model activation audit was not atomic");
     const auto activeNode = store.findModelNode(specialist.id);
     const auto activeVersion = store.findModelVersion(specialistVersion.id);
     require(activeNode && activeNode->activeVersionId == specialistVersion.id &&
@@ -218,6 +235,48 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
             "AI model binding lookup failed");
     require(!store.bindAiAccount({alice->id, specialist.id}),
             "ordinary user was accepted as an AI account");
+
+    AiGenerationAudit generationAudit;
+    generationAudit.generationId = "postgres-generation-audit";
+    generationAudit.requesterId = alice->id;
+    generationAudit.aiUserId = ai.id;
+    generationAudit.conversationId = direct->id;
+    generationAudit.promptSha256 = std::string(64, 'b');
+    generationAudit.promptBytes = 12;
+    generationAudit.status = AiGenerationStatus::Queued;
+    generationAudit.requestedAt = now;
+    require(store.upsertGenerationAudit(generationAudit),
+            "queued generation audit insert failed");
+    generationAudit.modelNodeId = specialist.id;
+    generationAudit.modelVersionId = specialistVersion.id;
+    generationAudit.runtime = "onnx-inprocess";
+    generationAudit.modelArtifact = "model.onnx";
+    generationAudit.adapterArtifact = "adapter.onnx_adapter";
+    generationAudit.modelChecksum = "sha256:specialist";
+    generationAudit.outputSha256 = std::string(64, 'c');
+    generationAudit.outputBytes = 16;
+    generationAudit.outputTokens = 2;
+    generationAudit.status = AiGenerationStatus::Succeeded;
+    generationAudit.startedAt = now;
+    generationAudit.firstTokenAt = now;
+    generationAudit.completedAt = now;
+    generationAudit.responseMessageId = messages.front().id;
+    generationAudit.revision = 4;
+    require(store.upsertGenerationAudit(generationAudit),
+            "terminal generation audit update failed");
+    auto staleAudit = generationAudit;
+    staleAudit.status = AiGenerationStatus::Running;
+    staleAudit.revision = 2;
+    require(!store.upsertGenerationAudit(std::move(staleAudit)),
+            "stale generation audit overwrote terminal state");
+    const auto storedGenerationAudit =
+        store.findGenerationAudit("postgres-generation-audit");
+    require(storedGenerationAudit &&
+                storedGenerationAudit->status == AiGenerationStatus::Succeeded &&
+                storedGenerationAudit->modelVersionId == specialistVersion.id &&
+                storedGenerationAudit->outputTokens == 2 &&
+                storedGenerationAudit->responseMessageId == messages.front().id,
+            "generation audit fields were not persisted");
 
     auto candidate = store.createTrainingCandidate(
         {0, alice->id, messages.front().id, "prompt", "response",

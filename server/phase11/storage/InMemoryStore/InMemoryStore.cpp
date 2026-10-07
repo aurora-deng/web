@@ -850,7 +850,8 @@ std::vector<ModelEdge> InMemoryStore::modelEdges() const
     return result;
 }
 
-bool InMemoryStore::activateModelVersion(ModelNodeId node, ModelVersionId version)
+bool InMemoryStore::activateModelVersion(ModelNodeId node, ModelVersionId version,
+                                         ModelActivationAudit audit)
 {
     std::lock_guard lock(mutex_);
     const auto foundNode = state_.modelNodes.find(node);
@@ -859,8 +860,12 @@ bool InMemoryStore::activateModelVersion(ModelNodeId node, ModelVersionId versio
         foundVersion == state_.modelVersions.end() ||
         foundVersion->second.nodeId != node ||
         foundVersion->second.checksum.empty() ||
-        foundVersion->second.state == ModelVersionState::Rejected)
+        foundVersion->second.state == ModelVersionState::Rejected ||
+        audit.nodeId != node || audit.targetVersionId != version ||
+        audit.outcome != ModelActivationOutcome::Succeeded ||
+        audit.actor.empty())
         return false;
+    audit.previousVersionId = foundNode->second.activeVersionId;
     if (foundNode->second.activeVersionId)
     {
         auto &previous = state_.modelVersions.at(*foundNode->second.activeVersionId);
@@ -868,7 +873,68 @@ bool InMemoryStore::activateModelVersion(ModelNodeId node, ModelVersionId versio
     }
     foundVersion->second.state = ModelVersionState::Active;
     foundNode->second.activeVersionId = version;
+    audit.id = state_.nextModelActivationAuditId++;
+    state_.modelActivationAudits.emplace(audit.id, std::move(audit));
     return true;
+}
+
+ModelActivationAudit InMemoryStore::appendModelActivationAudit(
+    ModelActivationAudit audit)
+{
+    std::lock_guard lock(mutex_);
+    const auto version = state_.modelVersions.find(audit.targetVersionId);
+    if (!state_.modelNodes.contains(audit.nodeId) ||
+        version == state_.modelVersions.end() ||
+        version->second.nodeId != audit.nodeId || audit.actor.empty())
+        throw std::invalid_argument("invalid model activation audit");
+    audit.id = state_.nextModelActivationAuditId++;
+    state_.modelActivationAudits.emplace(audit.id, audit);
+    return audit;
+}
+
+std::vector<ModelActivationAudit> InMemoryStore::modelActivationAudits(
+    ModelNodeId node, std::size_t limit) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<ModelActivationAudit> result;
+    for (const auto &[_, audit] : state_.modelActivationAudits)
+        if (audit.nodeId == node)
+            result.push_back(audit);
+    std::sort(result.begin(), result.end(),
+              [](const auto &left, const auto &right)
+              {
+                  return left.createdAt != right.createdAt
+                             ? left.createdAt > right.createdAt
+                             : left.id > right.id;
+              });
+    if (result.size() > limit)
+        result.resize(limit);
+    return result;
+}
+
+bool InMemoryStore::upsertGenerationAudit(AiGenerationAudit audit)
+{
+    std::lock_guard lock(mutex_);
+    if (audit.generationId.empty() || audit.promptSha256.size() != 64 ||
+        audit.revision == 0)
+        return false;
+    const auto found = state_.generationAudits.find(audit.generationId);
+    if (found != state_.generationAudits.end() &&
+        found->second.revision > audit.revision)
+        return false;
+    state_.generationAudits.insert_or_assign(audit.generationId,
+                                             std::move(audit));
+    return true;
+}
+
+std::optional<AiGenerationAudit> InMemoryStore::findGenerationAudit(
+    std::string_view generationId) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.generationAudits.find(std::string(generationId));
+    return found == state_.generationAudits.end()
+               ? std::nullopt
+               : std::optional<AiGenerationAudit>{found->second};
 }
 
 TrainingCandidate InMemoryStore::createTrainingCandidate(

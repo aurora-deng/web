@@ -235,6 +235,55 @@ ModelVersionState versionState(std::string_view state)
     throw std::runtime_error("unknown persisted model version state");
 }
 
+std::string activationAction(ModelActivationAction action)
+{
+    return action == ModelActivationAction::Activate ? "activate" : "rollback";
+}
+
+ModelActivationAction activationAction(std::string_view action)
+{
+    if (action == "activate") return ModelActivationAction::Activate;
+    if (action == "rollback") return ModelActivationAction::Rollback;
+    throw std::runtime_error("unknown persisted model activation action");
+}
+
+std::string activationOutcome(ModelActivationOutcome outcome)
+{
+    return outcome == ModelActivationOutcome::Succeeded ? "succeeded" : "failed";
+}
+
+ModelActivationOutcome activationOutcome(std::string_view outcome)
+{
+    if (outcome == "succeeded") return ModelActivationOutcome::Succeeded;
+    if (outcome == "failed") return ModelActivationOutcome::Failed;
+    throw std::runtime_error("unknown persisted model activation outcome");
+}
+
+std::string generationStatus(AiGenerationStatus status)
+{
+    switch (status)
+    {
+    case AiGenerationStatus::Queued: return "queued";
+    case AiGenerationStatus::Running: return "running";
+    case AiGenerationStatus::Succeeded: return "succeeded";
+    case AiGenerationStatus::Failed: return "failed";
+    case AiGenerationStatus::Cancelled: return "cancelled";
+    case AiGenerationStatus::TimedOut: return "timed_out";
+    }
+    throw std::logic_error("unknown AI generation status");
+}
+
+AiGenerationStatus generationStatus(std::string_view status)
+{
+    if (status == "queued") return AiGenerationStatus::Queued;
+    if (status == "running") return AiGenerationStatus::Running;
+    if (status == "succeeded") return AiGenerationStatus::Succeeded;
+    if (status == "failed") return AiGenerationStatus::Failed;
+    if (status == "cancelled") return AiGenerationStatus::Cancelled;
+    if (status == "timed_out") return AiGenerationStatus::TimedOut;
+    throw std::runtime_error("unknown persisted AI generation status");
+}
+
 std::string edgeKind(ModelEdgeKind kind)
 {
     return kind == ModelEdgeKind::ParentControlsChild
@@ -371,6 +420,47 @@ ModelVersion readVersion(const Result &result, int row)
             versionState(result.value(row, 6)), decodeTime(result, row, 7)};
 }
 
+ModelActivationAudit readActivationAudit(const Result &result, int row)
+{
+    return {std::stoull(result.value(row, 0)),
+            std::stoull(result.value(row, 1)),
+            decodeOptionalId(result, row, 2),
+            std::stoull(result.value(row, 3)),
+            activationAction(result.value(row, 4)),
+            activationOutcome(result.value(row, 5)),
+            result.value(row, 6), result.value(row, 7),
+            decodeTime(result, row, 8)};
+}
+
+AiGenerationAudit readGenerationAudit(const Result &result, int row)
+{
+    AiGenerationAudit audit;
+    audit.generationId = result.value(row, 0);
+    audit.requesterId = std::stoull(result.value(row, 1));
+    audit.aiUserId = std::stoull(result.value(row, 2));
+    audit.conversationId = std::stoull(result.value(row, 3));
+    audit.modelNodeId = decodeOptionalId(result, row, 4);
+    audit.modelVersionId = decodeOptionalId(result, row, 5);
+    audit.runtime = result.value(row, 6);
+    audit.modelArtifact = result.value(row, 7);
+    audit.adapterArtifact = result.value(row, 8);
+    audit.modelChecksum = result.value(row, 9);
+    audit.promptSha256 = result.value(row, 10);
+    audit.promptBytes = std::stoull(result.value(row, 11));
+    audit.outputSha256 = result.value(row, 12);
+    audit.outputBytes = std::stoull(result.value(row, 13));
+    audit.outputTokens = std::stoull(result.value(row, 14));
+    audit.status = generationStatus(result.value(row, 15));
+    audit.errorDetail = result.value(row, 16);
+    audit.requestedAt = decodeTime(result, row, 17);
+    audit.startedAt = decodeOptionalTime(result, row, 18);
+    audit.firstTokenAt = decodeOptionalTime(result, row, 19);
+    audit.completedAt = decodeOptionalTime(result, row, 20);
+    audit.responseMessageId = decodeOptionalId(result, row, 21);
+    audit.revision = std::stoull(result.value(row, 22));
+    return audit;
+}
+
 TrainingCandidate readCandidate(const Result &result, int row)
 {
     return {std::stoull(result.value(row, 0)),
@@ -451,6 +541,17 @@ constexpr std::string_view kNodeColumns =
 constexpr std::string_view kVersionColumns =
     "id, node_id, runtime, model_artifact, adapter_artifact, checksum, state, "
     "(extract(epoch FROM created_at) * 1000000)::bigint";
+constexpr std::string_view kActivationAuditColumns =
+    "id,node_id,previous_version_id,target_version_id,action,outcome,actor,detail,"
+    "(extract(epoch FROM created_at) * 1000000)::bigint";
+constexpr std::string_view kGenerationAuditColumns =
+    "generation_id,requester_id,ai_user_id,conversation_id,model_node_id,"
+    "model_version_id,runtime,model_artifact,adapter_artifact,model_checksum,"
+    "prompt_sha256,prompt_bytes,output_sha256,output_bytes,output_tokens,status,"
+    "error_detail,(extract(epoch FROM requested_at)*1000000)::bigint,"
+    "(extract(epoch FROM started_at)*1000000)::bigint,"
+    "(extract(epoch FROM first_token_at)*1000000)::bigint,"
+    "(extract(epoch FROM completed_at)*1000000)::bigint,response_message_id,revision";
 constexpr std::string_view kCandidateColumns =
     "id, owner_user_id, source_message_id, sanitized_prompt, sanitized_response, "
     "consent_version, state, dataset_version_id, "
@@ -1417,8 +1518,13 @@ std::vector<ModelEdge> PostgresStore::modelEdges() const
     return edges;
 }
 
-bool PostgresStore::activateModelVersion(ModelNodeId node, ModelVersionId version)
+bool PostgresStore::activateModelVersion(ModelNodeId node, ModelVersionId version,
+                                         ModelActivationAudit audit)
 {
+    if (audit.nodeId != node || audit.targetVersionId != version ||
+        audit.outcome != ModelActivationOutcome::Succeeded ||
+        audit.actor.empty())
+        return false;
     auto scope = connection();
     const auto result = query(scope.connection,
         "WITH locked_node AS ("
@@ -1431,10 +1537,125 @@ bool PostgresStore::activateModelVersion(ModelNodeId node, ModelVersionId versio
         " AND id<>$2::bigint AND EXISTS(SELECT 1 FROM target)"
         "), activated AS ("
         " UPDATE model_versions SET state='active' WHERE id=(SELECT id FROM target) RETURNING id"
-        ") UPDATE model_nodes SET active_version_id=(SELECT id FROM activated)"
-        " WHERE id=$1::bigint AND EXISTS(SELECT 1 FROM activated) RETURNING 1",
-        {number(node), number(version)});
+        "), updated AS ("
+        " UPDATE model_nodes SET active_version_id=(SELECT id FROM activated)"
+        " WHERE id=$1::bigint AND EXISTS(SELECT 1 FROM activated) RETURNING id"
+        "), audited AS ("
+        " INSERT INTO model_activation_audits("
+        "node_id,previous_version_id,target_version_id,action,outcome,actor,detail,created_at)"
+        " SELECT $1::bigint,(SELECT active_version_id FROM locked_node),$2::bigint,"
+        "$3,$4,$5,$6,to_timestamp($7::double precision/1000000.0)"
+        " WHERE EXISTS(SELECT 1 FROM updated) RETURNING id"
+        ") SELECT 1 FROM audited",
+        {number(node), number(version), activationAction(audit.action),
+         activationOutcome(audit.outcome), audit.actor, audit.detail,
+         encodeTime(audit.createdAt)});
     return result.rows() == 1;
+}
+
+ModelActivationAudit PostgresStore::appendModelActivationAudit(
+    ModelActivationAudit audit)
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "INSERT INTO model_activation_audits("
+        "node_id,previous_version_id,target_version_id,action,outcome,actor,detail,created_at) "
+        "VALUES($1::bigint,$2::bigint,$3::bigint,$4,$5,$6,$7,"
+        "to_timestamp($8::double precision/1000000.0)) RETURNING " +
+        std::string(kActivationAuditColumns),
+        {number(audit.nodeId),
+         audit.previousVersionId
+             ? std::optional<std::string>{number(*audit.previousVersionId)}
+             : std::nullopt,
+         number(audit.targetVersionId), activationAction(audit.action),
+         activationOutcome(audit.outcome), audit.actor, audit.detail,
+         encodeTime(audit.createdAt)});
+    return readActivationAudit(result, 0);
+}
+
+std::vector<ModelActivationAudit> PostgresStore::modelActivationAudits(
+    ModelNodeId node, std::size_t limit) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kActivationAuditColumns) +
+        " FROM model_activation_audits WHERE node_id=$1::bigint "
+        "ORDER BY created_at DESC,id DESC LIMIT $2::bigint",
+        {number(node), number(limit)});
+    std::vector<ModelActivationAudit> audits;
+    audits.reserve(result.rows());
+    for (int row = 0; row < result.rows(); ++row)
+        audits.push_back(readActivationAudit(result, row));
+    return audits;
+}
+
+bool PostgresStore::upsertGenerationAudit(AiGenerationAudit audit)
+{
+    auto scope = connection();
+    const auto optionalTime = [](const std::optional<TimePoint> &value)
+        -> std::optional<std::string>
+    {
+        return value ? std::optional<std::string>{encodeTime(*value)}
+                     : std::nullopt;
+    };
+    const auto result = query(scope.connection,
+        "INSERT INTO ai_generation_audits("
+        "generation_id,requester_id,ai_user_id,conversation_id,model_node_id,"
+        "model_version_id,runtime,model_artifact,adapter_artifact,model_checksum,"
+        "prompt_sha256,prompt_bytes,output_sha256,output_bytes,output_tokens,status,"
+        "error_detail,requested_at,started_at,first_token_at,completed_at,"
+        "response_message_id,revision) VALUES("
+        "$1,$2::bigint,$3::bigint,$4::bigint,$5::bigint,$6::bigint,$7,$8,$9,$10,"
+        "$11,$12::bigint,$13,$14::bigint,$15::bigint,$16,$17,"
+        "to_timestamp($18::double precision/1000000.0),"
+        "to_timestamp($19::double precision/1000000.0),"
+        "to_timestamp($20::double precision/1000000.0),"
+        "to_timestamp($21::double precision/1000000.0),$22::bigint,$23::bigint) "
+        "ON CONFLICT(generation_id) DO UPDATE SET "
+        "requester_id=EXCLUDED.requester_id,ai_user_id=EXCLUDED.ai_user_id,"
+        "conversation_id=EXCLUDED.conversation_id,model_node_id=EXCLUDED.model_node_id,"
+        "model_version_id=EXCLUDED.model_version_id,runtime=EXCLUDED.runtime,"
+        "model_artifact=EXCLUDED.model_artifact,adapter_artifact=EXCLUDED.adapter_artifact,"
+        "model_checksum=EXCLUDED.model_checksum,prompt_sha256=EXCLUDED.prompt_sha256,"
+        "prompt_bytes=EXCLUDED.prompt_bytes,output_sha256=EXCLUDED.output_sha256,"
+        "output_bytes=EXCLUDED.output_bytes,output_tokens=EXCLUDED.output_tokens,"
+        "status=EXCLUDED.status,error_detail=EXCLUDED.error_detail,"
+        "requested_at=EXCLUDED.requested_at,started_at=EXCLUDED.started_at,"
+        "first_token_at=EXCLUDED.first_token_at,completed_at=EXCLUDED.completed_at,"
+        "response_message_id=EXCLUDED.response_message_id,revision=EXCLUDED.revision "
+        "WHERE ai_generation_audits.revision<=EXCLUDED.revision RETURNING " +
+        std::string(kGenerationAuditColumns),
+        {audit.generationId, number(audit.requesterId), number(audit.aiUserId),
+         number(audit.conversationId),
+         audit.modelNodeId ? std::optional<std::string>{number(*audit.modelNodeId)}
+                           : std::nullopt,
+         audit.modelVersionId
+             ? std::optional<std::string>{number(*audit.modelVersionId)}
+             : std::nullopt,
+         audit.runtime, audit.modelArtifact, audit.adapterArtifact,
+         audit.modelChecksum, audit.promptSha256, number(audit.promptBytes),
+         audit.outputSha256, number(audit.outputBytes), number(audit.outputTokens),
+         generationStatus(audit.status), audit.errorDetail,
+         encodeTime(audit.requestedAt), optionalTime(audit.startedAt),
+         optionalTime(audit.firstTokenAt), optionalTime(audit.completedAt),
+         audit.responseMessageId
+             ? std::optional<std::string>{number(*audit.responseMessageId)}
+             : std::nullopt,
+         number(audit.revision)});
+    return result.rows() == 1;
+}
+
+std::optional<AiGenerationAudit> PostgresStore::findGenerationAudit(
+    std::string_view generationId) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kGenerationAuditColumns) +
+        " FROM ai_generation_audits WHERE generation_id=$1",
+        {std::string(generationId)});
+    return result.rows()
+               ? std::optional<AiGenerationAudit>{readGenerationAudit(result, 0)}
+               : std::nullopt;
 }
 
 TrainingCandidate PostgresStore::createTrainingCandidate(

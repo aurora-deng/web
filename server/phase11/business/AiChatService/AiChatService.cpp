@@ -3,6 +3,7 @@
 #include "server/phase11/business/ApplicationError/ApplicationError.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -10,6 +11,8 @@
 #include <thread>
 #include <unordered_map>
 #include <utility>
+
+#include <openssl/evp.h>
 
 namespace webserver::phase11
 {
@@ -19,10 +22,83 @@ namespace
 constexpr std::size_t kMaxPersistedAnswerBytes = 16U * 1024U;
 constexpr std::size_t kHistoryLimit = 500;
 constexpr std::size_t kPromptWindow = 64;
+constexpr std::array<std::uint64_t, 12> kLatencyBucketMicroseconds{
+    10'000, 25'000, 50'000, 100'000, 250'000, 500'000,
+    1'000'000, 2'500'000, 5'000'000, 10'000'000, 30'000'000, 60'000'000};
 
 TimePoint currentTime()
 {
     return std::chrono::system_clock::now();
+}
+
+std::string sha256(std::string_view value)
+{
+    std::array<unsigned char, EVP_MAX_MD_SIZE> digest{};
+    unsigned int size = 0;
+    if (EVP_Digest(value.data(), value.size(), digest.data(), &size,
+                   EVP_sha256(), nullptr) != 1 || size != 32)
+        throw std::runtime_error("SHA-256 digest failed");
+    static constexpr char hex[] = "0123456789abcdef";
+    std::string encoded;
+    encoded.resize(size * 2U);
+    for (unsigned int index = 0; index < size; ++index)
+    {
+        encoded[index * 2U] = hex[digest[index] >> 4U];
+        encoded[index * 2U + 1U] = hex[digest[index] & 0x0FU];
+    }
+    return encoded;
+}
+
+std::pair<std::string, std::uint64_t> promptDigest(
+    const std::vector<PromptMessage> &messages)
+{
+    std::string canonical;
+    std::uint64_t bytes = 0;
+    for (const auto &message : messages)
+    {
+        // 长度前缀让 ("ab","c") 与 ("a","bc") 不会产生同一规范串。
+        canonical.append(std::to_string(message.role.size()));
+        canonical.push_back(':');
+        canonical.append(message.role);
+        canonical.append(std::to_string(message.content.size()));
+        canonical.push_back(':');
+        canonical.append(message.content);
+        bytes += message.role.size() + message.content.size();
+    }
+    return {sha256(canonical), bytes};
+}
+
+void observeLatency(AiChatMetricsSnapshot &metrics,
+                    const AiGenerationAudit &audit) noexcept
+{
+    const auto micros = [](TimePoint start, TimePoint finish)
+    {
+        const auto value = std::chrono::duration_cast<std::chrono::microseconds>(
+            finish - start).count();
+        return static_cast<std::uint64_t>(std::max<std::int64_t>(0, value));
+    };
+    const auto observe = [](auto &buckets, std::uint64_t value)
+    {
+        for (std::size_t index = 0; index < kLatencyBucketMicroseconds.size();
+             ++index)
+            if (value <= kLatencyBucketMicroseconds[index])
+                ++buckets[index];
+        ++buckets.back(); // +Inf
+    };
+    if (audit.startedAt && audit.firstTokenAt)
+    {
+        const auto value = micros(*audit.startedAt, *audit.firstTokenAt);
+        observe(metrics.firstTokenLatencyBuckets, value);
+        ++metrics.firstTokenLatencyCount;
+        metrics.firstTokenLatencyMicrosecondsTotal += value;
+    }
+    if (audit.completedAt)
+    {
+        const auto value = micros(audit.requestedAt, *audit.completedAt);
+        observe(metrics.totalLatencyBuckets, value);
+        ++metrics.totalLatencyCount;
+        metrics.totalLatencyMicrosecondsTotal += value;
+    }
 }
 
 } // namespace
@@ -41,6 +117,7 @@ struct AiChatService::State final
         bool completionStarted = false;
         bool outputTooLarge = false;
         std::chrono::steady_clock::time_point deadline{};
+        AiGenerationAudit audit;
     };
 
     State(ChatService &chatService,
@@ -48,11 +125,12 @@ struct AiChatService::State final
           IConversationRepository &conversationRepository,
           ModelRouter &modelRouter,
           DatabaseExecutor &executor,
+          IAiGenerationAuditRepository &auditRepository,
           IAiGenerationEventSink &eventSink,
           AiChatServiceConfig serviceConfig)
         : chat(&chatService), users(&userRepository),
           conversations(&conversationRepository), models(&modelRouter),
-          databaseExecutor(&executor), events(&eventSink),
+          databaseExecutor(&executor), audits(&auditRepository), events(&eventSink),
           config(std::move(serviceConfig))
     {
     }
@@ -62,6 +140,7 @@ struct AiChatService::State final
     IConversationRepository *conversations;
     ModelRouter *models;
     DatabaseExecutor *databaseExecutor;
+    IAiGenerationAuditRepository *audits;
     IAiGenerationEventSink *events;
     AiChatServiceConfig config;
 
@@ -89,14 +168,33 @@ void publishCompleted(const std::shared_ptr<AiChatService::State> &state,
     }
 }
 
+void queueAuditSnapshot(const std::shared_ptr<AiChatService::State> &state,
+                        AiGenerationAudit audit) noexcept
+{
+    const bool accepted = state->databaseExecutor->submit(
+        [repository = state->audits, audit = std::move(audit)]() mutable
+        {
+            if (!repository->upsertGenerationAudit(std::move(audit)))
+                throw std::runtime_error("AI generation audit was rejected");
+        });
+    std::lock_guard lock(state->mutex);
+    if (accepted)
+        ++state->metrics.auditSnapshotsQueued;
+    else
+        ++state->metrics.auditEnqueueRejected;
+}
+
 void removeAndPublish(const std::shared_ptr<AiChatService::State> &state,
                       const std::string &generationId,
                       bool success,
                       bool cancelled,
                       std::string error,
-                      std::optional<Message> message = {}) noexcept
+                      std::optional<Message> message = {},
+                      AiGenerationStatus failureStatus =
+                          AiGenerationStatus::Failed) noexcept
 {
     AiCompletedEvent event;
+    AiGenerationAudit audit;
     {
         std::lock_guard lock(state->mutex);
         const auto found = state->active.find(generationId);
@@ -109,6 +207,26 @@ void removeAndPublish(const std::shared_ptr<AiChatService::State> &state,
         event.cancelled = cancelled;
         event.error = std::move(error);
         event.message = std::move(message);
+        auto &active = found->second;
+        audit = active.audit;
+        audit.outputBytes = active.output.size();
+        audit.outputTokens = active.tokenIndex;
+        if (!active.output.empty())
+        {
+            try { audit.outputSha256 = sha256(active.output); }
+            catch (...) { audit.outputSha256.clear(); }
+        }
+        audit.status = success ? AiGenerationStatus::Succeeded
+                               : (cancelled ? AiGenerationStatus::Cancelled
+                                            : failureStatus);
+        audit.errorDetail = event.error;
+        if (audit.errorDetail.size() > 512)
+            audit.errorDetail.resize(512);
+        audit.completedAt = currentTime();
+        if (event.message)
+            audit.responseMessageId = event.message->id;
+        ++audit.revision;
+        observeLatency(state->metrics, audit);
         state->active.erase(found);
         if (success)
             ++state->metrics.succeeded;
@@ -118,6 +236,7 @@ void removeAndPublish(const std::shared_ptr<AiChatService::State> &state,
             ++state->metrics.failed;
     }
     state->changed.notify_all();
+    queueAuditSnapshot(state, std::move(audit));
     publishCompleted(state, std::move(event));
 }
 
@@ -142,6 +261,7 @@ void watchdogLoop(const std::shared_ptr<AiChatService::State> &state) noexcept
         const auto now = std::chrono::steady_clock::now();
         std::vector<CancellationToken> cancellations;
         std::vector<AiCompletedEvent> events;
+        std::vector<AiGenerationAudit> audits;
         for (auto current = state->active.begin(); current != state->active.end();)
         {
             auto &generation = current->second;
@@ -159,6 +279,20 @@ void watchdogLoop(const std::shared_ptr<AiChatService::State> &state) noexcept
             event.conversationId = generation.conversation;
             event.error = "AI generation deadline exceeded";
             events.push_back(std::move(event));
+            auto audit = generation.audit;
+            audit.outputBytes = generation.output.size();
+            audit.outputTokens = generation.tokenIndex;
+            if (!generation.output.empty())
+            {
+                try { audit.outputSha256 = sha256(generation.output); }
+                catch (...) { audit.outputSha256.clear(); }
+            }
+            audit.status = AiGenerationStatus::TimedOut;
+            audit.errorDetail = "AI generation deadline exceeded";
+            audit.completedAt = currentTime();
+            ++audit.revision;
+            observeLatency(state->metrics, audit);
+            audits.push_back(std::move(audit));
             current = state->active.erase(current);
             ++state->metrics.failed;
             ++state->metrics.timedOut;
@@ -167,6 +301,8 @@ void watchdogLoop(const std::shared_ptr<AiChatService::State> &state) noexcept
         lock.unlock();
         for (const auto &cancellation : cancellations)
             cancellation.cancel();
+        for (auto &audit : audits)
+            queueAuditSnapshot(state, std::move(audit));
         for (auto &event : events)
             publishCompleted(state, std::move(event));
         lock.lock();
@@ -196,6 +332,7 @@ void onToken(const std::shared_ptr<AiChatService::State> &state,
     AiTokenEvent event;
     CancellationToken cancellation;
     bool cancelForLimit = false;
+    std::optional<AiGenerationAudit> firstTokenAudit;
     {
         std::lock_guard lock(state->mutex);
         const auto found = state->active.find(generationId);
@@ -217,6 +354,13 @@ void onToken(const std::shared_ptr<AiChatService::State> &state,
             event.conversationId = active.conversation;
             event.tokenIndex = ++active.tokenIndex;
             event.text.assign(token);
+            active.audit.outputTokens = active.tokenIndex;
+            if (!active.audit.firstTokenAt)
+            {
+                active.audit.firstTokenAt = currentTime();
+                ++active.audit.revision;
+                firstTokenAudit = active.audit;
+            }
         }
     }
 
@@ -227,6 +371,8 @@ void onToken(const std::shared_ptr<AiChatService::State> &state,
                          "AI response exceeds the message size limit");
         return;
     }
+    if (firstTokenAudit)
+        queueAuditSnapshot(state, std::move(*firstTokenAudit));
     if (event.text.empty())
         return;
     try
@@ -324,6 +470,7 @@ void prepareGeneration(const std::shared_ptr<AiChatService::State> &state,
     {
         CancellationToken cancellation;
         bool stopping = false;
+        AiGenerationAudit queuedAudit;
         {
             std::lock_guard lock(state->mutex);
             const auto found = state->active.find(request.requestId);
@@ -331,6 +478,7 @@ void prepareGeneration(const std::shared_ptr<AiChatService::State> &state,
                 return;
             cancellation = found->second.cancellation;
             stopping = state->stopping;
+            queuedAudit = found->second.audit;
         }
         if (stopping || cancellation.cancelled())
         {
@@ -338,13 +486,26 @@ void prepareGeneration(const std::shared_ptr<AiChatService::State> &state,
                              "generation cancelled");
             return;
         }
-
         const auto requester = state->users->findUser(request.requester);
         const auto ai = state->users->findUser(request.aiUser);
-        if (!requester || requester->disabled)
+        if (!requester)
             throw ApplicationError(ErrorCode::Unauthenticated,
                                    "requester is unavailable");
-        if (!ai || ai->disabled || !ai->aiAccount)
+        if (!ai)
+            throw ApplicationError(ErrorCode::InvalidArgument,
+                                   "target user is not an enabled AI account");
+        if (!state->conversations->findConversation(request.conversation))
+            throw ApplicationError(ErrorCode::NotFound,
+                                   "conversation not found");
+        // 先确认外键实体存在，再记录尝试；这样客户端伪造不存在的 ID 不会把
+        // PostgreSQL 外键错误误报成审计系统故障。
+        if (!state->audits->upsertGenerationAudit(std::move(queuedAudit)))
+            throw ApplicationError(ErrorCode::Unavailable,
+                                   "AI generation audit could not be created");
+        if (requester->disabled)
+            throw ApplicationError(ErrorCode::Unauthenticated,
+                                   "requester is unavailable");
+        if (ai->disabled || !ai->aiAccount)
             throw ApplicationError(ErrorCode::InvalidArgument,
                                    "target user is not an enabled AI account");
         if (!state->conversations->findMember(request.conversation,
@@ -373,10 +534,27 @@ void prepareGeneration(const std::shared_ptr<AiChatService::State> &state,
         const auto history = state->chat->history(
             request.requester, request.conversation, 0, kHistoryLimit);
 
+        auto promptMessages = buildPromptWindow(history, request.aiUser);
+        const auto [promptHash, promptBytes] = promptDigest(promptMessages);
+        AiGenerationAudit promptAudit;
+        {
+            std::lock_guard lock(state->mutex);
+            const auto found = state->active.find(request.requestId);
+            if (found == state->active.end())
+                return;
+            found->second.audit.promptSha256 = promptHash;
+            found->second.audit.promptBytes = promptBytes;
+            ++found->second.audit.revision;
+            promptAudit = found->second.audit;
+        }
+        if (!state->audits->upsertGenerationAudit(std::move(promptAudit)))
+            throw ApplicationError(ErrorCode::Unavailable,
+                                   "AI prompt audit could not be updated");
+
         GenerationRequest generation;
         generation.requestId = request.requestId;
         generation.requester = request.requester;
-        generation.messages = buildPromptWindow(history, request.aiUser);
+        generation.messages = std::move(promptMessages);
         generation.maxOutputTokens = request.maxOutputTokens;
         state->models->generate(
             request.aiUser, std::move(generation),
@@ -388,7 +566,31 @@ void prepareGeneration(const std::shared_ptr<AiChatService::State> &state,
             {
                 onModelCompleted(state, id, std::move(completion));
             },
-            cancellation);
+            cancellation,
+            [state, id = request.requestId](const GenerationSelection &selection)
+            {
+                AiGenerationAudit selected;
+                {
+                    std::lock_guard lock(state->mutex);
+                    const auto found = state->active.find(id);
+                    if (found == state->active.end())
+                        return;
+                    auto &audit = found->second.audit;
+                    audit.modelNodeId = selection.nodeId;
+                    audit.modelVersionId = selection.versionId;
+                    audit.runtime = selection.runtime;
+                    audit.modelArtifact = selection.modelArtifact;
+                    audit.adapterArtifact = selection.adapterArtifact;
+                    audit.modelChecksum = selection.modelChecksum;
+                    audit.status = AiGenerationStatus::Running;
+                    audit.startedAt = currentTime();
+                    ++audit.revision;
+                    selected = audit;
+                }
+                if (!state->audits->upsertGenerationAudit(std::move(selected)))
+                    throw ApplicationError(ErrorCode::Unavailable,
+                                           "AI model audit could not be updated");
+            });
     }
     catch (const std::exception &failure)
     {
@@ -408,10 +610,11 @@ AiChatService::AiChatService(ChatService &chat,
                              IConversationRepository &conversations,
                              ModelRouter &models,
                              DatabaseExecutor &databaseExecutor,
+                             IAiGenerationAuditRepository &audits,
                              IAiGenerationEventSink &events,
                              AiChatServiceConfig config)
     : state_(std::make_shared<State>(chat, users, conversations, models,
-                                     databaseExecutor, events,
+                                     databaseExecutor, audits, events,
                                      std::move(config)))
 {
     if (state_->config.maxActiveGenerations == 0 ||
@@ -467,6 +670,14 @@ void AiChatService::generate(AiChatRequest request)
         active.recipients.push_back(request.requester);
         active.deadline = std::chrono::steady_clock::now() +
                           state->config.generationTimeout;
+        active.audit.generationId = request.requestId;
+        active.audit.requesterId = request.requester;
+        active.audit.aiUserId = request.aiUser;
+        active.audit.conversationId = request.conversation;
+        active.audit.promptSha256 = sha256(request.prompt);
+        active.audit.promptBytes = request.prompt.size();
+        active.audit.status = AiGenerationStatus::Queued;
+        active.audit.requestedAt = currentTime();
         if (!state->active.emplace(request.requestId, std::move(active)).second)
             throw ApplicationError(ErrorCode::Conflict,
                                    "generation id is already active");
@@ -526,6 +737,7 @@ void AiChatService::shutdown() noexcept
         return;
     std::vector<CancellationToken> cancellations;
     std::vector<AiCompletedEvent> events;
+    std::vector<AiGenerationAudit> audits;
     {
         std::lock_guard lock(state->mutex);
         state->stopping = true;
@@ -551,6 +763,20 @@ void AiChatService::shutdown() noexcept
             event.cancelled = true;
             event.error = "AI chat service is stopping";
             events.push_back(std::move(event));
+            auto audit = generation.audit;
+            audit.outputBytes = generation.output.size();
+            audit.outputTokens = generation.tokenIndex;
+            if (!generation.output.empty())
+            {
+                try { audit.outputSha256 = sha256(generation.output); }
+                catch (...) { audit.outputSha256.clear(); }
+            }
+            audit.status = AiGenerationStatus::Cancelled;
+            audit.errorDetail = "AI chat service is stopping";
+            audit.completedAt = currentTime();
+            ++audit.revision;
+            observeLatency(state->metrics, audit);
+            audits.push_back(std::move(audit));
             current = state->active.erase(current);
             ++state->metrics.cancelled;
         }
@@ -558,6 +784,8 @@ void AiChatService::shutdown() noexcept
     state->changed.notify_all();
     for (const auto &cancellation : cancellations)
         cancellation.cancel();
+    for (auto &audit : audits)
+        queueAuditSnapshot(state, std::move(audit));
     for (auto &event : events)
         publishCompleted(state, std::move(event));
     if (state->watchdog.joinable())

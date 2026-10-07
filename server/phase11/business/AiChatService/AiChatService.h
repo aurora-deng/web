@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <chrono>
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -28,12 +29,21 @@ struct AiChatServiceConfig
 
 struct AiChatMetricsSnapshot
 {
+    static constexpr std::size_t latencyBucketCount = 13;
     std::uint64_t accepted = 0;
     std::uint64_t quotaRejected = 0;
     std::uint64_t succeeded = 0;
     std::uint64_t failed = 0;
     std::uint64_t cancelled = 0;
     std::uint64_t timedOut = 0;
+    std::uint64_t auditSnapshotsQueued = 0;
+    std::uint64_t auditEnqueueRejected = 0;
+    std::array<std::uint64_t, latencyBucketCount> firstTokenLatencyBuckets{};
+    std::array<std::uint64_t, latencyBucketCount> totalLatencyBuckets{};
+    std::uint64_t firstTokenLatencyCount = 0;
+    std::uint64_t firstTokenLatencyMicrosecondsTotal = 0;
+    std::uint64_t totalLatencyCount = 0;
+    std::uint64_t totalLatencyMicrosecondsTotal = 0;
     std::size_t active = 0;
 };
 
@@ -87,6 +97,7 @@ public:
                   IConversationRepository &conversations,
                   ModelRouter &models,
                   DatabaseExecutor &databaseExecutor,
+                  IAiGenerationAuditRepository &audits,
                   IAiGenerationEventSink &events,
                   AiChatServiceConfig config = {});
     ~AiChatService();

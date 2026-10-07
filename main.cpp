@@ -65,6 +65,7 @@
 #include <unistd.h>
 #include <cerrno>
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <chrono>
 #include <cstdlib>
@@ -608,7 +609,7 @@ int main()
             phase11AiChat = std::make_unique<webserver::phase11::AiChatService>(
                 *phase11Chat, *phase11Store, *phase11Store,
                 *phase11ModelRouter, *phase11DatabaseExecutor,
-                *phase11AiEvents, aiChatConfig);
+                *phase11Store, *phase11AiEvents, aiChatConfig);
             phase11OutboxSink = std::make_unique<
                 webserver::phase11::transport::Phase11RealtimeOutboxSink>(
                     *phase11Store, *phase11Store, *phase11Store,
@@ -722,6 +723,10 @@ int main()
                      << "webserver_phase11_ai_failed_total " << aiChat.failed << '\n'
                      << "webserver_phase11_ai_cancelled_total " << aiChat.cancelled << '\n'
                      << "webserver_phase11_ai_timed_out_total " << aiChat.timedOut << '\n'
+                     << "webserver_phase11_ai_audit_snapshots_queued_total "
+                     << aiChat.auditSnapshotsQueued << '\n'
+                     << "webserver_phase11_ai_audit_enqueue_rejected_total "
+                     << aiChat.auditEnqueueRejected << '\n'
                      << "# TYPE webserver_phase11_ai_active gauge\n"
                      << "webserver_phase11_ai_active " << aiChat.active << '\n'
                      << "webserver_phase11_ai_provider_requests_total "
@@ -742,6 +747,34 @@ int main()
                      << aiProviders.timedOut << '\n'
                      << "webserver_phase11_ai_provider_active "
                      << aiProviders.active << '\n';
+                constexpr std::array<std::string_view, 12> latencyLabels{
+                    "0.01", "0.025", "0.05", "0.1", "0.25", "0.5",
+                    "1", "2.5", "5", "10", "30", "60"};
+                const auto appendHistogram = [&](std::string_view name,
+                                                 const auto &buckets,
+                                                 std::uint64_t count,
+                                                 std::uint64_t micros)
+                {
+                    text << "# TYPE " << name << " histogram\n";
+                    for (std::size_t index = 0; index < latencyLabels.size();
+                         ++index)
+                        text << name << "_bucket{le=\"" << latencyLabels[index]
+                             << "\"} " << buckets[index] << '\n';
+                    text << name << "_bucket{le=\"+Inf\"} "
+                         << buckets.back() << '\n'
+                         << name << "_sum "
+                         << static_cast<double>(micros) / 1'000'000.0 << '\n'
+                         << name << "_count " << count << '\n';
+                };
+                appendHistogram(
+                    "webserver_phase11_ai_first_token_latency_seconds",
+                    aiChat.firstTokenLatencyBuckets,
+                    aiChat.firstTokenLatencyCount,
+                    aiChat.firstTokenLatencyMicrosecondsTotal);
+                appendHistogram(
+                    "webserver_phase11_ai_total_latency_seconds",
+                    aiChat.totalLatencyBuckets, aiChat.totalLatencyCount,
+                    aiChat.totalLatencyMicrosecondsTotal);
                 return text.str();
             };
             // Readiness is a dependency check, not only a listening-socket check.

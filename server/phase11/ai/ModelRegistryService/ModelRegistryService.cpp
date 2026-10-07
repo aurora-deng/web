@@ -107,32 +107,55 @@ void ModelRegistryService::registerValidator(
     validators_.insert_or_assign(runtime, std::move(validator));
 }
 
-void ModelRegistryService::activate(ModelNodeId node, ModelVersionId version)
+void ModelRegistryService::activate(ModelNodeId node, ModelVersionId version,
+                                    std::string actor)
 {
-    validateAndActivate(node, version, false);
+    validateAndActivate(node, version, false, std::move(actor));
 }
 
 void ModelRegistryService::rollback(ModelNodeId node,
-                                    ModelVersionId retiredVersion)
+                                    ModelVersionId retiredVersion,
+                                    std::string actor)
 {
-    validateAndActivate(node, retiredVersion, true);
+    validateAndActivate(node, retiredVersion, true, std::move(actor));
 }
 
 void ModelRegistryService::validateAndActivate(ModelNodeId node,
                                                ModelVersionId version,
-                                               bool rollbackOnly)
+                                               bool rollbackOnly,
+                                               std::string actor)
 {
+    if (actor.empty() || actor.size() > 128)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "invalid model activation actor");
     const auto modelNode = models_.findModelNode(node);
     const auto candidate = models_.findModelVersion(version);
     if (!modelNode || !candidate || candidate->nodeId != node)
         throw ApplicationError(ErrorCode::NotFound,
                                "model node or version not found");
+    const auto action = rollbackOnly ? ModelActivationAction::Rollback
+                                     : ModelActivationAction::Activate;
+    const auto auditFailure = [&](std::string detail)
+    {
+        if (detail.size() > 512)
+            detail.resize(512);
+        (void)models_.appendModelActivationAudit(
+            {0, node, modelNode->activeVersionId, version, action,
+             ModelActivationOutcome::Failed, actor, std::move(detail),
+             std::chrono::system_clock::now()});
+    };
     if (candidate->state == ModelVersionState::Rejected)
+    {
+        auditFailure("rejected model version cannot be activated");
         throw ApplicationError(ErrorCode::Conflict,
                                "rejected model version cannot be activated");
+    }
     if (rollbackOnly && candidate->state != ModelVersionState::Retired)
+    {
+        auditFailure("rollback target must be a retired version");
         throw ApplicationError(ErrorCode::Conflict,
                                "rollback target must be a retired version");
+    }
 
     std::shared_ptr<IModelArtifactValidator> validator;
     {
@@ -142,12 +165,29 @@ void ModelRegistryService::validateAndActivate(ModelNodeId node,
             validator = found->second;
     }
     if (!validator)
+    {
+        auditFailure("model runtime validator is not registered");
         throw ApplicationError(ErrorCode::Unavailable,
                                "model runtime validator is not registered");
+    }
 
     // 这里先试装，Repository 只有在全部检查成功后才会移动 Active 指针；
     // 因此校验异常或 Adapter 不兼容时，旧模型仍保持 Active。
-    const auto validation = validator->validateVersion(*candidate);
+    ModelArtifactValidation validation;
+    try
+    {
+        validation = validator->validateVersion(*candidate);
+    }
+    catch (const std::exception &failure)
+    {
+        auditFailure(failure.what());
+        throw;
+    }
+    catch (...)
+    {
+        auditFailure("model artifact validation threw an unknown error");
+        throw;
+    }
     if (!validation.valid)
     {
         auto message = validation.error.empty()
@@ -155,10 +195,16 @@ void ModelRegistryService::validateAndActivate(ModelNodeId node,
                            : validation.error;
         if (message.size() > 512)
             message.resize(512);
+        auditFailure(message);
         throw ApplicationError(
             ErrorCode::Conflict, std::move(message));
     }
-    if (!models_.activateModelVersion(node, version))
+    ModelActivationAudit audit{
+        0, node, modelNode->activeVersionId, version, action,
+        ModelActivationOutcome::Succeeded, std::move(actor),
+        rollbackOnly ? "model version rolled back" : "model version activated",
+        std::chrono::system_clock::now()};
+    if (!models_.activateModelVersion(node, version, std::move(audit)))
         throw ApplicationError(ErrorCode::InvalidArgument,
                                "model version cannot be activated");
 }
@@ -191,7 +237,8 @@ GenerationHandle ModelRouter::generate(UserId aiUser,
                                        GenerationRequest request,
                                        TokenSink onToken,
                                        CompletionSink onComplete,
-                                       CancellationToken cancellation)
+                                       CancellationToken cancellation,
+                                       SelectionSink onSelected)
 {
     const auto binding = models_.findModelBinding(aiUser);
     if (!binding)
@@ -225,6 +272,10 @@ GenerationHandle ModelRouter::generate(UserId aiUser,
     request.modelArtifact = version->modelArtifact;
     request.adapterArtifact = version->adapterArtifact;
     request.modelChecksum = version->checksum;
+    if (onSelected)
+        onSelected({node->id, version->id, version->runtime,
+                    version->modelArtifact, version->adapterArtifact,
+                    version->checksum});
     const MessageModelTrace trace{
         node->id, version->id, version->adapterArtifact};
     return provider->generate(

@@ -23,6 +23,7 @@ class PostgresStore final : public IDatabase,
                             public IFileRepository,
                             public IOutboxRepository,
                             public IModelRepository,
+                            public IAiGenerationAuditRepository,
                             public ITrainingRepository
 {
 public:
@@ -139,7 +140,15 @@ public:
     std::optional<ModelVersion> findModelVersion(ModelVersionId id) const override;
     std::optional<ModelBinding> findModelBinding(UserId aiUser) const override;
     std::vector<ModelEdge> modelEdges() const override;
-    bool activateModelVersion(ModelNodeId node, ModelVersionId version) override;
+    bool activateModelVersion(ModelNodeId node, ModelVersionId version,
+                              ModelActivationAudit audit) override;
+    ModelActivationAudit appendModelActivationAudit(
+        ModelActivationAudit audit) override;
+    std::vector<ModelActivationAudit> modelActivationAudits(
+        ModelNodeId node, std::size_t limit) const override;
+    bool upsertGenerationAudit(AiGenerationAudit audit) override;
+    std::optional<AiGenerationAudit> findGenerationAudit(
+        std::string_view generationId) const override;
 
     TrainingCandidate createTrainingCandidate(TrainingCandidate candidate) override;
     std::optional<TrainingCandidate> findTrainingCandidate(

@@ -272,6 +272,17 @@ published_at 标记完成
 `ai_user_id` 必须来自 `users`，`model_node_id` 指向模型节点。业务收到对某个 AI 账号的生成请求后，通过这张表找到模型，
 再读取它的激活版本和运行时。
 
+### `model_activation_audits`：模型变更操作票
+
+保存启用与回滚的前一版本、目标版本、动作、结果、发起者和原因。成功记录与 Active 指针原子提交；
+失败记录不改变当前 Active 版本。
+
+### `ai_generation_audits`：生成生命周期记录
+
+按 `generation_id` 保存请求者、会话、模型/版本/Adapter、Prompt 与输出 SHA-256、Token 数、首 Token
+和完成时间、终态以及成功回复消息。它不复制 Prompt 或输出正文。`revision` 阻止乱序异步任务用旧快照
+覆盖新终态。完整设计见 [Phase 19](../architecture/phase19.md)。
+
 ## 7. 授权训练数据
 
 ### `training_candidates`：训练候选样本

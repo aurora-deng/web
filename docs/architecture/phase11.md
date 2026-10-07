@@ -1257,3 +1257,11 @@ Phase 18 在 `ModelRouter` 与具体 Ollama/ONNX Provider 之间加入 `Resilien
 名额、完成事件和停机流程也能有界收尾；连续故障会触发熔断，同 Runtime 的备用端点可在尚未输出
 Token 时接管。完整流程、配置、指标、代码索引和验证结果见
 [Phase 18：AI 生成韧性与资源治理](phase18.md)。
+
+## 18. Phase 19 模型审计与生成追踪（2026-10-07）
+
+Phase 19 新增 `model_activation_audits` 和 `ai_generation_audits`。模型成功切换与审计在 PostgreSQL
+同一个原子操作中完成；失败试装也会保存目标版本和原因。AI 生成从 queued、running、首 Token 到
+成功/失败/取消/超时均保留 revision 快照，Prompt 与输出只保存 SHA-256 和长度，不复制聊天正文。
+Prometheus 同时增加首 Token 和总耗时直方图。完整流程、字段、代码索引、限制与三套 95/95 验证见
+[Phase 19：模型变更审计与 AI 生成追踪](phase19.md)。

@@ -603,6 +603,22 @@ User verifyModelFlow(Fixture &fixture, TimePoint now)
     CHECK(replacementAfterRollback &&
           replacementAfterRollback->state == ModelVersionState::Retired);
     CHECK(provider->validationCount == 4);
+    const auto activationAudits =
+        fixture.store.modelActivationAudits(specialist.id, 10);
+    CHECK(activationAudits.size() == 4);
+    CHECK(std::count_if(
+              activationAudits.begin(), activationAudits.end(),
+              [](const ModelActivationAudit &audit)
+              {
+                  return audit.outcome == ModelActivationOutcome::Failed;
+              }) == 1);
+    CHECK(std::count_if(
+              activationAudits.begin(), activationAudits.end(),
+              [](const ModelActivationAudit &audit)
+              {
+                  return audit.action == ModelActivationAction::Rollback &&
+                         audit.outcome == ModelActivationOutcome::Succeeded;
+              }) == 1);
     fixture.models.bindAiAccount(ai.id, specialist.id);
 
     fixture.router.registerProvider(provider);

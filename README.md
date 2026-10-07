@@ -1,4 +1,9 @@
-# web-test 2.0 · Phase 18（本地开发分支）
+# web-test 2.0 · Phase 19（本地开发分支）
+
+> Phase 19 为模型启用/回滚增加原子审计，并为每次 AI 生成保存请求身份、Prompt/输出 SHA-256、
+> 模型节点/版本/Adapter、首 Token、终态和回复消息关联。异步快照使用 revision 防止旧状态覆盖终态，
+> `/metrics` 同时暴露首 Token 与总耗时直方图。详见
+> [Phase 19：模型变更审计与 AI 生成追踪](docs/architecture/phase19.md)。
 
 > Phase 18 为 AI 生成补上生产前必须具备的资源治理：全局/用户/AI 账号三级并发配额、统一期限、
 > 取消与停机强制回收、Provider 熔断、同 Runtime 备用端点和 Prometheus 指标。备用切换只允许发生在

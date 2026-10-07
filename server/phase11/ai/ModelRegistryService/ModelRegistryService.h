@@ -29,20 +29,34 @@ public:
      * 先让对应 Runtime 试装模型/Adapter，成功后才切换 Active 指针。
      * 调用可能很慢，必须由管理端 Worker 执行，不能占用 Reactor。
      */
-    void activate(ModelNodeId node, ModelVersionId version);
+    void activate(ModelNodeId node, ModelVersionId version,
+                  std::string actor = "system");
     /** 重新启用该节点的一个 Retired 版本；目标仍需再次通过完整校验。 */
-    void rollback(ModelNodeId node, ModelVersionId retiredVersion);
+    void rollback(ModelNodeId node, ModelVersionId retiredVersion,
+                  std::string actor = "system");
 
 private:
     bool createsParentCycle(ModelNodeId from, ModelNodeId to) const;
     void validateAndActivate(ModelNodeId node, ModelVersionId version,
-                             bool rollbackOnly);
+                             bool rollbackOnly, std::string actor);
 
     IModelRepository &models_;
     mutable std::mutex validatorsMutex_;
     std::unordered_map<std::string, std::shared_ptr<IModelArtifactValidator>>
         validators_;
 };
+
+struct GenerationSelection
+{
+    ModelNodeId nodeId = 0;
+    ModelVersionId versionId = 0;
+    std::string runtime;
+    std::string modelArtifact;
+    std::string adapterArtifact;
+    std::string modelChecksum;
+};
+
+using SelectionSink = std::function<void(const GenerationSelection &)>;
 
 /**
  * ModelRegistryService 管“模型档案”，ModelRouter 管“这次请求找哪台发动机”。
@@ -58,7 +72,8 @@ public:
     GenerationHandle generate(UserId aiUser, GenerationRequest request,
                               TokenSink onToken,
                               CompletionSink onComplete,
-                              CancellationToken cancellation = {});
+                              CancellationToken cancellation = {},
+                              SelectionSink onSelected = {});
 
 private:
     IModelRepository &models_;

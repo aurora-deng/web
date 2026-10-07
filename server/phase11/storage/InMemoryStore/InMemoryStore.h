@@ -30,6 +30,7 @@ class InMemoryStore final : public IDatabase,
                             public IFileRepository,
                             public IOutboxRepository,
                             public IModelRepository,
+                            public IAiGenerationAuditRepository,
                             public ITrainingRepository
 {
 public:
@@ -140,7 +141,15 @@ public:
     std::optional<ModelVersion> findModelVersion(ModelVersionId id) const override;
     std::optional<ModelBinding> findModelBinding(UserId aiUser) const override;
     std::vector<ModelEdge> modelEdges() const override;
-    bool activateModelVersion(ModelNodeId node, ModelVersionId version) override;
+    bool activateModelVersion(ModelNodeId node, ModelVersionId version,
+                              ModelActivationAudit audit) override;
+    ModelActivationAudit appendModelActivationAudit(
+        ModelActivationAudit audit) override;
+    std::vector<ModelActivationAudit> modelActivationAudits(
+        ModelNodeId node, std::size_t limit) const override;
+    bool upsertGenerationAudit(AiGenerationAudit audit) override;
+    std::optional<AiGenerationAudit> findGenerationAudit(
+        std::string_view generationId) const override;
 
     TrainingCandidate createTrainingCandidate(TrainingCandidate candidate) override;
     std::optional<TrainingCandidate> findTrainingCandidate(
@@ -164,6 +173,7 @@ private:
         ModelNodeId nextModelNodeId = 1;
         ModelVersionId nextModelVersionId = 1;
         ModelEdgeId nextModelEdgeId = 1;
+        ModelActivationAuditId nextModelActivationAuditId = 1;
         TrainingCandidateId nextTrainingCandidateId = 1;
         DatasetVersionId nextDatasetVersionId = 1;
 
@@ -188,6 +198,9 @@ private:
         std::unordered_map<ModelVersionId, ModelVersion> modelVersions;
         std::unordered_map<ModelEdgeId, ModelEdge> modelEdges;
         std::unordered_map<UserId, ModelBinding> modelBindings;
+        std::unordered_map<ModelActivationAuditId, ModelActivationAudit>
+            modelActivationAudits;
+        std::unordered_map<std::string, AiGenerationAudit> generationAudits;
         std::unordered_map<TrainingCandidateId, TrainingCandidate> trainingCandidates;
         std::unordered_map<DatasetVersionId, DatasetVersion> datasets;
     };

@@ -194,7 +194,23 @@ public:
     [[nodiscard]] virtual std::optional<ModelBinding> findModelBinding(
         UserId aiUser) const = 0;
     [[nodiscard]] virtual std::vector<ModelEdge> modelEdges() const = 0;
-    virtual bool activateModelVersion(ModelNodeId node, ModelVersionId version) = 0;
+    /** 成功切换和 succeeded 审计必须在同一个存储原子操作内完成。 */
+    virtual bool activateModelVersion(ModelNodeId node, ModelVersionId version,
+                                      ModelActivationAudit audit) = 0;
+    virtual ModelActivationAudit appendModelActivationAudit(
+        ModelActivationAudit audit) = 0;
+    [[nodiscard]] virtual std::vector<ModelActivationAudit>
+    modelActivationAudits(ModelNodeId node, std::size_t limit) const = 0;
+};
+
+class IAiGenerationAuditRepository
+{
+public:
+    virtual ~IAiGenerationAuditRepository() = default;
+    /** 同一 generationId 只接受 revision 不小于现值的快照。 */
+    virtual bool upsertGenerationAudit(AiGenerationAudit audit) = 0;
+    [[nodiscard]] virtual std::optional<AiGenerationAudit>
+    findGenerationAudit(std::string_view generationId) const = 0;
 };
 
 class ITrainingRepository
