@@ -25,6 +25,7 @@ struct AiChatServiceConfig
     std::size_t maxActivePerUser = 2;
     std::size_t maxActivePerAiAccount = 16;
     std::chrono::milliseconds generationTimeout{300'000};
+    std::size_t ragMaxChunks = 6;
 };
 
 struct AiChatMetricsSnapshot
@@ -99,7 +100,8 @@ public:
                   DatabaseExecutor &databaseExecutor,
                   IAiGenerationAuditRepository &audits,
                   IAiGenerationEventSink &events,
-                  AiChatServiceConfig config = {});
+                  AiChatServiceConfig config = {},
+                  IRagContextProvider *rag = nullptr);
     ~AiChatService();
 
     AiChatService(const AiChatService &) = delete;

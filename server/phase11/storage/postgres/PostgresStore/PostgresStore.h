@@ -25,6 +25,7 @@ class PostgresStore final : public IDatabase,
                             public IModelRepository,
                             public IAiGenerationAuditRepository,
                             public IModelEvaluationRepository,
+                            public IKnowledgeRepository,
                             public ITrainingRepository
 {
 public:
@@ -171,6 +172,31 @@ public:
         ModelNodeId node) const override;
     std::optional<ModelEvaluationRun> latestCompletedEvaluationRun(
         ModelVersionId version, ModelEvaluationSuiteId suite) const override;
+
+    KnowledgeDocument createKnowledgeDocument(
+        KnowledgeDocument document,
+        std::vector<KnowledgeChunk> chunks) override;
+    bool updateKnowledgeDocumentState(
+        KnowledgeDocumentId document, KnowledgeDocumentState expected,
+        KnowledgeDocumentState next, std::string failureDetail,
+        std::optional<TimePoint> indexedAt) override;
+    std::optional<KnowledgeDocument> findKnowledgeDocument(
+        KnowledgeDocumentId id) const override;
+    std::optional<KnowledgeChunk> findKnowledgeChunk(
+        KnowledgeChunkId id) const override;
+    std::vector<KnowledgeChunk> knowledgeChunks(
+        KnowledgeDocumentId document) const override;
+    std::vector<KnowledgeDocument> privateKnowledgeDocuments(
+        UserId owner) const override;
+    std::vector<KnowledgeDocument> conversationKnowledgeDocuments(
+        ConversationId conversation) const override;
+    std::vector<KnowledgeChunk> allReadyKnowledgeChunks() const override;
+    bool saveRagRetrieval(RagRetrieval retrieval,
+                          std::vector<RagCitation> citations) override;
+    std::optional<RagRetrieval> findRagRetrieval(
+        std::string_view generationId) const override;
+    std::vector<RagCitation> ragCitations(
+        std::string_view generationId) const override;
 
     TrainingCandidate createTrainingCandidate(TrainingCandidate candidate) override;
     std::optional<TrainingCandidate> findTrainingCandidate(

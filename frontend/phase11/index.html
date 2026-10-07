@@ -59,6 +59,7 @@
         <button id="show-friends" class="side-action" type="button"><span class="nav-glyph">♧</span><span>联系人</span></button>
         <button id="show-requests" class="side-action" type="button"><span class="nav-glyph">♙</span><span>好友申请</span><span id="friend-badge" class="badge warning hidden">0</span></button>
         <button id="open-global-search" class="side-action" type="button"><span class="nav-glyph">⌕</span><span>消息搜索</span></button>
+        <button id="show-knowledge" class="side-action" type="button"><span class="nav-glyph">▤</span><span>知识库</span></button>
         <button id="show-model-status" class="side-action" type="button"><span class="nav-glyph">✦</span><span>模型状态</span></button>
       </nav>
       <section class="friend-preview" aria-labelledby="friend-preview-title">
@@ -120,10 +121,14 @@
 
   <dialog id="group-profile-dialog"><form id="group-profile-form" class="dialog-card"><header><div><p class="eyebrow">GROUP SETTINGS</p><h2>编辑群资料</h2><p>群主和管理员可以修改群名称与群公告。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>群名称<input name="title" maxlength="80" required></label><label>群公告<textarea name="announcement" maxlength="4096" rows="6" placeholder="向所有成员说明群聊规则或重要事项"></textarea></label><p class="form-status" id="group-profile-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">保存群资料</button></footer></form></dialog>
 
+  <dialog id="knowledge-dialog"><section class="dialog-card dialog-wide knowledge-dialog-card"><header><div><p class="eyebrow">RAG KNOWLEDGE</p><h2>知识资料库</h2><p>登记文本资料后，AI 会先按权限检索，再生成带来源的回答。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="dialog-columns knowledge-columns"><form id="knowledge-form" class="creation-card"><span class="creation-icon">▤</span><h3>登记资料</h3><label>可见范围<select name="scope"><option value="private">仅我的 AI 对话</option><option value="conversation">当前会话成员共享</option></select><small id="knowledge-scope-hint">私人资料只会进入本人和 AI 账号的私聊。</small></label><label>资料标题<input name="title" maxlength="200" required placeholder="例如：项目部署说明"></label><label>来源名称<input name="sourceName" maxlength="255" required placeholder="例如：deploy-notes.md"></label><label>文本内容<textarea name="content" rows="10" required placeholder="粘贴纯文本或 Markdown，当前上限 2 MiB"></textarea></label><button class="primary-button" type="submit">切片并建立索引</button><p class="form-status" id="knowledge-status" role="status"></p></form><section class="dialog-section knowledge-list-panel"><span class="step-number">✓</span><h3>当前范围内可用资料 <span id="knowledge-count">0</span></h3><ul id="knowledge-list" class="action-list knowledge-list"><li class="list-empty">正在加载资料…</li></ul><div class="model-explain"><strong>权限规则</strong><p>群聊只使用群共享资料；私人资料只进入本人和 AI 的一对一会话。普通好友私聊不会读取任何一方的私人资料。</p></div></section></div></section></dialog>
+
+  <dialog id="citation-dialog"><section class="dialog-card citation-dialog-card"><header><div><p class="eyebrow">ANSWER SOURCES</p><h2>回答引用</h2><p>这里展示本次生成实际送入模型的资料片段。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><ol id="citation-list" class="citation-list"><li class="list-empty">正在读取引用…</li></ol><p class="form-status" id="citation-status" role="status"></p></section></dialog>
+
   <dialog id="model-dialog"><section class="dialog-card dialog-wide model-dialog-card"><header><div><p class="eyebrow">RUNTIME STATUS</p><h2>模型与通道状态</h2><p>只展示浏览器能够真实确认的连接，不伪造模型探测结果。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="model-status-grid"><article><span class="model-orb">H</span><div><h3>HTTP 业务接口</h3><p>账号、好友、会话、历史与搜索</p></div><b class="status-chip ok">可用</b></article><article><span class="model-orb">W</span><div><h3>WebSocket 消息</h3><p>发送、ACK、已读与实时广播</p></div><b id="model-ws-status" class="status-chip">连接中</b></article><article><span class="model-orb">S</span><div><h3>SSE 事件流</h3><p>好友、邀请、通知与 AI Token</p></div><b id="model-sse-status" class="status-chip">连接中</b></article><article><span class="model-orb ai">AI</span><div><h3>AI Provider 路由</h3><p>Ollama / ONNX 进程内 / gRPC Worker</p></div><b class="status-chip neutral">按账号路由</b></article></div><div class="model-explain"><strong>AI 状态说明</strong><p>当前公共接口没有主动模型探测操作。发起生成后，实际成功、取消或错误状态会通过 SSE 返回。</p></div></section></dialog>
 
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <!-- 版本参数让已经打开过旧页面的浏览器重新获取修复后的 ES Module。 -->
-  <script type="module" src="/phase11/app.js?v=20261007-phase17-files"></script>
+  <script type="module" src="/phase11/app.js?v=20261007-phase21-rag"></script>
 </body>
 </html>

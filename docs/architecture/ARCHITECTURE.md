@@ -1,7 +1,7 @@
 # 架构说明
 
-> 当前实现以本文为结构基线；阶段演进从 [`phase4_upgrade.md`](phase4_upgrade.md) 延伸到
-> [`phase15_handler_cancellation_and_executor_isolation.md`](websocket-lessons/lesson15_handler_cancellation_and_executor_isolation.md)。
+> 当前实现以本文为网络内核结构基线；阶段演进从 [`phase4_upgrade.md`](phase4_upgrade.md) 延伸到
+> [Phase 21 RAG 知识检索与回答引用链](phase21.md)。
 > 本地 SSE 接入见 [`phase5.md`](phase5.md)；GitHub `test6.3` 仍是接入前基线。
 > 排错入口：[`../debugging/CHEATSHEET.md`](../debugging/CHEATSHEET.md)。
 
@@ -59,6 +59,37 @@ WebSocket handler 使用独立 Worker 容量；协议解析、连接状态与出
 文件 mmap 预热另用专用线程池。`ReactorGroup` 接收 `Router&` / HTTP `Executor&` /
 `SessionFactory&`，统一工厂单独接收 WS `Executor&` 与两种长会话的依赖；在 `start` 时
 把 `SessionFactory` 注入每个 SubReactor，使其能独立完成 HTTP→WebSocket/SSE 的会话交接。
+
+## Phase 11 应用层与 RAG 数据流
+
+网络内核只负责把可靠、完整的请求交给业务。账号、社交聊天、文件、AI、模型治理和 RAG 通过
+业务接口与 Repository/Provider 端口组织，PostgreSQL、内存实现、Ollama、ONNX 和 gRPC Worker
+都是这些端口的适配器。可以把它理解为“前台只认业务工单，仓库和模型机可以替换”。
+
+```mermaid
+flowchart LR
+    UI["Web UI"] --> HTTP["HTTP 业务接口"]
+    UI --> WS["WebSocket 实时消息"]
+    UI --> SSE["SSE 通知与 AI Token"]
+    HTTP --> Business["Auth / Social / Chat / File / Knowledge Business"]
+    WS --> Chat["ChatService / AiChatService"]
+    Business --> Repo["Repository ports"]
+    Chat --> Repo
+    Repo --> PG["PostgreSQL 迁移 001-009"]
+    Business --> Rag["RagService"]
+    Chat --> Rag
+    Rag --> Index["IKnowledgeIndex\n确定性词法实现"]
+    Rag --> Repo
+    Chat --> Provider["IModelProvider"]
+    Provider --> Ollama["Ollama API"]
+    Provider --> Onnx["进程内 ONNX / 独立 gRPC Worker"]
+```
+
+RAG 检索不是绕过权限的全库搜索。`RagService` 先根据请求者和当前会话生成允许的资料 ID，索引只在
+这个集合中排名，持久化前再校验资料状态和成员身份。私人资料只用于“本人和已启用 AI 账号”的私聊；
+群聊只使用该群共享资料。`rag_retrievals + rag_citations` 保存生成时真正使用的切片，因此网页查看引用
+得到的是当时证据，而不是事后重新检索的另一组结果。完整状态机、API 和代码索引见
+[Phase 21](phase21.md)。
 
 ## 从 accept 到响应
 
@@ -300,5 +331,7 @@ Runtime 正常退出时先停止 DeliveryService 与 acceptor，再 stop+join Re
 ## 可观测与验证边界
 
 仓库有 GoogleTest、Linux 黑盒测试、Sanitizer 和 HttpParser fuzz 入口；压测及 perf 流程见
-[../performance/BENCHMARK.md](../performance/BENCHMARK.md)。由于当前宿主无 Linux/WSL，本次未运行服务、未验证线程调度时序，
-也未生成 QPS/延迟结论。图中关系来自当前源码静态检查，Linux 实测应作为发布前门禁。
+[../performance/BENCHMARK.md](../performance/BENCHMARK.md)。Phase 21 已在 CentOS Stream 9 虚拟机完成
+Release、Debug、ASan+LSan+UBSan 三套 **96/96** CTest，数据库迁移版本 1–9 均已在隔离测试库和主库核对；
+服务重启后 readiness 恢复。这里的结果证明当前测试覆盖下的功能与资源安全，公网发布仍需结合真实容量、
+密钥管理、多实例一致性和故障演练判断，不能把单机通过直接等同于生产承诺。

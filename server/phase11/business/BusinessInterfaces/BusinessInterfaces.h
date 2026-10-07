@@ -55,6 +55,19 @@ struct ConversationParticipant
     User user;
 };
 
+/**
+ * Citation 的业务视图：ID 用于审计，标题、来源和片段用于前端解释回答依据。
+ * 传输层只负责序列化，不再自行跨 Repository 拼装资料。
+ */
+struct KnowledgeCitationView
+{
+    RagCitation citation;
+    std::string documentTitle;
+    std::string sourceName;
+    std::uint64_t chunkOrdinal = 0;
+    std::string content;
+};
+
 class IAuthBusiness
 {
 public:
@@ -176,6 +189,23 @@ public:
     [[nodiscard]] virtual FileDownload download(UserId requester,
                                                 FileId file) const = 0;
     virtual User useAsAvatar(UserId owner, FileId file) = 0;
+};
+
+class IKnowledgeBusiness
+{
+public:
+    virtual ~IKnowledgeBusiness() = default;
+
+    virtual KnowledgeDocument registerKnowledgeDocument(
+        UserId owner, std::optional<ConversationId> conversation,
+        std::string title, std::string sourceName,
+        std::string mediaType, std::string content, TimePoint now) = 0;
+    [[nodiscard]] virtual std::vector<KnowledgeDocument> knowledgeDocuments(
+        UserId requester,
+        std::optional<ConversationId> conversation) const = 0;
+    [[nodiscard]] virtual std::vector<KnowledgeCitationView>
+    generationCitations(UserId requester,
+                        std::string_view generationId) const = 0;
 };
 
 class IAiChatBusiness

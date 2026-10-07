@@ -19,6 +19,8 @@ const elements = {
   searchDialog: $('#search-dialog'),
   memberDialog: $('#member-dialog'),
   groupProfileDialog: $('#group-profile-dialog'),
+  knowledgeDialog: $('#knowledge-dialog'),
+  citationDialog: $('#citation-dialog'),
   modelDialog: $('#model-dialog'),
   detailPane: $('#detail-pane'),
 };
@@ -615,6 +617,8 @@ function requestRecall(message, button) {
 function createMessageElement(message, options = {}) {
   const mine = Number(message.senderId) === Number(state.me?.id);
   const aiMessage = Boolean(options.ai || message.clientMessageId?.startsWith('ai:'));
+  const generationId = options.generationId ||
+    (message.clientMessageId?.startsWith('ai:') ? message.clientMessageId.slice(3) : '');
   const item = document.createElement('li');
   item.className = 'message';
   item.classList.toggle('mine', mine);
@@ -622,7 +626,7 @@ function createMessageElement(message, options = {}) {
   item.classList.toggle('message-recalled', message.state === 'recalled');
   if (message.id !== undefined) item.dataset.messageId = String(message.id);
   if (message.clientMessageId) item.dataset.clientMessageId = message.clientMessageId;
-  if (options.generationId) item.dataset.generationId = options.generationId;
+  if (generationId) item.dataset.generationId = generationId;
   if (message.sequence !== undefined) item.dataset.sequence = String(message.sequence);
 
   const avatar = document.createElement('span');
@@ -679,6 +683,14 @@ function createMessageElement(message, options = {}) {
   status.className = `message-delivery ${message.deliveryState || ''}`.trim();
   status.textContent = deliveryLabel(message);
   footer.append(status);
+  if (aiMessage && generationId && !options.streaming && message.state !== 'recalled') {
+    const sources = document.createElement('button');
+    sources.type = 'button';
+    sources.className = 'message-citations';
+    sources.textContent = '查看引用';
+    sources.addEventListener('click', () => openCitationDetails(generationId));
+    footer.append(sources);
+  }
   if (canRecall(message)) {
     const recall = document.createElement('button');
     recall.type = 'button';
@@ -710,6 +722,34 @@ function renderMessages(messages) {
 
 function scrollMessages() {
   requestAnimationFrame(() => { elements.messageList.scrollTop = elements.messageList.scrollHeight; });
+}
+
+async function openCitationDetails(generationId) {
+  $('#citation-list').replaceChildren(actionListEmpty('正在读取引用…'));
+  setStatus($('#citation-status'));
+  elements.citationDialog.showModal();
+  try {
+    const citations = await api(
+      `/api/ai/generations/${encodeURIComponent(generationId)}/citations`,
+    );
+    const rows = citations.map(citation => {
+      const item = document.createElement('li');
+      const title = document.createElement('strong');
+      title.textContent = `[资料${citation.rank}] ${citation.documentTitle}`;
+      const source = document.createElement('small');
+      source.textContent = `${citation.sourceName} · 片段 ${Number(citation.chunkOrdinal) + 1} · 相关度 ${Number(citation.score).toFixed(3)}`;
+      const content = document.createElement('p');
+      content.textContent = citation.content;
+      item.append(title, source, content);
+      return item;
+    });
+    $('#citation-list').replaceChildren(...(rows.length
+      ? rows : [actionListEmpty('本次回答没有检索到可引用资料。')]));
+    setStatus($('#citation-status'), `共 ${rows.length} 条可追溯引用`, 'success');
+  } catch (error) {
+    $('#citation-list').replaceChildren(actionListEmpty('引用读取失败'));
+    setStatus($('#citation-status'), error.message, 'error');
+  }
 }
 
 function existingMessage(messageId) {
@@ -1514,6 +1554,58 @@ $('#cancel-generation').addEventListener('click', event => {
   sendSocket({ v: 1, type: 'ai.cancel', id: createClientId(), replyTo: generationId });
 });
 
+function knowledgeScope() {
+  const form = $('#knowledge-form');
+  return form.elements.scope.value === 'conversation' && state.conversation
+    ? state.conversation.id : null;
+}
+
+function renderKnowledgeDocuments(documents) {
+  const rows = documents.map(document => {
+    const item = document.createElement('li');
+    const icon = document.createElement('span');
+    icon.className = 'knowledge-file-icon';
+    icon.textContent = document.mediaType === 'text/markdown' ? 'MD' : 'TXT';
+    const copy = document.createElement('span');
+    copy.className = 'item-copy';
+    const title = document.createElement('strong');
+    title.textContent = document.title;
+    const meta = document.createElement('small');
+    meta.textContent = `${document.sourceName} · ${document.scope === 'private' ? '私人' : '会话共享'} · ${document.state}`;
+    copy.append(title, meta);
+    const checksum = document.createElement('code');
+    checksum.className = 'knowledge-checksum';
+    checksum.textContent = document.sha256.slice(0, 10);
+    checksum.title = document.sha256;
+    item.append(icon, copy, checksum);
+    return item;
+  });
+  $('#knowledge-list').replaceChildren(...(rows.length
+    ? rows : [actionListEmpty('当前范围还没有可用资料。')]));
+  $('#knowledge-count').textContent = String(rows.length);
+}
+
+async function loadKnowledgeDocuments() {
+  const conversationId = knowledgeScope();
+  const query = conversationId
+    ? `?conversationId=${encodeURIComponent(conversationId)}` : '';
+  $('#knowledge-list').replaceChildren(actionListEmpty('正在加载资料…'));
+  try {
+    renderKnowledgeDocuments(await api(`/api/knowledge/documents${query}`));
+  } catch (error) {
+    $('#knowledge-list').replaceChildren(actionListEmpty('资料加载失败'));
+    setStatus($('#knowledge-status'), error.message, 'error');
+  }
+}
+
+function updateKnowledgeScopeHint() {
+  const form = $('#knowledge-form');
+  const conversation = form.elements.scope.value === 'conversation';
+  $('#knowledge-scope-hint').textContent = conversation && state.conversation
+    ? `共享给“${conversationTitle(state.conversation)}”的当前成员。`
+    : '私人资料只会进入本人和 AI 账号的私聊。';
+}
+
 $('#show-conversations').addEventListener('click', loadConversations);
 $('#show-friends').addEventListener('click', async () => {
   elements.friendDialog.showModal();
@@ -1527,6 +1619,60 @@ $('#show-requests').addEventListener('click', async () => {
   elements.friendDialog.showModal();
   await loadContacts();
   $('#friend-request-list').scrollIntoView({ block: 'nearest' });
+});
+$('#show-knowledge').addEventListener('click', async () => {
+  const form = $('#knowledge-form');
+  const conversationOption = form.elements.scope.querySelector('[value="conversation"]');
+  conversationOption.disabled = !state.conversation;
+  conversationOption.textContent = state.conversation
+    ? `当前会话：${conversationTitle(state.conversation)}` : '当前会话（请先选择会话）';
+  if (!state.conversation && form.elements.scope.value === 'conversation')
+    form.elements.scope.value = 'private';
+  updateKnowledgeScopeHint();
+  setStatus($('#knowledge-status'));
+  elements.knowledgeDialog.showModal();
+  await loadKnowledgeDocuments();
+});
+$('#knowledge-form').elements.scope.addEventListener('change', async () => {
+  updateKnowledgeScopeHint();
+  await loadKnowledgeDocuments();
+});
+$('#knowledge-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  const fields = new FormData(form);
+  const content = String(fields.get('content') || '');
+  if (new Blob([content]).size > 2 * 1024 * 1024) {
+    setStatus($('#knowledge-status'), '资料正文不能超过 2 MiB。', 'error');
+    return;
+  }
+  const conversationId = knowledgeScope();
+  const sourceName = String(fields.get('sourceName') || '').trim();
+  setButtonBusy(button, true, '正在切片并建立索引…');
+  try {
+    await api('/api/knowledge/documents', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: String(fields.get('title') || '').trim(),
+        sourceName,
+        mediaType: sourceName.toLowerCase().endsWith('.md')
+          ? 'text/markdown' : 'text/plain',
+        content,
+        ...(conversationId ? { conversationId: String(conversationId) } : {}),
+      }),
+    });
+    form.elements.title.value = '';
+    form.elements.sourceName.value = '';
+    form.elements.content.value = '';
+    setStatus($('#knowledge-status'), '资料已切片、持久化并进入检索索引。', 'success');
+    toast('知识资料已可用于 AI 检索', 'success');
+    await loadKnowledgeDocuments();
+  } catch (error) {
+    setStatus($('#knowledge-status'), error.message, 'error');
+  } finally {
+    setButtonBusy(button, false);
+  }
 });
 $('#show-model-status').addEventListener('click', () => {
   setRealtimeState('ws', state.realtime.ws);

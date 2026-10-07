@@ -1,12 +1,16 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
-这份文档对应当前五份数据库迁移：建库基线
+这份文档对应当前九份数据库迁移：建库基线
 [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) 和消息生命周期增量
 [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)，以及群聊治理增量
 [003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql)，以及联系人增量
 [004_contacts_presence.sql](../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql)，以及文件增量
-[005_files.sql](../../server/phase11/storage/postgres/migrations/005_files.sql)。它解释当前真实代码中的
-21 张表（1 张迁移登记表和 20 张业务表），不把规划中的功能写成已经实现。
+[005_files.sql](../../server/phase11/storage/postgres/migrations/005_files.sql)、AI 治理增量
+[006_ai_governance.sql](../../server/phase11/storage/postgres/migrations/006_ai_governance.sql)、模型评测增量
+[007_model_evaluation.sql](../../server/phase11/storage/postgres/migrations/007_model_evaluation.sql)、评测集版本约束增量
+[008_evaluation_suite_versioning.sql](../../server/phase11/storage/postgres/migrations/008_evaluation_suite_versioning.sql)，以及 RAG 增量
+[009_rag_knowledge_and_citations.sql](../../server/phase11/storage/postgres/migrations/009_rag_knowledge_and_citations.sql)。
+它解释当前真实代码中的 32 张表（1 张迁移登记表和 31 张业务表），不把规划中的功能写成已经实现。
 
 当前虚拟机的实际行数、AI 绑定和本地测试账号统一记录在同目录的
 `phase11-app-data.local.md`。该文件包含测试密码并被 `.gitignore` 排除，只保留在本地与虚拟机，
@@ -20,6 +24,7 @@
 - `messages` 是按房间编号保存的信件，`outbox_events` 是等待通知系统领取的发货单；
 - `file_objects` 是文件登记卡，`message_attachments` 把文件贴到消息上；
 - `model_*` 是 AI 模型资产目录，`training_*` 和 `dataset_*` 是经过授权的数据加工区。
+- `knowledge_documents` 和 `knowledge_chunks` 是知识资料与切片仓库，`rag_*` 保存每次检索及实际引用。
 
 ## 1. 总体关系
 
@@ -53,6 +58,14 @@ erDiagram
     messages ||--o{ training_candidates : source
     dataset_versions ||--o{ dataset_candidates : includes
     training_candidates ||--o{ dataset_candidates : included_as
+    users ||--o{ knowledge_documents : owns
+    conversations ||--o{ knowledge_documents : scopes
+    knowledge_documents ||--o{ knowledge_chunks : splits
+    users ||--o{ rag_retrievals : requests
+    conversations ||--o{ rag_retrievals : contextualizes
+    rag_retrievals ||--o{ rag_citations : contains
+    knowledge_documents ||--o{ rag_citations : cites
+    knowledge_chunks ||--o{ rag_citations : cites
 ```
 
 `outbox_events` 通过 `aggregate_type + aggregate_id` 指向业务对象，而不是数据库外键。这样一张表可以统一保存
@@ -64,12 +77,12 @@ erDiagram
 
 | 字段 | 含义 |
 |---|---|
-| `version` | 迁移版本号，当前最新为 `5` |
+| `version` | 迁移版本号，当前最新为 `9` |
 | `description` | 该版本做了什么 |
 | `applied_at` | 迁移执行时间 |
 
 它像数据库的“装修记录”。迁移脚本会按编号依次检查和执行尚未登记的文件，因此已有版本 1 的数据库只应用
-版本 2–5，新建空库则依次应用版本 1–5。
+版本 2–9，新建空库则依次应用版本 1–9。
 
 ### `users`：用户花名册
 
@@ -322,7 +335,43 @@ submitted → approved → exported
 
 连接数据集版本与候选样本。一份候选样本可以进入不同实验数据集，一个数据集也可以包含多份样本，因此使用多对多表。
 
-## 8. 主要业务写入路径
+## 8. RAG 知识库与引用链
+
+### `knowledge_documents`：知识资料登记卡
+
+一行代表用户登记的一份文本或 Markdown 资料。`scope` 决定可见范围：
+
+- `private`：`conversation_id` 必须为空，只属于 `owner_id`；当前还要求会话另一端是已启用的 AI 账号，
+  普通人与人的私聊不会读取私人资料；
+- `conversation`：`conversation_id` 必须存在，只有当前会话成员可以登记、查询和检索。
+
+`sha256` 是原文指纹，`state` 按 `indexing → ready` 或 `indexing → failed` 演进。只有 `ready`
+资料能进入回答上下文。它像图书馆的“书目卡”，先登记、分章节、建索引，成功后才允许借阅。
+
+### `knowledge_chunks`：UTF-8 安全切片
+
+一份资料会拆成多个有重叠的切片。`ordinal` 表示原文顺序，`content` 保存切片正文，`sha256`
+保存切片指纹；`UNIQUE(document_id, ordinal)` 阻止同一资料出现两个相同位置。
+
+切片边界不会从 UTF-8 多字节字符中间断开。当前索引是便于学习和确定性测试的词法余弦检索，
+接口 `IKnowledgeIndex` 已与业务解耦，后续可以替换成向量数据库而不改 HTTP、AI 会话和权限层。
+
+### `rag_retrievals`：一次生成的检索封面
+
+主键直接使用 `generation_id`，并记录请求者、会话、查询 Hash 和时间。同一个生成 ID 重试时，
+服务端会核对身份、会话和查询 Hash，再复用已经持久化的结果；不允许拿另一个请求者的生成 ID
+读取引用。
+
+### `rag_citations`：回答实际引用的切片
+
+每行保存检索排名、资料、切片和分数。复合外键 `(document_id, chunk_id)` 保证“引用的切片确实属于
+这份资料”，`PRIMARY KEY(generation_id, rank)` 保证排名稳定。前端展示的是这些已经落库的引用，
+而不是生成结束后临时再搜一次，因此回答与证据不会悄悄错位。
+
+完整权限矩阵、检索流程和故障一致性见
+[Phase 21](../architecture/phase21.md)。
+
+## 9. 主要业务写入路径
 
 ### 注册和登录
 
@@ -401,7 +450,24 @@ message.recalled Outbox
 WebSocket + SSE 通知所有会话成员
 ```
 
-## 9. 在 Navicat 中建议先看的内容
+### 登记知识与生成引用
+
+```text
+登记资料 → knowledge_documents(state=indexing) + knowledge_chunks（同一事务）
+          → 写入进程内检索索引
+          → CAS 更新 state=ready
+
+发起 AI 生成 → 按当前用户和会话计算允许的 document_id
+              → 检索候选并再次校验资料状态/权限
+              → rag_retrievals + rag_citations（同一事务）
+              → 引用片段进入系统 Prompt
+              → AI 回复沿用原有生成审计和消息链路
+```
+
+如果索引写入失败，资料会转为 `failed`；如果进程在数据库提交后崩溃，启动时会从所有 `ready`
+切片重建索引。数据库是事实来源，内存索引只是可以重新生成的“目录卡”。
+
+## 10. 在 Navicat 中建议先看的内容
 
 先注册两个测试账号，再按下面顺序观察：
 
@@ -417,6 +483,8 @@ WebSocket + SSE 通知所有会话成员
 10. 用同一账号打开两个 WebSocket，关闭后观察 `user_presence.last_active_at` 更新。
 11. 上传文件时观察 `file_objects.uploaded_size` 从 0 推进到最终大小，再变为 `ready`。
 12. 发送文件消息后联查 `messages` 与 `message_attachments`；正文实际字节不会出现在数据库中。
+13. 登记私人或会话资料，观察 `knowledge_documents` 与按 `ordinal` 排列的 `knowledge_chunks`。
+14. 在 AI 会话中提问后，联查 `rag_retrievals` 和 `rag_citations`，确认引用属于当前用户可访问的资料。
 
 只读查询示例：
 
@@ -435,12 +503,19 @@ SELECT id, event_type, aggregate_type, aggregate_id,
        published_at IS NOT NULL AS published
 FROM outbox_events
 ORDER BY id DESC;
+
+SELECT r.generation_id, r.requester_id, r.conversation_id,
+       c.rank, d.title, c.chunk_id, c.score
+FROM rag_retrievals AS r
+JOIN rag_citations AS c ON c.generation_id = r.generation_id
+JOIN knowledge_documents AS d ON d.id = c.document_id
+ORDER BY r.created_at DESC, c.rank;
 ```
 
 学习时优先执行 `SELECT`。直接在 Navicat 修改游标、序号、Session Hash 或模型激活版本，可能绕开业务层约束，制造
 应用正常操作不会产生的状态。
 
-## 10. 代码索引
+## 11. 代码索引
 
 | 内容 | 文件 |
 |---|---|
@@ -449,6 +524,12 @@ ORDER BY id DESC;
 | 群角色、公告、禁言与软解散约束 | [003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql) |
 | 联系人、黑名单与最后活跃 | [004_contacts_presence.sql](../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql) |
 | 文件元数据、附件与头像 | [005_files.sql](../../server/phase11/storage/postgres/migrations/005_files.sql) |
+| 模型激活与生成生命周期审计 | [006_ai_governance.sql](../../server/phase11/storage/postgres/migrations/006_ai_governance.sql) |
+| 模型评测集、执行结果与激活策略 | [007_model_evaluation.sql](../../server/phase11/storage/postgres/migrations/007_model_evaluation.sql) |
+| 评测集不可变版本约束 | [008_evaluation_suite_versioning.sql](../../server/phase11/storage/postgres/migrations/008_evaluation_suite_versioning.sql) |
+| RAG 资料、切片、检索与引用 | [009_rag_knowledge_and_citations.sql](../../server/phase11/storage/postgres/migrations/009_rag_knowledge_and_citations.sql) |
+| RAG 编排与权限校验 | [RagService.cpp](../../server/phase11/ai/RagService/RagService.cpp) |
+| 可替换的确定性学习索引 | [DeterministicKnowledgeIndex.cpp](../../server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp) |
 | PostgreSQL Repository | [PostgresStore.cpp](../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 连接池 | [PostgresConnectionPool.cpp](../../server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
 | Repository 业务接口 | [Ports.h](../../server/phase11/ports/Ports/Ports.h) |

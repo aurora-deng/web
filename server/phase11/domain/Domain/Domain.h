@@ -22,6 +22,8 @@ using ModelActivationAuditId = std::uint64_t;
 using ModelEvaluationSuiteId = std::uint64_t;
 using ModelEvaluationCaseId = std::uint64_t;
 using ModelEvaluationRunId = std::uint64_t;
+using KnowledgeDocumentId = std::uint64_t;
+using KnowledgeChunkId = std::uint64_t;
 using TrainingCandidateId = std::uint64_t;
 using DatasetVersionId = std::uint64_t;
 using TimePoint = std::chrono::system_clock::time_point;
@@ -453,6 +455,87 @@ struct ModelQualityGateDecision
     bool allowed = false;
     std::optional<ModelEvaluationRunId> runId;
     std::string detail;
+};
+
+enum class KnowledgeScope
+{
+    PrivateUser,
+    Conversation
+};
+
+enum class KnowledgeDocumentState
+{
+    Indexing,
+    Ready,
+    Failed,
+    Deleted
+};
+
+/**
+ * RAG 文档只保存来源登记和权限边界；正文拆成 Chunk 后单独持久化。私人文档只对
+ * owner 可见，会话文档则跟随 conversation_members 的成员关系授权。
+ */
+struct KnowledgeDocument
+{
+    KnowledgeDocumentId id = 0;
+    UserId ownerId = 0;
+    KnowledgeScope scope = KnowledgeScope::PrivateUser;
+    std::optional<ConversationId> conversationId;
+    std::string title;
+    std::string sourceName;
+    std::string mediaType;
+    std::string sha256;
+    KnowledgeDocumentState state = KnowledgeDocumentState::Indexing;
+    std::string failureDetail;
+    TimePoint createdAt{};
+    std::optional<TimePoint> indexedAt;
+};
+
+struct KnowledgeChunk
+{
+    KnowledgeChunkId id = 0;
+    KnowledgeDocumentId documentId = 0;
+    std::uint64_t ordinal = 0;
+    std::string content;
+    std::string sha256;
+};
+
+/** Index 只返回候选 ID 和相关度，正文仍以 Repository 为可信来源。 */
+struct KnowledgeSearchHit
+{
+    KnowledgeDocumentId documentId = 0;
+    KnowledgeChunkId chunkId = 0;
+    double score = 0.0;
+};
+
+struct RagRetrieval
+{
+    std::string generationId;
+    UserId requesterId = 0;
+    ConversationId conversationId = 0;
+    std::string querySha256;
+    TimePoint createdAt{};
+};
+
+/**
+ * Citation 把最终生成请求和实际取回的 Chunk 串起来。rank 保留喂给模型时的顺序，
+ * 便于事后解释“这条回答参考了哪几段资料”。
+ */
+struct RagCitation
+{
+    std::string generationId;
+    std::uint64_t rank = 0;
+    KnowledgeDocumentId documentId = 0;
+    KnowledgeChunkId chunkId = 0;
+    double score = 0.0;
+
+    bool operator==(const RagCitation &) const = default;
+};
+
+struct RagContext
+{
+    std::string systemPrompt;
+    std::vector<RagCitation> citations;
 };
 
 enum class TrainingCandidateState

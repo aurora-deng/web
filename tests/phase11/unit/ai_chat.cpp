@@ -1,5 +1,7 @@
 #include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
 #include "server/phase11/business/AiChatService/AiChatService.h"
+#include "server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "server/phase11/ai/RagService/RagService.h"
 #include "server/phase11/business/ChatService/ChatService.h"
 #include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
 #include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
@@ -203,6 +205,11 @@ int main()
     const auto conversation = chat.createDirectConversation(alice.id, ai.id, now);
     const auto group = chat.createGroupConversation(
         alice.id, "validation", {bob.id}, now);
+    DeterministicKnowledgeIndex knowledgeIndex;
+    RagService rag(store, store, store, knowledgeIndex);
+    const auto knowledge = rag.registerDocument(
+        alice.id, {}, "AI 测试知识", "ai-test.md", "text/markdown",
+        "hello model 应参考 Phase 11 的持久引用。", now);
 
     const auto node = registry.createNode("ollama-assistant",
                                           ModelNodeKind::Specialist, now);
@@ -220,7 +227,7 @@ int main()
     aiConfig.maxActivePerAiAccount = 2;
     aiConfig.generationTimeout = std::chrono::milliseconds(80);
     AiChatService aiChat(chat, store, store, router, databaseExecutor, store,
-                         events, aiConfig);
+                         events, aiConfig, &rag);
     webserver::phase11::transport::Phase11Realtime realtime(
         chat, databaseExecutor, &aiChat);
     WebSocketDispatcher dispatcher;
@@ -256,7 +263,13 @@ int main()
     CHECK(observed.modelArtifact == "qwen-learning");
     CHECK(observed.adapterArtifact.empty());
     CHECK(!observed.messages.empty() &&
-          observed.messages.back().content == "hello model");
+           observed.messages.back().content == "hello model");
+    CHECK(observed.messages.front().role == "system" &&
+          observed.messages.front().content.find("AI 测试知识") !=
+              std::string::npos);
+    const auto ragCitations = store.ragCitations("generation-success");
+    CHECK(!ragCitations.empty() &&
+          ragCitations.front().documentId == knowledge.id);
     const auto successAudit = waitForAudit(
         store, "generation-success", AiGenerationStatus::Succeeded);
     CHECK(successAudit.modelNodeId == node.id);

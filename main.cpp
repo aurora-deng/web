@@ -34,6 +34,8 @@
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
 #include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
 #include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
+#include "server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "server/phase11/ai/RagService/RagService.h"
 #include "server/phase11/ai/ResilientModelProvider/ResilientModelProvider.h"
 #ifdef WEBSERVER_HAS_CURL_CLIENT
 #include "server/phase11/ai/OllamaModelProvider/OllamaModelProvider.h"
@@ -56,6 +58,7 @@
 #include "server/phase11/storage/files/LocalFileStorage/LocalFileStorage.h"
 #include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
 #include "server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.h"
+#include "server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h"
 #include "server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
 #include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #endif
@@ -308,16 +311,23 @@ int main()
             phase11ModelEvaluations;
         std::unique_ptr<webserver::phase11::ModelRegistryService>
             phase11ModelRegistry;
+        std::unique_ptr<webserver::phase11::DeterministicKnowledgeIndex>
+            phase11KnowledgeIndex;
+        std::unique_ptr<webserver::phase11::RagService> phase11Rag;
         std::unique_ptr<webserver::phase11::LocalFileStorage> phase11FileStorage;
         std::unique_ptr<webserver::phase11::FileService> phase11Files;
         std::unique_ptr<webserver::phase11::DatabaseExecutor> phase11DatabaseExecutor;
         std::unique_ptr<webserver::phase11::BoundedExecutor> phase11FileExecutor;
+        std::unique_ptr<webserver::phase11::BoundedExecutor>
+            phase11KnowledgeExecutor;
         std::unique_ptr<webserver::phase11::transport::Phase11AuthHttp>
             phase11AuthHttp;
         std::unique_ptr<webserver::phase11::transport::Phase11SocialChatHttp>
             phase11SocialChatHttp;
         std::unique_ptr<webserver::phase11::transport::Phase11FileHttp>
             phase11FileHttp;
+        std::unique_ptr<webserver::phase11::transport::Phase11KnowledgeHttp>
+            phase11KnowledgeHttp;
 #endif
 
         const ServerRuntimeOptions runtimeOptions{
@@ -423,6 +433,21 @@ int main()
             phase11Chat = std::make_unique<webserver::phase11::ChatService>(
                 *phase11Store, *phase11Store, *phase11Store, *phase11Store,
                 *phase11Store, *phase11Store, *phase11Store);
+            phase11KnowledgeIndex = std::make_unique<
+                webserver::phase11::DeterministicKnowledgeIndex>();
+            webserver::phase11::RagServiceConfig ragConfig;
+            ragConfig.maxDocumentBytes = boundedEnvironmentSize(
+                "WEB_PHASE11_RAG_DOCUMENT_BYTES", 2 * 1024 * 1024,
+                1024, 16 * 1024 * 1024);
+            ragConfig.maxChunkBytes = boundedEnvironmentSize(
+                "WEB_PHASE11_RAG_CHUNK_BYTES", 1200, 256, 8192);
+            ragConfig.overlapBytes = boundedEnvironmentSize(
+                "WEB_PHASE11_RAG_OVERLAP_BYTES", 160, 0, 4095);
+            ragConfig.maxRetrievedChunks = boundedEnvironmentSize(
+                "WEB_PHASE11_RAG_MAX_CHUNKS", 8, 1, 32);
+            phase11Rag = std::make_unique<webserver::phase11::RagService>(
+                *phase11Store, *phase11Store, *phase11Store,
+                *phase11KnowledgeIndex, ragConfig);
             phase11DatabaseExecutor = std::make_unique<
                 webserver::phase11::DatabaseExecutor>(
                     boundedEnvironmentSize("WEB_PHASE11_DB_WORKERS", 4, 1, 32),
@@ -441,6 +466,13 @@ int main()
                 webserver::phase11::BoundedExecutor>(
                     boundedEnvironmentSize("WEB_PHASE11_FILE_WORKERS", 2, 1, 16),
                     boundedEnvironmentSize("WEB_PHASE11_FILE_QUEUE", 64, 1,
+                                           4096));
+            // 文档切片和索引重建可能明显慢于普通 CRUD，使用独立有界队列，避免
+            // 挤占数据库查询和文件传输任务。
+            phase11KnowledgeExecutor = std::make_unique<
+                webserver::phase11::BoundedExecutor>(
+                    boundedEnvironmentSize("WEB_PHASE11_RAG_WORKERS", 2, 1, 16),
+                    boundedEnvironmentSize("WEB_PHASE11_RAG_QUEUE", 32, 1,
                                            4096));
             webserver::phase11::transport::Phase11AuthHttpConfig httpConfig;
             httpConfig.secureCookie = productionMode ||
@@ -619,10 +651,14 @@ int main()
             aiChatConfig.generationTimeout = std::chrono::milliseconds(
                 boundedEnvironmentSize("WEB_PHASE11_AI_DEADLINE_MS",
                                        330'000, 100, 3'600'000));
+            aiChatConfig.ragMaxChunks = boundedEnvironmentSize(
+                "WEB_PHASE11_AI_RAG_MAX_CHUNKS", 6, 1,
+                ragConfig.maxRetrievedChunks);
             phase11AiChat = std::make_unique<webserver::phase11::AiChatService>(
                 *phase11Chat, *phase11Store, *phase11Store,
                 *phase11ModelRouter, *phase11DatabaseExecutor,
-                *phase11Store, *phase11AiEvents, aiChatConfig);
+                *phase11Store, *phase11AiEvents, aiChatConfig,
+                phase11Rag.get());
             phase11OutboxSink = std::make_unique<
                 webserver::phase11::transport::Phase11RealtimeOutboxSink>(
                     *phase11Store, *phase11Store, *phase11Store,
@@ -647,6 +683,14 @@ int main()
                 webserver::phase11::transport::Phase11FileHttp>(
                     *phase11AuthHttp, *phase11Files, *phase11Chat,
                     *phase11FileExecutor, notifyOutbox);
+            webserver::phase11::transport::Phase11KnowledgeHttpConfig
+                knowledgeHttpConfig;
+            knowledgeHttpConfig.maximumRequestBytes =
+                ragConfig.maxDocumentBytes * 2U + 64U * 1024U;
+            phase11KnowledgeHttp = std::make_unique<
+                webserver::phase11::transport::Phase11KnowledgeHttp>(
+                    *phase11AuthHttp, *phase11Rag,
+                    *phase11KnowledgeExecutor, knowledgeHttpConfig);
             phase11Realtime = std::make_unique<
                 webserver::phase11::transport::Phase11Realtime>(
                     *phase11Chat, *phase11DatabaseExecutor,
@@ -659,6 +703,8 @@ int main()
             phase11MetricsText = [store = phase11Store.get(),
                                   executor = phase11DatabaseExecutor.get(),
                                   fileExecutor = phase11FileExecutor.get(),
+                                  knowledgeExecutor =
+                                      phase11KnowledgeExecutor.get(),
                                   pump = phase11OutboxPump.get(),
                                   ai = phase11AiChat.get(),
                                   resilient = phase11ResilientProviders]
@@ -666,6 +712,7 @@ int main()
                 const auto pool = store->poolSnapshot();
                 const auto queue = executor->snapshot();
                 const auto files = fileExecutor->snapshot();
+                const auto knowledge = knowledgeExecutor->snapshot();
                 const auto outbox = pump->snapshot();
                 const auto aiChat = ai->snapshot();
                 webserver::phase11::ModelProviderResilienceSnapshot aiProviders;
@@ -703,6 +750,19 @@ int main()
                      << "webserver_phase11_file_executor_queued " << files.queued << '\n'
                      << "webserver_phase11_file_executor_queue_high_watermark "
                      << files.queueHighWatermark << '\n'
+                     << "# TYPE webserver_phase11_rag_executor_active gauge\n"
+                     << "webserver_phase11_rag_executor_submitted_total "
+                     << knowledge.submitted << '\n'
+                     << "webserver_phase11_rag_executor_rejected_total "
+                     << knowledge.rejected << '\n'
+                     << "webserver_phase11_rag_executor_failed_total "
+                     << knowledge.failed << '\n'
+                     << "webserver_phase11_rag_executor_active "
+                     << knowledge.active << '\n'
+                     << "webserver_phase11_rag_executor_queued "
+                     << knowledge.queued << '\n'
+                     << "webserver_phase11_rag_executor_queue_high_watermark "
+                     << knowledge.queueHighWatermark << '\n'
                      << "# TYPE webserver_phase11_postgres_pool_in_use gauge\n"
                      << "webserver_phase11_postgres_pool_size " << pool.size << '\n'
                      << "webserver_phase11_postgres_pool_available " << pool.available << '\n'
@@ -1072,6 +1132,7 @@ int main()
             phase11AuthHttp->registerRoutes(server.router());
             phase11SocialChatHttp->registerRoutes(server.router());
             phase11FileHttp->registerRoutes(server.router());
+            phase11KnowledgeHttp->registerRoutes(server.router());
         }
         else
 #endif

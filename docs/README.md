@@ -23,6 +23,10 @@
 | HTTP/WS/SSE/PostgreSQL 真实业务性能基线（Phase 15，本地分支） | [architecture/phase15.md](architecture/phase15.md) |
 | 可观测性、Outbox 主动唤醒与运维闭环（Phase 16，本地分支） | [architecture/phase16.md](architecture/phase16.md) |
 | 头像、图片/文件消息、分片上传与权限下载（Phase 17，本地分支） | [architecture/phase17.md](architecture/phase17.md) |
+| AI 生成韧性、配额、期限、熔断与备用端点（Phase 18，本地分支） | [architecture/phase18.md](architecture/phase18.md) |
+| 模型变更审计与 AI 生成追踪（Phase 19，本地分支） | [architecture/phase19.md](architecture/phase19.md) |
+| 模型评测集与激活质量门禁（Phase 20，本地分支） | [architecture/phase20.md](architecture/phase20.md) |
+| RAG 知识检索、权限隔离与回答引用链（Phase 21，本地分支） | [architecture/phase21.md](architecture/phase21.md) |
 | Phase 11 外部依赖审批、位置和卸载说明 | [architecture/phase11-dependency-gates.md](architecture/phase11-dependency-gates.md) |
 | Phase 11 PostgreSQL 表结构、关系和业务写入流程 | [database/README.md](database/README.md) |
 | WebSocket 课程演进 | [architecture/websocket-lessons/README.md](architecture/websocket-lessons/README.md) |

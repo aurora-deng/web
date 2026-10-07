@@ -32,6 +32,7 @@ class InMemoryStore final : public IDatabase,
                             public IModelRepository,
                             public IAiGenerationAuditRepository,
                             public IModelEvaluationRepository,
+                            public IKnowledgeRepository,
                             public ITrainingRepository
 {
 public:
@@ -173,6 +174,31 @@ public:
     std::optional<ModelEvaluationRun> latestCompletedEvaluationRun(
         ModelVersionId version, ModelEvaluationSuiteId suite) const override;
 
+    KnowledgeDocument createKnowledgeDocument(
+        KnowledgeDocument document,
+        std::vector<KnowledgeChunk> chunks) override;
+    bool updateKnowledgeDocumentState(
+        KnowledgeDocumentId document, KnowledgeDocumentState expected,
+        KnowledgeDocumentState next, std::string failureDetail,
+        std::optional<TimePoint> indexedAt) override;
+    std::optional<KnowledgeDocument> findKnowledgeDocument(
+        KnowledgeDocumentId id) const override;
+    std::optional<KnowledgeChunk> findKnowledgeChunk(
+        KnowledgeChunkId id) const override;
+    std::vector<KnowledgeChunk> knowledgeChunks(
+        KnowledgeDocumentId document) const override;
+    std::vector<KnowledgeDocument> privateKnowledgeDocuments(
+        UserId owner) const override;
+    std::vector<KnowledgeDocument> conversationKnowledgeDocuments(
+        ConversationId conversation) const override;
+    std::vector<KnowledgeChunk> allReadyKnowledgeChunks() const override;
+    bool saveRagRetrieval(RagRetrieval retrieval,
+                          std::vector<RagCitation> citations) override;
+    std::optional<RagRetrieval> findRagRetrieval(
+        std::string_view generationId) const override;
+    std::vector<RagCitation> ragCitations(
+        std::string_view generationId) const override;
+
     TrainingCandidate createTrainingCandidate(TrainingCandidate candidate) override;
     std::optional<TrainingCandidate> findTrainingCandidate(
         TrainingCandidateId id) const override;
@@ -199,6 +225,8 @@ private:
         ModelEvaluationSuiteId nextEvaluationSuiteId = 1;
         ModelEvaluationCaseId nextEvaluationCaseId = 1;
         ModelEvaluationRunId nextEvaluationRunId = 1;
+        KnowledgeDocumentId nextKnowledgeDocumentId = 1;
+        KnowledgeChunkId nextKnowledgeChunkId = 1;
         TrainingCandidateId nextTrainingCandidateId = 1;
         DatasetVersionId nextDatasetVersionId = 1;
 
@@ -236,6 +264,11 @@ private:
                  ModelEvaluationCaseResult> evaluationResults;
         std::unordered_map<ModelNodeId, ModelActivationPolicy>
             activationPolicies;
+        std::unordered_map<KnowledgeDocumentId, KnowledgeDocument>
+            knowledgeDocuments;
+        std::unordered_map<KnowledgeChunkId, KnowledgeChunk> knowledgeChunks;
+        std::unordered_map<std::string, RagRetrieval> ragRetrievals;
+        std::unordered_map<std::string, std::vector<RagCitation>> ragCitations;
         std::unordered_map<TrainingCandidateId, TrainingCandidate> trainingCandidates;
         std::unordered_map<DatasetVersionId, DatasetVersion> datasets;
     };

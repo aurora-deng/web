@@ -252,6 +252,63 @@ public:
         ModelNodeId node, ModelVersionId version, TimePoint now) const = 0;
 };
 
+class IKnowledgeRepository
+{
+public:
+    virtual ~IKnowledgeRepository() = default;
+    /** 文档登记卡与全部 Chunk 必须原子写入，不能留下半份知识。 */
+    virtual KnowledgeDocument createKnowledgeDocument(
+        KnowledgeDocument document, std::vector<KnowledgeChunk> chunks) = 0;
+    virtual bool updateKnowledgeDocumentState(
+        KnowledgeDocumentId document, KnowledgeDocumentState expected,
+        KnowledgeDocumentState next, std::string failureDetail,
+        std::optional<TimePoint> indexedAt) = 0;
+    [[nodiscard]] virtual std::optional<KnowledgeDocument>
+    findKnowledgeDocument(KnowledgeDocumentId id) const = 0;
+    [[nodiscard]] virtual std::optional<KnowledgeChunk>
+    findKnowledgeChunk(KnowledgeChunkId id) const = 0;
+    [[nodiscard]] virtual std::vector<KnowledgeChunk> knowledgeChunks(
+        KnowledgeDocumentId document) const = 0;
+    [[nodiscard]] virtual std::vector<KnowledgeDocument>
+    privateKnowledgeDocuments(UserId owner) const = 0;
+    [[nodiscard]] virtual std::vector<KnowledgeDocument>
+    conversationKnowledgeDocuments(ConversationId conversation) const = 0;
+    [[nodiscard]] virtual std::vector<KnowledgeChunk>
+    allReadyKnowledgeChunks() const = 0;
+    /** Retrieval 与有序 Citation 一起保存，generationId 只允许写入一次。 */
+    virtual bool saveRagRetrieval(RagRetrieval retrieval,
+                                  std::vector<RagCitation> citations) = 0;
+    [[nodiscard]] virtual std::optional<RagRetrieval> findRagRetrieval(
+        std::string_view generationId) const = 0;
+    [[nodiscard]] virtual std::vector<RagCitation> ragCitations(
+        std::string_view generationId) const = 0;
+};
+
+/** 可替换检索设备；Phase 21 的参考实现是无依赖词法索引，后续可换向量库。 */
+class IKnowledgeIndex
+{
+public:
+    virtual ~IKnowledgeIndex() = default;
+    virtual void replaceAll(std::vector<KnowledgeChunk> chunks) = 0;
+    virtual void upsert(std::vector<KnowledgeChunk> chunks) = 0;
+    virtual void removeDocument(KnowledgeDocumentId document) = 0;
+    [[nodiscard]] virtual std::vector<KnowledgeSearchHit> search(
+        std::string_view query,
+        const std::vector<KnowledgeDocumentId> &allowedDocuments,
+        std::size_t limit) const = 0;
+};
+
+/** AiChatService 只消费上下文，不知道切片、索引和权限如何实现。 */
+class IRagContextProvider
+{
+public:
+    virtual ~IRagContextProvider() = default;
+    virtual RagContext retrieveForGeneration(
+        std::string generationId, UserId requester,
+        ConversationId conversation, std::string_view query,
+        std::size_t limit, TimePoint now) = 0;
+};
+
 class ITrainingRepository
 {
 public:

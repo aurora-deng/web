@@ -1081,6 +1081,172 @@ InMemoryStore::latestCompletedEvaluationRun(
     return latest;
 }
 
+KnowledgeDocument InMemoryStore::createKnowledgeDocument(
+    KnowledgeDocument document, std::vector<KnowledgeChunk> chunks)
+{
+    std::lock_guard lock(mutex_);
+    const bool validScope =
+        (document.scope == KnowledgeScope::PrivateUser &&
+         !document.conversationId) ||
+        (document.scope == KnowledgeScope::Conversation &&
+         document.conversationId &&
+         state_.conversations.contains(*document.conversationId));
+    if (!state_.users.contains(document.ownerId) || !validScope ||
+        document.state != KnowledgeDocumentState::Indexing || chunks.empty())
+        throw std::invalid_argument("invalid knowledge document");
+    if (document.conversationId &&
+        !state_.members.contains({*document.conversationId, document.ownerId}))
+        throw std::invalid_argument("knowledge document owner is not a member");
+
+    document.id = state_.nextKnowledgeDocumentId++;
+    for (auto &chunk : chunks)
+    {
+        chunk.id = state_.nextKnowledgeChunkId++;
+        chunk.documentId = document.id;
+    }
+    state_.knowledgeDocuments.emplace(document.id, document);
+    for (auto &chunk : chunks)
+        state_.knowledgeChunks.emplace(chunk.id, std::move(chunk));
+    return document;
+}
+
+bool InMemoryStore::updateKnowledgeDocumentState(
+    KnowledgeDocumentId document, KnowledgeDocumentState expected,
+    KnowledgeDocumentState next, std::string failureDetail,
+    std::optional<TimePoint> indexedAt)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.knowledgeDocuments.find(document);
+    if (found == state_.knowledgeDocuments.end() ||
+        found->second.state != expected)
+        return false;
+    found->second.state = next;
+    found->second.failureDetail = std::move(failureDetail);
+    found->second.indexedAt = indexedAt;
+    return true;
+}
+
+std::optional<KnowledgeDocument> InMemoryStore::findKnowledgeDocument(
+    KnowledgeDocumentId id) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.knowledgeDocuments.find(id);
+    return found == state_.knowledgeDocuments.end()
+               ? std::nullopt
+               : std::optional<KnowledgeDocument>{found->second};
+}
+
+std::optional<KnowledgeChunk> InMemoryStore::findKnowledgeChunk(
+    KnowledgeChunkId id) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.knowledgeChunks.find(id);
+    return found == state_.knowledgeChunks.end()
+               ? std::nullopt
+               : std::optional<KnowledgeChunk>{found->second};
+}
+
+std::vector<KnowledgeChunk> InMemoryStore::knowledgeChunks(
+    KnowledgeDocumentId document) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<KnowledgeChunk> result;
+    for (const auto &[_, chunk] : state_.knowledgeChunks)
+        if (chunk.documentId == document)
+            result.push_back(chunk);
+    std::sort(result.begin(), result.end(), [](const auto &left, const auto &right)
+              { return left.ordinal < right.ordinal; });
+    return result;
+}
+
+std::vector<KnowledgeDocument> InMemoryStore::privateKnowledgeDocuments(
+    UserId owner) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<KnowledgeDocument> result;
+    for (const auto &[_, document] : state_.knowledgeDocuments)
+        if (document.ownerId == owner &&
+            document.scope == KnowledgeScope::PrivateUser &&
+            document.state == KnowledgeDocumentState::Ready)
+            result.push_back(document);
+    return result;
+}
+
+std::vector<KnowledgeDocument>
+InMemoryStore::conversationKnowledgeDocuments(
+    ConversationId conversation) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<KnowledgeDocument> result;
+    for (const auto &[_, document] : state_.knowledgeDocuments)
+        if (document.conversationId == conversation &&
+            document.scope == KnowledgeScope::Conversation &&
+            document.state == KnowledgeDocumentState::Ready)
+            result.push_back(document);
+    return result;
+}
+
+std::vector<KnowledgeChunk> InMemoryStore::allReadyKnowledgeChunks() const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<KnowledgeChunk> result;
+    for (const auto &[_, chunk] : state_.knowledgeChunks)
+    {
+        const auto document = state_.knowledgeDocuments.find(chunk.documentId);
+        if (document != state_.knowledgeDocuments.end() &&
+            document->second.state == KnowledgeDocumentState::Ready)
+            result.push_back(chunk);
+    }
+    return result;
+}
+
+bool InMemoryStore::saveRagRetrieval(
+    RagRetrieval retrieval, std::vector<RagCitation> citations)
+{
+    std::lock_guard lock(mutex_);
+    if (retrieval.generationId.empty() ||
+        !state_.users.contains(retrieval.requesterId) ||
+        !state_.conversations.contains(retrieval.conversationId) ||
+        state_.ragRetrievals.contains(retrieval.generationId))
+        return false;
+    for (std::size_t index = 0; index < citations.size(); ++index)
+    {
+        const auto &citation = citations[index];
+        const auto document = state_.knowledgeDocuments.find(citation.documentId);
+        const auto chunk = state_.knowledgeChunks.find(citation.chunkId);
+        if (citation.generationId != retrieval.generationId ||
+            citation.rank != index + 1 ||
+            document == state_.knowledgeDocuments.end() ||
+            document->second.state != KnowledgeDocumentState::Ready ||
+            chunk == state_.knowledgeChunks.end() ||
+            chunk->second.documentId != citation.documentId)
+            return false;
+    }
+    state_.ragRetrievals.emplace(retrieval.generationId, retrieval);
+    state_.ragCitations.emplace(retrieval.generationId, std::move(citations));
+    return true;
+}
+
+std::optional<RagRetrieval> InMemoryStore::findRagRetrieval(
+    std::string_view generationId) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.ragRetrievals.find(std::string(generationId));
+    return found == state_.ragRetrievals.end()
+               ? std::nullopt
+               : std::optional<RagRetrieval>{found->second};
+}
+
+std::vector<RagCitation> InMemoryStore::ragCitations(
+    std::string_view generationId) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.ragCitations.find(std::string(generationId));
+    return found == state_.ragCitations.end()
+               ? std::vector<RagCitation>{}
+               : found->second;
+}
+
 TrainingCandidate InMemoryStore::createTrainingCandidate(
     TrainingCandidate candidate)
 {

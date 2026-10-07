@@ -4,12 +4,15 @@
 #include "server/phase11/business/ChatService/ChatService.h"
 #include "server/phase11/business/FileService/FileService.h"
 #include "server/phase11/business/SocialService/SocialService.h"
+#include "server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "server/phase11/ai/RagService/RagService.h"
 #include "server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
 #include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
 #include "server/phase11/storage/files/LocalFileStorage/LocalFileStorage.h"
 #include "server/phase11/transport/FlatJson/FlatJson.h"
 #include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
 #include "server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.h"
+#include "server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h"
 #include "server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
 #include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #include "server/response/StringBody.h"
@@ -206,6 +209,8 @@ void verifyHttpFlow()
     AuthService auth(store, store, credentials, limiter);
     SocialService social(store, store, store, store);
     ChatService chat(store, store, store, store, store, store, store);
+    DeterministicKnowledgeIndex knowledgeIndex;
+    RagService rag(store, store, store, knowledgeIndex);
     const auto fileRoot = std::filesystem::temp_directory_path() /
         ("phase11-http-files-" + std::to_string(
             std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -213,6 +218,7 @@ void verifyHttpFlow()
     FileService files(store, store, store, fileStorage);
     DatabaseExecutor databaseExecutor(2, 32);
     BoundedExecutor fileExecutor(1, 8);
+    BoundedExecutor knowledgeExecutor(1, 8);
     Phase11AuthHttpConfig config;
     config.secureCookie = false;
     Phase11AuthHttp adapter(auth, databaseExecutor, config);
@@ -220,10 +226,13 @@ void verifyHttpFlow()
     Phase11SocialChatHttp socialChat(
         adapter, social, chat, databaseExecutor, webSockets);
     Phase11FileHttp fileHttp(adapter, files, chat, fileExecutor);
+    Phase11KnowledgeHttp knowledgeHttp(
+        adapter, rag, knowledgeExecutor, {512U * 1024U});
     Router router;
     adapter.registerRoutes(router);
     socialChat.registerRoutes(router);
     fileHttp.registerRoutes(router);
+    knowledgeHttp.registerRoutes(router);
 
     const auto malformed = request(router, "POST", "/api/auth/register",
                                    R"({"username":"alice",})");
@@ -299,6 +308,43 @@ void verifyHttpFlow()
             std::to_string(bobId) + "\"}", cookie, csrf);
     CHECK(conversation.status == 201);
     const auto conversationId = jsonUnsignedField(conversation.body, "id");
+
+    // RAG HTTP 入口必须经过同一套 Cookie/CSRF，文档登记完成后业务服务负责
+    // 切片、索引；引用查询返回可供 UI 展示的来源与实际片段。
+    CHECK(request(
+        router, "POST", "/api/knowledge/documents",
+        R"({"title":"Architecture notes","sourceName":"notes.txt","mediaType":"text/plain","content":"PostgreSQL stores durable chat history and the outbox records committed notifications."})",
+        cookie, "wrong-csrf").status == 403);
+    const auto knowledgeDocument = request(
+        router, "POST", "/api/knowledge/documents",
+        R"({"title":"Architecture notes","sourceName":"notes.txt","mediaType":"text/plain","content":"PostgreSQL stores durable chat history and the outbox records committed notifications."})",
+        cookie, csrf);
+    CHECK(knowledgeDocument.status == 201);
+    CHECK(knowledgeDocument.body.find("\"state\":\"ready\"") !=
+          std::string::npos);
+    const auto listedKnowledge = request(
+        router, "GET", "/api/knowledge/documents", {}, cookie);
+    CHECK(listedKnowledge.status == 200);
+    CHECK(listedKnowledge.body.find("Architecture notes") !=
+          std::string::npos);
+    const auto sharedKnowledgeDocument = request(
+        router, "POST", "/api/knowledge/documents",
+        "{\"title\":\"Shared architecture\",\"sourceName\":\"shared.txt\","
+        "\"mediaType\":\"text/plain\",\"content\":\"PostgreSQL stores durable chat history and the outbox records committed notifications.\","
+        "\"conversationId\":\"" + std::to_string(conversationId) + "\"}",
+        cookie, csrf);
+    CHECK(sharedKnowledgeDocument.status == 201);
+    const auto ragContext = rag.retrieveForGeneration(
+        "http-rag-generation", aliceId, conversationId,
+        "Where is durable chat history stored?", 4,
+        std::chrono::system_clock::now());
+    CHECK(!ragContext.citations.empty());
+    const auto citations = request(
+        router, "GET",
+        "/api/ai/generations/http-rag-generation/citations", {}, bobCookie);
+    CHECK(citations.status == 200);
+    CHECK(citations.body.find("Shared architecture") != std::string::npos);
+    CHECK(citations.body.find("durable chat history") != std::string::npos);
     const auto persisted = chat.sendText(
         aliceId, conversationId, "http-test-message", "persistent hello",
         std::chrono::system_clock::now());
@@ -416,6 +462,7 @@ void verifyHttpFlow()
     CHECK(request(router, "GET", "/api/me", {}, cookie).status == 401);
 
     fileExecutor.shutdown();
+    knowledgeExecutor.shutdown();
     databaseExecutor.shutdown();
     std::error_code ignored;
     std::filesystem::remove_all(fileRoot, ignored);

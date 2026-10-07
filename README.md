@@ -1,4 +1,9 @@
-# web-test 2.0 · Phase 20（本地开发分支）
+# web-test 2.0 · Phase 21（本地开发分支）
+
+> Phase 21 打通 RAG 知识链路：私人/会话资料登记、UTF-8 确定性切片、可替换检索端口、权限过滤、
+> Retrieval/Citation 持久化、AI Prompt 接入和网页引用查看。私人资料只进入本人和 AI 账号的私聊，
+> 群聊与普通双人私聊不会读取个人资料。详见
+> [Phase 21：RAG 知识检索、权限隔离与回答引用链](docs/architecture/phase21.md)。
 
 > Phase 20 新增版本化模型评测集、逐题结果、服务端加权汇总和节点级激活质量门禁。候选版本必须拥有
 > 同版本、同评测集、未过期且达到通过率/加权分的 completed Run，才会继续 Runtime 制品试装与原子切换；
@@ -208,6 +213,15 @@ gRPC C++ 1.82.0 完成了以下检查：
   **94/94**。文件整链黑盒验证 256 KiB 分片协议、错误 offset 返回 409、接收者离线时文件消息持久化、
   会话外用户返回 403、整文件与 Range 下载字节一致，以及头像绑定后登录用户可读。文件正文不进入
   PostgreSQL，并由独立有界文件执行器隔离磁盘 I/O 与哈希工作。
+- Phase 18 增加生成配额、统一期限、协作取消、Provider 熔断与安全备用切换；Release、Debug、
+  ASan+LSan+UBSan 三套 CTest 均为 **95/95**，故障注入覆盖超时、取消、过载和停机资源回收。
+- Phase 19 增加模型激活原子审计、AI 生成生命周期追踪和延迟直方图；三套 CTest 均为 **95/95**，
+  并验证异步审计 revision 不会让旧快照覆盖生成终态。
+- Phase 20 增加版本化评测集、逐题结果和模型激活质量门禁；三套 CTest 均为 **95/95**，
+  验证不及格、过期、版本不匹配或必答题失败都不能切换 Active 模型。
+- Phase 21 完成数据库版本 9 迁移；Release、Debug、ASan+LSan+UBSan 三套 CTest 均为
+  **96/96**。RAG 契约、HTTP、AI Prompt 接入和 PostgreSQL 真实契约测试均通过；私人资料、会话资料、
+  幂等检索与持久引用都执行服务端权限校验，Sanitizer 未报告错误。
 
 最终测试数字与发现过的问题记录在
 [Phase 9 验证记录](docs/architecture/phase9.md#11-验证记录)。
@@ -229,5 +243,9 @@ gRPC C++ 1.82.0 完成了以下检查：
 13. [Phase 15：真实业务性能基线](docs/architecture/phase15.md)
 14. [Phase 16：可观测性、Outbox 主动唤醒与运维闭环](docs/architecture/phase16.md)
 15. [Phase 17：头像、图片与文件消息](docs/architecture/phase17.md)
-16. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
-17. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)
+16. [Phase 18：AI 生成韧性与资源治理](docs/architecture/phase18.md)
+17. [Phase 19：模型变更审计与 AI 生成追踪](docs/architecture/phase19.md)
+18. [Phase 20：模型评测与激活质量门禁](docs/architecture/phase20.md)
+19. [Phase 21：RAG 知识检索与回答引用链](docs/architecture/phase21.md)
+20. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
+21. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)

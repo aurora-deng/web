@@ -124,14 +124,15 @@ struct AiChatService::State final
           IUserRepository &userRepository,
           IConversationRepository &conversationRepository,
           ModelRouter &modelRouter,
-          DatabaseExecutor &executor,
-          IAiGenerationAuditRepository &auditRepository,
-          IAiGenerationEventSink &eventSink,
-          AiChatServiceConfig serviceConfig)
+           DatabaseExecutor &executor,
+           IAiGenerationAuditRepository &auditRepository,
+           IAiGenerationEventSink &eventSink,
+           AiChatServiceConfig serviceConfig,
+           IRagContextProvider *ragProvider)
         : chat(&chatService), users(&userRepository),
           conversations(&conversationRepository), models(&modelRouter),
           databaseExecutor(&executor), audits(&auditRepository), events(&eventSink),
-          config(std::move(serviceConfig))
+          rag(ragProvider), config(std::move(serviceConfig))
     {
     }
 
@@ -142,6 +143,7 @@ struct AiChatService::State final
     DatabaseExecutor *databaseExecutor;
     IAiGenerationAuditRepository *audits;
     IAiGenerationEventSink *events;
+    IRagContextProvider *rag;
     AiChatServiceConfig config;
 
     std::mutex mutex;
@@ -535,6 +537,15 @@ void prepareGeneration(const std::shared_ptr<AiChatService::State> &state,
             request.requester, request.conversation, 0, kHistoryLimit);
 
         auto promptMessages = buildPromptWindow(history, request.aiUser);
+        if (state->rag)
+        {
+            auto context = state->rag->retrieveForGeneration(
+                request.requestId, request.requester, request.conversation,
+                request.prompt, state->config.ragMaxChunks, currentTime());
+            if (!context.systemPrompt.empty())
+                promptMessages.insert(promptMessages.begin(),
+                                      {"system", std::move(context.systemPrompt)});
+        }
         const auto [promptHash, promptBytes] = promptDigest(promptMessages);
         AiGenerationAudit promptAudit;
         {
@@ -612,14 +623,16 @@ AiChatService::AiChatService(ChatService &chat,
                              DatabaseExecutor &databaseExecutor,
                              IAiGenerationAuditRepository &audits,
                              IAiGenerationEventSink &events,
-                             AiChatServiceConfig config)
+                             AiChatServiceConfig config,
+                             IRagContextProvider *rag)
     : state_(std::make_shared<State>(chat, users, conversations, models,
-                                     databaseExecutor, audits, events,
-                                     std::move(config)))
+                                      databaseExecutor, audits, events,
+                                      std::move(config), rag))
 {
     if (state_->config.maxActiveGenerations == 0 ||
         state_->config.maxActivePerUser == 0 ||
         state_->config.maxActivePerAiAccount == 0 ||
+        state_->config.ragMaxChunks == 0 || state_->config.ragMaxChunks > 32 ||
         state_->config.generationTimeout <= std::chrono::milliseconds::zero())
         throw std::invalid_argument("invalid AI chat service configuration");
     state_->watchdog = std::thread([state = state_] { watchdogLoop(state); });

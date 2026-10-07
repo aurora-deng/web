@@ -1,5 +1,7 @@
 #include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
 #include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
+#include "server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "server/phase11/ai/RagService/RagService.h"
 #include "tests/phase11/unit/RepositoryContract.h"
 
 #if defined(WEBSERVER_HAS_SODIUM)
@@ -42,7 +44,8 @@ void clearTestDatabase(const std::string &connectionString)
     PGresult *result = PQexec(
         connection,
         "TRUNCATE TABLE users, model_nodes, dataset_versions, "
-        "model_evaluation_suites, outbox_events "
+        "model_evaluation_suites, knowledge_documents, rag_retrievals, "
+        "outbox_events "
         "RESTART IDENTITY CASCADE");
     const bool succeeded = result && PQresultStatus(result) == PGRES_COMMAND_OK;
     const std::string error = succeeded ? std::string{} : PQerrorMessage(connection);
@@ -185,6 +188,28 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
     require(!store.addMember(
                 {group.id, charlie.id, MemberRole::Member, 0, 0, now}),
             "duplicate group member was inserted");
+
+    DeterministicKnowledgeIndex knowledgeIndex;
+    RagService rag(store, store, store, knowledgeIndex);
+    const auto privateKnowledge = rag.registerDocument(
+        alice->id, {}, "PostgreSQL 私人知识", "private.md", "text/markdown",
+        "连接池负责限制数据库连接并发。", now);
+    const auto sharedKnowledge = rag.registerDocument(
+        alice->id, group.id, "PostgreSQL 群知识", "group.md", "text/markdown",
+        "RAG 引用链把生成请求和知识片段持久关联。", now);
+    const auto ragContext = rag.retrieveForGeneration(
+        "postgres-rag-generation", charlie.id, group.id,
+        "生成请求 知识片段 引用链", 6, now);
+    require(privateKnowledge.state == KnowledgeDocumentState::Ready &&
+                sharedKnowledge.state == KnowledgeDocumentState::Ready &&
+                !ragContext.citations.empty() &&
+                ragContext.citations.front().documentId == sharedKnowledge.id,
+            "RAG document authorization or retrieval persistence failed");
+    require(store.allReadyKnowledgeChunks().size() >= 2 &&
+                store.findRagRetrieval("postgres-rag-generation") &&
+                store.ragCitations("postgres-rag-generation").size() ==
+                    ragContext.citations.size(),
+            "RAG chunks or citation chain could not be reloaded");
 
     User ai{0, "contract-ai", "Contract AI", {}, "disabled",
             false, true, now};

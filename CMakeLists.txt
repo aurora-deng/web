@@ -163,8 +163,10 @@ if(WEBSERVER_ENABLE_PHASE11)
         server/phase11/business/FileService/FileService.cpp
         server/phase11/business/AiChatService/AiChatService.cpp
         server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp
+        server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp
         server/phase11/ai/ModelEvaluationService/ModelEvaluationService.cpp
         server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp
+        server/phase11/ai/RagService/RagService.cpp
         server/phase11/ai/ResilientModelProvider/ResilientModelProvider.cpp
         server/phase11/training/TrainingDataService/TrainingDataService.cpp
         server/phase11/transport/FlatJson/FlatJson.cpp
@@ -372,6 +374,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp
         server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp
         server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.cpp
+        server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp
         server/phase11/transport/serialization/MessageJson/MessageJson.cpp
         server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)
     target_include_directories(webserver_phase11_http PUBLIC ${PROJECT_SOURCE_DIR})
@@ -548,6 +551,11 @@ if(BUILD_TESTING)
         add_test(NAME phase11_ai_resilience_tests
             COMMAND phase11_ai_resilience_tests)
         set_tests_properties(phase11_ai_resilience_tests PROPERTIES TIMEOUT 30)
+
+        add_executable(phase11_rag_tests tests/phase11/unit/rag.cpp)
+        target_link_libraries(phase11_rag_tests PRIVATE webserver_phase11)
+        add_test(NAME phase11_rag_tests COMMAND phase11_rag_tests)
+        set_tests_properties(phase11_rag_tests PROPERTIES TIMEOUT 30)
 
         # 文件正文在独立目录、元数据在 Repository。这个契约测试同时覆盖分片游标、
         # SHA-256 封存、附件权限、头像公开读取与伪装文件拒绝。
