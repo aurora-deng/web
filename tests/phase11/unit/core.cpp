@@ -1,3 +1,4 @@
+#include "server/phase11/ai/DeterministicExactScorer/DeterministicExactScorer.h"
 #include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
 #include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
 #include "server/phase11/business/AuthService/AuthService.h"
@@ -772,6 +773,26 @@ void verifyTrainingConsent(Fixture &fixture, TimePoint now,
            exported->datasetVersionId == dataset.id);
 }
 
+void verifyDeterministicExactScorer()
+{
+    DeterministicExactScorer scorer;
+    const auto matched = scorer.score(
+        "Phase11   模型 READY", "\n phase11 模型 ready\t");
+    CHECK(matched.passed && matched.score == 1.0);
+    const auto different = scorer.score("必须精确", "必须精确。多了内容");
+    CHECK(!different.passed && different.score == 0.0);
+    bool rejectedEmpty = false;
+    try
+    {
+        (void)scorer.score(" \n\t", "anything");
+    }
+    catch (const std::invalid_argument &)
+    {
+        rejectedEmpty = true;
+    }
+    CHECK(rejectedEmpty);
+}
+
 } // namespace
 
 int main()
@@ -791,6 +812,7 @@ int main()
     verifyMessageOutboxAtomicity(fixture, now, alice, bob);
     (void)verifyModelFlow(fixture, now);
     verifyModelEvaluationGate(fixture, now);
+    verifyDeterministicExactScorer();
     verifyTrainingConsent(fixture, now, alice, message);
     return 0;
 }

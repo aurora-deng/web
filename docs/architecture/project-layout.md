@@ -38,6 +38,7 @@ web/
 │  └─ fuzz/                       解析器模糊测试源码与 corpus
 ├─ scripts/
 │  └─ phase11/                    Phase 11 迁移、模型和运行辅助脚本
+├─ tools/                         需显式执行的训练、评测与模型发布管理入口
 ├─ docs/
 │  ├─ architecture/               当前架构、阶段设计和版本差异
 │  ├─ database/                   数据库表结构、关系与数据流学习文档
@@ -118,6 +119,10 @@ server/phase11/
 ├─ ai/
 │  ├─ ModelProvider/
 │  ├─ ModelRegistryService/
+│  ├─ ModelEvaluationService/    评测 Run、逐题结果、汇总与激活质量门禁
+│  ├─ DeterministicExactScorer/  固定规则精确评分，供候选版本回归使用
+│  ├─ DeterministicKnowledgeIndex/
+│  ├─ RagService/
 │  ├─ ResilientModelProvider/    Provider 超时、熔断与同 Runtime 备用端点
 │  ├─ OllamaModelProvider/        libcurl multi 调用与生成生命周期
 │  ├─ OllamaStreamDecoder/        NDJSON 增量解码
@@ -164,3 +169,11 @@ server/phase11/
 
 这套结构与 `server/http/HttpParser/`、`server/websocket/WebSocketSession/` 的规则一致：上层目录表达
 技术或业务类别，最末级目录表达一个可独立阅读、编译和测试的组件。
+
+仓库根部 `tools/` 放置人工触发、但复用正式业务服务的管理程序：
+
+- `phase11_training_admin.cpp`：训练候选审核、数据集导出和训练授权；
+- `phase11_model_admin.cpp`：ONNX Candidate 登记、真实逐题评测和人工激活。
+
+它们不是 HTTP 传输层，也不是一次性脚本：二者直接链接 `webserver_phase11`，沿用 PostgreSQL
+Repository、领域状态机和业务门禁，因此集中在 `tools/`，避免把带 `main()` 的运维入口塞进 `server/`。

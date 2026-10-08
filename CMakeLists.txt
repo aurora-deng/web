@@ -163,6 +163,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         server/phase11/business/FileService/FileService.cpp
         server/phase11/business/AiChatService/AiChatService.cpp
         server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp
+        server/phase11/ai/DeterministicExactScorer/DeterministicExactScorer.cpp
         server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp
         server/phase11/ai/ModelEvaluationService/ModelEvaluationService.cpp
         server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp
@@ -293,6 +294,14 @@ if(WEBSERVER_ENABLE_PHASE11)
             ${WEBSERVER_ONNX_RUNTIME_LIBRARY}
             OpenSSL::Crypto)
         target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_ONNX_GENAI=1)
+
+        # 候选版本登记、真实逐题生成、固定评分与人工激活入口。只有数据库和
+        # ONNX Runtime 都已显式启用时才构建，不下载任何模型或依赖。
+        if(WEBSERVER_ENABLE_POSTGRES)
+            add_executable(phase11-model-admin
+                tools/phase11_model_admin.cpp)
+            target_link_libraries(phase11-model-admin PRIVATE webserver_phase11)
+        endif()
     endif()
 endif()
 

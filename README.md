@@ -1,4 +1,11 @@
-# web-test 2.0 · Phase 22（本地开发分支）
+# web-test 2.0 · Phase 23（本地开发分支）
+
+> Phase 23 把 Phase 22 的训练产物接入真实候选发布链：管理员工具计算 ONNX 制品摘要、登记 Candidate、
+> 用 C++ 进程内 ONNX Provider 逐题生成、以确定性规则评分并保存输出摘要/耗时，再经过 Phase 20 质量
+> 门禁和 Runtime 试装后显式激活。隔离 PostgreSQL 中的正向版本成功激活，错误预期答案的反向版本被
+> 必答题门禁拒绝；Release、Debug、ASan+LSan+UBSan 均为 **97/97**。长稳脚本同时增加固定 PID、
+> `/proc` 资源水位、延迟分位数和证据 SHA-256；24 小时运行结果生成前不计为通过。详见
+> [Phase 23：候选模型真实评测、人工发布与长稳证据](docs/architecture/phase23.md)。
 
 > Phase 22 补齐用户明确授权、AI 私聊来源限制、脱敏副本、并发去重、人工审核、不可变内容寻址
 > JSONL、真实 PEFT LoRA 训练、Olive/OGA Adapter 转换和 C++ Runtime 试装。Linux CPU 使用一条
