@@ -1,53 +1,58 @@
 #pragma once
 
 #include "server/phase11/business/ApplicationError/ApplicationError.h"
+#include "server/phase11/business/BusinessInterfaces/BusinessInterfaces.h"
 #include "server/phase11/ports/Ports/Ports.h"
 
 namespace webserver::phase11
 {
 
+struct TrainingDatasetArtifact
+{
+    std::string relativePath;
+    std::string sha256;
+    std::uint64_t recordCount = 0;
+};
+
 class ITrainingDataExporter
 {
 public:
     virtual ~ITrainingDataExporter() = default;
-    virtual std::string exportDataset(
-        const DatasetVersion &dataset,
+    virtual TrainingDatasetArtifact exportDataset(
+        std::string_view datasetName,
         const std::vector<TrainingCandidate> &candidates) = 0;
 };
 
-struct TrainingSubmission
-{
-    UserId ownerUserId = 0;
-    MessageId sourceMessageId = 0;
-    std::string sanitizedPrompt;
-    std::string sanitizedResponse;
-    std::string consentVersion;
-    bool consentGranted = false;
-};
-
-class TrainingDataService
+class TrainingDataService final : public ITrainingBusiness
 {
 public:
     TrainingDataService(IDatabase &database,
+                        IUserRepository &users,
                         IMessageRepository &messages,
                         IConversationRepository &conversations,
                         ITrainingRepository &training)
-        : database_(database), messages_(messages),
+        : database_(database), users_(users), messages_(messages),
           conversations_(conversations), training_(training)
     {
     }
 
-    TrainingCandidate submit(TrainingSubmission submission, TimePoint now);
-    TrainingCandidate review(TrainingCandidateId candidate, bool approve);
-    TrainingCandidate revoke(TrainingCandidateId candidate, UserId owner);
+    TrainingCandidate submitTrainingCandidate(
+        TrainingSubmission submission, TimePoint now) override;
+    [[nodiscard]] std::vector<TrainingCandidate> trainingCandidates(
+        UserId owner) const override;
+    TrainingCandidate revokeTrainingCandidate(
+        TrainingCandidateId candidate, UserId owner) override;
+
+    TrainingCandidate reviewTrainingCandidate(
+        TrainingCandidateId candidate, bool approve);
     DatasetVersion createDataset(std::string name,
                                  std::vector<TrainingCandidateId> candidates,
-                                 std::string checksum,
                                  TimePoint now,
                                  ITrainingDataExporter &exporter);
 
 private:
     IDatabase &database_;
+    IUserRepository &users_;
     IMessageRepository &messages_;
     IConversationRepository &conversations_;
     ITrainingRepository &training_;

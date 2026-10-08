@@ -1,4 +1,11 @@
-# web-test 2.0 · Phase 21（本地开发分支）
+# web-test 2.0 · Phase 22（本地开发分支）
+
+> Phase 22 补齐用户明确授权、AI 私聊来源限制、脱敏副本、并发去重、人工审核、不可变内容寻址
+> JSONL、真实 PEFT LoRA 训练、Olive/OGA Adapter 转换和 C++ Runtime 试装。Linux CPU 使用一条
+> 合成样本完成真实梯度验证，LoRA 参数变化非零，转换后的 `.onnx_adapter` 通过 C++ 生成；这只证明
+> 流水线成立，不宣称模型质量提高。数据库授权清单与撤销门禁已做真实 PostgreSQL 验证，Release、
+> Debug、ASan+LSan+UBSan 均为 **97/97**。详见
+> [Phase 22：授权数据集与真实 LoRA 微调闭环](docs/architecture/phase22.md)。
 
 > Phase 21 打通 RAG 知识链路：私人/会话资料登记、UTF-8 确定性切片、可替换检索端口、权限过滤、
 > Retrieval/Citation 持久化、AI Prompt 接入和网页引用查看。私人资料只进入本人和 AI 账号的私聊，
@@ -222,6 +229,10 @@ gRPC C++ 1.82.0 完成了以下检查：
 - Phase 21 完成数据库版本 9 迁移；Release、Debug、ASan+LSan+UBSan 三套 CTest 均为
   **96/96**。RAG 契约、HTTP、AI Prompt 接入和 PostgreSQL 真实契约测试均通过；私人资料、会话资料、
   幂等检索与持久引用都执行服务端权限校验，Sanitizer 未报告错误。
+- Phase 22 完成数据库版本 10、11 迁移；Release **97/97（31.06 秒）**、Debug
+  **97/97（31.72 秒）**、ASan+LSan+UBSan **97/97（38.51 秒）**。真实数据库授权清单可驱动离线
+  训练校验，撤销后的样本会在训练前被再次拦截；合成流水线完成真实梯度、Olive 转换、同图 logits
+  对照和 C++ Runtime 试装，Sanitizer 未报告错误。
 
 最终测试数字与发现过的问题记录在
 [Phase 9 验证记录](docs/architecture/phase9.md#11-验证记录)。

@@ -126,16 +126,17 @@ public:
 class RecordingExporter final : public ITrainingDataExporter
 {
 public:
-    std::string exportDataset(
-        const DatasetVersion &dataset,
+    TrainingDatasetArtifact exportDataset(
+        std::string_view dataset,
         const std::vector<TrainingCandidate> &candidates) override
     {
-        datasetId = dataset.id;
+        datasetName = dataset;
         candidateCount = candidates.size();
-        return "memory://dataset/" + std::to_string(dataset.id);
+        return {"dataset-test.jsonl", std::string(64, 'a'),
+                static_cast<std::uint64_t>(candidates.size())};
     }
 
-    DatasetVersionId datasetId = 0;
+    std::string datasetName;
     std::size_t candidateCount = 0;
 };
 
@@ -203,7 +204,7 @@ struct Fixture
           social(store, store, store, store),
           chat(store, store, store, store, store, store, store),
           evaluations(store, store), models(store, &evaluations),
-          router(store), training(store, store, store, store)
+          router(store), training(store, store, store, store, store)
     {
     }
 
@@ -722,27 +723,50 @@ void verifyTrainingConsent(Fixture &fixture, TimePoint now,
                            const User &owner, const Message &source)
 {
     expectError(ErrorCode::Forbidden, [&] {
-        fixture.training.submit(
+        fixture.training.submitTrainingCandidate(
             {owner.id, source.id, "prompt", "response", "v1", false}, now);
     });
-    auto candidate = fixture.training.submit(
-        {owner.id, source.id, "sanitized prompt", "sanitized response",
+    // 普通好友私聊即使可见，也不能被冒充为 AI 训练来源。
+    expectError(ErrorCode::Forbidden, [&] {
+        fixture.training.submitTrainingCandidate(
+            {owner.id, source.id, "prompt", "response", "v1", true}, now);
+    });
+
+    User ai;
+    ai.username = "training-ai";
+    ai.displayName = "Training AI";
+    ai.passwordHash = "disabled";
+    ai.aiAccount = true;
+    ai.createdAt = now;
+    ai = fixture.store.create(std::move(ai));
+    const auto conversation = fixture.chat.createDirectConversation(
+        owner.id, ai.id, now);
+    const auto aiReply = fixture.chat.sendText(
+        ai.id, conversation.id, "training-ai-reply", "raw AI response", now);
+
+    auto candidate = fixture.training.submitTrainingCandidate(
+        {owner.id, aiReply.message.id, "sanitized prompt", "sanitized response",
          "consent-v1", true}, now);
 
     const auto outsider = fixture.auth.registerUser(
         "outsider", "password-d", "Outsider", now);
     expectError(ErrorCode::Forbidden, [&] {
-        fixture.training.submit(
-            {outsider.id, source.id, "prompt", "response", "consent-v1", true},
+        fixture.training.submitTrainingCandidate(
+            {outsider.id, aiReply.message.id, "prompt", "response", "consent-v1", true},
             now);
     });
-    candidate = fixture.training.review(candidate.id, true);
+    CHECK(fixture.training.trainingCandidates(owner.id).size() == 1);
+    candidate = fixture.training.reviewTrainingCandidate(candidate.id, true);
     CHECK(candidate.state == TrainingCandidateState::Approved);
 
     RecordingExporter exporter;
     const auto dataset = fixture.training.createDataset(
-        "phase11-dataset-v1", {candidate.id}, "sha256:dataset", now, exporter);
-    CHECK(exporter.datasetId == dataset.id && exporter.candidateCount == 1);
+        "phase11-dataset-v1", {candidate.id}, now, exporter);
+    CHECK(exporter.datasetName == "phase11-dataset-v1" &&
+          exporter.candidateCount == 1);
+    CHECK(dataset.checksum == std::string(64, 'a') &&
+          dataset.artifactPath == "dataset-test.jsonl" &&
+          dataset.recordCount == 1);
     const auto exported = fixture.store.findTrainingCandidate(candidate.id);
     CHECK(exported && exported->state == TrainingCandidateState::Exported &&
            exported->datasetVersionId == dataset.id);

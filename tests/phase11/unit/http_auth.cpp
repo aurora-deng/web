@@ -9,11 +9,13 @@
 #include "server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
 #include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
 #include "server/phase11/storage/files/LocalFileStorage/LocalFileStorage.h"
+#include "server/phase11/training/TrainingDataService/TrainingDataService.h"
 #include "server/phase11/transport/FlatJson/FlatJson.h"
 #include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
 #include "server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.h"
 #include "server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h"
 #include "server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
+#include "server/phase11/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.h"
 #include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #include "server/response/StringBody.h"
 #include "server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
@@ -209,6 +211,7 @@ void verifyHttpFlow()
     AuthService auth(store, store, credentials, limiter);
     SocialService social(store, store, store, store);
     ChatService chat(store, store, store, store, store, store, store);
+    TrainingDataService training(store, store, store, store, store);
     DeterministicKnowledgeIndex knowledgeIndex;
     RagService rag(store, store, store, knowledgeIndex);
     const auto fileRoot = std::filesystem::temp_directory_path() /
@@ -228,11 +231,13 @@ void verifyHttpFlow()
     Phase11FileHttp fileHttp(adapter, files, chat, fileExecutor);
     Phase11KnowledgeHttp knowledgeHttp(
         adapter, rag, knowledgeExecutor, {512U * 1024U});
+    Phase11TrainingHttp trainingHttp(adapter, training, databaseExecutor);
     Router router;
     adapter.registerRoutes(router);
     socialChat.registerRoutes(router);
     fileHttp.registerRoutes(router);
     knowledgeHttp.registerRoutes(router);
+    trainingHttp.registerRoutes(router);
 
     const auto malformed = request(router, "POST", "/api/auth/register",
                                    R"({"username":"alice",})");
@@ -308,6 +313,46 @@ void verifyHttpFlow()
             std::to_string(bobId) + "\"}", cookie, csrf);
     CHECK(conversation.status == 201);
     const auto conversationId = jsonUnsignedField(conversation.body, "id");
+
+    User ai;
+    ai.username = "http-training-ai";
+    ai.displayName = "HTTP Training AI";
+    ai.passwordHash = "disabled";
+    ai.aiAccount = true;
+    ai.createdAt = std::chrono::system_clock::now();
+    ai = store.create(std::move(ai));
+    const auto aiConversation = chat.createDirectConversation(
+        aliceId, ai.id, std::chrono::system_clock::now());
+    const auto aiReply = chat.sendText(
+        ai.id, aiConversation.id, "http-training-ai-reply",
+        "raw model response", std::chrono::system_clock::now());
+    const auto trainingBody =
+        "{\"sourceMessageId\":\"" + std::to_string(aiReply.message.id) +
+        "\",\"sanitizedPrompt\":\"Explain a safe transaction\","
+        "\"sanitizedResponse\":\"Commit related writes together.\","
+        "\"consentGranted\":\"true\"}";
+    CHECK(request(router, "POST", "/api/training/candidates", trainingBody,
+                  cookie, "wrong-csrf").status == 403);
+    const auto submittedTraining = request(
+        router, "POST", "/api/training/candidates", trainingBody,
+        cookie, csrf);
+    CHECK(submittedTraining.status == 201);
+    CHECK(submittedTraining.body.find("\"state\":\"submitted\"") !=
+          std::string::npos);
+    const auto trainingCandidateId = jsonUnsignedField(
+        submittedTraining.body, "id");
+    const auto listedTraining = request(
+        router, "GET", "/api/training/candidates", {}, cookie);
+    CHECK(listedTraining.status == 200 &&
+          listedTraining.body.find("Explain a safe transaction") !=
+              std::string::npos);
+    const auto revokedTraining = request(
+        router, "POST", "/api/training/candidates/" +
+            std::to_string(trainingCandidateId) + "/revoke",
+        {}, cookie, csrf);
+    CHECK(revokedTraining.status == 200 &&
+          revokedTraining.body.find("\"state\":\"revoked\"") !=
+              std::string::npos);
 
     // RAG HTTP 入口必须经过同一套 Cookie/CSRF，文档登记完成后业务服务负责
     // 切片、索引；引用查询返回可供 UI 展示的来源与实际片段。

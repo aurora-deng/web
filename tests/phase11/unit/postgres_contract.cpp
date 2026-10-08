@@ -346,11 +346,16 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
     auto candidate = store.createTrainingCandidate(
         {0, alice->id, messages.front().id, "prompt", "response",
          "consent-v1", TrainingCandidateState::Submitted, {}, now});
+    const auto activeCandidate = store.findActiveTrainingCandidate(
+        alice->id, messages.front().id);
+    require(activeCandidate && activeCandidate->id == candidate.id,
+            "active training candidate lookup failed");
     candidate.state = TrainingCandidateState::Approved;
     require(store.updateTrainingCandidate(candidate),
             "training candidate review update failed");
     const auto dataset = store.createDatasetVersion(
-        {0, "contract-dataset", "sha256:dataset", {candidate.id}, now});
+        {0, "contract-dataset", std::string(64, 'e'), {candidate.id}, now,
+         "dataset-contract.jsonl", 1});
     candidate.state = TrainingCandidateState::Exported;
     candidate.datasetVersionId = dataset.id;
     require(store.updateTrainingCandidate(candidate),
@@ -359,6 +364,17 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
     require(exported && exported->state == TrainingCandidateState::Exported &&
                 exported->datasetVersionId == dataset.id,
             "training candidate export state was not persisted");
+    const auto ownerCandidates = store.trainingCandidatesForOwner(alice->id);
+    require(ownerCandidates.size() == 1 &&
+                ownerCandidates.front().id == candidate.id,
+            "training candidate owner listing failed");
+    const auto persistedDataset = store.findDatasetVersion(dataset.id);
+    require(persistedDataset &&
+                persistedDataset->artifactPath == "dataset-contract.jsonl" &&
+                persistedDataset->recordCount == 1 &&
+                persistedDataset->candidates ==
+                    std::vector<TrainingCandidateId>{candidate.id},
+            "training dataset artifact metadata was not persisted");
 }
 
 #if defined(WEBSERVER_HAS_SODIUM)

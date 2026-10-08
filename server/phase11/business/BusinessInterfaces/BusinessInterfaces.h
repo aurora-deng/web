@@ -45,6 +45,16 @@ struct AiChatRequest
     std::size_t maxOutputTokens = 512;
 };
 
+struct TrainingSubmission
+{
+    UserId ownerUserId = 0;
+    MessageId sourceMessageId = 0;
+    std::string sanitizedPrompt;
+    std::string sanitizedResponse;
+    std::string consentVersion;
+    bool consentGranted = false;
+};
+
 /**
  * 会话成员视图：把“成员关系”和“用户公开资料”一次交给传输层。
  * 前端因此可以识别 AI 账号、显示名称并自动选择 AI 目标，不必要求用户死记 ID。
@@ -206,6 +216,19 @@ public:
     [[nodiscard]] virtual std::vector<KnowledgeCitationView>
     generationCitations(UserId requester,
                         std::string_view generationId) const = 0;
+};
+
+class ITrainingBusiness
+{
+public:
+    virtual ~ITrainingBusiness() = default;
+
+    virtual TrainingCandidate submitTrainingCandidate(
+        TrainingSubmission submission, TimePoint now) = 0;
+    [[nodiscard]] virtual std::vector<TrainingCandidate>
+    trainingCandidates(UserId owner) const = 0;
+    virtual TrainingCandidate revokeTrainingCandidate(
+        TrainingCandidateId candidate, UserId owner) = 0;
 };
 
 class IAiChatBusiness

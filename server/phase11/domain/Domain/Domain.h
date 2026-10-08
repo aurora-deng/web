@@ -567,6 +567,9 @@ struct DatasetVersion
     std::string checksum;
     std::vector<TrainingCandidateId> candidates;
     TimePoint createdAt{};
+    // 数据集正文保存在受控训练目录，数据库只登记相对路径、记录数和指纹。
+    std::string artifactPath;
+    std::uint64_t recordCount = 0;
 };
 
 } // namespace webserver::phase11

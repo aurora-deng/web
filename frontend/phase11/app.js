@@ -21,6 +21,7 @@ const elements = {
   groupProfileDialog: $('#group-profile-dialog'),
   knowledgeDialog: $('#knowledge-dialog'),
   citationDialog: $('#citation-dialog'),
+  trainingDialog: $('#training-dialog'),
   modelDialog: $('#model-dialog'),
   detailPane: $('#detail-pane'),
 };
@@ -691,6 +692,16 @@ function createMessageElement(message, options = {}) {
     sources.addEventListener('click', () => openCitationDetails(generationId));
     footer.append(sources);
   }
+  if (aiMessage && !options.streaming && message.state !== 'recalled' &&
+      message.id && state.conversation &&
+      state.aiConversations.has(Number(state.conversation.id))) {
+    const consent = document.createElement('button');
+    consent.type = 'button';
+    consent.className = 'message-training';
+    consent.textContent = '授权训练';
+    consent.addEventListener('click', () => openTrainingConsent(message));
+    footer.append(consent);
+  }
   if (canRecall(message)) {
     const recall = document.createElement('button');
     recall.type = 'button';
@@ -749,6 +760,92 @@ async function openCitationDetails(generationId) {
   } catch (error) {
     $('#citation-list').replaceChildren(actionListEmpty('引用读取失败'));
     setStatus($('#citation-status'), error.message, 'error');
+  }
+}
+
+function previousPromptForMessage(messageId) {
+  let current = existingMessage(messageId)?.previousElementSibling;
+  while (current) {
+    if (current.classList.contains('mine') &&
+        !current.classList.contains('message-recalled'))
+      return current.querySelector('.message-bubble')?.textContent?.trim() || '';
+    current = current.previousElementSibling;
+  }
+  return '';
+}
+
+async function openTrainingConsent(message = null) {
+  const form = $('#training-form');
+  setStatus($('#training-status'));
+  if (message) {
+    form.elements.sourceMessageId.value = String(message.id || '');
+    form.elements.sanitizedPrompt.value = previousPromptForMessage(message.id);
+    form.elements.sanitizedResponse.value = message.body || '';
+    form.elements.consentGranted.checked = false;
+    $('#training-source-hint').textContent =
+      `来源消息 #${message.id}。请先删除隐私、密钥和内部地址，再勾选明确同意。`;
+  } else {
+    form.reset();
+    form.elements.sourceMessageId.value = '';
+    $('#training-source-hint').textContent =
+      '请在 AI 回复下点击“授权训练”，系统会带入这一轮对话。';
+  }
+  elements.trainingDialog.showModal();
+  await loadTrainingCandidates();
+}
+
+const trainingStateLabels = {
+  submitted: '待审核',
+  approved: '已通过审核',
+  rejected: '未通过审核',
+  exported: '已进入数据集',
+  revoked: '已撤销',
+};
+
+function renderTrainingCandidates(candidates) {
+  const rows = candidates.map(candidate => {
+    const item = document.createElement('li');
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = `样本 #${candidate.id} · ${trainingStateLabels[candidate.state] || candidate.state}`;
+    const prompt = document.createElement('small');
+    prompt.textContent = candidate.sanitizedPrompt;
+    const response = document.createElement('p');
+    response.textContent = candidate.sanitizedResponse;
+    copy.append(title, prompt, response);
+    const revoke = document.createElement('button');
+    revoke.type = 'button';
+    revoke.className = 'mini-button danger compact-button';
+    revoke.textContent = candidate.state === 'revoked' ? '已撤销' : '撤销授权';
+    revoke.disabled = candidate.state === 'revoked';
+    revoke.addEventListener('click', async () => {
+      revoke.disabled = true;
+      try {
+        await api(`/api/training/candidates/${candidate.id}/revoke`, {
+          method: 'POST', body: '{}',
+        });
+        toast('训练授权已撤销', 'success');
+        await loadTrainingCandidates();
+      } catch (error) {
+        setStatus($('#training-status'), error.message, 'error');
+        revoke.disabled = false;
+      }
+    });
+    item.append(copy, revoke);
+    return item;
+  });
+  $('#training-list').replaceChildren(...(rows.length
+    ? rows : [actionListEmpty('还没有提交过训练授权。')]));
+  $('#training-count').textContent = String(rows.length);
+}
+
+async function loadTrainingCandidates() {
+  $('#training-list').replaceChildren(actionListEmpty('正在加载授权记录…'));
+  try {
+    renderTrainingCandidates(await api('/api/training/candidates'));
+  } catch (error) {
+    $('#training-list').replaceChildren(actionListEmpty('授权记录加载失败'));
+    setStatus($('#training-status'), error.message, 'error');
   }
 }
 
@@ -1670,6 +1767,44 @@ $('#knowledge-form').addEventListener('submit', async event => {
     await loadKnowledgeDocuments();
   } catch (error) {
     setStatus($('#knowledge-status'), error.message, 'error');
+  } finally {
+    setButtonBusy(button, false);
+  }
+});
+$('#show-training').addEventListener('click', () => openTrainingConsent());
+$('#training-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  const sourceMessageId = String(form.elements.sourceMessageId.value || '').trim();
+  if (!sourceMessageId) {
+    setStatus($('#training-status'),
+      '请先在一条已完成的 AI 回复下点击“授权训练”。', 'error');
+    return;
+  }
+  if (!form.elements.consentGranted.checked) {
+    setStatus($('#training-status'), '需要明确勾选训练授权。', 'error');
+    return;
+  }
+  setButtonBusy(button, true, '正在提交…');
+  try {
+    await api('/api/training/candidates', {
+      method: 'POST',
+      body: JSON.stringify({
+        sourceMessageId,
+        sanitizedPrompt: form.elements.sanitizedPrompt.value.trim(),
+        sanitizedResponse: form.elements.sanitizedResponse.value.trim(),
+        consentGranted: 'true',
+      }),
+    });
+    form.reset();
+    $('#training-source-hint').textContent =
+      '样本已进入待审核队列；继续授权时请从对应 AI 回复发起。';
+    setStatus($('#training-status'), '训练样本已提交，等待离线审核。', 'success');
+    toast('训练授权已记录', 'success');
+    await loadTrainingCandidates();
+  } catch (error) {
+    setStatus($('#training-status'), error.message, 'error');
   } finally {
     setButtonBusy(button, false);
   }

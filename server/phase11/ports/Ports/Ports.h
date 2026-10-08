@@ -316,8 +316,20 @@ public:
     virtual TrainingCandidate createTrainingCandidate(TrainingCandidate candidate) = 0;
     [[nodiscard]] virtual std::optional<TrainingCandidate> findTrainingCandidate(
         TrainingCandidateId id) const = 0;
+    [[nodiscard]] virtual std::optional<TrainingCandidate>
+    findActiveTrainingCandidate(UserId owner, MessageId sourceMessage) const = 0;
+    [[nodiscard]] virtual std::vector<TrainingCandidate>
+    trainingCandidatesForOwner(UserId owner) const = 0;
+    [[nodiscard]] virtual std::vector<TrainingCandidate>
+    trainingCandidatesByState(TrainingCandidateState state) const = 0;
     virtual bool updateTrainingCandidate(TrainingCandidate candidate) = 0;
+    virtual bool transitionTrainingCandidate(
+        TrainingCandidateId id, TrainingCandidateState expected,
+        TrainingCandidateState next,
+        std::optional<DatasetVersionId> dataset = std::nullopt) = 0;
     virtual DatasetVersion createDatasetVersion(DatasetVersion version) = 0;
+    [[nodiscard]] virtual std::optional<DatasetVersion> findDatasetVersion(
+        DatasetVersionId id) const = 0;
 };
 
 /**

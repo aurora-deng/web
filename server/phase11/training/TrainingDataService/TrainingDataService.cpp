@@ -1,11 +1,14 @@
 #include "server/phase11/training/TrainingDataService/TrainingDataService.h"
 
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
 #include <set>
 
 namespace webserver::phase11
 {
 
-TrainingCandidate TrainingDataService::submit(
+TrainingCandidate TrainingDataService::submitTrainingCandidate(
     TrainingSubmission submission, TimePoint now)
 {
     if (!submission.consentGranted || submission.consentVersion.empty())
@@ -15,10 +18,29 @@ TrainingCandidate TrainingDataService::submit(
     if (!source)
         throw ApplicationError(ErrorCode::NotFound,
                                "source message not found");
-    if (!conversations_.findMember(source->conversationId,
+    const auto conversation = conversations_.findConversation(
+        source->conversationId);
+    if (!conversation || conversation->kind != ConversationKind::Direct ||
+        conversation->state != ConversationState::Active ||
+        !conversations_.findMember(source->conversationId,
                                    submission.ownerUserId))
         throw ApplicationError(ErrorCode::Forbidden,
-                               "training owner cannot access the source message");
+                               "training source must be an active direct conversation");
+    const auto members = conversations_.listMembers(source->conversationId);
+    const bool hasEnabledAiPeer = members.size() == 2 &&
+        std::any_of(members.begin(), members.end(), [&](const auto &member)
+        {
+            if (member.userId == submission.ownerUserId) return false;
+            const auto peer = users_.findUser(member.userId);
+            return peer && peer->aiAccount && !peer->disabled;
+        });
+    if (!hasEnabledAiPeer)
+        throw ApplicationError(ErrorCode::Forbidden,
+                               "training source must be a direct AI conversation");
+    if (training_.findActiveTrainingCandidate(
+            submission.ownerUserId, submission.sourceMessageId))
+        throw ApplicationError(ErrorCode::Conflict,
+                               "this AI response was already submitted for training");
     if (submission.sanitizedPrompt.empty() ||
         submission.sanitizedResponse.empty() ||
         submission.sanitizedPrompt.size() > 32 * 1024 ||
@@ -34,8 +56,14 @@ TrainingCandidate TrainingDataService::submit(
          TrainingCandidateState::Submitted, {}, now});
 }
 
-TrainingCandidate TrainingDataService::review(TrainingCandidateId candidate,
-                                              bool approve)
+std::vector<TrainingCandidate> TrainingDataService::trainingCandidates(
+    UserId owner) const
+{
+    return training_.trainingCandidatesForOwner(owner);
+}
+
+TrainingCandidate TrainingDataService::reviewTrainingCandidate(
+    TrainingCandidateId candidate, bool approve)
 {
     auto found = training_.findTrainingCandidate(candidate);
     if (!found)
@@ -46,12 +74,15 @@ TrainingCandidate TrainingDataService::review(TrainingCandidateId candidate,
                                "training candidate was already reviewed");
     found->state = approve ? TrainingCandidateState::Approved
                            : TrainingCandidateState::Rejected;
-    training_.updateTrainingCandidate(*found);
+    if (!training_.transitionTrainingCandidate(
+            found->id, TrainingCandidateState::Submitted, found->state))
+        throw ApplicationError(ErrorCode::Conflict,
+                               "training candidate changed during review");
     return *found;
 }
 
-TrainingCandidate TrainingDataService::revoke(TrainingCandidateId candidate,
-                                              UserId owner)
+TrainingCandidate TrainingDataService::revokeTrainingCandidate(
+    TrainingCandidateId candidate, UserId owner)
 {
     auto found = training_.findTrainingCandidate(candidate);
     if (!found)
@@ -62,19 +93,23 @@ TrainingCandidate TrainingDataService::revoke(TrainingCandidateId candidate,
                                "only the owner can revoke consent");
     // 已导出的不可变数据集不能被悄悄改写，但撤销记录仍必须落库。后续训练只选择
     // 未撤销样本，并通过新数据集版本表达删除，保留完整数据血缘。
+    const auto previous = found->state;
     found->state = TrainingCandidateState::Revoked;
-    training_.updateTrainingCandidate(*found);
+    if (!training_.transitionTrainingCandidate(
+            found->id, previous, TrainingCandidateState::Revoked,
+            found->datasetVersionId))
+        throw ApplicationError(ErrorCode::Conflict,
+                               "training candidate changed during revocation");
     return *found;
 }
 
 DatasetVersion TrainingDataService::createDataset(
     std::string name, std::vector<TrainingCandidateId> candidateIds,
-    std::string checksum, TimePoint now,
-    ITrainingDataExporter &exporter)
+    TimePoint now, ITrainingDataExporter &exporter)
 {
-    if (name.empty() || checksum.empty() || candidateIds.empty())
+    if (name.empty() || name.size() > 120 || candidateIds.empty())
         throw ApplicationError(ErrorCode::InvalidArgument,
-                               "dataset name, checksum and candidates are required");
+                               "dataset name and candidates are required");
     const std::set<TrainingCandidateId> unique(
         candidateIds.begin(), candidateIds.end());
     if (unique.size() != candidateIds.size())
@@ -92,26 +127,42 @@ DatasetVersion TrainingDataService::createDataset(
         candidates.push_back(*candidate);
     }
 
-    auto transaction = database_.beginTransaction();
-    auto dataset = training_.createDatasetVersion(
-        {0, std::move(name), std::move(checksum), candidateIds, now});
-    transaction->commit();
-
-    // 文件导出属于数据库外部副作用，放在提交之后。导出失败时候选仍保持 Approved，
-    // 可以安全重试；绝不能把数据库回滚假装成已经撤销了磁盘写入。
-    const auto artifact = exporter.exportDataset(dataset, candidates);
-    if (artifact.empty())
+    // 先生成内容寻址的不可变文件，再开始数据库事务。导出失败不会留下 Dataset
+    // 记录；数据库失败最多留下一个未引用文件，可按 checksum 安全复用或清理。
+    const auto artifact = exporter.exportDataset(name, candidates);
+    const bool checksumValid = artifact.sha256.size() == 64 &&
+        std::all_of(artifact.sha256.begin(), artifact.sha256.end(),
+                    [](unsigned char value) { return std::isxdigit(value); });
+    const std::filesystem::path artifactPath(artifact.relativePath);
+    if (!checksumValid || artifact.recordCount != candidates.size() ||
+        artifactPath.empty() || artifactPath.is_absolute() ||
+        artifactPath.has_root_path() ||
+        std::any_of(artifactPath.begin(), artifactPath.end(),
+                    [](const auto &part) { return part == ".."; }))
         throw ApplicationError(ErrorCode::Unavailable,
-                               "dataset exporter returned no artifact");
+                               "dataset exporter returned an invalid artifact");
 
-    auto markTransaction = database_.beginTransaction();
+    auto transaction = database_.beginTransaction();
+    // 在事务内重读状态，避免导出期间撤销同意却仍被标记为 Exported。
+    for (const auto id : candidateIds)
+    {
+        const auto current = training_.findTrainingCandidate(id);
+        if (!current || current->state != TrainingCandidateState::Approved)
+            throw ApplicationError(ErrorCode::Conflict,
+                                   "training consent changed during dataset export");
+    }
+    auto dataset = training_.createDatasetVersion(
+        {0, std::move(name), artifact.sha256, candidateIds, now,
+         artifact.relativePath, artifact.recordCount});
     for (auto &candidate : candidates)
     {
-        candidate.state = TrainingCandidateState::Exported;
-        candidate.datasetVersionId = dataset.id;
-        training_.updateTrainingCandidate(candidate);
+        if (!training_.transitionTrainingCandidate(
+                candidate.id, TrainingCandidateState::Approved,
+                TrainingCandidateState::Exported, dataset.id))
+            throw ApplicationError(ErrorCode::Conflict,
+                                   "training candidate changed during export");
     }
-    markTransaction->commit();
+    transaction->commit();
     return dataset;
 }
 

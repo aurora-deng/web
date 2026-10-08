@@ -1,6 +1,6 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
-这份文档对应当前九份数据库迁移：建库基线
+这份文档对应当前十一份数据库迁移：建库基线
 [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) 和消息生命周期增量
 [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)，以及群聊治理增量
 [003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql)，以及联系人增量
@@ -9,7 +9,9 @@
 [006_ai_governance.sql](../../server/phase11/storage/postgres/migrations/006_ai_governance.sql)、模型评测增量
 [007_model_evaluation.sql](../../server/phase11/storage/postgres/migrations/007_model_evaluation.sql)、评测集版本约束增量
 [008_evaluation_suite_versioning.sql](../../server/phase11/storage/postgres/migrations/008_evaluation_suite_versioning.sql)，以及 RAG 增量
-[009_rag_knowledge_and_citations.sql](../../server/phase11/storage/postgres/migrations/009_rag_knowledge_and_citations.sql)。
+[009_rag_knowledge_and_citations.sql](../../server/phase11/storage/postgres/migrations/009_rag_knowledge_and_citations.sql)，以及训练数据制品和去重增量
+[010_training_dataset_artifacts.sql](../../server/phase11/storage/postgres/migrations/010_training_dataset_artifacts.sql)、
+[011_training_candidate_deduplication.sql](../../server/phase11/storage/postgres/migrations/011_training_candidate_deduplication.sql)。
 它解释当前真实代码中的 32 张表（1 张迁移登记表和 31 张业务表），不把规划中的功能写成已经实现。
 
 当前虚拟机的实际行数、AI 绑定和本地测试账号统一记录在同目录的
@@ -317,7 +319,8 @@ completed Run；缺少成绩、必答题失败、不达标或过期都会拒绝�
 ### `training_candidates`：训练候选样本
 
 它不是“所有聊天自动拿去训练”。只有用户明确授权的消息，经过脱敏后才能形成候选项。字段记录数据所有者、来源消息、
-脱敏后的提示与回答、同意协议版本以及审核状态。
+脱敏后的提示与回答、同意协议版本以及审核状态。部分唯一索引保证同一用户对同一来源消息最多只有
+一条未撤销授权；撤销后允许重新脱敏并再次授权。
 
 状态依次可能是：
 
@@ -329,7 +332,8 @@ submitted → approved → exported
 
 ### `dataset_versions`：不可混淆的数据集版本
 
-保存数据集名称、校验和和创建时间。校验和用于确认训练时使用的内容与审核通过的内容完全一致。
+保存数据集名称、SHA-256、创建时间、内容寻址 JSONL 的相对路径和记录数。训练脚本必须显式提供这里
+登记的 SHA-256，确认训练时使用的内容与审核通过的内容完全一致。
 
 ### `dataset_candidates`：数据集内容清单
 
@@ -528,6 +532,8 @@ ORDER BY r.created_at DESC, c.rank;
 | 模型评测集、执行结果与激活策略 | [007_model_evaluation.sql](../../server/phase11/storage/postgres/migrations/007_model_evaluation.sql) |
 | 评测集不可变版本约束 | [008_evaluation_suite_versioning.sql](../../server/phase11/storage/postgres/migrations/008_evaluation_suite_versioning.sql) |
 | RAG 资料、切片、检索与引用 | [009_rag_knowledge_and_citations.sql](../../server/phase11/storage/postgres/migrations/009_rag_knowledge_and_citations.sql) |
+| 训练数据集文件路径、记录数与 SHA-256 约束 | [010_training_dataset_artifacts.sql](../../server/phase11/storage/postgres/migrations/010_training_dataset_artifacts.sql) |
+| 未撤销训练授权来源去重 | [011_training_candidate_deduplication.sql](../../server/phase11/storage/postgres/migrations/011_training_candidate_deduplication.sql) |
 | RAG 编排与权限校验 | [RagService.cpp](../../server/phase11/ai/RagService/RagService.cpp) |
 | 可替换的确定性学习索引 | [DeterministicKnowledgeIndex.cpp](../../server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp) |
 | PostgreSQL Repository | [PostgresStore.cpp](../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |

@@ -1281,3 +1281,18 @@ Retrieval/Citation 持久化和 AI Prompt 注入。权限先于检索：私人�
 普通双人私聊与群聊都不能读取个人资料；会话共享资料仅当前成员可见。网页端提供知识库面板，并能从
 AI 历史消息查看实际引用片段。完整流程、API、表结构、代码索引、限制和三套 96/96 验证见
 [Phase 21：RAG 知识检索、权限隔离与回答引用链](phase21.md)。
+
+## 21. Phase 22 授权数据集与真实 LoRA（2026-10-08）
+
+Phase 22 将原有训练候选表和随机 Adapter 学习夹具升级为可实际执行的受控流水线。用户只能对本人
+参与的启用 AI 双人私聊回复授权，网页要求检查脱敏副本和明确勾选；HTTP 业务层提供查询与撤销，
+服务器本地工具负责人工审核和内容寻址 JSONL 导出。数据集 SHA-256、相对路径和记录数进入
+PostgreSQL，状态切换使用条件更新防止审核、撤销与导出互相覆盖。
+
+离线训练脚本固定并校验已批准的 Qwen revision 和模型摘要，只训练 Assistant 回答 Token；真实
+`loss.backward()` 和 `optimizer.step()` 已让 rank 4 LoRA 参数产生非零变化。Olive 的
+`ModelBuilder + ExtractAdapters` 把 PEFT 权重转换成与 OGA INT4 图同名的 `.onnx_adapter`，基础图
+必须与参考图 SHA-256 一致。最终文件通过同项目 C++ Provider 试装并生成。完整接口、状态机、命令、
+数据库授权与撤销门禁均已真实验证，Release、Debug、ASan+LSan+UBSan 三套 CTest 均为 97/97。
+完整接口、状态机、命令、代码索引、实测数据和仍需评测/发布审批的边界见
+[Phase 22：授权数据集与真实 LoRA 微调闭环](phase22.md)。

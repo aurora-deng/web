@@ -612,6 +612,13 @@ TrainingCandidate readCandidate(const Result &result, int row)
             decodeOptionalId(result, row, 7), decodeTime(result, row, 8)};
 }
 
+DatasetVersion readDatasetVersion(const Result &result, int row)
+{
+    return {std::stoull(result.value(row, 0)), result.value(row, 1),
+            result.value(row, 2), {}, decodeTime(result, row, 3),
+            result.value(row, 4), std::stoull(result.value(row, 5))};
+}
+
 thread_local std::unordered_map<const PostgresStore *, PGconn *>
     activeTransactions;
 
@@ -723,6 +730,9 @@ constexpr std::string_view kCandidateColumns =
     "id, owner_user_id, source_message_id, sanitized_prompt, sanitized_response, "
     "consent_version, state, dataset_version_id, "
     "(extract(epoch FROM created_at) * 1000000)::bigint";
+constexpr std::string_view kDatasetVersionColumns =
+    "id,name,checksum,(extract(epoch FROM created_at)*1000000)::bigint,"
+    "artifact_path,record_count";
 
 } // namespace
 
@@ -2272,6 +2282,50 @@ std::optional<TrainingCandidate> PostgresStore::findTrainingCandidate(
                : std::nullopt;
 }
 
+std::optional<TrainingCandidate> PostgresStore::findActiveTrainingCandidate(
+    UserId owner, MessageId sourceMessage) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kCandidateColumns) +
+        " FROM training_candidates WHERE owner_user_id=$1::bigint "
+        "AND source_message_id=$2::bigint AND state<>'revoked' LIMIT 1",
+        {number(owner), number(sourceMessage)});
+    return result.rows()
+               ? std::optional<TrainingCandidate>{readCandidate(result, 0)}
+               : std::nullopt;
+}
+
+std::vector<TrainingCandidate> PostgresStore::trainingCandidatesForOwner(
+    UserId owner) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kCandidateColumns) +
+        " FROM training_candidates WHERE owner_user_id=$1::bigint ORDER BY id",
+        {number(owner)});
+    std::vector<TrainingCandidate> candidates;
+    candidates.reserve(result.rows());
+    for (int row = 0; row < result.rows(); ++row)
+        candidates.push_back(readCandidate(result, row));
+    return candidates;
+}
+
+std::vector<TrainingCandidate> PostgresStore::trainingCandidatesByState(
+    TrainingCandidateState state) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kCandidateColumns) +
+            " FROM training_candidates WHERE state=$1 ORDER BY id",
+        {trainingState(state)});
+    std::vector<TrainingCandidate> candidates;
+    candidates.reserve(result.rows());
+    for (int row = 0; row < result.rows(); ++row)
+        candidates.push_back(readCandidate(result, row));
+    return candidates;
+}
+
 bool PostgresStore::updateTrainingCandidate(TrainingCandidate candidate)
 {
     auto scope = connection();
@@ -2283,6 +2337,19 @@ bool PostgresStore::updateTrainingCandidate(TrainingCandidate candidate)
          candidate.datasetVersionId ? std::optional<std::string>{number(*candidate.datasetVersionId)} : std::nullopt}).rows() == 1;
 }
 
+bool PostgresStore::transitionTrainingCandidate(
+    TrainingCandidateId id, TrainingCandidateState expected,
+    TrainingCandidateState next, std::optional<DatasetVersionId> dataset)
+{
+    auto scope = connection();
+    return query(scope.connection,
+        "UPDATE training_candidates SET state=$3,dataset_version_id=$4::bigint "
+        "WHERE id=$1::bigint AND state=$2 RETURNING 1",
+        {number(id), trainingState(expected), trainingState(next),
+         dataset ? std::optional<std::string>{number(*dataset)} : std::nullopt}
+    ).rows() == 1;
+}
+
 DatasetVersion PostgresStore::createDatasetVersion(DatasetVersion version)
 {
     auto scope = connection();
@@ -2291,19 +2358,19 @@ DatasetVersion PostgresStore::createDatasetVersion(DatasetVersion version)
     try
     {
         const auto result = query(scope.connection,
-            "INSERT INTO dataset_versions(name,checksum,created_at) "
-            "VALUES($1,$2,to_timestamp($3::double precision/1000000.0)) RETURNING id,name,checksum,(extract(epoch FROM created_at)*1000000)::bigint",
-            {version.name, version.checksum, encodeTime(version.createdAt)});
-        version.id = std::stoull(result.value(0, 0));
-        version.name = result.value(0, 1);
-        version.checksum = result.value(0, 2);
-        version.createdAt = decodeTime(result, 0, 3);
+            "INSERT INTO dataset_versions(name,checksum,created_at,artifact_path,record_count) "
+            "VALUES($1,$2,to_timestamp($3::double precision/1000000.0),$4,$5::bigint) RETURNING " +
+            std::string(kDatasetVersionColumns),
+            {version.name, version.checksum, encodeTime(version.createdAt),
+             version.artifactPath, number(version.recordCount)});
+        auto persisted = readDatasetVersion(result, 0);
+        persisted.candidates = version.candidates;
         for (const auto candidate : version.candidates)
             (void)query(scope.connection,
                 "INSERT INTO dataset_candidates(dataset_version_id,candidate_id) VALUES($1::bigint,$2::bigint) RETURNING 1",
-                {number(version.id), number(candidate)});
+                {number(persisted.id), number(candidate)});
         if (localTransaction) command(scope.connection, "COMMIT");
-        return version;
+        return persisted;
     }
     catch (...)
     {
@@ -2313,6 +2380,26 @@ DatasetVersion PostgresStore::createDatasetVersion(DatasetVersion version)
         }
         throw;
     }
+}
+
+
+std::optional<DatasetVersion> PostgresStore::findDatasetVersion(
+    DatasetVersionId id) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kDatasetVersionColumns) +
+        " FROM dataset_versions WHERE id=$1::bigint", {number(id)});
+    if (!result.rows()) return std::nullopt;
+    auto version = readDatasetVersion(result, 0);
+    const auto candidates = query(scope.connection,
+        "SELECT candidate_id FROM dataset_candidates "
+        "WHERE dataset_version_id=$1::bigint ORDER BY candidate_id",
+        {number(id)});
+    version.candidates.reserve(candidates.rows());
+    for (int row = 0; row < candidates.rows(); ++row)
+        version.candidates.push_back(std::stoull(candidates.value(row, 0)));
+    return version;
 }
 
 } // namespace webserver::phase11

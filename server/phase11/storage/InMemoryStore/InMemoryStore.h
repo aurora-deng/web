@@ -202,8 +202,20 @@ public:
     TrainingCandidate createTrainingCandidate(TrainingCandidate candidate) override;
     std::optional<TrainingCandidate> findTrainingCandidate(
         TrainingCandidateId id) const override;
+    std::optional<TrainingCandidate> findActiveTrainingCandidate(
+        UserId owner, MessageId sourceMessage) const override;
+    std::vector<TrainingCandidate> trainingCandidatesForOwner(
+        UserId owner) const override;
+    std::vector<TrainingCandidate> trainingCandidatesByState(
+        TrainingCandidateState state) const override;
     bool updateTrainingCandidate(TrainingCandidate candidate) override;
+    bool transitionTrainingCandidate(
+        TrainingCandidateId id, TrainingCandidateState expected,
+        TrainingCandidateState next,
+        std::optional<DatasetVersionId> dataset = std::nullopt) override;
     DatasetVersion createDatasetVersion(DatasetVersion version) override;
+    std::optional<DatasetVersion> findDatasetVersion(
+        DatasetVersionId id) const override;
 
 private:
     using UserPair = std::pair<UserId, UserId>;

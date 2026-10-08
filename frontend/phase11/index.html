@@ -60,6 +60,7 @@
         <button id="show-requests" class="side-action" type="button"><span class="nav-glyph">♙</span><span>好友申请</span><span id="friend-badge" class="badge warning hidden">0</span></button>
         <button id="open-global-search" class="side-action" type="button"><span class="nav-glyph">⌕</span><span>消息搜索</span></button>
         <button id="show-knowledge" class="side-action" type="button"><span class="nav-glyph">▤</span><span>知识库</span></button>
+        <button id="show-training" class="side-action" type="button"><span class="nav-glyph">◎</span><span>训练授权</span></button>
         <button id="show-model-status" class="side-action" type="button"><span class="nav-glyph">✦</span><span>模型状态</span></button>
       </nav>
       <section class="friend-preview" aria-labelledby="friend-preview-title">
@@ -125,10 +126,12 @@
 
   <dialog id="citation-dialog"><section class="dialog-card citation-dialog-card"><header><div><p class="eyebrow">ANSWER SOURCES</p><h2>回答引用</h2><p>这里展示本次生成实际送入模型的资料片段。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><ol id="citation-list" class="citation-list"><li class="list-empty">正在读取引用…</li></ol><p class="form-status" id="citation-status" role="status"></p></section></dialog>
 
+  <dialog id="training-dialog"><section class="dialog-card dialog-wide training-dialog-card"><header><div><p class="eyebrow">TRAINING CONSENT</p><h2>训练数据授权</h2><p>只有你明确同意并完成脱敏的 AI 对话样本，才会进入待审核队列。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="dialog-columns training-columns"><form id="training-form" class="creation-card"><span class="creation-icon">◎</span><h3>检查并授权样本</h3><input name="sourceMessageId" type="hidden"><p id="training-source-hint" class="training-source-hint">请在 AI 回复下点击“授权训练”，系统会带入这一轮对话。</p><label>脱敏后的问题<textarea name="sanitizedPrompt" rows="5" maxlength="32768" required placeholder="删除姓名、电话、密码、内部地址等信息"></textarea></label><label>脱敏后的回答<textarea name="sanitizedResponse" rows="7" maxlength="32768" required placeholder="确认回答中不含隐私、密钥或受限制内容"></textarea></label><label class="consent-check"><input name="consentGranted" type="checkbox" required><span>我确认内容已经脱敏，并同意用于本项目 LoRA 训练与评测。撤销会阻止进入后续新数据集，但不能让已经完成的模型自动遗忘。</span></label><button class="primary-button" type="submit">提交待审核样本</button><p class="form-status" id="training-status" role="status"></p></form><section class="dialog-section training-list-panel"><span class="step-number">✓</span><h3>我的授权记录 <span id="training-count">0</span></h3><ul id="training-list" class="action-list training-list"><li class="list-empty">正在加载授权记录…</li></ul><div class="model-explain"><strong>状态说明</strong><p>submitted 待人工审核；approved 可进入新数据集；exported 已进入不可变数据集；revoked 已撤销后续使用。网页不会直接启动训练任务。</p></div></section></div></section></dialog>
+
   <dialog id="model-dialog"><section class="dialog-card dialog-wide model-dialog-card"><header><div><p class="eyebrow">RUNTIME STATUS</p><h2>模型与通道状态</h2><p>只展示浏览器能够真实确认的连接，不伪造模型探测结果。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="model-status-grid"><article><span class="model-orb">H</span><div><h3>HTTP 业务接口</h3><p>账号、好友、会话、历史与搜索</p></div><b class="status-chip ok">可用</b></article><article><span class="model-orb">W</span><div><h3>WebSocket 消息</h3><p>发送、ACK、已读与实时广播</p></div><b id="model-ws-status" class="status-chip">连接中</b></article><article><span class="model-orb">S</span><div><h3>SSE 事件流</h3><p>好友、邀请、通知与 AI Token</p></div><b id="model-sse-status" class="status-chip">连接中</b></article><article><span class="model-orb ai">AI</span><div><h3>AI Provider 路由</h3><p>Ollama / ONNX 进程内 / gRPC Worker</p></div><b class="status-chip neutral">按账号路由</b></article></div><div class="model-explain"><strong>AI 状态说明</strong><p>当前公共接口没有主动模型探测操作。发起生成后，实际成功、取消或错误状态会通过 SSE 返回。</p></div></section></dialog>
 
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <!-- 版本参数让已经打开过旧页面的浏览器重新获取修复后的 ES Module。 -->
-  <script type="module" src="/phase11/app.js?v=20261007-phase21-rag"></script>
+  <script type="module" src="/phase11/app.js?v=20261008-phase22-consent"></script>
 </body>
 </html>

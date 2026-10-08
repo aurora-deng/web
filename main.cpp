@@ -56,10 +56,12 @@
 #include "server/phase11/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
 #include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
 #include "server/phase11/storage/files/LocalFileStorage/LocalFileStorage.h"
+#include "server/phase11/training/TrainingDataService/TrainingDataService.h"
 #include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
 #include "server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.h"
 #include "server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h"
 #include "server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
+#include "server/phase11/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.h"
 #include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #endif
 #include "server/observability/logger/logger.h"
@@ -314,6 +316,8 @@ int main()
         std::unique_ptr<webserver::phase11::DeterministicKnowledgeIndex>
             phase11KnowledgeIndex;
         std::unique_ptr<webserver::phase11::RagService> phase11Rag;
+        std::unique_ptr<webserver::phase11::TrainingDataService>
+            phase11Training;
         std::unique_ptr<webserver::phase11::LocalFileStorage> phase11FileStorage;
         std::unique_ptr<webserver::phase11::FileService> phase11Files;
         std::unique_ptr<webserver::phase11::DatabaseExecutor> phase11DatabaseExecutor;
@@ -328,6 +332,8 @@ int main()
             phase11FileHttp;
         std::unique_ptr<webserver::phase11::transport::Phase11KnowledgeHttp>
             phase11KnowledgeHttp;
+        std::unique_ptr<webserver::phase11::transport::Phase11TrainingHttp>
+            phase11TrainingHttp;
 #endif
 
         const ServerRuntimeOptions runtimeOptions{
@@ -433,6 +439,10 @@ int main()
             phase11Chat = std::make_unique<webserver::phase11::ChatService>(
                 *phase11Store, *phase11Store, *phase11Store, *phase11Store,
                 *phase11Store, *phase11Store, *phase11Store);
+            phase11Training = std::make_unique<
+                webserver::phase11::TrainingDataService>(
+                    *phase11Store, *phase11Store, *phase11Store,
+                    *phase11Store, *phase11Store);
             phase11KnowledgeIndex = std::make_unique<
                 webserver::phase11::DeterministicKnowledgeIndex>();
             webserver::phase11::RagServiceConfig ragConfig;
@@ -691,6 +701,10 @@ int main()
                 webserver::phase11::transport::Phase11KnowledgeHttp>(
                     *phase11AuthHttp, *phase11Rag,
                     *phase11KnowledgeExecutor, knowledgeHttpConfig);
+            phase11TrainingHttp = std::make_unique<
+                webserver::phase11::transport::Phase11TrainingHttp>(
+                    *phase11AuthHttp, *phase11Training,
+                    *phase11DatabaseExecutor);
             phase11Realtime = std::make_unique<
                 webserver::phase11::transport::Phase11Realtime>(
                     *phase11Chat, *phase11DatabaseExecutor,
@@ -1133,6 +1147,7 @@ int main()
             phase11SocialChatHttp->registerRoutes(server.router());
             phase11FileHttp->registerRoutes(server.router());
             phase11KnowledgeHttp->registerRoutes(server.router());
+            phase11TrainingHttp->registerRoutes(server.router());
         }
         else
 #endif

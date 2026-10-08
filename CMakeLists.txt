@@ -168,6 +168,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp
         server/phase11/ai/RagService/RagService.cpp
         server/phase11/ai/ResilientModelProvider/ResilientModelProvider.cpp
+        server/phase11/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp
         server/phase11/training/TrainingDataService/TrainingDataService.cpp
         server/phase11/transport/FlatJson/FlatJson.cpp
         server/phase11/storage/files/LocalFileStorage/LocalFileStorage.cpp)
@@ -191,6 +192,12 @@ if(WEBSERVER_ENABLE_PHASE11)
             server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp)
         target_link_libraries(webserver_phase11 PUBLIC PostgreSQL::PostgreSQL)
         target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_POSTGRES=1)
+
+        # 本地运维入口：审核用户明确授权的样本并导出不可变 JSONL。它只读环境中的
+        # 数据库连接串，不启动网络端口，也不会下载模型或依赖。
+        add_executable(phase11-training-admin
+            tools/phase11_training_admin.cpp)
+        target_link_libraries(phase11-training-admin PRIVATE webserver_phase11)
     endif()
 
     if(WEBSERVER_ENABLE_SODIUM)
@@ -375,6 +382,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp
         server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.cpp
         server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp
+        server/phase11/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp
         server/phase11/transport/serialization/MessageJson/MessageJson.cpp
         server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)
     target_include_directories(webserver_phase11_http PUBLIC ${PROJECT_SOURCE_DIR})
@@ -556,6 +564,11 @@ if(BUILD_TESTING)
         target_link_libraries(phase11_rag_tests PRIVATE webserver_phase11)
         add_test(NAME phase11_rag_tests COMMAND phase11_rag_tests)
         set_tests_properties(phase11_rag_tests PROPERTIES TIMEOUT 30)
+
+        add_executable(phase11_training_tests tests/phase11/unit/training.cpp)
+        target_link_libraries(phase11_training_tests PRIVATE webserver_phase11)
+        add_test(NAME phase11_training_tests COMMAND phase11_training_tests)
+        set_tests_properties(phase11_training_tests PROPERTIES TIMEOUT 30)
 
         # 文件正文在独立目录、元数据在 Repository。这个契约测试同时覆盖分片游标、
         # SHA-256 封存、附件权限、头像公开读取与伪装文件拒绝。

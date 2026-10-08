@@ -146,14 +146,18 @@ server/phase11/
 │     ├─ PostgresConnectionPool/
 │     ├─ PostgresStore/
 │     └─ migrations/
-├─ training/TrainingDataService/
+├─ training/
+│  ├─ TrainingDataService/        授权、审核、撤销与事务化数据集版本
+│  └─ JsonlTrainingDataExporter/  内容寻址 JSONL 与原子发布
 └─ transport/
    ├─ Contracts/
    ├─ FlatJson/
    ├─ http/
    │  ├─ Phase11AuthHttp/
    │  ├─ Phase11SocialChatHttp/
-   │  └─ Phase11FileHttp/
+   │  ├─ Phase11FileHttp/
+   │  ├─ Phase11KnowledgeHttp/
+   │  └─ Phase11TrainingHttp/
    ├─ serialization/MessageJson/  HTTP/WS/SSE 共用消息格式
    └─ realtime/Phase11Realtime/
 ```

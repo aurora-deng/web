@@ -1251,6 +1251,13 @@ TrainingCandidate InMemoryStore::createTrainingCandidate(
     TrainingCandidate candidate)
 {
     std::lock_guard lock(mutex_);
+    for (const auto &[_, current] : state_.trainingCandidates)
+        if (current.ownerUserId == candidate.ownerUserId &&
+            current.sourceMessageId == candidate.sourceMessageId &&
+            current.state != TrainingCandidateState::Revoked &&
+            candidate.state != TrainingCandidateState::Revoked)
+            throw std::logic_error(
+                "an active training candidate already exists for this source");
     candidate.id = state_.nextTrainingCandidateId++;
     state_.trainingCandidates.emplace(candidate.id, candidate);
     return candidate;
@@ -1266,6 +1273,41 @@ std::optional<TrainingCandidate> InMemoryStore::findTrainingCandidate(
                : std::optional<TrainingCandidate>{found->second};
 }
 
+std::optional<TrainingCandidate> InMemoryStore::findActiveTrainingCandidate(
+    UserId owner, MessageId sourceMessage) const
+{
+    std::lock_guard lock(mutex_);
+    for (const auto &[_, candidate] : state_.trainingCandidates)
+        if (candidate.ownerUserId == owner &&
+            candidate.sourceMessageId == sourceMessage &&
+            candidate.state != TrainingCandidateState::Revoked)
+            return candidate;
+    return std::nullopt;
+}
+
+std::vector<TrainingCandidate> InMemoryStore::trainingCandidatesForOwner(
+    UserId owner) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<TrainingCandidate> result;
+    for (const auto &[_, candidate] : state_.trainingCandidates)
+        if (candidate.ownerUserId == owner)
+            result.push_back(candidate);
+    std::ranges::sort(result, {}, &TrainingCandidate::id);
+    return result;
+}
+
+std::vector<TrainingCandidate> InMemoryStore::trainingCandidatesByState(
+    TrainingCandidateState state) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<TrainingCandidate> result;
+    for (const auto &[id, candidate] : state_.trainingCandidates)
+        if (candidate.state == state) result.push_back(candidate);
+    std::ranges::sort(result, {}, &TrainingCandidate::id);
+    return result;
+}
+
 bool InMemoryStore::updateTrainingCandidate(TrainingCandidate candidate)
 {
     std::lock_guard lock(mutex_);
@@ -1276,12 +1318,36 @@ bool InMemoryStore::updateTrainingCandidate(TrainingCandidate candidate)
     return true;
 }
 
+bool InMemoryStore::transitionTrainingCandidate(
+    TrainingCandidateId id, TrainingCandidateState expected,
+    TrainingCandidateState next, std::optional<DatasetVersionId> dataset)
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.trainingCandidates.find(id);
+    if (found == state_.trainingCandidates.end() ||
+        found->second.state != expected)
+        return false;
+    found->second.state = next;
+    found->second.datasetVersionId = dataset;
+    return true;
+}
+
 DatasetVersion InMemoryStore::createDatasetVersion(DatasetVersion version)
 {
     std::lock_guard lock(mutex_);
     version.id = state_.nextDatasetVersionId++;
     state_.datasets.emplace(version.id, version);
     return version;
+}
+
+std::optional<DatasetVersion> InMemoryStore::findDatasetVersion(
+    DatasetVersionId id) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.datasets.find(id);
+    return found == state_.datasets.end()
+               ? std::nullopt
+               : std::optional<DatasetVersion>{found->second};
 }
 
 } // namespace webserver::phase11
