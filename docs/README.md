@@ -27,6 +27,11 @@
 | 模型变更审计与 AI 生成追踪（Phase 19，本地分支） | [architecture/phase19.md](architecture/phase19.md) |
 | 模型评测集与激活质量门禁（Phase 20，本地分支） | [architecture/phase20.md](architecture/phase20.md) |
 | RAG 知识检索、权限隔离与回答引用链（Phase 21，本地分支） | [architecture/phase21.md](architecture/phase21.md) |
+| 授权数据集与真实 LoRA 微调闭环（Phase 22，本地分支） | [architecture/phase22.md](architecture/phase22.md) |
+| 候选模型真实评测与人工发布（Phase 23，本地分支） | [architecture/phase23.md](architecture/phase23.md) |
+| 训练到候选模型不可变血缘（Phase 24，本地分支） | [architecture/phase24.md](architecture/phase24.md) |
+| 用户态进程监督与异常恢复（Phase 25，本地分支） | [architecture/phase25.md](architecture/phase25.md) |
+| 长连接容量、AI 并发与混合负载（Phase 26，待长稳后实测） | [architecture/phase26.md](architecture/phase26.md) |
 | Phase 11 外部依赖审批、位置和卸载说明 | [architecture/phase11-dependency-gates.md](architecture/phase11-dependency-gates.md) |
 | Phase 11 PostgreSQL 表结构、关系和业务写入流程 | [database/README.md](database/README.md) |
 | WebSocket 课程演进 | [architecture/websocket-lessons/README.md](architecture/websocket-lessons/README.md) |
@@ -34,7 +39,7 @@
 | WebSocket 初次接入 | [architecture/phase4_upgrade.md](architecture/phase4_upgrade.md) |
 | 测试说明 | [testing/TESTING.md](testing/TESTING.md) |
 | 测试学习材料 | [testing/learning/测试学习综合讲义和笔记/README.md](testing/learning/测试学习综合讲义和笔记/README.md) |
-| 性能实验方法、Phase 15 基线与 Phase 16 A/B | [performance/BENCHMARK.md](performance/BENCHMARK.md)、[architecture/phase15.md](architecture/phase15.md)、[architecture/phase16.md](architecture/phase16.md) |
+| 性能实验方法、业务基线、A/B 与容量矩阵 | [performance/BENCHMARK.md](performance/BENCHMARK.md)、[architecture/phase15.md](architecture/phase15.md)、[architecture/phase16.md](architecture/phase16.md)、[architecture/phase26.md](architecture/phase26.md) |
 | 调试 | [debugging/CHEATSHEET.md](debugging/CHEATSHEET.md) |
 | 部署环境 | [ops/environment.md](ops/environment.md) |
 | 停机与收尾 | [closeout/CLOSEOUT.md](closeout/CLOSEOUT.md) |

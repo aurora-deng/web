@@ -1,4 +1,9 @@
-# web-test 2.0 · Phase 25（本地开发分支）
+# web-test 2.0 · Phase 26（本地开发分支）
+
+> Phase 26 补齐长驻 WebSocket 容量、每连接 RSS/FD 斜率、真实 AI 并发，以及 AI 与普通聊天同时
+> 工作时的隔离测量。基准和聚合契约已经完成并通过本地 4/4 编排测试；正式三轮数据要等当前 24 小时
+> 长稳结束后独占运行，因此尚未填写容量结论。详见
+> [Phase 26：长连接容量、AI 并发与混合负载证据](docs/architecture/phase26.md)。
 
 > Phase 25 增加无需安装 systemd 的用户态 Supervisor：使用 PID + Linux start ticks 防止 PID 复用误判，
 > 只依据进程身份和 liveness 触发恢复，采用指数退避与时间窗重启预算阻止重启风暴。隔离 `SIGKILL`
@@ -279,5 +284,10 @@ gRPC C++ 1.82.0 完成了以下检查：
 17. [Phase 19：模型变更审计与 AI 生成追踪](docs/architecture/phase19.md)
 18. [Phase 20：模型评测与激活质量门禁](docs/architecture/phase20.md)
 19. [Phase 21：RAG 知识检索与回答引用链](docs/architecture/phase21.md)
-20. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
-21. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)
+20. [Phase 22：授权数据集与真实 LoRA 微调闭环](docs/architecture/phase22.md)
+21. [Phase 23：候选模型真实评测与人工发布](docs/architecture/phase23.md)
+22. [Phase 24：训练到候选模型的不可变血缘](docs/architecture/phase24.md)
+23. [Phase 25：用户态进程监督与异常恢复](docs/architecture/phase25.md)
+24. [Phase 26：长连接容量、AI 并发与混合负载证据](docs/architecture/phase26.md)
+25. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
+26. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)

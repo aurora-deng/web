@@ -6,6 +6,10 @@
 >
 > Phase 16 使用同一业务脚本完成固定轮询与主动唤醒的同二进制 A/B，并采集执行器、连接池和 Outbox
 > 内部指标，见 [Phase 16：可观测性与运维闭环](../architecture/phase16.md)。
+>
+> 长驻 WebSocket、真实 AI 并发以及 AI/普通聊天隔离矩阵见
+> [Phase 26：长连接容量、AI 并发与混合负载证据](../architecture/phase26.md)。工具已就绪，正式三轮
+> 结果等待当前 24 小时长稳结束后采集。
 
 本文给出实验协议和结果模板。虚拟机上一次 `GET /` 快照见 [../closeout/CLOSEOUT.md](../closeout/CLOSEOUT.md)；
 **不能**外推为物理机上限或与 nginx 的正式对比结论。

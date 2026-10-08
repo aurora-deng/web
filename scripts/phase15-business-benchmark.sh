@@ -16,6 +16,7 @@ runs="${PHASE15_RUNS:-3}"
 result_root="${PHASE15_RESULT_ROOT:-${project_root}/artifacts/benchmarks/phase15}"
 socket_dir="${data_root}/postgresql/run"
 service_script="${project_root}/scripts/phase11/webserver-user-service.sh"
+supervisor_script="${project_root}/scripts/phase11/webserver-user-supervisor.sh"
 migration_dir="${project_root}/server/phase11/storage/postgres/migrations"
 
 if [[ "${database}" != phase15_benchmark* ]]; then
@@ -25,7 +26,8 @@ fi
 for required in "${binary}" "${postgres_root}/bin/psql" \
                 "${postgres_root}/bin/createdb" "${postgres_root}/bin/dropdb" \
                 "${project_root}/benchmarks/phase15_business_benchmark.py" \
-                "${project_root}/benchmarks/phase15_aggregate.py"; do
+                "${project_root}/benchmarks/phase15_aggregate.py" \
+                "${service_script}" "${supervisor_script}"; do
     [[ -e "${required}" ]] || { echo "Missing required file: ${required}" >&2; exit 1; }
 done
 [[ -d "${migration_dir}" ]] || { echo "Missing migrations: ${migration_dir}" >&2; exit 1; }
@@ -35,6 +37,7 @@ result_dir="${result_root}/${stamp}"
 mkdir -p "${result_dir}"
 benchmark_pid=""
 formal_was_running=0
+supervisor_was_running=0
 
 cleanup() {
     if [[ -n "${benchmark_pid}" ]] && kill -0 "${benchmark_pid}" 2>/dev/null; then
@@ -42,7 +45,14 @@ cleanup() {
         wait "${benchmark_pid}" 2>/dev/null || true
     fi
     benchmark_pid=""
-    if [[ "${formal_was_running}" -eq 1 ]]; then
+    if [[ "${supervisor_was_running}" -eq 1 ]]; then
+        WEB_SERVER_PORT=18090 \
+        WEB_GRPC_ADDRESS=127.0.0.1:50051 \
+        WEB_PHASE11_DATABASE="host=${data_root}/postgresql/run dbname=phase11 user=pikachu connect_timeout=3" \
+            bash "${supervisor_script}" start || true
+        supervisor_was_running=0
+        formal_was_running=0
+    elif [[ "${formal_was_running}" -eq 1 ]]; then
         WEB_SERVER_PORT=18090 \
         WEB_GRPC_ADDRESS=127.0.0.1:50051 \
         WEB_PHASE11_DATABASE="host=${data_root}/postgresql/run dbname=phase11 user=pikachu connect_timeout=3" \
@@ -57,6 +67,15 @@ trap cleanup EXIT INT TERM
     printf 'database=%s\nport=%s\nruns=%s\n' "${database}" "${port}" "${runs}"
     printf 'binary=%s\n' "${binary}"
     printf 'outbox_poll_only=%s\n' "${WEB_PHASE11_OUTBOX_POLL_ONLY:-0}"
+    printf 'websocket_connection_steps=%s\n' "${PHASE15_WEBSOCKET_CONNECTION_STEPS:-disabled}"
+    if [[ -n "${PHASE15_AI_MODEL_ARTIFACT:-}" ]]; then
+        printf 'ai_model_runtime=%s\n' "${PHASE15_AI_MODEL_RUNTIME:-onnx-inprocess}"
+        printf 'ai_model_artifact=%s\n' "${PHASE15_AI_MODEL_ARTIFACT}"
+        printf 'ai_model_checksum=%s\n' "${PHASE15_AI_MODEL_CHECKSUM:-missing}"
+        printf 'ai_adapter_artifact=%s\n' "${PHASE15_AI_ADAPTER_ARTIFACT:-none}"
+    else
+        printf 'ai_model=disabled\n'
+    fi
     sha256sum "${binary}"
     uname -a
     "${postgres_root}/bin/postgres" --version
@@ -66,7 +85,10 @@ trap cleanup EXIT INT TERM
         '^(Architecture|CPU\(s\)|Model name|Thread|Core|Socket)' || true
 } >"${result_dir}/environment.txt"
 
-if "${service_script}" status >/dev/null 2>&1; then
+if bash "${supervisor_script}" status >/dev/null 2>&1; then
+    supervisor_was_running=1
+    bash "${supervisor_script}" stop
+elif "${service_script}" status >/dev/null 2>&1; then
     formal_was_running=1
     "${service_script}" stop
 fi
@@ -81,6 +103,33 @@ for migration in "${migration_dir}"/[0-9][0-9][0-9]_*.sql; do
     "${postgres_root}/bin/psql" -h "${socket_dir}" -U pikachu \
         -d "${database}" -v ON_ERROR_STOP=1 -f "${migration}" >/dev/null
 done
+
+# 只有调用者显式给出已验证的模型目录和摘要时才创建真实 AI 账号。
+# 这样普通 Phase 15 基准保持零额外依赖，Phase 26 则能复用同一驱动跑真实 AI。
+ai_user_id=0
+if [[ -n "${PHASE15_AI_MODEL_ARTIFACT:-}" ||
+      -n "${PHASE15_AI_MODEL_CHECKSUM:-}" ]]; then
+    [[ -n "${PHASE15_AI_MODEL_ARTIFACT:-}" &&
+       -n "${PHASE15_AI_MODEL_CHECKSUM:-}" ]] || {
+        echo "Both PHASE15_AI_MODEL_ARTIFACT and PHASE15_AI_MODEL_CHECKSUM are required." >&2
+        exit 2
+    }
+    ai_seed="${project_root}/tests/phase11/integration/seed_onnx.sql"
+    [[ -f "${ai_seed}" ]] || { echo "Missing AI seed: ${ai_seed}" >&2; exit 1; }
+    ai_user_id="$("${postgres_root}/bin/psql" -qAt \
+        -h "${socket_dir}" -U pikachu -d "${database}" \
+        -v ON_ERROR_STOP=1 \
+        -v "test_suffix=${stamp}" \
+        -v "model_runtime=${PHASE15_AI_MODEL_RUNTIME:-onnx-inprocess}" \
+        -v "model_artifact=${PHASE15_AI_MODEL_ARTIFACT}" \
+        -v "model_checksum=${PHASE15_AI_MODEL_CHECKSUM}" \
+        -v "adapter_artifact=${PHASE15_AI_ADAPTER_ARTIFACT:-}" \
+        -f "${ai_seed}" | tail -n 1)"
+    [[ "${ai_user_id}" =~ ^[0-9]+$ ]] || {
+        echo "AI seed did not return a numeric user id: ${ai_user_id}" >&2
+        exit 1
+    }
+fi
 
 export LD_LIBRARY_PATH="${PHASE11_LIBRARY_PATH:-/home/pikachu/.local/lib:/home/pikachu/.local/lib64}:${LD_LIBRARY_PATH:-}"
 export WEB_SERVER_PORT="${port}"
@@ -115,6 +164,23 @@ done
 reports=()
 for ((run=1; run<=runs; run++)); do
     report="${result_dir}/run-${run}.json"
+    optional_args=(
+        --websocket-connection-steps "${PHASE15_WEBSOCKET_CONNECTION_STEPS:-}"
+        --websocket-open-workers "${PHASE15_WEBSOCKET_OPEN_WORKERS:-16}"
+        --websocket-connections-per-user "${PHASE15_WEBSOCKET_CONNECTIONS_PER_USER:-4}"
+        --websocket-settle-seconds "${PHASE15_WEBSOCKET_SETTLE_SECONDS:-1}"
+    )
+    if [[ "${ai_user_id}" -gt 0 ]]; then
+        optional_args+=(
+            --ai-user-id "${ai_user_id}"
+            --ai-jobs "${PHASE15_AI_JOBS:-4}"
+            --ai-concurrency "${PHASE15_AI_CONCURRENCY:-2}"
+            --ai-mixed-jobs "${PHASE15_AI_MIXED_JOBS:-4}"
+            --ai-mixed-concurrency "${PHASE15_AI_MIXED_CONCURRENCY:-2}"
+            --ai-mixed-chat-operations "${PHASE15_AI_MIXED_CHAT_OPERATIONS:-40}"
+            --ai-prompt "${PHASE15_AI_PROMPT:-用三句话解释 Reactor 模式。}"
+        )
+    fi
     python3 "${project_root}/benchmarks/phase15_business_benchmark.py" \
         --host 127.0.0.1 --port "${port}" --server-pid "${benchmark_pid}" \
         --workers "${PHASE15_WORKERS:-4}" \
@@ -124,6 +190,7 @@ for ((run=1; run<=runs; run++)); do
         --history-messages "${PHASE15_HISTORY_MESSAGES:-50}" \
         --history-reads "${PHASE15_HISTORY_READS:-30}" \
         --connection-operations "${PHASE15_CONNECTION_OPERATIONS:-30}" \
+        "${optional_args[@]}" \
         --output "${report}" >/dev/null
     reports+=("${report}")
 done

@@ -1,7 +1,7 @@
 # 架构说明
 
 > 当前实现以本文为网络内核结构基线；阶段演进从 [`phase4_upgrade.md`](phase4_upgrade.md) 延伸到
-> [Phase 21 RAG 知识检索与回答引用链](phase21.md)。
+> [Phase 26 长连接容量、AI 并发与混合负载证据](phase26.md)。
 > 本地 SSE 接入见 [`phase5.md`](phase5.md)；GitHub `test6.3` 仍是接入前基线。
 > 排错入口：[`../debugging/CHEATSHEET.md`](../debugging/CHEATSHEET.md)。
 
@@ -75,7 +75,7 @@ flowchart LR
     WS --> Chat["ChatService / AiChatService"]
     Business --> Repo["Repository ports"]
     Chat --> Repo
-    Repo --> PG["PostgreSQL 迁移 001-009"]
+    Repo --> PG["PostgreSQL 迁移 001-012"]
     Business --> Rag["RagService"]
     Chat --> Rag
     Rag --> Index["IKnowledgeIndex\n确定性词法实现"]

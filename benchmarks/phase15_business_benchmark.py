@@ -122,16 +122,33 @@ class ResourceSampler:
             },
         }
 
-    def _read(self) -> tuple[int, int, int, int]:
-        status = Path(f"/proc/{self.pid}/status").read_text()
+    @staticmethod
+    def read_process(pid: int) -> tuple[int, int, int, int]:
+        """读取一个时刻的 RSS/FD/线程/CPU tick，供采样器和容量阶梯共用。"""
+        status = Path(f"/proc/{pid}/status").read_text()
         rss = int(next(line.split()[1] for line in status.splitlines()
                        if line.startswith("VmRSS:")))
         threads = int(next(line.split()[1] for line in status.splitlines()
                            if line.startswith("Threads:")))
-        fds = len(list(Path(f"/proc/{self.pid}/fd").iterdir()))
-        fields = Path(f"/proc/{self.pid}/stat").read_text().split()
+        fds = len(list(Path(f"/proc/{pid}/fd").iterdir()))
+        fields = Path(f"/proc/{pid}/stat").read_text().split()
         ticks = int(fields[13]) + int(fields[14])
         return rss, fds, threads, ticks
+
+    def snapshot(self) -> dict:
+        """返回可序列化的进程快照；没有 /proc 时明确标记不可用。"""
+        if self.pid <= 0 or not Path(f"/proc/{self.pid}").exists():
+            return {"available": False}
+        try:
+            rss, fds, threads, _ticks = self.read_process(self.pid)
+            return {
+                "available": True,
+                "rssKiB": rss,
+                "fileDescriptors": fds,
+                "threads": threads,
+            }
+        except (OSError, StopIteration, ValueError):
+            return {"available": False}
 
     def _run(self) -> None:
         clock_ticks = os.sysconf("SC_CLK_TCK")
@@ -139,7 +156,7 @@ class ResourceSampler:
         previous_ticks: Optional[int] = None
         while not self._stop.wait(0.2):
             try:
-                rss, fds, threads, ticks = self._read()
+                rss, fds, threads, ticks = self.read_process(self.pid)
                 current = time.monotonic()
                 cpu = -1.0
                 if previous_ticks is not None and current > previous_time:
@@ -280,6 +297,11 @@ class WebSocketClient:
         self.socket.sendall(masked_frame(
             json.dumps(data, separators=(",", ":")).encode()))
 
+    def ping(self, payload: bytes = b"capacity") -> None:
+        """写入轻量协议 Ping，确认驻留连接仍可写且让服务端走控制帧路径。"""
+        assert self.socket
+        self.socket.sendall(masked_frame(payload, 0x9))
+
     def _exact(self, size: int) -> bytes:
         assert self.socket
         while len(self.buffer) < size:
@@ -407,6 +429,14 @@ class PairFixture:
     sender: UserFixture
     receiver: UserFixture
     conversation: int
+
+
+@dataclass
+class AiFixture:
+    actor: UserFixture
+    conversation: int
+    websocket: WebSocketClient
+    events: SseClient
 
 
 class BusinessBenchmark:
@@ -690,6 +720,87 @@ class BusinessBenchmark:
             self.args.connection_operations, sse_operation)
         self.results.append(sse_metric.summary())
 
+    def benchmark_websocket_residency(self) -> None:
+        """逐级保留长连接，记录连接成功率以及服务进程的增量资源。"""
+        steps = self.args.websocket_connection_steps
+        if not steps:
+            return
+
+        # 服务允许一个账号最多四个设备连接。容量测试按“用户多设备”建连接，
+        # 既符合真实场景，也避免把大量 Argon2 注册开销混入连接容量测量。
+        fixture_count = math.ceil(
+            steps[-1] / self.args.websocket_connections_per_user)
+        fixtures = [self.create_user(f"resident{i}")
+                    for i in range(fixture_count)]
+        sampler = ResourceSampler(self.args.server_pid)
+        baseline = sampler.snapshot()
+        clients: list[WebSocketClient] = []
+        points: list[dict] = []
+        metric = Metric("websocket-resident-connections")
+        metric.begin()
+        previous_target = 0
+        try:
+            for target in steps:
+                batch = [
+                    fixtures[index // self.args.websocket_connections_per_user]
+                    for index in range(previous_target, target)
+                ]
+                previous_target = target
+
+                def connect(fixture: UserFixture) -> tuple[WebSocketClient, float]:
+                    client = WebSocketClient(fixture.api)
+                    started = time.perf_counter()
+                    client.connect()
+                    return client, (time.perf_counter() - started) * 1000.0
+
+                with concurrent.futures.ThreadPoolExecutor(
+                        max_workers=min(self.args.websocket_open_workers,
+                                        max(1, len(batch)))) as pool:
+                    futures = [pool.submit(connect, fixture) for fixture in batch]
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            client, latency = future.result()
+                            clients.append(client)
+                            metric.latencies_ms.append(latency)
+                            metric.units += 1
+                        except BaseException as error:
+                            metric.failure(error)
+
+                # 所有连接都发一个 Ping；写失败会计入错误，而不是只看 fd 数量。
+                for client in clients:
+                    try:
+                        client.ping()
+                    except BaseException as error:
+                        metric.failure(error)
+                time.sleep(self.args.websocket_settle_seconds)
+                snapshot = sampler.snapshot()
+                point = {
+                    "requestedConnections": target,
+                    "establishedConnections": len(clients),
+                    "connectionErrors": metric.error_count,
+                    "process": snapshot,
+                }
+                if baseline.get("available") and snapshot.get("available"):
+                    delta_rss = int(snapshot["rssKiB"]) - int(baseline["rssKiB"])
+                    delta_fds = (int(snapshot["fileDescriptors"]) -
+                                 int(baseline["fileDescriptors"]))
+                    point.update({
+                        "deltaRssKiB": delta_rss,
+                        "estimatedBytesPerConnection": round(
+                            max(0, delta_rss) * 1024 / max(1, len(clients)), 1),
+                        "deltaFileDescriptors": delta_fds,
+                        "fileDescriptorsPerConnection": round(
+                            max(0, delta_fds) / max(1, len(clients)), 3),
+                    })
+                points.append(point)
+        finally:
+            metric.finish()
+            for client in clients:
+                client.close()
+        metric.extra["baselineProcess"] = baseline
+        metric.extra["connectionScale"] = points
+        self.results.append(metric.summary())
+
     def benchmark_mixed(self) -> None:
         pairs = [self.create_pair(f"mixed{i}")
                  for i in range(self.args.workers)]
@@ -728,26 +839,45 @@ class BusinessBenchmark:
             sender.close()
             receiver.close()
 
-    def benchmark_ai(self) -> None:
-        if not self.args.ai_user_id:
-            return
+    def _create_ai_fixture(self, label: str) -> AiFixture:
+        actor = self.create_user(label)
+        status, conversation = actor.api.request(
+            "POST", "/api/conversations",
+            {"kind": "direct", "peerId": str(self.args.ai_user_id)})
+        if status != 201 or not isinstance(conversation, dict):
+            raise AssertionError(("AI conversation", status, conversation))
+        websocket = WebSocketClient(actor.api)
+        events = SseClient(actor.api)
+        try:
+            websocket.connect()
+            events.connect()
+        except BaseException:
+            events.close()
+            websocket.close()
+            raise
+        return AiFixture(actor, int(conversation["id"]), websocket, events)
 
-        ttft: list[float] = []
-        tokens: list[int] = []
+    def _create_ai_fixtures(self, prefix: str, count: int) -> list[AiFixture]:
+        fixtures: list[AiFixture] = []
+        try:
+            for index in range(count):
+                fixtures.append(self._create_ai_fixture(f"{prefix}{index}"))
+            return fixtures
+        except BaseException:
+            for fixture in fixtures:
+                fixture.events.close()
+                fixture.websocket.close()
+            raise
 
-        def job(index: int) -> tuple[float, float, int]:
-            actor = self.create_user(f"ai{index}")
-            status, conversation = actor.api.request(
-                "POST", "/api/conversations",
-                {"kind": "direct", "peerId": str(self.args.ai_user_id)})
-            if status != 201 or not isinstance(conversation, dict):
-                raise AssertionError(("AI conversation", status, conversation))
-            ws = WebSocketClient(actor.api)
-            sse = SseClient(actor.api)
-            ws.connect()
-            sse.connect()
-            generation = f"p15-ai-{index}-{self.suffix}"
-            stop_reader = threading.Event()
+    def _ai_generation(self, fixture: AiFixture, index: int, label: str,
+                       start_gate: Optional[threading.Event] = None,
+                       on_ready: Optional[Callable[[], None]] = None
+                       ) -> tuple[float, float, int]:
+        ws = fixture.websocket
+        sse = fixture.events
+        stop_reader = threading.Event()
+        try:
+            generation = f"p15-{label}-{index}-{self.suffix}"
 
             def drain_websocket() -> None:
                 try:
@@ -758,41 +888,65 @@ class BusinessBenchmark:
 
             reader = threading.Thread(target=drain_websocket, daemon=True)
             reader.start()
+            if on_ready:
+                on_ready()
+            if start_gate and not start_gate.wait(self.args.timeout):
+                raise TimeoutError("AI mixed-load start gate timed out")
             started = time.perf_counter()
             ws.send_json({
                 "v": 1, "type": "ai.generate", "id": generation,
                 "to": self.args.ai_user_id,
-                "conversationId": int(conversation["id"]),
+                "conversationId": fixture.conversation,
                 "content": self.args.ai_prompt,
             })
             first = 0.0
             count = 0
-            try:
-                for _ in range(self.args.ai_max_events):
-                    event, data = sse.read_event()
-                    if event == "ai.token":
-                        count += 1
-                        if not first:
-                            first = time.perf_counter()
-                    elif event == "ai.completed":
-                        if not isinstance(data, dict):
-                            raise AssertionError((event, data))
-                        if not data.get("success"):
-                            raise AssertionError(data)
-                        total = time.perf_counter() - started
-                        return ((first or time.perf_counter()) - started,
-                                total, count)
-                raise AssertionError("AI completion event missing")
-            finally:
-                stop_reader.set()
-                sse.close()
-                ws.close()
+            for _ in range(self.args.ai_max_events):
+                event, data = sse.read_event()
+                if event == "ai.token":
+                    count += 1
+                    if not first:
+                        first = time.perf_counter()
+                elif event == "ai.completed":
+                    if not isinstance(data, dict):
+                        raise AssertionError((event, data))
+                    if not data.get("success"):
+                        raise AssertionError(data)
+                    total = time.perf_counter() - started
+                    return ((first or time.perf_counter()) - started,
+                            total, count)
+            raise AssertionError("AI completion event missing")
+        finally:
+            stop_reader.set()
+            sse.close()
+            ws.close()
+
+    @staticmethod
+    def _complete_ai_metric(metric: Metric, ttft: list[float],
+                            tokens: list[int], concurrency: int) -> None:
+        metric.extra["concurrency"] = concurrency
+        metric.extra["timeToFirstTokenMs"] = {
+            "p50": round(percentile(ttft, 0.50), 3),
+            "p95": round(percentile(ttft, 0.95), 3),
+            "p99": round(percentile(ttft, 0.99), 3),
+        }
+        metric.extra["tokensPerGenerationAverage"] = (
+            round(statistics.fmean(tokens), 2) if tokens else 0.0)
+
+    def benchmark_ai(self) -> None:
+        if not self.args.ai_user_id:
+            return
+
+        ttft: list[float] = []
+        tokens: list[int] = []
+        fixtures = self._create_ai_fixtures("ai", self.args.ai_jobs)
 
         metric = Metric("ai-generation")
         metric.begin()
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=self.args.ai_concurrency) as pool:
-            futures = [pool.submit(job, index) for index in range(self.args.ai_jobs)]
+            futures = [pool.submit(self._ai_generation, fixture, index, "ai")
+                       for index, fixture in enumerate(fixtures)]
             for future in concurrent.futures.as_completed(futures):
                 try:
                     first, total, token_count = future.result()
@@ -804,14 +958,107 @@ class BusinessBenchmark:
                 except BaseException as error:
                     metric.failure(error)
         metric.finish()
-        metric.extra["timeToFirstTokenMs"] = {
-            "p50": round(percentile(ttft, 0.50), 3),
-            "p95": round(percentile(ttft, 0.95), 3),
-            "p99": round(percentile(ttft, 0.99), 3),
-        }
-        metric.extra["tokensPerGenerationAverage"] = (
-            round(statistics.fmean(tokens), 2) if tokens else 0.0)
+        self._complete_ai_metric(metric, ttft, tokens,
+                                 self.args.ai_concurrency)
         self.results.append(metric.summary())
+
+    def benchmark_ai_mixed(self) -> None:
+        """让 AI 生成与普通 HTTP/WS 聊天同时发生，观察隔离效果。"""
+        if not self.args.ai_user_id or not self.args.ai_mixed_jobs:
+            return
+
+        pairs = [self.create_pair(f"aimix{i}")
+                 for i in range(self.args.workers)]
+        channels = self._message_channels(pairs)
+        try:
+            ai_fixtures = self._create_ai_fixtures(
+                "mixai", self.args.ai_mixed_jobs)
+        except BaseException:
+            for sender, receiver in channels:
+                sender.close()
+                receiver.close()
+            raise
+        ready = threading.Condition()
+        ready_count = 0
+        gate = threading.Event()
+        ai_metric = Metric("mixed-with-ai-generation")
+        chat_metric = Metric("mixed-with-ai-chat")
+        ttft: list[float] = []
+        tokens: list[int] = []
+
+        def mark_ready() -> None:
+            nonlocal ready_count
+            with ready:
+                ready_count += 1
+                ready.notify_all()
+
+        def chat_operation(worker: int, index: int) -> None:
+            pair = pairs[worker]
+            choice = (index + worker) % 10
+            if choice < 5:
+                status, data = pair.sender.api.request("GET", "/api/conversations")
+                if status != 200 or not isinstance(data, list):
+                    raise AssertionError((status, data))
+            elif choice < 7:
+                status, data = pair.sender.api.request(
+                    "GET", f"/api/conversations/{pair.conversation}/messages"
+                           "?after=0&limit=20")
+                if status != 200 or not isinstance(data, list):
+                    raise AssertionError((status, data))
+            else:
+                sender, receiver = channels[worker]
+                message_id = f"aimix-{worker}-{index}-{self.suffix}"
+                sender.send_json({
+                    "v": 1, "type": "chat.send", "id": message_id,
+                    "conversationId": pair.conversation,
+                    "content": "phase26 ordinary chat during AI generation",
+                })
+                if sender.wait("chat.accepted", message_id).get("status") != "inserted":
+                    raise AssertionError("AI mixed send rejected")
+                receiver.wait("chat.message", client_message_id=message_id)
+
+        ai_metric.begin()
+        try:
+            with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=self.args.ai_mixed_concurrency) as pool:
+                futures = [pool.submit(
+                    self._ai_generation, fixture, index, "mixai", gate, mark_ready)
+                    for index, fixture in enumerate(ai_fixtures)]
+                expected_ready = min(self.args.ai_mixed_jobs,
+                                     self.args.ai_mixed_concurrency)
+                deadline = time.monotonic() + self.args.timeout
+                with ready:
+                    while ready_count < expected_ready:
+                        if all(future.done() for future in futures):
+                            break
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            break
+                        ready.wait(min(0.1, remaining))
+                gate.set()
+                chat_metric = self.run_parallel(
+                    "mixed-with-ai-chat", self.args.workers,
+                    self.args.ai_mixed_chat_operations, chat_operation)
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        first, total, token_count = future.result()
+                        ai_metric.latencies_ms.append(total * 1000.0)
+                        ai_metric.units += token_count
+                        ttft.append(first * 1000.0)
+                        tokens.append(token_count)
+                    except BaseException as error:
+                        ai_metric.failure(error)
+        finally:
+            gate.set()
+            ai_metric.finish()
+            for sender, receiver in channels:
+                sender.close()
+                receiver.close()
+        self._complete_ai_metric(ai_metric, ttft, tokens,
+                                 self.args.ai_mixed_concurrency)
+        ai_metric.extra["readyWorkers"] = ready_count
+        self.results.append(chat_metric.summary())
+        self.results.append(ai_metric.summary())
 
     def run(self) -> dict:
         sampler = ResourceSampler(self.args.server_pid)
@@ -826,8 +1073,10 @@ class BusinessBenchmark:
             self.benchmark_group_delivery()
             self.benchmark_offline_history()
             self.benchmark_connection_churn()
+            self.benchmark_websocket_residency()
             self.benchmark_mixed()
             self.benchmark_ai()
+            self.benchmark_ai_mixed()
         finally:
             metrics_after = self.application_metrics()
             resources = sampler.stop()
@@ -852,9 +1101,26 @@ class BusinessBenchmark:
                 "historyMessages": self.args.history_messages,
                 "historyReads": self.args.history_reads,
                 "connectionOperations": self.args.connection_operations,
+                "websocketConnectionSteps": self.args.websocket_connection_steps,
+                "websocketOpenWorkers": self.args.websocket_open_workers,
+                "websocketConnectionsPerUser": (
+                    self.args.websocket_connections_per_user),
+                "websocketSettleSeconds": self.args.websocket_settle_seconds,
                 "aiUserId": self.args.ai_user_id or None,
                 "aiJobs": self.args.ai_jobs if self.args.ai_user_id else 0,
                 "aiConcurrency": self.args.ai_concurrency if self.args.ai_user_id else 0,
+                "aiMixedJobs": (
+                    self.args.ai_mixed_jobs if self.args.ai_user_id else 0),
+                "aiMixedConcurrency": (
+                    self.args.ai_mixed_concurrency if self.args.ai_user_id else 0),
+                "aiMixedChatOperations": (
+                    self.args.ai_mixed_chat_operations
+                    if self.args.ai_user_id and self.args.ai_mixed_jobs else 0),
+                "aiMaxEvents": (
+                    self.args.ai_max_events if self.args.ai_user_id else 0),
+                "aiPromptSha256": (
+                    hashlib.sha256(self.args.ai_prompt.encode()).hexdigest()
+                    if self.args.ai_user_id else None),
             },
             "elapsedSeconds": round(time.time() - started, 3),
             "results": self.results,
@@ -874,6 +1140,23 @@ def positive(value: str) -> int:
     return parsed
 
 
+def connection_steps(value: str) -> list[int]:
+    """解析严格递增的连接阶梯；空字符串表示保持旧基准行为。"""
+    if not value.strip():
+        return []
+    try:
+        parsed = [int(item.strip()) for item in value.split(",")]
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(
+            "connection steps must be comma-separated integers") from error
+    if any(item <= 0 for item in parsed):
+        raise argparse.ArgumentTypeError("connection steps must be positive")
+    if parsed != sorted(set(parsed)):
+        raise argparse.ArgumentTypeError(
+            "connection steps must be unique and strictly increasing")
+    return parsed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Phase 15 real business benchmark")
     parser.add_argument("--host", default="127.0.0.1")
@@ -886,16 +1169,29 @@ def main() -> int:
     parser.add_argument("--history-messages", type=positive, default=20)
     parser.add_argument("--history-reads", type=positive, default=10)
     parser.add_argument("--connection-operations", type=positive, default=10)
+    parser.add_argument("--websocket-connection-steps", type=connection_steps,
+                        default=[])
+    parser.add_argument("--websocket-open-workers", type=positive, default=16)
+    parser.add_argument("--websocket-connections-per-user", type=positive,
+                        default=4)
+    parser.add_argument("--websocket-settle-seconds", type=float, default=1.0)
     parser.add_argument("--timeout", type=float, default=30.0)
     parser.add_argument("--ai-user-id", type=int, default=0)
     parser.add_argument("--ai-jobs", type=positive, default=1)
     parser.add_argument("--ai-concurrency", type=positive, default=1)
+    parser.add_argument("--ai-mixed-jobs", type=int, default=0)
+    parser.add_argument("--ai-mixed-concurrency", type=positive, default=1)
+    parser.add_argument("--ai-mixed-chat-operations", type=positive, default=20)
     parser.add_argument("--ai-max-events", type=positive, default=2048)
     parser.add_argument("--ai-prompt", default="用三句话解释 Reactor 模式。")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    if args.timeout <= 0:
-        parser.error("timeout must be positive")
+    if args.timeout <= 0 or args.websocket_settle_seconds < 0:
+        parser.error("timeout must be positive and settle seconds non-negative")
+    if args.ai_mixed_jobs < 0:
+        parser.error("ai mixed jobs must be non-negative")
+    if args.websocket_connections_per_user > 4:
+        parser.error("websocket connections per user must not exceed 4")
 
     report = BusinessBenchmark(args).run()
     encoded = json.dumps(report, ensure_ascii=False, indent=2)

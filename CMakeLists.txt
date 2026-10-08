@@ -756,6 +756,11 @@ if(BUILD_TESTING)
             COMMAND ${Python3_EXECUTABLE}
                     ${PROJECT_SOURCE_DIR}/tests/python/reliable_websocket_consumer_test.py
         )
+        add_test(
+            NAME phase15_business_benchmark_tools
+            COMMAND ${Python3_EXECUTABLE}
+                    ${PROJECT_SOURCE_DIR}/tests/phase11/integration/business_benchmark_tools.py
+        )
     endif()
     if(Python3_Interpreter_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_program(OPENSSL_COMMAND openssl)
