@@ -1,8 +1,8 @@
 #include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
 
 #include <algorithm>
-#include <cctype>
 #include <filesystem>
+#include <limits>
 #include <set>
 
 namespace webserver::phase11
@@ -59,7 +59,12 @@ ModelVersion ModelRegistryService::registerTrainedVersion(
     {
         return value.size() == 64 &&
                std::all_of(value.begin(), value.end(), [](unsigned char byte)
-               { return std::isxdigit(byte) != 0; });
+               {
+                   // 部署脚本、CLI 与 PostgreSQL 血缘约束统一使用小写
+                   // SHA-256，避免 InMemory 接受而正式数据库拒绝。
+                   return (byte >= '0' && byte <= '9') ||
+                          (byte >= 'a' && byte <= 'f');
+               });
     };
     if (!models_.findModelNode(node))
         throw ApplicationError(ErrorCode::NotFound, "model node not found");
@@ -83,6 +88,8 @@ ModelVersion ModelRegistryService::registerTrainedVersion(
             ErrorCode::InvalidArgument,
             "database-verified lineage must reference exactly one dataset version");
     if (lineage.modelVersionId != 0 || lineage.datasetRecords == 0 ||
+        lineage.datasetRecords >
+            static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()) ||
         lineage.actor.empty() || lineage.actor.size() > 128 ||
         lineage.baseRepository.empty() || lineage.baseRepository.size() > 240 ||
         lineage.baseRevision.empty() || lineage.baseRevision.size() > 160)

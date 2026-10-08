@@ -87,7 +87,7 @@ WEB_PHASE11_DATABASE='postgresql:///phase11?host=/path/to/socket' \
 1. 模型目录、Adapter 和清单的规范化路径必须留在 `model-root` 内；
 2. Adapter 必须是相对路径且以 `.onnx_adapter` 结尾；
 3. 清单不超过有界读取上限，Schema 与字段集合必须精确匹配；
-4. 所有 SHA-256 必须是 64 个十六进制字符；
+4. 所有 SHA-256 必须是 64 个小写十六进制字符，与导出器、CLI 和 PostgreSQL 约束保持一致；
 5. 部署目录中的训练清单、Adapter 和 `model.onnx` 重新计算后必须与血缘清单一致；
 6. `database-verified` 模式再到 PostgreSQL 锁定 Dataset 行，并核对 checksum 与记录数；
 7. Candidate 与血缘在同一事务中创建。
@@ -120,6 +120,7 @@ WEB_PHASE11_DATABASE='postgresql:///phase11?host=/path/to/socket' \
 | Python → FlatJson 字段契约 | 通过；13 个字段全部为字符串，数字字段按十进制字符串输出 |
 | Release 增量构建 | `phase11_core_tests`、`phase11_postgres_contract_tests`、`phase11-model-admin` 通过 |
 | 内存 Repository 契约 | 正确登记并读取血缘；Dataset 摘要不一致被拒绝 |
+| 大写摘要反向 | 业务层在进入 Repository 前拒绝，避免内存实现通过而 PostgreSQL 失败 |
 | PostgreSQL 契约 | 迁移 12 后原子写入并重新读取通过 |
 | 真实 CLI 正向 | 登记 1 个 `database-verified` Candidate，并读取到对应血缘 |
 | 文件篡改反向 | 修改 Adapter 后注册失败，版本数和血缘数都没有增加 |

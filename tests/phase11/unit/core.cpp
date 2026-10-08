@@ -810,6 +810,23 @@ void verifyTrainingConsent(Fixture &fixture, TimePoint now,
         mismatchedDatasetRejected = true;
     }
     CHECK(mismatchedDatasetRejected);
+
+    lineage.datasetSha256 = dataset.checksum;
+    lineage.baseWeightsSha256 = std::string(64, 'A');
+    bool uppercaseDigestRejected = false;
+    try
+    {
+        (void)fixture.models.registerTrainedVersion(
+            trainedNode.id, "onnx-inprocess", "models/uppercase-digest",
+            "adapter_weights.onnx_adapter", "sha256-tree-v1:uppercase",
+            lineage, now);
+    }
+    catch (const ApplicationError &error)
+    {
+        uppercaseDigestRejected =
+            error.code() == ErrorCode::InvalidArgument;
+    }
+    CHECK(uppercaseDigestRejected);
     const auto exported = fixture.store.findTrainingCandidate(candidate.id);
     CHECK(exported && exported->state == TrainingCandidateState::Exported &&
            exported->datasetVersionId == dataset.id);
