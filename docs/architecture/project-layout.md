@@ -37,7 +37,7 @@ web/
 │  ├─ integration/                通用协议黑盒测试
 │  └─ fuzz/                       解析器模糊测试源码与 corpus
 ├─ scripts/
-│  └─ phase11/                    Phase 11 迁移、模型和运行辅助脚本
+│  └─ phase11/                    Phase 11 迁移、训练/模型导出和运行辅助脚本
 ├─ tools/                         需显式执行的训练、评测与模型发布管理入口
 ├─ docs/
 │  ├─ architecture/               当前架构、阶段设计和版本差异
@@ -173,7 +173,11 @@ server/phase11/
 仓库根部 `tools/` 放置人工触发、但复用正式业务服务的管理程序：
 
 - `phase11_training_admin.cpp`：训练候选审核、数据集导出和训练授权；
-- `phase11_model_admin.cpp`：ONNX Candidate 登记、真实逐题评测和人工激活。
+- `phase11_model_admin.cpp`：普通/训练 ONNX Candidate 登记、训练血缘校验、真实逐题评测和人工激活。
 
 它们不是 HTTP 传输层，也不是一次性脚本：二者直接链接 `webserver_phase11`，沿用 PostgreSQL
 Repository、领域状态机和业务门禁，因此集中在 `tools/`，避免把带 `main()` 的运维入口塞进 `server/`。
+
+训练脚本仍放在 `scripts/phase11/`：`train-qwen-lora.py` 负责受控训练，
+`export-trained-lora-onnx.py` 负责 Olive/OGA 部署转换并生成 Phase 24 血缘清单。它们调用外部训练工具，
+不进入服务器进程；最终 Candidate 必须通过 `phase11_model_admin.cpp` 的 C++ 业务和数据库门禁登记。

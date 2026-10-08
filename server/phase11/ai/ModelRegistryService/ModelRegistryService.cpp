@@ -1,5 +1,7 @@
 #include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <set>
 
@@ -46,6 +48,62 @@ ModelVersion ModelRegistryService::registerVersion(
         {0, node, std::move(runtime), std::move(modelArtifact),
          std::move(adapterArtifact), std::move(checksum),
          ModelVersionState::Candidate, now});
+}
+
+ModelVersion ModelRegistryService::registerTrainedVersion(
+    ModelNodeId node, std::string runtime, std::string modelArtifact,
+    std::string adapterArtifact, std::string checksum,
+    ModelTrainingLineage lineage, TimePoint now)
+{
+    const auto validSha256 = [](std::string_view value)
+    {
+        return value.size() == 64 &&
+               std::all_of(value.begin(), value.end(), [](unsigned char byte)
+               { return std::isxdigit(byte) != 0; });
+    };
+    if (!models_.findModelNode(node))
+        throw ApplicationError(ErrorCode::NotFound, "model node not found");
+    if (runtime != "onnx-inprocess" && runtime != "onnx-grpc")
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "trained versions require an ONNX runtime");
+    if (modelArtifact.empty() || checksum.empty() || adapterArtifact.empty())
+        throw ApplicationError(
+            ErrorCode::InvalidArgument,
+            "trained model artifact, adapter and checksum are required");
+    const std::filesystem::path adapterPath(adapterArtifact);
+    if (adapterPath.is_absolute() || adapterPath.has_root_path() ||
+        adapterPath.extension() != ".onnx_adapter")
+        throw ApplicationError(
+            ErrorCode::InvalidArgument,
+            "ONNX adapter must be a relative .onnx_adapter artifact");
+    const bool databaseVerified =
+        lineage.authorizationMode == TrainingAuthorizationMode::DatabaseVerified;
+    if (databaseVerified != lineage.datasetVersionId.has_value())
+        throw ApplicationError(
+            ErrorCode::InvalidArgument,
+            "database-verified lineage must reference exactly one dataset version");
+    if (lineage.modelVersionId != 0 || lineage.datasetRecords == 0 ||
+        lineage.actor.empty() || lineage.actor.size() > 128 ||
+        lineage.baseRepository.empty() || lineage.baseRepository.size() > 240 ||
+        lineage.baseRevision.empty() || lineage.baseRevision.size() > 160)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "model training lineage is incomplete");
+    for (const auto *digest : {
+             &lineage.datasetSha256, &lineage.baseWeightsSha256,
+             &lineage.trainingManifestSha256, &lineage.trainingConfigSha256,
+             &lineage.peftWeightsSha256, &lineage.onnxAdapterSha256,
+             &lineage.onnxModelSha256})
+        if (!validSha256(*digest))
+            throw ApplicationError(ErrorCode::InvalidArgument,
+                                   "model training lineage has an invalid SHA-256");
+    lineage.createdAt = now;
+    auto [version, storedLineage] = models_.createTrainedModelVersion(
+        {0, node, std::move(runtime), std::move(modelArtifact),
+         std::move(adapterArtifact), std::move(checksum),
+         ModelVersionState::Candidate, now},
+        std::move(lineage));
+    (void)storedLineage;
+    return version;
 }
 
 bool ModelRegistryService::createsParentCycle(ModelNodeId from,

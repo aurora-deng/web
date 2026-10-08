@@ -288,6 +288,36 @@ struct ModelVersion
     TimePoint createdAt{};
 };
 
+enum class TrainingAuthorizationMode
+{
+    PipelineSmoke,
+    DatabaseVerified
+};
+
+/**
+ * 训练血缘像模型的出生证明：固定它来自哪个授权数据集、哪个基座、哪份训练
+ * 配置和哪组导出产物。正文与权重仍保存在受控目录，数据库只保存身份和摘要。
+ */
+struct ModelTrainingLineage
+{
+    ModelVersionId modelVersionId = 0;
+    TrainingAuthorizationMode authorizationMode =
+        TrainingAuthorizationMode::PipelineSmoke;
+    std::optional<DatasetVersionId> datasetVersionId;
+    std::string datasetSha256;
+    std::uint64_t datasetRecords = 0;
+    std::string baseRepository;
+    std::string baseRevision;
+    std::string baseWeightsSha256;
+    std::string trainingManifestSha256;
+    std::string trainingConfigSha256;
+    std::string peftWeightsSha256;
+    std::string onnxAdapterSha256;
+    std::string onnxModelSha256;
+    std::string actor;
+    TimePoint createdAt{};
+};
+
 enum class ModelEdgeKind
 {
     ParentControlsChild,

@@ -1,4 +1,12 @@
-# web-test 2.0 · Phase 23（本地开发分支）
+# web-test 2.0 · Phase 24（本地开发分支）
+
+> Phase 24 为每个训练得到的 ONNX Candidate 增加不可变“出生证明”：授权模式、Dataset ID/摘要/条数、
+> 基座仓库与 revision、训练配置、PEFT 权重、ONNX Adapter 和基础图摘要都会进入独立血缘表。
+> Python 导出器生成固定扁平清单，C++ 管理工具重新计算部署文件摘要；`database-verified` 还会回查
+> PostgreSQL DatasetVersion。Candidate 与 Lineage 在同一事务写入，文件篡改或数据不一致不会留下
+> 半条版本记录。隔离数据库的正向、错误 Dataset 和篡改反向路径已经通过；三套完整回归与正式库迁移
+> 会等待正在运行的 24 小时长稳结束，避免污染证据。详见
+> [Phase 24：训练数据、模型制品与候选版本不可变血缘](docs/architecture/phase24.md)。
 
 > Phase 23 把 Phase 22 的训练产物接入真实候选发布链：管理员工具计算 ONNX 制品摘要、登记 Candidate、
 > 用 C++ 进程内 ONNX Provider 逐题生成、以确定性规则评分并保存输出摘要/耗时，再经过 Phase 20 质量

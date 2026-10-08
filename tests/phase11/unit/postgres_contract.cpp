@@ -375,6 +375,36 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
                 persistedDataset->candidates ==
                     std::vector<TrainingCandidateId>{candidate.id},
             "training dataset artifact metadata was not persisted");
+
+    ModelTrainingLineage lineage;
+    lineage.authorizationMode = TrainingAuthorizationMode::DatabaseVerified;
+    lineage.datasetVersionId = dataset.id;
+    lineage.datasetSha256 = dataset.checksum;
+    lineage.datasetRecords = dataset.recordCount;
+    lineage.baseRepository = "Qwen/Qwen2.5-0.5B-Instruct";
+    lineage.baseRevision = "postgres-contract-revision";
+    lineage.baseWeightsSha256 = std::string(64, '1');
+    lineage.trainingManifestSha256 = std::string(64, '2');
+    lineage.trainingConfigSha256 = std::string(64, '3');
+    lineage.peftWeightsSha256 = std::string(64, '4');
+    lineage.onnxAdapterSha256 = std::string(64, '5');
+    lineage.onnxModelSha256 = std::string(64, '6');
+    lineage.actor = "postgres-training-admin";
+    lineage.createdAt = now;
+    auto [trainedVersion, storedLineage] = store.createTrainedModelVersion(
+        {0, specialist.id, "onnx-inprocess", "trained-model",
+         "trained.onnx_adapter", "sha256-tree-v1:trained",
+         ModelVersionState::Candidate, now},
+        lineage);
+    const auto reloadedLineage =
+        store.findModelTrainingLineage(trainedVersion.id);
+    require(storedLineage.modelVersionId == trainedVersion.id &&
+                reloadedLineage &&
+                reloadedLineage->datasetVersionId == dataset.id &&
+                reloadedLineage->trainingManifestSha256 ==
+                    std::string(64, '2') &&
+                reloadedLineage->actor == "postgres-training-admin",
+            "model training lineage was not persisted");
 }
 
 #if defined(WEBSERVER_HAS_SODIUM)

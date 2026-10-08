@@ -1,6 +1,6 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
-这份文档对应当前十一份数据库迁移：建库基线
+这份文档对应当前十二份数据库迁移：建库基线
 [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) 和消息生命周期增量
 [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)，以及群聊治理增量
 [003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql)，以及联系人增量
@@ -11,8 +11,9 @@
 [008_evaluation_suite_versioning.sql](../../server/phase11/storage/postgres/migrations/008_evaluation_suite_versioning.sql)，以及 RAG 增量
 [009_rag_knowledge_and_citations.sql](../../server/phase11/storage/postgres/migrations/009_rag_knowledge_and_citations.sql)，以及训练数据制品和去重增量
 [010_training_dataset_artifacts.sql](../../server/phase11/storage/postgres/migrations/010_training_dataset_artifacts.sql)、
-[011_training_candidate_deduplication.sql](../../server/phase11/storage/postgres/migrations/011_training_candidate_deduplication.sql)。
-它解释当前真实代码中的 32 张表（1 张迁移登记表和 31 张业务表），不把规划中的功能写成已经实现。
+[011_training_candidate_deduplication.sql](../../server/phase11/storage/postgres/migrations/011_training_candidate_deduplication.sql)，以及训练到模型版本血缘增量
+[012_model_training_lineage.sql](../../server/phase11/storage/postgres/migrations/012_model_training_lineage.sql)。
+它解释当前真实代码中的 33 张表（1 张迁移登记表和 32 张业务表），不把规划中的功能写成已经实现。
 
 当前虚拟机的实际行数、AI 绑定和本地测试账号统一记录在同目录的
 `phase11-app-data.local.md`。该文件包含测试密码并被 `.gitignore` 排除，只保留在本地与虚拟机，
@@ -51,6 +52,7 @@ erDiagram
     file_objects ||--o{ message_attachments : attached_as
     users ||--o| model_bindings : may_be_AI
     model_nodes ||--o{ model_versions : versions
+    model_versions ||--o| model_training_lineages : has_origin
     model_nodes ||--o{ model_edges : source
     model_nodes ||--o{ model_edges : target
     model_nodes ||--o{ model_bindings : bound_to
@@ -59,6 +61,7 @@ erDiagram
     users ||--o{ training_candidates : authorizes
     messages ||--o{ training_candidates : source
     dataset_versions ||--o{ dataset_candidates : includes
+    dataset_versions ||--o{ model_training_lineages : trained_from
     training_candidates ||--o{ dataset_candidates : included_as
     users ||--o{ knowledge_documents : owns
     conversations ||--o{ knowledge_documents : scopes
@@ -79,12 +82,12 @@ erDiagram
 
 | 字段 | 含义 |
 |---|---|
-| `version` | 迁移版本号，当前最新为 `9` |
+| `version` | 迁移版本号，当前最新为 `12` |
 | `description` | 该版本做了什么 |
 | `applied_at` | 迁移执行时间 |
 
 它像数据库的“装修记录”。迁移脚本会按编号依次检查和执行尚未登记的文件，因此已有版本 1 的数据库只应用
-版本 2–9，新建空库则依次应用版本 1–9。
+版本 2–12，新建空库则依次应用版本 1–12。
 
 ### `users`：用户花名册
 
@@ -276,6 +279,17 @@ published_at 标记完成
 
 同一个节点可以有多个版本。`runtime` 决定交给 `ollama`、`onnx-inprocess` 或 `onnx-grpc` Provider；
 `model_artifact`、`adapter_artifact` 描述模型和 Adapter，`checksum` 校验内容，`state` 管理候选、启用、退役和拒绝状态。
+
+### `model_training_lineages`：训练模型的出生证明
+
+每个训练得到的 `model_versions` 最多对应一行血缘。它保存训练授权模式、DatasetVersion、数据摘要和
+记录数、基座仓库/revision、基础权重、训练清单与配置、PEFT 权重、ONNX Adapter 和基础图的 SHA-256，
+以及登记操作者和时间。
+
+`database-verified` 必须引用 DatasetVersion；Repository 在同一事务中重新核对该数据集的 checksum 与
+记录数，再一起插入 Candidate 和 Lineage。`pipeline-smoke` 必须不引用 DatasetVersion，因此合成教学
+样本不会伪装成用户授权数据。主键就是 `model_version_id`，也没有更新接口：重新训练必须建立新版本，
+不能覆盖旧模型的出生记录。完整门禁见 [Phase 24](../architecture/phase24.md)。
 
 ### `model_edges`：模型关系图
 

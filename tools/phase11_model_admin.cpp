@@ -3,9 +3,11 @@
 #include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
 #include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
 #include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
+#include "server/phase11/transport/FlatJson/FlatJson.h"
 
 #include <openssl/evp.h>
 
+#include <algorithm>
 #include <array>
 #include <charconv>
 #include <chrono>
@@ -13,12 +15,14 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -56,6 +60,75 @@ std::string sha256(std::string_view value)
     for (unsigned int index = 0; index < size; ++index)
         encoded << std::setw(2) << static_cast<unsigned int>(digest[index]);
     return encoded.str();
+}
+
+std::string sha256File(const std::filesystem::path &path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input)
+        throw std::invalid_argument("lineage artifact does not exist: " +
+                                    path.filename().string());
+    EVP_MD_CTX *raw = EVP_MD_CTX_new();
+    if (!raw) throw std::runtime_error("cannot allocate SHA-256 context");
+    std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>
+        context(raw, EVP_MD_CTX_free);
+    if (EVP_DigestInit_ex(context.get(), EVP_sha256(), nullptr) != 1)
+        throw std::runtime_error("cannot initialize SHA-256");
+    std::array<char, 64 * 1024> buffer{};
+    while (input)
+    {
+        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const auto count = input.gcount();
+        if (count > 0 && EVP_DigestUpdate(
+                context.get(), buffer.data(), static_cast<std::size_t>(count)) != 1)
+            throw std::runtime_error("cannot update SHA-256");
+    }
+    if (!input.eof()) throw std::runtime_error("cannot read lineage artifact");
+    std::array<unsigned char, EVP_MAX_MD_SIZE> digest{};
+    unsigned int size = 0;
+    if (EVP_DigestFinal_ex(context.get(), digest.data(), &size) != 1 ||
+        size != 32)
+        throw std::runtime_error("cannot finalize SHA-256");
+    std::ostringstream encoded;
+    encoded << std::hex << std::setfill('0');
+    for (unsigned int index = 0; index < size; ++index)
+        encoded << std::setw(2) << static_cast<unsigned int>(digest[index]);
+    return encoded.str();
+}
+
+std::string readBoundedText(const std::filesystem::path &path,
+                            std::uintmax_t maximumBytes = 64 * 1024)
+{
+    if (!std::filesystem::is_regular_file(path) ||
+        std::filesystem::file_size(path) > maximumBytes)
+        throw std::invalid_argument("lineage manifest is missing or too large");
+    std::ifstream input(path, std::ios::binary);
+    if (!input) throw std::runtime_error("cannot open lineage manifest");
+    std::string contents((std::istreambuf_iterator<char>(input)),
+                         std::istreambuf_iterator<char>());
+    if (input.bad()) throw std::runtime_error("cannot read lineage manifest");
+    return contents;
+}
+
+const std::string &required(
+    const webserver::phase11::transport::FlatStringObject &fields,
+    std::string_view name)
+{
+    const auto found = fields.find(std::string(name));
+    if (found == fields.end() || found->second.empty())
+        throw std::invalid_argument("lineage manifest is missing field: " +
+                                    std::string(name));
+    return found->second;
+}
+
+void requireSha256(std::string_view value, std::string_view name)
+{
+    if (value.size() != 64 || !std::all_of(
+            value.begin(), value.end(), [](unsigned char byte)
+            { return (byte >= '0' && byte <= '9') ||
+                     (byte >= 'a' && byte <= 'f'); }))
+        throw std::invalid_argument(std::string(name) +
+                                    " must be lowercase SHA-256");
 }
 
 void requireRelative(const std::filesystem::path &path,
@@ -158,6 +231,9 @@ void usage()
         << "usage:\n"
         << "  phase11-model-admin register-onnx <node-id> <model-root> "
            "<relative-model-dir> <relative-adapter|->\n"
+        << "  phase11-model-admin register-trained-onnx <node-id> <model-root> "
+           "<relative-model-dir> <relative-adapter> <relative-lineage-manifest> "
+           "<actor>\n"
         << "  phase11-model-admin evaluate-onnx <version-id> <model-root> "
            "[max-tokens] [case-timeout-seconds]\n"
         << "  phase11-model-admin activate-onnx <node-id> <version-id> "
@@ -182,6 +258,128 @@ int main(int argc, char **argv)
         if (!store.healthy())
             throw std::runtime_error("PostgreSQL is not healthy");
         const std::string_view command(argv[1]);
+
+        if (command == "register-trained-onnx" && argc == 8)
+        {
+            const auto node = positive(argv[2], "node ID");
+            const std::filesystem::path modelRoot(argv[3]);
+            const std::filesystem::path modelArtifact(argv[4]);
+            const std::filesystem::path adapterArtifact(argv[5]);
+            const std::filesystem::path lineageArtifact(argv[6]);
+            requireRelative(modelArtifact, "model directory");
+            requireRelative(adapterArtifact, "adapter file");
+            requireRelative(lineageArtifact, "lineage manifest");
+            if (adapterArtifact.extension() != ".onnx_adapter")
+                throw std::invalid_argument(
+                    "adapter file must end in .onnx_adapter");
+
+            const auto root = std::filesystem::canonical(modelRoot);
+            const auto modelDirectory = std::filesystem::canonical(
+                root / modelArtifact);
+            requireRelative(std::filesystem::relative(modelDirectory, root),
+                            "resolved model directory");
+            const auto adapterPath = std::filesystem::canonical(
+                modelDirectory / adapterArtifact);
+            requireRelative(std::filesystem::relative(
+                                adapterPath, modelDirectory),
+                            "resolved adapter file");
+            const auto lineagePath = std::filesystem::canonical(
+                modelDirectory / lineageArtifact);
+            requireRelative(std::filesystem::relative(
+                                lineagePath, modelDirectory),
+                            "resolved lineage manifest");
+
+            const auto fields =
+                transport::parseFlatStringObject(readBoundedText(lineagePath));
+            static const std::set<std::string> allowed{
+                "schema", "authorization_mode", "dataset_id",
+                "dataset_sha256", "dataset_records", "base_repository",
+                "base_revision", "base_weights_sha256",
+                "training_manifest_sha256", "training_config_sha256",
+                "peft_weights_sha256", "onnx_adapter_sha256",
+                "onnx_model_sha256"};
+            if (fields.size() != allowed.size() ||
+                !std::all_of(fields.begin(), fields.end(),
+                             [](const auto &field)
+                             { return allowed.contains(field.first); }))
+                throw std::invalid_argument(
+                    "lineage manifest fields do not match the fixed schema");
+            if (required(fields, "schema") !=
+                "phase24-model-training-lineage-v1")
+                throw std::invalid_argument("unsupported lineage manifest schema");
+
+            ModelTrainingLineage lineage;
+            const auto &mode = required(fields, "authorization_mode");
+            const auto datasetId = fields.find("dataset_id");
+            if (datasetId == fields.end())
+                throw std::invalid_argument("lineage manifest is missing dataset_id");
+            if (mode == "database-verified")
+            {
+                lineage.authorizationMode =
+                    TrainingAuthorizationMode::DatabaseVerified;
+                lineage.datasetVersionId = positive(
+                    datasetId->second, "dataset ID");
+            }
+            else if (mode == "pipeline-smoke")
+            {
+                lineage.authorizationMode =
+                    TrainingAuthorizationMode::PipelineSmoke;
+                if (!datasetId->second.empty())
+                    throw std::invalid_argument(
+                        "pipeline-smoke lineage cannot contain a dataset ID");
+            }
+            else
+                throw std::invalid_argument(
+                    "unsupported training authorization mode");
+
+            lineage.datasetSha256 = required(fields, "dataset_sha256");
+            lineage.datasetRecords = positive(
+                required(fields, "dataset_records"), "dataset record count");
+            lineage.baseRepository = required(fields, "base_repository");
+            lineage.baseRevision = required(fields, "base_revision");
+            lineage.baseWeightsSha256 =
+                required(fields, "base_weights_sha256");
+            lineage.trainingManifestSha256 =
+                required(fields, "training_manifest_sha256");
+            lineage.trainingConfigSha256 =
+                required(fields, "training_config_sha256");
+            lineage.peftWeightsSha256 =
+                required(fields, "peft_weights_sha256");
+            lineage.onnxAdapterSha256 =
+                required(fields, "onnx_adapter_sha256");
+            lineage.onnxModelSha256 =
+                required(fields, "onnx_model_sha256");
+            lineage.actor = argv[7];
+            for (const auto *digest : {
+                     &lineage.datasetSha256, &lineage.baseWeightsSha256,
+                     &lineage.trainingManifestSha256,
+                     &lineage.trainingConfigSha256,
+                     &lineage.peftWeightsSha256,
+                     &lineage.onnxAdapterSha256,
+                     &lineage.onnxModelSha256})
+                requireSha256(*digest, "lineage digest");
+
+            const auto trainingManifest =
+                modelDirectory / "PHASE22_TRAINING_MANIFEST.json";
+            if (sha256File(trainingManifest) !=
+                    lineage.trainingManifestSha256 ||
+                sha256File(adapterPath) != lineage.onnxAdapterSha256 ||
+                sha256File(modelDirectory / "model.onnx") !=
+                    lineage.onnxModelSha256)
+                throw std::invalid_argument(
+                    "deployed artifacts do not match the lineage manifest");
+
+            ModelRegistryService registry(store);
+            const auto version = registry.registerTrainedVersion(
+                node, "onnx-inprocess", modelArtifact.generic_string(),
+                adapterArtifact.generic_string(),
+                computeOnnxArtifactChecksum(modelDirectory),
+                std::move(lineage), std::chrono::system_clock::now());
+            std::cout << "version_id=" << version.id
+                      << " state=candidate lineage=recorded checksum="
+                      << version.checksum << '\n';
+            return 0;
+        }
 
         if (command == "register-onnx" && argc == 6)
         {

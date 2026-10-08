@@ -790,6 +790,37 @@ ModelVersion InMemoryStore::createModelVersion(ModelVersion version)
     return version;
 }
 
+std::pair<ModelVersion, ModelTrainingLineage>
+InMemoryStore::createTrainedModelVersion(ModelVersion version,
+                                         ModelTrainingLineage lineage)
+{
+    std::lock_guard lock(mutex_);
+    if (!state_.modelNodes.contains(version.nodeId) ||
+        version.state != ModelVersionState::Candidate ||
+        lineage.modelVersionId != 0 || lineage.actor.empty())
+        throw std::invalid_argument("invalid trained model version");
+    const bool databaseVerified =
+        lineage.authorizationMode == TrainingAuthorizationMode::DatabaseVerified;
+    if (databaseVerified != lineage.datasetVersionId.has_value())
+        throw std::invalid_argument("invalid training authorization lineage");
+    if (lineage.datasetVersionId)
+    {
+        const auto dataset = state_.datasets.find(*lineage.datasetVersionId);
+        if (dataset == state_.datasets.end())
+            throw std::invalid_argument("training dataset does not exist");
+        auto checksum = dataset->second.checksum;
+        if (checksum.starts_with("sha256:")) checksum.erase(0, 7);
+        if (checksum != lineage.datasetSha256 ||
+            dataset->second.recordCount != lineage.datasetRecords)
+            throw std::invalid_argument("training dataset lineage mismatch");
+    }
+    version.id = state_.nextModelVersionId++;
+    lineage.modelVersionId = version.id;
+    state_.modelVersions.emplace(version.id, version);
+    state_.modelTrainingLineages.emplace(version.id, lineage);
+    return {version, lineage};
+}
+
 ModelEdge InMemoryStore::createModelEdge(ModelEdge edge)
 {
     std::lock_guard lock(mutex_);
@@ -829,6 +860,16 @@ std::optional<ModelVersion> InMemoryStore::findModelVersion(
     return found == state_.modelVersions.end()
                ? std::nullopt
                : std::optional<ModelVersion>{found->second};
+}
+
+std::optional<ModelTrainingLineage>
+InMemoryStore::findModelTrainingLineage(ModelVersionId version) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.modelTrainingLineages.find(version);
+    return found == state_.modelTrainingLineages.end()
+               ? std::nullopt
+               : std::optional<ModelTrainingLineage>{found->second};
 }
 
 std::optional<ModelBinding> InMemoryStore::findModelBinding(UserId aiUser) const

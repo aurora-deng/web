@@ -25,6 +25,10 @@ public:
                                  std::string modelArtifact,
                                  std::string adapterArtifact,
                                  std::string checksum, TimePoint now);
+    ModelVersion registerTrainedVersion(
+        ModelNodeId node, std::string runtime, std::string modelArtifact,
+        std::string adapterArtifact, std::string checksum,
+        ModelTrainingLineage lineage, TimePoint now);
     ModelEdge connect(ModelNodeId from, ModelNodeId to,
                       ModelEdgeKind kind);
     void bindAiAccount(UserId aiUser, ModelNodeId node);

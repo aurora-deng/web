@@ -275,6 +275,22 @@ ModelVersionState versionState(std::string_view state)
     throw std::runtime_error("unknown persisted model version state");
 }
 
+std::string trainingAuthorizationMode(TrainingAuthorizationMode mode)
+{
+    return mode == TrainingAuthorizationMode::DatabaseVerified
+               ? "database-verified"
+               : "pipeline-smoke";
+}
+
+TrainingAuthorizationMode trainingAuthorizationMode(std::string_view mode)
+{
+    if (mode == "pipeline-smoke")
+        return TrainingAuthorizationMode::PipelineSmoke;
+    if (mode == "database-verified")
+        return TrainingAuthorizationMode::DatabaseVerified;
+    throw std::runtime_error("unknown persisted training authorization mode");
+}
+
 std::string activationAction(ModelActivationAction action)
 {
     return action == ModelActivationAction::Activate ? "activate" : "rollback";
@@ -477,6 +493,18 @@ ModelVersion readVersion(const Result &result, int row)
             std::stoull(result.value(row, 1)), result.value(row, 2),
             result.value(row, 3), result.value(row, 4), result.value(row, 5),
             versionState(result.value(row, 6)), decodeTime(result, row, 7)};
+}
+
+ModelTrainingLineage readTrainingLineage(const Result &result, int row)
+{
+    return {std::stoull(result.value(row, 0)),
+            trainingAuthorizationMode(result.value(row, 1)),
+            decodeOptionalId(result, row, 2), result.value(row, 3),
+            std::stoull(result.value(row, 4)), result.value(row, 5),
+            result.value(row, 6), result.value(row, 7), result.value(row, 8),
+            result.value(row, 9), result.value(row, 10), result.value(row, 11),
+            result.value(row, 12), result.value(row, 13),
+            decodeTime(result, row, 14)};
 }
 
 ModelActivationAudit readActivationAudit(const Result &result, int row)
@@ -689,6 +717,12 @@ constexpr std::string_view kNodeColumns =
 constexpr std::string_view kVersionColumns =
     "id, node_id, runtime, model_artifact, adapter_artifact, checksum, state, "
     "(extract(epoch FROM created_at) * 1000000)::bigint";
+constexpr std::string_view kTrainingLineageColumns =
+    "model_version_id,authorization_mode,dataset_version_id,dataset_sha256,"
+    "dataset_records,base_repository,base_revision,base_weights_sha256,"
+    "training_manifest_sha256,training_config_sha256,peft_weights_sha256,"
+    "onnx_adapter_sha256,onnx_model_sha256,actor,"
+    "(extract(epoch FROM created_at)*1000000)::bigint";
 constexpr std::string_view kActivationAuditColumns =
     "id,node_id,previous_version_id,target_version_id,action,outcome,actor,detail,"
     "(extract(epoch FROM created_at) * 1000000)::bigint";
@@ -1625,6 +1659,83 @@ ModelVersion PostgresStore::createModelVersion(ModelVersion version)
     return readVersion(result, 0);
 }
 
+std::pair<ModelVersion, ModelTrainingLineage>
+PostgresStore::createTrainedModelVersion(ModelVersion version,
+                                         ModelTrainingLineage lineage)
+{
+    auto scope = connection();
+    const bool localTransaction = scope.lease.has_value();
+    if (localTransaction) command(scope.connection, "BEGIN");
+    try
+    {
+        if (lineage.authorizationMode ==
+            TrainingAuthorizationMode::DatabaseVerified)
+        {
+            if (!lineage.datasetVersionId)
+                throw std::invalid_argument(
+                    "database-verified lineage requires a dataset");
+            const auto dataset = query(scope.connection,
+                "SELECT checksum,record_count FROM dataset_versions "
+                "WHERE id=$1::bigint FOR SHARE",
+                {number(*lineage.datasetVersionId)});
+            if (!dataset.rows())
+                throw std::invalid_argument("training dataset does not exist");
+            auto checksum = dataset.value(0, 0);
+            if (checksum.starts_with("sha256:")) checksum.erase(0, 7);
+            if (checksum != lineage.datasetSha256 ||
+                std::stoull(dataset.value(0, 1)) != lineage.datasetRecords)
+                throw std::invalid_argument("training dataset lineage mismatch");
+        }
+        else if (lineage.datasetVersionId)
+            throw std::invalid_argument(
+                "pipeline-smoke lineage cannot reference a database dataset");
+
+        const auto insertedVersion = query(scope.connection,
+            "INSERT INTO model_versions(node_id,runtime,model_artifact,"
+            "adapter_artifact,checksum,state,created_at) VALUES("
+            "$1::bigint,$2,$3,$4,$5,$6,"
+            "to_timestamp($7::double precision/1000000.0)) RETURNING " +
+            std::string(kVersionColumns),
+            {number(version.nodeId), version.runtime, version.modelArtifact,
+             version.adapterArtifact, version.checksum,
+             versionState(version.state), encodeTime(version.createdAt)});
+        version = readVersion(insertedVersion, 0);
+        lineage.modelVersionId = version.id;
+        const auto insertedLineage = query(scope.connection,
+            "INSERT INTO model_training_lineages("
+            "model_version_id,authorization_mode,dataset_version_id,"
+            "dataset_sha256,dataset_records,base_repository,base_revision,"
+            "base_weights_sha256,training_manifest_sha256,"
+            "training_config_sha256,peft_weights_sha256,onnx_adapter_sha256,"
+            "onnx_model_sha256,actor,created_at) VALUES("
+            "$1::bigint,$2,$3::bigint,$4,$5::bigint,$6,$7,$8,$9,$10,$11,$12,"
+            "$13,$14,to_timestamp($15::double precision/1000000.0)) RETURNING " +
+            std::string(kTrainingLineageColumns),
+            {number(lineage.modelVersionId),
+             trainingAuthorizationMode(lineage.authorizationMode),
+             lineage.datasetVersionId
+                 ? std::optional<std::string>{number(*lineage.datasetVersionId)}
+                 : std::nullopt,
+             lineage.datasetSha256, number(lineage.datasetRecords),
+             lineage.baseRepository, lineage.baseRevision,
+             lineage.baseWeightsSha256, lineage.trainingManifestSha256,
+             lineage.trainingConfigSha256, lineage.peftWeightsSha256,
+             lineage.onnxAdapterSha256, lineage.onnxModelSha256,
+             lineage.actor, encodeTime(lineage.createdAt)});
+        lineage = readTrainingLineage(insertedLineage, 0);
+        if (localTransaction) command(scope.connection, "COMMIT");
+        return {version, lineage};
+    }
+    catch (...)
+    {
+        if (localTransaction)
+        {
+            try { command(scope.connection, "ROLLBACK"); } catch (...) {}
+        }
+        throw;
+    }
+}
+
 ModelEdge PostgresStore::createModelEdge(ModelEdge edge)
 {
     auto scope = connection();
@@ -1666,6 +1777,20 @@ std::optional<ModelVersion> PostgresStore::findModelVersion(ModelVersionId id) c
         {number(id)});
     return result.rows() ? std::optional<ModelVersion>{readVersion(result, 0)}
                          : std::nullopt;
+}
+
+std::optional<ModelTrainingLineage>
+PostgresStore::findModelTrainingLineage(ModelVersionId version) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kTrainingLineageColumns) +
+        " FROM model_training_lineages WHERE model_version_id=$1::bigint",
+        {number(version)});
+    return result.rows()
+               ? std::optional<ModelTrainingLineage>{
+                     readTrainingLineage(result, 0)}
+               : std::nullopt;
 }
 
 std::optional<ModelBinding> PostgresStore::findModelBinding(UserId aiUser) const

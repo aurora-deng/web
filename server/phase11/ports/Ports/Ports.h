@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace webserver::phase11
 {
@@ -186,11 +187,16 @@ public:
     virtual ~IModelRepository() = default;
     virtual ModelNode createModelNode(ModelNode node) = 0;
     virtual ModelVersion createModelVersion(ModelVersion version) = 0;
+    virtual std::pair<ModelVersion, ModelTrainingLineage>
+    createTrainedModelVersion(ModelVersion version,
+                              ModelTrainingLineage lineage) = 0;
     virtual ModelEdge createModelEdge(ModelEdge edge) = 0;
     virtual bool bindAiAccount(ModelBinding binding) = 0;
     [[nodiscard]] virtual std::optional<ModelNode> findModelNode(ModelNodeId id) const = 0;
     [[nodiscard]] virtual std::optional<ModelVersion> findModelVersion(
         ModelVersionId id) const = 0;
+    [[nodiscard]] virtual std::optional<ModelTrainingLineage>
+    findModelTrainingLineage(ModelVersionId version) const = 0;
     [[nodiscard]] virtual std::optional<ModelBinding> findModelBinding(
         UserId aiUser) const = 0;
     [[nodiscard]] virtual std::vector<ModelEdge> modelEdges() const = 0;

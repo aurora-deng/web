@@ -768,6 +768,48 @@ void verifyTrainingConsent(Fixture &fixture, TimePoint now,
     CHECK(dataset.checksum == std::string(64, 'a') &&
           dataset.artifactPath == "dataset-test.jsonl" &&
           dataset.recordCount == 1);
+
+    const auto trainedNode = fixture.models.createNode(
+        "lineage-model", ModelNodeKind::Specialist, now);
+    ModelTrainingLineage lineage;
+    lineage.authorizationMode = TrainingAuthorizationMode::DatabaseVerified;
+    lineage.datasetVersionId = dataset.id;
+    lineage.datasetSha256 = dataset.checksum;
+    lineage.datasetRecords = dataset.recordCount;
+    lineage.baseRepository = "Qwen/Qwen2.5-0.5B-Instruct";
+    lineage.baseRevision = "approved-revision";
+    lineage.baseWeightsSha256 = std::string(64, 'b');
+    lineage.trainingManifestSha256 = std::string(64, 'c');
+    lineage.trainingConfigSha256 = std::string(64, 'd');
+    lineage.peftWeightsSha256 = std::string(64, 'e');
+    lineage.onnxAdapterSha256 = std::string(64, 'f');
+    lineage.onnxModelSha256 = std::string(64, '1');
+    lineage.actor = "training-admin";
+    const auto trainedVersion = fixture.models.registerTrainedVersion(
+        trainedNode.id, "onnx-inprocess", "models/trained",
+        "adapter_weights.onnx_adapter", "sha256-tree-v1:trained",
+        lineage, now);
+    const auto storedLineage =
+        fixture.store.findModelTrainingLineage(trainedVersion.id);
+    CHECK(storedLineage &&
+          storedLineage->datasetVersionId == dataset.id &&
+          storedLineage->trainingConfigSha256 == std::string(64, 'd') &&
+          storedLineage->actor == "training-admin");
+
+    lineage.datasetSha256 = std::string(64, '0');
+    bool mismatchedDatasetRejected = false;
+    try
+    {
+        (void)fixture.models.registerTrainedVersion(
+            trainedNode.id, "onnx-inprocess", "models/mismatched",
+            "adapter_weights.onnx_adapter", "sha256-tree-v1:mismatched",
+            lineage, now);
+    }
+    catch (const std::exception &)
+    {
+        mismatchedDatasetRejected = true;
+    }
+    CHECK(mismatchedDatasetRejected);
     const auto exported = fixture.store.findTrainingCandidate(candidate.id);
     CHECK(exported && exported->state == TrainingCandidateState::Exported &&
            exported->datasetVersionId == dataset.id);

@@ -137,10 +137,14 @@ public:
 
     ModelNode createModelNode(ModelNode node) override;
     ModelVersion createModelVersion(ModelVersion version) override;
+    std::pair<ModelVersion, ModelTrainingLineage> createTrainedModelVersion(
+        ModelVersion version, ModelTrainingLineage lineage) override;
     ModelEdge createModelEdge(ModelEdge edge) override;
     bool bindAiAccount(ModelBinding binding) override;
     std::optional<ModelNode> findModelNode(ModelNodeId id) const override;
     std::optional<ModelVersion> findModelVersion(ModelVersionId id) const override;
+    std::optional<ModelTrainingLineage> findModelTrainingLineage(
+        ModelVersionId version) const override;
     std::optional<ModelBinding> findModelBinding(UserId aiUser) const override;
     std::vector<ModelEdge> modelEdges() const override;
     bool activateModelVersion(ModelNodeId node, ModelVersionId version,
@@ -261,6 +265,8 @@ private:
         std::unordered_map<OutboxEventId, OutboxEvent> outbox;
         std::unordered_map<ModelNodeId, ModelNode> modelNodes;
         std::unordered_map<ModelVersionId, ModelVersion> modelVersions;
+        std::unordered_map<ModelVersionId, ModelTrainingLineage>
+            modelTrainingLineages;
         std::unordered_map<ModelEdgeId, ModelEdge> modelEdges;
         std::unordered_map<UserId, ModelBinding> modelBindings;
         std::unordered_map<ModelActivationAuditId, ModelActivationAudit>

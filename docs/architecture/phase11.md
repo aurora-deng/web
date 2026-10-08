@@ -1308,3 +1308,15 @@ Phase 23 把 Phase 20 的“评测数据结构和质量门禁”接到真实 ONN
 也升级为固定 PID 和 `/proc` 资源采样，输出延迟分位数、资源增长与原始证据摘要。三套构建仍为
 97/97；24 小时测试只在最终汇总生成后才会记为通过。完整流程、命令、证据、代码索引和限制见
 [Phase 23：候选模型真实评测、人工发布与长稳证据](phase23.md)。
+
+## 23. Phase 24 训练到候选模型的不可变血缘（2026-10-08）
+
+Phase 24 把 Phase 22 的 Dataset/训练产物与 Phase 23 的 Candidate/评测链连接起来。新的
+`ModelTrainingLineage` 保存授权模式、Dataset ID/摘要/记录数、基座 revision、训练配置、PEFT 权重、
+ONNX Adapter 和基础图摘要；`database-verified` 登记时还会锁定数据库 Dataset 行并再次核对。
+
+Python 导出器生成固定 Schema 的扁平清单，C++ 管理工具重新计算实际文件摘要并约束路径不能逃出模型
+根目录。Candidate 与 Lineage 由 Repository 在同一事务创建，篡改文件、伪造 Dataset 或任一插入失败
+都不会留下孤立版本。隔离 PostgreSQL 的正向、Dataset 不匹配和文件篡改反向验证已经通过；正式库迁移
+与三套完整回归等待正在运行的 24 小时长稳结束。完整字段、命令、代码索引与边界见
+[Phase 24：训练数据、模型制品与候选版本不可变血缘](phase24.md)。

@@ -27,6 +27,41 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def build_lineage_manifest(
+    training_manifest: dict,
+    training_manifest_sha256: str,
+    training_config_sha256: str,
+    onnx_adapter_sha256: str,
+    onnx_model_sha256: str,
+) -> dict[str, str]:
+    """Build the flat, language-neutral manifest consumed by the C++ CLI.
+
+    FlatJson intentionally supports only string values.  Keeping this function
+    separate gives the exporter and the registration boundary one explicit
+    schema instead of relying on two similar-looking nested manifests.
+    """
+    dataset_id = training_manifest.get("dataset_id")
+    return {
+        "schema": "phase24-model-training-lineage-v1",
+        "authorization_mode": str(training_manifest["authorization_mode"]),
+        "dataset_id": "" if dataset_id is None else str(dataset_id),
+        "dataset_sha256": str(training_manifest["dataset_sha256"]),
+        "dataset_records": str(training_manifest["dataset_records"]),
+        "base_repository": str(training_manifest["base_repository"]),
+        "base_revision": str(training_manifest["base_revision"]),
+        "base_weights_sha256": str(training_manifest["base_weights_sha256"]),
+        "training_manifest_sha256": training_manifest_sha256,
+        "training_config_sha256": training_config_sha256,
+        "peft_weights_sha256": str(training_manifest["weights_sha256"]),
+        "onnx_adapter_sha256": onnx_adapter_sha256,
+        "onnx_model_sha256": onnx_model_sha256,
+    }
+
+
 def local_system() -> dict:
     return {
         "type": "LocalSystem",
@@ -82,6 +117,17 @@ def main() -> int:
     weights = adapter / "adapter_model.safetensors"
     if sha256(weights) != training_manifest.get("weights_sha256"):
         raise ValueError("trained PEFT weights do not match their manifest")
+    training_manifest_sha256 = sha256(training_manifest_path)
+    training_config = {
+        key: training_manifest.get(key)
+        for key in (
+            "seed", "max_steps", "max_length", "learning_rate", "rank",
+            "alpha", "target_modules", "torch_version",
+        )
+    }
+    training_config_sha256 = sha256_text(json.dumps(
+        training_config, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ))
 
     work.parent.mkdir(parents=True, exist_ok=True)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -193,6 +239,11 @@ def main() -> int:
     manifest = {
         "schema": "phase22-onnx-adapter-export-v1",
         "training_manifest": str(training_manifest_path),
+        "training_manifest_sha256": training_manifest_sha256,
+        "training_config_sha256": training_config_sha256,
+        "authorization_mode": training_manifest["authorization_mode"],
+        "dataset_id": training_manifest.get("dataset_id"),
+        "dataset_records": training_manifest["dataset_records"],
         "peft_weights_sha256": training_manifest["weights_sha256"],
         "dataset_sha256": training_manifest["dataset_sha256"],
         "onnx_adapter_sha256": sha256(exported_adapter),
@@ -203,6 +254,20 @@ def main() -> int:
     }
     (output / "PHASE22_ONNX_ADAPTER_MANIFEST.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    # 把训练出生证明带入部署目录，注册 Candidate 时无需访问训练工作目录。
+    shutil.copy2(training_manifest_path,
+                 output / "PHASE22_TRAINING_MANIFEST.json")
+    lineage = build_lineage_manifest(
+        training_manifest,
+        training_manifest_sha256,
+        training_config_sha256,
+        sha256(exported_adapter),
+        sha256(exported_model),
+    )
+    (output / "PHASE24_MODEL_LINEAGE.json").write_text(
+        json.dumps(lineage, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     if args.cleanup_work:
