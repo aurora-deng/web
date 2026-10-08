@@ -1,4 +1,10 @@
-# web-test 2.0 · Phase 24（本地开发分支）
+# web-test 2.0 · Phase 25（本地开发分支）
+
+> Phase 25 增加无需安装 systemd 的用户态 Supervisor：使用 PID + Linux start ticks 防止 PID 复用误判，
+> 只依据进程身份和 liveness 触发恢复，采用指数退避与时间窗重启预算阻止重启风暴。隔离 `SIGKILL`
+> 演练连续 3 轮完成旧/新 PID 替换，永久启动失败也会在预算耗尽后停止；CTest 已登记为第 98 项。
+> 当前正式服务仍由 24 小时长稳固定监控，真实 Webserver 强杀演练会在长稳结束后执行。详见
+> [Phase 25：用户态进程监督与异常恢复](docs/architecture/phase25.md)。
 
 > Phase 24 为每个训练得到的 ONNX Candidate 增加不可变“出生证明”：授权模式、Dataset ID/摘要/条数、
 > 基座仓库与 revision、训练配置、PEFT 权重、ONNX Adapter 和基础图摘要都会进入独立血缘表。

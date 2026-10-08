@@ -15,6 +15,7 @@
 | `phase11/postgres-backup.sh` | 数据保护 | 创建/校验逻辑备份，并在隔离数据库完成恢复演练 |
 | `phase11/phase16-soak.py` | 稳定性巡检 | 有界采样 liveness、readiness 和 metrics，输出 JSONL |
 | `phase11/webserver-user-service.sh` | 用户态服务管理 | readiness 启停、磁盘门槛、日志轮转和结构化运维事件 |
+| `phase11/webserver-user-supervisor.sh` | 用户态进程监督 | PID 身份、liveness、指数退避、重启预算与异常恢复 |
 
 ## 🚀 快速开始（推荐）
 

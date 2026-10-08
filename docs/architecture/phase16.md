@@ -193,9 +193,12 @@ python3 scripts/phase11/phase16-soak.py \
 
 完整运维验收摘要见 [ops-validation.md](../evidence/phase16/ops-validation.md)。
 
-当前仍是单机学习与预生产基线：缺少外部指标存储和告警、自动进程监督、完整应用 JSON 日志、WAL
+当前仍是单机学习与预生产基线：缺少外部指标存储和告警、完整应用 JSON 日志、WAL
 时间点恢复、多实例 Outbox 竞争协调以及长时间故障注入。它适合学习可观测性、回归和单机部署演练；
 关键生产业务还要由 systemd/Kubernetes、Prometheus/Alertmanager、集中日志和异机备份补齐外围系统。
+
+Phase 25 已补充不依赖安装的用户态自动进程监督、指数退避和重启预算；systemd/Kubernetes 外层监督、
+集中告警和正式进程故障演练仍属于未完成边界，详见 [Phase 25](phase25.md)。
 
 ### Phase 23 后续增强
 

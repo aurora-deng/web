@@ -12,6 +12,7 @@ binary="${PHASE11_SERVER_BINARY:-${build_dir}/webserver}"
 data_root="${PHASE11_DATA_ROOT:-/home/pikachu/phase11-data}"
 model_root="${WEB_PHASE11_ONNX_MODEL_ROOT:-/home/pikachu/phase11-models}"
 pid_file="${data_root}/webserver.pid"
+start_ticks_file="${pid_file}.start_ticks"
 log_file="${data_root}/webserver.log"
 operations_log="${data_root}/operations.jsonl"
 max_log_bytes="${WEB_PHASE11_MAX_LOG_BYTES:-104857600}"
@@ -57,6 +58,17 @@ running_pid() {
     local pid
     read -r pid < "${pid_file}"
     [[ "${pid}" =~ ^[0-9]+$ ]] && kill -0 "${pid}" 2>/dev/null || return 1
+    # PID 会被 Linux 复用。新启动的服务额外保存 /proc start ticks；若数字相同但
+    # start ticks 不同，就不能把后来出现的无关进程当成旧 webserver。
+    if [[ -r "${start_ticks_file}" ]]; then
+        local expected_ticks actual_ticks process_state
+        read -r expected_ticks < "${start_ticks_file}"
+        process_state="$(awk '{print $3}' "/proc/${pid}/stat" 2>/dev/null || true)"
+        actual_ticks="$(awk '{print $22}' "/proc/${pid}/stat" 2>/dev/null || true)"
+        [[ "${expected_ticks}" =~ ^[0-9]+$ &&
+           "${process_state}" != "Z" && "${process_state}" != "X" &&
+           "${actual_ticks}" == "${expected_ticks}" ]] || return 1
+    fi
     printf '%s\n' "${pid}"
 }
 
@@ -108,12 +120,13 @@ start_server() {
     nohup "${binary}" > "${log_file}" 2>&1 &
     pid=$!
     printf '%s\n' "${pid}" > "${pid_file}"
+    awk '{print $22}' "/proc/${pid}/stat" > "${start_ticks_file}"
 
     for _ in {1..50}; do
         if ! kill -0 "${pid}" 2>/dev/null; then
             printf 'Phase 11 webserver exited during startup.\n' >&2
             tail -n 30 "${log_file}" >&2 || true
-            rm -f "${pid_file}"
+            rm -f "${pid_file}" "${start_ticks_file}"
             return 1
         fi
         if curl --fail --silent --show-error --max-time 1 \
@@ -134,14 +147,14 @@ start_server() {
 stop_server() {
     local pid
     if ! pid="$(running_pid)"; then
-        rm -f "${pid_file}"
+        rm -f "${pid_file}" "${start_ticks_file}"
         printf 'Phase 11 webserver is not running.\n'
         return 0
     fi
     kill -TERM "${pid}"
     for _ in {1..100}; do
         if ! kill -0 "${pid}" 2>/dev/null; then
-            rm -f "${pid_file}"
+            rm -f "${pid_file}" "${start_ticks_file}"
             printf 'Phase 11 webserver stopped.\n'
             audit_event "stopped" "${pid}"
             return 0

@@ -798,10 +798,18 @@ if(BUILD_TESTING)
                     ${PROJECT_SOURCE_DIR}/tests/integration/phase9_shutdown_blackbox.py
                     --server $<TARGET_FILE:webserver>
         )
+        add_test(
+            NAME phase11_supervisor_recovery
+            COMMAND ${Python3_EXECUTABLE}
+                    ${PROJECT_SOURCE_DIR}/tests/phase11/integration/supervisor_recovery.py
+                    --supervisor
+                    ${PROJECT_SOURCE_DIR}/scripts/phase11/webserver-user-supervisor.sh
+        )
         # 设置测试超时时间90秒，防止测试卡死阻塞CI
         set_tests_properties(
             http_blackbox websocket_blackbox sse_blackbox
             phase9_security_blackbox phase9_shutdown_blackbox
+            phase11_supervisor_recovery
             PROPERTIES TIMEOUT 90 RUN_SERIAL TRUE
         )
     else()
