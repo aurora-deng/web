@@ -143,6 +143,52 @@ void requireRelative(const std::filesystem::path &path,
                                         " cannot escape the model root");
 }
 
+std::string trainingAuthorizationMode(TrainingAuthorizationMode mode)
+{
+    switch (mode)
+    {
+    case TrainingAuthorizationMode::PipelineSmoke:
+        return "pipeline-smoke";
+    case TrainingAuthorizationMode::DatabaseVerified:
+        return "database-verified";
+    }
+    throw std::invalid_argument("unknown training authorization mode");
+}
+
+void printLineage(const ModelTrainingLineage &lineage)
+{
+    bool first = true;
+    std::cout << '{';
+    const auto field = [&first](std::string_view name, std::string value)
+    {
+        if (!first) std::cout << ',';
+        first = false;
+        std::cout << transport::quoteJson(name) << ':'
+                  << transport::quoteJson(value);
+    };
+    field("schema", "phase24-stored-model-training-lineage-v1");
+    field("model_version_id", std::to_string(lineage.modelVersionId));
+    field("authorization_mode",
+          trainingAuthorizationMode(lineage.authorizationMode));
+    field("dataset_id", lineage.datasetVersionId
+          ? std::to_string(*lineage.datasetVersionId) : std::string{});
+    field("dataset_sha256", lineage.datasetSha256);
+    field("dataset_records", std::to_string(lineage.datasetRecords));
+    field("base_repository", lineage.baseRepository);
+    field("base_revision", lineage.baseRevision);
+    field("base_weights_sha256", lineage.baseWeightsSha256);
+    field("training_manifest_sha256", lineage.trainingManifestSha256);
+    field("training_config_sha256", lineage.trainingConfigSha256);
+    field("peft_weights_sha256", lineage.peftWeightsSha256);
+    field("onnx_adapter_sha256", lineage.onnxAdapterSha256);
+    field("onnx_model_sha256", lineage.onnxModelSha256);
+    field("actor", lineage.actor);
+    field("created_at_epoch_microseconds", std::to_string(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            lineage.createdAt.time_since_epoch()).count()));
+    std::cout << "}\n";
+}
+
 InProcessOnnxModelProviderConfig providerConfig(
     const std::filesystem::path &modelRoot)
 {
@@ -234,6 +280,7 @@ void usage()
         << "  phase11-model-admin register-trained-onnx <node-id> <model-root> "
            "<relative-model-dir> <relative-adapter> <relative-lineage-manifest> "
            "<actor>\n"
+        << "  phase11-model-admin show-lineage <version-id>\n"
         << "  phase11-model-admin evaluate-onnx <version-id> <model-root> "
            "[max-tokens] [case-timeout-seconds]\n"
         << "  phase11-model-admin activate-onnx <node-id> <version-id> "
@@ -258,6 +305,19 @@ int main(int argc, char **argv)
         if (!store.healthy())
             throw std::runtime_error("PostgreSQL is not healthy");
         const std::string_view command(argv[1]);
+
+        if (command == "show-lineage" && argc == 3)
+        {
+            const auto versionId = positive(argv[2], "version ID");
+            if (!store.findModelVersion(versionId))
+                throw std::invalid_argument("model version does not exist");
+            const auto lineage = store.findModelTrainingLineage(versionId);
+            if (!lineage)
+                throw std::invalid_argument(
+                    "model version has no recorded training lineage");
+            printLineage(*lineage);
+            return 0;
+        }
 
         if (command == "register-trained-onnx" && argc == 8)
         {

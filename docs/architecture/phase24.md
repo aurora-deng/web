@@ -94,6 +94,17 @@ WEB_PHASE11_DATABASE='postgresql:///phase11?host=/path/to/socket' \
 
 这相当于仓库收货员不只看箱子外面的标签，还会重新称重、核对订单，并一次性登记“货物”和“来源”。
 
+登记后可以通过项目管理工具读取，不需要管理员手写 SQL：
+
+```bash
+WEB_PHASE11_DATABASE='postgresql:///phase11?host=/path/to/socket' \
+  ./build-release/phase11-model-admin show-lineage <version-id>
+```
+
+输出使用 `phase24-stored-model-training-lineage-v1` 固定 JSON Schema，包含数据库生成的 Version ID、
+授权模式、所有摘要、操作者和创建时间。文本字段使用项目 `FlatJson::quoteJson` 转义，即使 actor 含引号或
+反斜杠，输出仍是可由脚本安全解析的 JSON。
+
 ## 5. 原子性和不可变性
 
 `IModelRepository::createTrainedModelVersion` 是一个明确的原子端口，内存 Repository 和 PostgreSQL
@@ -123,6 +134,7 @@ WEB_PHASE11_DATABASE='postgresql:///phase11?host=/path/to/socket' \
 | 大写摘要反向 | 业务层在进入 Repository 前拒绝，避免内存实现通过而 PostgreSQL 失败 |
 | PostgreSQL 契约 | 迁移 12 后原子写入并重新读取通过 |
 | 真实 CLI 正向 | 登记 1 个 `database-verified` Candidate，并读取到对应血缘 |
+| 只读 CLI 查询 | `show-lineage` 输出通过 Python JSON 解析；含引号/反斜杠 actor 正确还原，无血缘版本被拒绝 |
 | 文件篡改反向 | 修改 Adapter 后注册失败，版本数和血缘数都没有增加 |
 | 运行中长稳 | 固定服务 PID 与采集器仍存活，检查时累计 13,990 个样本、0 个失败；最终汇总尚未生成 |
 
@@ -140,7 +152,7 @@ Release、Debug、Sanitizer 全矩阵以及正式库迁移会等待当前 24 小
 | `server/phase11/storage/postgres/PostgresStore/` | Dataset 再核对、事务写入与查询 |
 | `server/phase11/storage/postgres/migrations/012_model_training_lineage.sql` | 血缘表、外键、模式与 Hash 约束 |
 | `scripts/phase11/export-trained-lora-onnx.py` | 生成部署制品和 Phase 24 扁平血缘清单 |
-| `tools/phase11_model_admin.cpp` | 路径/Hash 校验及 `register-trained-onnx` 命令 |
+| `tools/phase11_model_admin.cpp` | 路径/Hash 校验、训练 Candidate 登记及 `show-lineage` 查询 |
 | `tests/phase11/unit/core.cpp` | 内存业务和错误 Dataset 反向用例 |
 | `tests/phase11/unit/postgres_contract.cpp` | PostgreSQL 原子持久化契约 |
 
