@@ -15,22 +15,23 @@
 | 生产化护栏与 gRPC Callback Reactor（Phase 9，test9.0） | [architecture/phase9.md](architecture/phase9.md) |
 | test9.0 → test9.1 版本差异 | [architecture/test9.1.md](architecture/test9.1.md) |
 | test9.1 → Function1.0 完整差异 | [architecture/function1.0-vs-test9.1.md](architecture/function1.0-vs-test9.1.md) |
+| Function1.0 → Function2 完整差异 | [architecture/function2-vs-function1.0.md](architecture/function2-vs-function1.0.md) |
 | HTTP/gRPC 性能路径、架构拆分与 Linux 实测（Phase 10） | [architecture/phase10.md](architecture/phase10.md) |
 | 账号、社交聊天、AI Provider 与模型治理地基（Phase 11，Function1.0） | [architecture/phase11.md](architecture/phase11.md) |
-| 持久未读、送达/已读回执与消息撤回（Phase 12，本地分支） | [architecture/phase12.md](architecture/phase12.md) |
-| 群主、管理员、禁言、退出与软解散（Phase 13，本地分支） | [architecture/phase13.md](architecture/phase13.md) |
-| 好友备注、免打扰、黑名单与多设备 Presence（Phase 14，本地分支） | [architecture/phase14.md](architecture/phase14.md) |
-| HTTP/WS/SSE/PostgreSQL 真实业务性能基线（Phase 15，本地分支） | [architecture/phase15.md](architecture/phase15.md) |
-| 可观测性、Outbox 主动唤醒与运维闭环（Phase 16，本地分支） | [architecture/phase16.md](architecture/phase16.md) |
-| 头像、图片/文件消息、分片上传与权限下载（Phase 17，本地分支） | [architecture/phase17.md](architecture/phase17.md) |
-| AI 生成韧性、配额、期限、熔断与备用端点（Phase 18，本地分支） | [architecture/phase18.md](architecture/phase18.md) |
-| 模型变更审计与 AI 生成追踪（Phase 19，本地分支） | [architecture/phase19.md](architecture/phase19.md) |
-| 模型评测集与激活质量门禁（Phase 20，本地分支） | [architecture/phase20.md](architecture/phase20.md) |
-| RAG 知识检索、权限隔离与回答引用链（Phase 21，本地分支） | [architecture/phase21.md](architecture/phase21.md) |
-| 授权数据集与真实 LoRA 微调闭环（Phase 22，本地分支） | [architecture/phase22.md](architecture/phase22.md) |
-| 候选模型真实评测与人工发布（Phase 23，本地分支） | [architecture/phase23.md](architecture/phase23.md) |
-| 训练到候选模型不可变血缘（Phase 24，本地分支） | [architecture/phase24.md](architecture/phase24.md) |
-| 用户态进程监督与异常恢复（Phase 25，本地分支） | [architecture/phase25.md](architecture/phase25.md) |
+| 持久未读、送达/已读回执与消息撤回（Phase 12，Function2） | [architecture/phase12.md](architecture/phase12.md) |
+| 群主、管理员、禁言、退出与软解散（Phase 13，Function2） | [architecture/phase13.md](architecture/phase13.md) |
+| 好友备注、免打扰、黑名单与多设备 Presence（Phase 14，Function2） | [architecture/phase14.md](architecture/phase14.md) |
+| HTTP/WS/SSE/PostgreSQL 真实业务性能基线（Phase 15，Function2） | [architecture/phase15.md](architecture/phase15.md) |
+| 可观测性、Outbox 主动唤醒与运维闭环（Phase 16，Function2） | [architecture/phase16.md](architecture/phase16.md) |
+| 头像、图片/文件消息、分片上传与权限下载（Phase 17，Function2） | [architecture/phase17.md](architecture/phase17.md) |
+| AI 生成韧性、配额、期限、熔断与备用端点（Phase 18，Function2） | [architecture/phase18.md](architecture/phase18.md) |
+| 模型变更审计与 AI 生成追踪（Phase 19，Function2） | [architecture/phase19.md](architecture/phase19.md) |
+| 模型评测集与激活质量门禁（Phase 20，Function2） | [architecture/phase20.md](architecture/phase20.md) |
+| RAG 知识检索、权限隔离与回答引用链（Phase 21，Function2） | [architecture/phase21.md](architecture/phase21.md) |
+| 授权数据集与真实 LoRA 微调闭环（Phase 22，Function2） | [architecture/phase22.md](architecture/phase22.md) |
+| 候选模型真实评测与人工发布（Phase 23，Function2） | [architecture/phase23.md](architecture/phase23.md) |
+| 训练到候选模型不可变血缘（Phase 24，Function2） | [architecture/phase24.md](architecture/phase24.md) |
+| 用户态进程监督与异常恢复（Phase 25，Function2） | [architecture/phase25.md](architecture/phase25.md) |
 | 长连接容量、AI 并发与混合负载（Phase 26，待长稳后实测） | [architecture/phase26.md](architecture/phase26.md) |
 | Phase 11 外部依赖审批、位置和卸载说明 | [architecture/phase11-dependency-gates.md](architecture/phase11-dependency-gates.md) |
 | Phase 11 PostgreSQL 表结构、关系和业务写入流程 | [database/README.md](database/README.md) |

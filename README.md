@@ -1,4 +1,9 @@
-# web-test 2.0 · Phase 26（本地开发分支）
+# web-test 2.0 · Function2（Phase 12–26）
+
+> Function2 从远程 `Function1.0` 的 Phase 11 应用平台继续演进，补齐消息生命周期、群治理、联系人、
+> 文件、可观测性、AI 韧性与审计、模型评测、RAG、授权 LoRA、候选发布、不可变血缘、进程监督和
+> 容量测试工具。完整差异见
+> [Function2 与 Function1.0 对比](docs/architecture/function2-vs-function1.0.md)。
 
 > Phase 26 补齐长驻 WebSocket 容量、每连接 RSS/FD 斜率、真实 AI 并发，以及 AI 与普通聊天同时
 > 工作时的隔离测量。基准和聚合契约已经完成并通过本地 4/4 编排测试；正式三轮数据要等当前 24 小时
@@ -69,8 +74,8 @@
 > Phase 14 在 Phase 13 上补齐好友备注、消息免打扰、删除好友、黑名单、多设备 WebSocket 与最后活跃。
 > Release、Debug、ASan+LSan+UBSan 均为 93/93 通过，真实 PostgreSQL + HTTP + WebSocket + SSE
 > 黑盒也验证了两个设备同时收件、离线状态和服务端权限阻断。完整设计、流程、接口、文件索引和证据见
-> [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/phase14.md)。当前改动只保存在本地
-> `phase14` 分支，尚未推送远程仓库；群聊治理见 [Phase 13](docs/architecture/phase13.md)。
+> [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/phase14.md)；群聊治理见
+> [Phase 13](docs/architecture/phase13.md)。
 
 > Function1.0 以 [test9.1](https://github.com/aurora-deng/web/tree/test9.1) 为基线，
 > 保留 Phase 10 的 HTTP/gRPC 性能路径，并加入完整的 Phase 11 应用层：账号、PostgreSQL、

@@ -1,7 +1,7 @@
 # Phase 11：账号、社交聊天与 AI 推理平台
 
-> 本文记录 Function1.0 的 Phase 11 基线。后续本地分支新增的持久消息生命周期见
-> [Phase 12](phase12.md)，群聊治理与权限闭环见 [Phase 13](phase13.md)，均尚未推送远程仓库。
+> 本文记录 Function1.0 的 Phase 11 基线。Function2 新增的持久消息生命周期见
+> [Phase 12](phase12.md)，群聊治理与权限闭环见 [Phase 13](phase13.md)。
 
 ## 1. 当前完成状态
 
