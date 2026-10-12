@@ -1197,6 +1197,14 @@ int main()
             "/phase11/styles.css",
             servePhase11Asset("./frontend/phase11/styles.css",
                               "text/css; charset=utf-8"));
+        server.router().GET(
+            "/phase11/chat/ChatHistory.js",
+            servePhase11Asset("./frontend/phase11/chat/ChatHistory.js",
+                              "text/javascript; charset=utf-8"));
+        server.router().GET(
+            "/phase11/chat/ReliableSender.js",
+            servePhase11Asset("./frontend/phase11/chat/ReliableSender.js",
+                              "text/javascript; charset=utf-8"));
 
         // /slow: 验证 Executor 异步执行与协作式超时。
         // 像后厨每做一小步就看一次撤单灯：超过 handler deadline 后尽快停工，

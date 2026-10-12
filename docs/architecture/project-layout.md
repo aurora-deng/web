@@ -11,7 +11,7 @@ web/
 ├─ CMakeLists.txt                  构建入口
 ├─ main.cpp                       进程装配入口，只连接组件和注册路由
 ├─ frontend/
-│  └─ phase11/                    Phase 11 浏览器端 HTML/CSS/JavaScript
+│  └─ phase11/                    浏览器端 HTML/CSS/JavaScript；chat/ 存放历史与可靠发送组件
 ├─ server/
 │  ├─ phase11/
 │  │  ├─ ai/<Component>/          每个模型 Provider、Decoder、Worker 独立成组
@@ -32,6 +32,7 @@ web/
 │  └─ observability/logger/       日志与观测基础设施
 ├─ tests/
 │  ├─ phase11/unit/               Phase 11 快速单元和 Repository 契约测试
+│  ├─ phase11/frontend/           聊天状态机单元测试与浏览器故障交互回归
 │  ├─ phase11/integration/        真实进程、数据库、WS/SSE/AI 黑盒脚本
 │  ├─ phase11/smoke/              真实 ONNX 模型最小加载验证
 │  ├─ integration/                通用协议黑盒测试
@@ -40,7 +41,10 @@ web/
 │  └─ phase11/                    Phase 11 迁移、训练/模型导出和运行辅助脚本
 ├─ tools/                         需显式执行的训练、评测与模型发布管理入口
 ├─ docs/
-│  ├─ architecture/               当前架构、阶段设计和版本差异
+│  ├─ architecture/
+│  │  ├─ communication/           Reactor、HTTP、WebSocket、SSE、HTTP/2、TLS、gRPC 与 Phase 3–10
+│  │  ├─ business/                账号、聊天、文件、AI、训练、模型治理与 Phase 11–27
+│  │  └─ ARCHITECTURE.md          从网络接入到业务、模型训练和返回的端到端总图
 │  ├─ database/                   数据库表结构、关系与数据流学习文档
 │  ├─ testing/ performance/ ops/  测试、性能与运维说明
 │  ├─ reports/                    已完成的历史测试报告
@@ -107,8 +111,9 @@ cd build && ./webserver
 3. 浏览器代码只进入 `frontend/phase11/`；不要再放回通用 `static/`。
 4. 单元测试、进程级黑盒、真实依赖 smoke 和 fuzz 分别进入现有四类目录。
 5. 可执行脚本进入 `scripts/`，脚本生成的结果进入 `artifacts/`。
-6. 当前设计放 `docs/architecture/`，数据库 Schema 学习材料放 `docs/database/`，一次性报告放
-   `docs/reports/`，过期但有学习价值的材料放 `docs/archive/`。
+6. 通信协议和网络运行时放 `docs/architecture/communication/`，业务功能与模型流程放
+   `docs/architecture/business/`，跨层总览放 `docs/architecture/ARCHITECTURE.md`；数据库 Schema 学习材料放
+   `docs/database/`，一次性报告放 `docs/reports/`，过期但有学习价值的材料放 `docs/archive/`。
 7. 密钥、数据库数据、模型权重和临时 build 目录继续由 `.gitignore` 排除，不能放进任何文档或
    artifacts 目录。
 

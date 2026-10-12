@@ -1,8 +1,8 @@
 # 架构说明
 
-> 当前实现以本文为网络内核结构基线；阶段演进从 [`phase4_upgrade.md`](phase4_upgrade.md) 延伸到
-> [Phase 26 长连接容量、AI 并发与混合负载证据](phase26.md)。
-> 本地 SSE 接入见 [`phase5.md`](phase5.md)；GitHub `test6.3` 仍是接入前基线。
+> 当前实现以本文为网络内核结构基线；阶段演进从 [`phase4_upgrade.md`](communication/phase4_upgrade.md) 延伸到
+> [Phase 26 长连接容量、AI 并发与混合负载证据](business/phase26.md) 与 [Phase 27 聊天交互可靠性](business/phase27.md)。
+> 本地 SSE 接入见 [`phase5.md`](communication/phase5.md)；GitHub `test6.3` 仍是接入前基线。
 > 排错入口：[`../debugging/CHEATSHEET.md`](../debugging/CHEATSHEET.md)。
 
 服务面向 Linux/C++20，采用一个 acceptor 加多个
@@ -89,7 +89,7 @@ RAG 检索不是绕过权限的全库搜索。`RagService` 先根据请求者和
 这个集合中排名，持久化前再校验资料状态和成员身份。私人资料只用于“本人和已启用 AI 账号”的私聊；
 群聊只使用该群共享资料。`rag_retrievals + rag_citations` 保存生成时真正使用的切片，因此网页查看引用
 得到的是当时证据，而不是事后重新检索的另一组结果。完整状态机、API 和代码索引见
-[Phase 21](phase21.md)。
+[Phase 21](business/phase21.md)。
 
 ## 从 accept 到响应
 
@@ -163,8 +163,8 @@ WebSocket 可靠私聊在传输层之上再增加应用信封、`WebSocketDelive
 收件人可以确认。`accepted` 表示跨 Reactor 邮箱准入，`Written` 表示写入本机内核，
 `acknowledged` 表示接收方应用确认。Service 观察最终写回执，从 Written 后开始 ACK 计时，
 并自动执行有界重试和失败通知；详见
-[`phase10_websocket_application_delivery.md`](websocket-lessons/lesson10_websocket_application_delivery.md) 与
-[`phase11_websocket_retry_runtime.md`](websocket-lessons/lesson11_websocket_retry_runtime.md)。
+[`phase10_websocket_application_delivery.md`](communication/websocket-lessons/lesson10_websocket_application_delivery.md) 与
+[`phase11_websocket_retry_runtime.md`](communication/websocket-lessons/lesson11_websocket_retry_runtime.md)。
 
 ## 状态机
 
@@ -261,7 +261,7 @@ Worker 任务也显式捕获 shared_ptr，保证连接在 handler 执行期间�
 Runtime 正常退出时先停止 DeliveryService 与 acceptor，再 stop+join Reactor 线程；此时保留 Reactor
 对象和 eventfd，分别排空 HTTP/WS Executor，最后才 reset ReactorGroup。这样 Worker 的完成通知不会
 回调已销毁对象。线程不使用 detach。详见
-[`phase15_handler_cancellation_and_executor_isolation.md`](websocket-lessons/lesson15_handler_cancellation_and_executor_isolation.md)。
+[`phase15_handler_cancellation_and_executor_isolation.md`](communication/websocket-lessons/lesson15_handler_cancellation_and_executor_isolation.md)。
 
 ## 背压
 
@@ -335,3 +335,165 @@ Runtime 正常退出时先停止 DeliveryService 与 acceptor，再 stop+join Re
 Release、Debug、ASan+LSan+UBSan 三套 **96/96** CTest，数据库迁移版本 1–9 均已在隔离测试库和主库核对；
 服务重启后 readiness 恢复。这里的结果证明当前测试覆盖下的功能与资源安全，公网发布仍需结合真实容量、
 密钥管理、多实例一致性和故障演练判断，不能把单机通过直接等同于生产承诺。
+
+## 完整端到端大逻辑
+
+下面这张图把项目的两条主链放在一起：上半部分是“用户请求怎样进来并返回”，下半部分是“授权数据怎样变成
+新模型并安全上线”。底层通信细节见 [communication](communication/README.md)，业务实现与调用图见
+[business](business/README.md)。
+
+```mermaid
+flowchart TB
+    subgraph Client[客户端与管理入口]
+        Browser[浏览器 UI]
+        RpcClient[gRPC Client]
+        Admin[训练/模型管理工具]
+    end
+
+    subgraph Communication[底层通信层]
+        Accept[acceptor]
+        Reactor[ReactorGroup / SubReactor<br/>epoll + Connection + 协程]
+        Select{协议选择}
+        TLS[TLS handshake + ALPN]
+        H1[HTTP/1.1 Session<br/>Parser + Codec]
+        H2[HTTP/2 Session<br/>nghttp2 + HPACK + Stream]
+        WS[WebSocket Session<br/>帧解析 + 消息重组]
+        SSE[SSE Session<br/>事件 + replay]
+        GRPC[gRPC Learning Callback Server<br/>独立监听与 Service/Method]
+        Router[Router / WebSocketDispatcher]
+        Out[OutboundTask + Admission<br/>OutboundQueue + writerLoop]
+        Wire[writev / sendfile / SSL_write_ex]
+    end
+
+    subgraph Business[业务用例层]
+        Adapter[Phase11 HTTP / Realtime Adapters]
+        Auth[AuthService]
+        Social[SocialService]
+        Chat[ChatService / FileService]
+        AI[AiChatService]
+        AISink[Phase11AiEventSink<br/>中间 token / completed]
+        Outbox[OutboxPump / Realtime Sink]
+        RAG[RagService<br/>权限过滤 + 检索 + 引用]
+        Registry[ModelRegistryService]
+        Eval[ModelEvaluationService]
+    end
+
+    subgraph Data[端口与持久化]
+        DBExec[Bounded Database Executor]
+        Repos[Repository / Transaction ports]
+        PG[(PostgreSQL<br/>users/messages/outbox/knowledge/models)]
+        FileStore[(LocalFileStorage)]
+        Index[IKnowledgeIndex]
+    end
+
+    subgraph Inference[推理层]
+        ModelRouter[ModelRouter]
+        Resilient[ResilientModelProvider<br/>deadline / quota / breaker / fallback]
+        Ollama[Ollama API<br/>libcurl multi]
+        Onnx[In-process ONNX Runtime GenAI]
+        Worker[独立 gRPC ONNX Worker]
+    end
+
+    subgraph Training[授权训练、评测与发布]
+        Consent[用户授权 / 撤销]
+        Candidate[候选样本<br/>脱敏 + 审核 + 去重]
+        Dataset[不可变数据集版本<br/>JSONL + checksum]
+        Train[LoRA 训练]
+        Convert[Olive / OGA 导出]
+        Artifact[ONNX / Adapter 制品<br/>manifest + lineage]
+        CandidateModel[候选模型版本]
+        Gate{真实评测与质量门禁}
+        Human[人工发布确认]
+        Activate[试装 + 原子激活 / 回滚 + 审计]
+    end
+
+    Browser --> Accept
+    Accept --> Reactor
+    Reactor --> Select
+    Select -->|明文 HTTP/1.1| H1
+    Select -->|h2c preface| H2
+    Select -->|TLS listener| TLS
+    TLS -->|ALPN http/1.1| H1
+    TLS -->|ALPN h2| H2
+    H1 -->|Upgrade| WS
+    H1 -->|建立长响应| SSE
+    H1 --> Router
+    H2 --> Router
+    WS --> Router
+    RpcClient --> GRPC
+    Router --> Adapter
+
+    Adapter --> Auth
+    Adapter --> Social
+    Adapter --> Chat
+    Adapter --> AI
+    Adapter -->|普通 HTTP/WS 提交慢任务| DBExec
+    DBExec -->|执行用例| Auth
+    DBExec -->|执行用例| Social
+    DBExec -->|执行用例| Chat
+    AI -->|准备/审计/最终回复| DBExec
+    Auth --> Repos
+    Social --> Repos
+    Chat --> Repos
+    Repos --> PG
+    Chat --> FileStore
+
+    Chat -->|同事务写消息和事件| PG
+    PG -->|已提交 outbox| Outbox
+    Outbox -->|在线消息| WS
+    Outbox -->|持久业务事件通知| SSE
+
+    AI --> RAG
+    RAG --> Repos
+    RAG --> Index
+    AI --> ModelRouter
+    Registry --> ModelRouter
+    ModelRouter --> Resilient
+    Resilient --> Ollama
+    Resilient --> Onnx
+    Resilient --> Worker
+    Ollama -->|token / completed| AI
+    Onnx -->|token / completed| AI
+    Worker -->|server streaming token| AI
+
+    Auth -->|HTTP 响应| Out
+    Social -->|HTTP/实时结果| Out
+    Chat -->|ACK/历史/文件| Out
+    AI -->|token / completed 直接发布| AISink
+    AISink --> SSE
+    WS --> Out
+    SSE --> Out
+    H1 --> Out
+    H2 --> Out
+    Out --> Wire
+    Wire --> Browser
+
+    Browser -->|明确授权消息| Consent
+    Admin --> Candidate
+    Consent --> Candidate
+    Candidate --> Dataset
+    Dataset --> Train
+    Train --> Convert
+    Convert --> Artifact
+    Artifact --> CandidateModel
+    CandidateModel --> Eval
+    Eval --> Gate
+    Gate -->|不通过| CandidateModel
+    Gate -->|通过| Human
+    Human --> Activate
+    Activate --> Registry
+    Registry -->|新请求选择新版本| ModelRouter
+    Activate -->|失败时保留或恢复旧版本| Registry
+    Dataset --> PG
+    CandidateModel --> PG
+    Eval --> PG
+    Activate --> PG
+```
+
+读图时抓住三条不变量：
+
+1. **Reactor 不做阻塞业务**：数据库、文件和模型任务进入各自执行边界。
+2. **先持久化，再实时推送**：离线用户仍能收到消息，Outbox 负责填补提交与通知之间的故障缝隙。
+3. **训练制品不能直接上线**：授权、不可变数据集、血缘、评测、人工确认、运行时试装和审计缺一不可。
+
+图中的 gRPC Learning Server 是独立 API，并未统一接入 Phase 11 聊天路由；ONNX Worker 是模型 Provider 的跨进程推理路径。普通 HTTP/WS Worker 提交数据库任务后会等待结果，Reactor 不参与等待。Outbox 发布不等于每个客户端已送达，中间 AI token 也不逐个持久化。接线细节与六课学习路线见 [业务接入教学讲义](business/server-business-integration-tutorial.md)。

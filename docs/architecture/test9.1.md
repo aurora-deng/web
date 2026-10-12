@@ -4,7 +4,7 @@
 >
 > 当前版本：`test9.1`
 >
-> 详细实现讲解：[Phase 10：HTTP/gRPC 性能路径与架构拆分](phase10.md)
+> 详细实现讲解：[Phase 10：HTTP/gRPC 性能路径与架构拆分](communication/phase10.md)
 
 ## 1. 版本定位
 
@@ -170,7 +170,7 @@ Sanitizer 和 Debug 断言额外发现并修复了两个所有权问题：gRPC A
 | [`grpc_benchmark.cpp`](../../benchmarks/grpc_benchmark.cpp) | 四种 RPC 基准客户端 |
 | [`benchmark_phase10.sh`](../../scripts/benchmark_phase10.sh) | HTTP/gRPC 五轮基准和错误汇总 |
 | [`compare_phase10_results.py`](../../scripts/compare_phase10_results.py) | 自动验收 QPS、错误数与 P99 |
-| [`phase10.md`](phase10.md) | 全部设计理由、风险、命令和测试过程 |
+| [`phase10.md`](communication/phase10.md) | 全部设计理由、风险、命令和测试过程 |
 
 ## 9. 兼容性与使用建议
 

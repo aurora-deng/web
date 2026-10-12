@@ -266,7 +266,7 @@ published_at 标记完成
 以 `image/` 开头。附件默认只对会话成员可见；头像是个人资料的一部分，因此绑定后对任意已登录用户可读。
 
 完整上传状态机、磁盘布局、安全边界和 Range 下载见
-[Phase 17](../architecture/phase17.md)。
+[Phase 17](../architecture/business/phase17.md)。
 
 ## 6. AI 模型注册
 
@@ -289,7 +289,7 @@ published_at 标记完成
 `database-verified` 必须引用 DatasetVersion；Repository 在同一事务中重新核对该数据集的 checksum 与
 记录数，再一起插入 Candidate 和 Lineage。`pipeline-smoke` 必须不引用 DatasetVersion，因此合成教学
 样本不会伪装成用户授权数据。主键就是 `model_version_id`，也没有更新接口：重新训练必须建立新版本，
-不能覆盖旧模型的出生记录。完整门禁见 [Phase 24](../architecture/phase24.md)。
+不能覆盖旧模型的出生记录。完整门禁见 [Phase 24](../architecture/business/phase24.md)。
 
 ### `model_edges`：模型关系图
 
@@ -310,7 +310,7 @@ published_at 标记完成
 
 按 `generation_id` 保存请求者、会话、模型/版本/Adapter、Prompt 与输出 SHA-256、Token 数、首 Token
 和完成时间、终态以及成功回复消息。它不复制 Prompt 或输出正文。`revision` 阻止乱序异步任务用旧快照
-覆盖新终态。完整设计见 [Phase 19](../architecture/phase19.md)。
+覆盖新终态。完整设计见 [Phase 19](../architecture/business/phase19.md)。
 
 ### `model_evaluation_suites` 与 `model_evaluation_cases`：固定评测试卷
 
@@ -326,7 +326,7 @@ Suite 通过 `name + version` 标识不可变评测版本，并保存内容 `che
 
 每个节点最多一条策略，指定评测集、最低通过率、最低加权分和成绩有效期。模型启用读取同版本最新的
 completed Run；缺少成绩、必答题失败、不达标或过期都会拒绝激活。完整设计见
-[Phase 20](../architecture/phase20.md)。
+[Phase 20](../architecture/business/phase20.md)。
 
 ## 7. 授权训练数据
 
@@ -387,7 +387,7 @@ submitted → approved → exported
 而不是生成结束后临时再搜一次，因此回答与证据不会悄悄错位。
 
 完整权限矩阵、检索流程和故障一致性见
-[Phase 21](../architecture/phase21.md)。
+[Phase 21](../architecture/business/phase21.md)。
 
 ## 9. 主要业务写入路径
 

@@ -1,7 +1,7 @@
 # 原型 vs 最新版本：代码差异对比文档
 
 > 本文档对比原型与 2.0（第四阶段完成）的代码差异。第四阶段的出站体系重构、Session 基类与
-> SessionFactory 依赖倒置见 [`phase4_upgrade.md`](phase4_upgrade.md)。
+> SessionFactory 依赖倒置见 [`phase4_upgrade.md`](communication/phase4_upgrade.md)。
 
 > 原型目录: `e:\虚拟机高级web开发\orign`（仅含 `.gitignore` 和 `LICENSE`，源代码已不在）  
 > 最新版本: 2.0（第四阶段完成，`OutboundQueue` + `SessionFactory` + `Session` 基类）  

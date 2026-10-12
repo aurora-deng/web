@@ -1,6 +1,6 @@
 # HTTP/2 阶段总览：从 test7.0 到 test8.0
 
-`test8.0` 在 GitHub [`test7.0`](https://github.com/aurora-deng/web/tree/test7.0)（SSE 版，提交 `067d34c`）上加入了**服务器进程内部的 HTTP/2**。本篇主要讲 Phase 6 的明文 **h2c prior knowledge**：客户端一连上来就发送 HTTP/2 前言，不经过 Caddy。生产协议栈由 nghttp2 处理二进制帧、HPACK、流状态与流量控制，项目代码负责把完成的 stream 接入现有 Reactor、Router、Executor 和统一出站队列。随后 Phase 7 增加了独立的 TLS/ALPN 入口，见 [`phase7.md`](../../docs/architecture/phase7.md)。独立手搓 HTTP/2 教学版位于 [`learn/README.md`](learn/README.md)，不参与生产构建。
+`test8.0` 在 GitHub [`test7.0`](https://github.com/aurora-deng/web/tree/test7.0)（SSE 版，提交 `067d34c`）上加入了**服务器进程内部的 HTTP/2**。本篇主要讲 Phase 6 的明文 **h2c prior knowledge**：客户端一连上来就发送 HTTP/2 前言，不经过 Caddy。生产协议栈由 nghttp2 处理二进制帧、HPACK、流状态与流量控制，项目代码负责把完成的 stream 接入现有 Reactor、Router、Executor 和统一出站队列。随后 Phase 7 增加了独立的 TLS/ALPN 入口，见 [`phase7.md`](../../docs/architecture/communication/phase7.md)。独立手搓 HTTP/2 教学版位于 [`learn/README.md`](learn/README.md)，不参与生产构建。
 
 ## 1. 概念先建立
 
@@ -47,7 +47,7 @@ HTTP/1.1 与 HTTP/2 的 GET、POST、状态码等业务语义仍是 HTTP；变�
 | 验证状态 | SSE 编码及部分单元验证，Linux 黑盒待虚拟机 | nghttp2 编解码独立往返通过；完整服务 Linux 网络验收待虚拟机 |
 | HTTPS | 无 | 独立可选 TLS 端口，ALPN 选择 `h2` 或 `http/1.1`，详见 Phase 7 |
 
-当前 HTTP/2 限定普通有界请求/响应：请求体和响应体各最多 1 MiB，请求首部累计最多 16 KiB，向客户端宣告最多 32 个并发 stream。Phase 7 已接入 TLS/ALPN；仍未接 h2c Upgrade、HTTP/2 上 SSE 长流和 [RFC 8441 Extended CONNECT WebSocket](https://www.rfc-editor.org/rfc/rfc8441.html)；大文件 `sendfile` 和 HTTP/1.1 chunked 响应不能原样搬到 DATA 帧，相关路径暂回 501。出站积压仍受 4 MiB 水位约束。更细的架构说明见 [`../../docs/architecture/phase6.md`](../../docs/architecture/phase6.md)。
+当前 HTTP/2 限定普通有界请求/响应：请求体和响应体各最多 1 MiB，请求首部累计最多 16 KiB，向客户端宣告最多 32 个并发 stream。Phase 7 已接入 TLS/ALPN；仍未接 h2c Upgrade、HTTP/2 上 SSE 长流和 [RFC 8441 Extended CONNECT WebSocket](https://www.rfc-editor.org/rfc/rfc8441.html)；大文件 `sendfile` 和 HTTP/1.1 chunked 响应不能原样搬到 DATA 帧，相关路径暂回 501。出站积压仍受 4 MiB 水位约束。更细的架构说明见 [`../../docs/architecture/communication/phase6.md`](../../docs/architecture/communication/phase6.md)。
 
 ## 3. 生产版如何用 nghttp2
 
@@ -150,7 +150,7 @@ curl --http2-prior-knowledge -i http://127.0.0.1:8080/
 curl --http2-prior-knowledge -i http://127.0.0.1:8080/user/42
 ```
 
-前两条应走 HTTP/1.1，后两条应显示 `HTTP/2 200`；若 `curl` 报不支持 `--http2-prior-knowledge`，先换成带 HTTP/2 功能的客户端。本节命令专门验证明文 prior knowledge；可选 HTTPS/ALPN 验证另见 [`phase7.md`](../../docs/architecture/phase7.md)。不要用 HTTP/2 访问 `/events` 来判断 SSE 是否正常：当前 SSE 仅接在 HTTP/1.1，会在 HTTP/2 stream 上返回 501。
+前两条应走 HTTP/1.1，后两条应显示 `HTTP/2 200`；若 `curl` 报不支持 `--http2-prior-knowledge`，先换成带 HTTP/2 功能的客户端。本节命令专门验证明文 prior knowledge；可选 HTTPS/ALPN 验证另见 [`phase7.md`](../../docs/architecture/communication/phase7.md)。不要用 HTTP/2 访问 `/events` 来判断 SSE 是否正常：当前 SSE 仅接在 HTTP/1.1，会在 HTTP/2 stream 上返回 501。
 
 检查 SSE 时让订阅命令持续运行，再在另一终端发布：
 

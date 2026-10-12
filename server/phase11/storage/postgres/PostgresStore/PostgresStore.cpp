@@ -1461,6 +1461,37 @@ std::vector<Message> PostgresStore::messagesAfter(
     return messages;
 }
 
+std::vector<Message> PostgresStore::messagesBefore(
+    ConversationId conversation, std::uint64_t before, std::size_t limit) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kMessageColumns) +
+        " FROM messages WHERE conversation_id=$1::bigint "
+        "AND ($2::bigint=0 OR conversation_seq<$2::bigint) "
+        "ORDER BY conversation_seq DESC LIMIT $3::bigint",
+        {number(conversation), number(before), number(limit)});
+    std::vector<Message> messages;
+    messages.reserve(result.rows());
+    // 数据库反向扫描现有 (conversation_id, conversation_seq) 唯一索引，输出统一升序。
+    for (int row = result.rows() - 1; row >= 0; --row)
+        messages.push_back(hydrateMessage(scope.connection, readMessage(result, row)));
+    return messages;
+}
+
+std::optional<Message> PostgresStore::findOwnMessage(
+    ConversationId conversation, UserId sender, std::string_view clientMessageId) const
+{
+    auto scope = connection();
+    const auto result = query(scope.connection,
+        "SELECT " + std::string(kMessageColumns) +
+        " FROM messages WHERE conversation_id=$1::bigint AND sender_id=$2::bigint "
+        "AND client_message_id=$3",
+        {number(conversation), number(sender), std::string(clientMessageId)});
+    return result.rows() ? std::optional<Message>{hydrateMessage(
+        scope.connection, readMessage(result, 0))} : std::nullopt;
+}
+
 std::vector<Message> PostgresStore::searchMessages(
     ConversationId conversation, std::string_view text,
     std::size_t limit) const

@@ -584,6 +584,35 @@ std::vector<Message> InMemoryStore::messagesAfter(
     return result;
 }
 
+std::vector<Message> InMemoryStore::messagesBefore(
+    ConversationId conversation, std::uint64_t before, std::size_t limit) const
+{
+    std::lock_guard lock(mutex_);
+    std::vector<Message> result;
+    const auto found = state_.messageIds.find(conversation);
+    if (found == state_.messageIds.end() || !limit) return result;
+    // 从最新记录反向取一页，再恢复升序；游标不是 OFFSET，因此新消息插入不挤动旧页。
+    for (auto it = found->second.rbegin(); it != found->second.rend(); ++it)
+    {
+        const auto &message = state_.messages.at(*it);
+        if (before && message.sequence >= before) continue;
+        result.push_back(hydrateMessageLocked(message));
+        if (result.size() == limit) break;
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+
+std::optional<Message> InMemoryStore::findOwnMessage(
+    ConversationId conversation, UserId sender, std::string_view clientMessageId) const
+{
+    std::lock_guard lock(mutex_);
+    const auto found = state_.idempotency.find(
+        IdempotencyKey{conversation, sender, std::string(clientMessageId)});
+    return found == state_.idempotency.end() ? std::nullopt
+        : std::optional<Message>{hydrateMessageLocked(state_.messages.at(found->second))};
+}
+
 std::vector<Message> InMemoryStore::searchMessages(
     ConversationId conversation, std::string_view query,
     std::size_t limit) const

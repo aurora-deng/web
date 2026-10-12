@@ -180,6 +180,37 @@ inline void runRepositoryContract(RepositoryBundle repositories,
                     "friend removal failed");
     contractRequire(!repositories.social.areFriends(alice.id, bob.id),
                     "removed friendship remained in the repository");
+
+    // 独立会话验证游标分页，避免修改上面状态机测试的消息数量假设。
+    const auto pages = repositories.conversations.createConversation(
+        {0, ConversationKind::Group, "contract-pages", alice.id, 1, now},
+        {{0, alice.id, MemberRole::Owner, 0, 0, now},
+         {0, bob.id, MemberRole::Member, 0, 0, now}});
+    for (int index = 1; index <= 231; ++index)
+        repositories.messages.appendMessage(
+            {0, pages.id, 0, index == 2 ? bob.id : alice.id,
+             index <= 2 ? "same-client-key" : "page-" + std::to_string(index),
+             "page content", {}, now});
+    const auto newest = repositories.messages.messagesBefore(pages.id, 0, 100);
+    const auto older = repositories.messages.messagesBefore(pages.id, newest.front().sequence, 100);
+    const auto earliest = repositories.messages.messagesBefore(pages.id, older.front().sequence, 100);
+    contractRequire(newest.size() == 100 && newest.front().sequence == 132 &&
+                    newest.back().sequence == 231 && older.size() == 100 &&
+                    older.front().sequence == 32 && older.back().sequence == 131 &&
+                    earliest.size() == 31 && earliest.front().sequence == 1 &&
+                    earliest.back().sequence == 31,
+                    "backward pages overlap, skip messages, or are not ascending");
+    contractRequire(repositories.messages.messagesBefore(pages.id, 1, 100).empty(),
+                    "before cursor is not exclusive");
+    const auto ownAlice = repositories.messages.findOwnMessage(pages.id, alice.id, "same-client-key");
+    const auto ownBob = repositories.messages.findOwnMessage(pages.id, bob.id, "same-client-key");
+    contractRequire(ownAlice && ownBob && ownAlice->id != ownBob->id &&
+                    !repositories.messages.findOwnMessage(pages.id, bob.id, "page-3") &&
+                    !repositories.messages.findOwnMessage(conversation.id, alice.id, "same-client-key"),
+                    "own-message lookup leaked across sender or conversation");
+    // 这个辅助群在测试完后软解散，保持后续驱动扩展契约的活跃会话前置条件。
+    contractRequire(repositories.conversations.dissolveConversation(pages.id, alice.id, now),
+                    "pagination fixture cleanup failed");
 }
 
 } // namespace webserver::phase11::test

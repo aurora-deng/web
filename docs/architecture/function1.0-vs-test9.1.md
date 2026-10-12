@@ -160,9 +160,9 @@ Function1.0 已适合继续进行功能学习、单机部署和预生产验证�
 
 ## 10. 代码与文档入口
 
-1. [Phase 11 总体架构](phase11.md)
+1. [Phase 11 总体架构](business/phase11.md)
 2. [项目目录分层](project-layout.md)
 3. [数据库表结构](../database/README.md)
-4. [依赖审批与安装边界](phase11-dependency-gates.md)
+4. [依赖审批与安装边界](business/phase11-dependency-gates.md)
 5. [测试指南](../testing/TESTING.md)
 6. [性能指南](../performance/BENCHMARK.md)

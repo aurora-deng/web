@@ -525,6 +525,30 @@ std::vector<Message> ChatService::history(UserId user,
     return messages_.messagesAfter(conversation, afterSequence, limit);
 }
 
+std::vector<Message> ChatService::historyBefore(
+    UserId user, ConversationId conversation, std::uint64_t beforeSequence,
+    std::size_t limit) const
+{
+    requireMember(user, conversation);
+    if (limit == 0 || limit > 500)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "history limit must be between 1 and 500");
+    return messages_.messagesBefore(conversation, beforeSequence, limit);
+}
+
+std::optional<Message> ChatService::ownMessage(
+    UserId user, ConversationId conversation,
+    std::string_view clientMessageId) const
+{
+    // ACK 丢失后可以确认已提交结果；仍须校验身份和成员权限，但不能因后来禁言而
+    // 把原先成功的写入误判为失败。查询只能使用登录者身份，不能指定任意 sender。
+    requireMember(user, conversation);
+    if (clientMessageId.empty() || clientMessageId.size() > 128)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "invalid client message id");
+    return messages_.findOwnMessage(conversation, user, clientMessageId);
+}
+
 std::vector<Message> ChatService::search(UserId user,
                                          ConversationId conversation,
                                          std::string_view query,

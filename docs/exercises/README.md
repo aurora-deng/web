@@ -2,7 +2,7 @@
 
 已知技术债刻意保留或标出，方便当作练习。建议：**先写复现测试，再修**。
 
-当前实现事实源：[`../architecture/phase4_upgrade.md`](../architecture/phase4_upgrade.md)。
+当前实现事实源：[`../architecture/communication/phase4_upgrade.md`](../architecture/communication/phase4_upgrade.md)。
 
 ---
 

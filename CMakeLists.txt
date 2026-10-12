@@ -548,6 +548,9 @@ if(BUILD_TESTING)
         add_executable(phase11_core_tests tests/phase11/unit/core.cpp)
         target_link_libraries(phase11_core_tests PRIVATE webserver_phase11)
         add_test(NAME phase11_core_tests COMMAND phase11_core_tests)
+        add_executable(phase11_chat_reliability_tests tests/phase11/unit/chat_reliability.cpp)
+        target_link_libraries(phase11_chat_reliability_tests PRIVATE webserver_phase11)
+        add_test(NAME phase11_chat_reliability_tests COMMAND phase11_chat_reliability_tests)
 
         add_executable(phase11_http_auth_tests tests/phase11/unit/http_auth.cpp)
         target_link_libraries(phase11_http_auth_tests PRIVATE

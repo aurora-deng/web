@@ -6,7 +6,7 @@
 **对照文档**：
 - 总述：[CLOSEOUT_NARRATIVE.md](CLOSEOUT_NARRATIVE.md)
 - 总清单：[CLOSEOUT.md](CLOSEOUT.md)
-- 第三阶段实现：[../architecture/phase3_architecture_upgrade.md](../architecture/phase3_architecture_upgrade.md)
+- 第三阶段实现：[../architecture/communication/phase3_architecture_upgrade.md](../architecture/communication/phase3_architecture_upgrade.md)
 - 架构说明：[../architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
 
 ---

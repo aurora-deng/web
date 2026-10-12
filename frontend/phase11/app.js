@@ -1,3 +1,6 @@
+import { ChatHistory, canRecallMessage } from './chat/ChatHistory.js?v=20261012';
+import { ReliableSender } from './chat/ReliableSender.js?v=20261012';
+
 const $ = selector => document.querySelector(selector);
 
 const elements = {
@@ -48,7 +51,100 @@ const state = {
   uploadingFile: false,
   realtime: { ws: 'offline', sse: 'offline' },
   leaving: false,
+  viewVersion: 0,
+  listVersion: 0,
+  catchupTimer: null,
+  recovery: null,
+  recoverRequested: false,
+  transientMessages: new Map(),
 };
+
+const history = new ChatHistory((conversationId, query) => api(
+  `/api/conversations/${conversationId}/messages?${new URLSearchParams(query)}`,
+), () => renderCurrentMessages());
+
+function savePendingMessages() {
+  if (!state.me) return;
+  try {
+    // 只保留当前标签页、当前账号的未确认文字命令，不保存密码或 Session Token。
+    sessionStorage.setItem(`phase11:pending:${state.me.id}`, JSON.stringify(sender.snapshot()));
+  } catch { /* 存储不可用时仍可在当前页面内重试，不阻止正常发送。 */ }
+}
+
+async function verifyOwnMessage(payload) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    return await api(`/api/conversations/${payload.conversationId}/messages/by-client-id?` +
+      new URLSearchParams({ clientMessageId: payload.id }), { signal: controller.signal });
+  } finally { clearTimeout(timer); }
+}
+
+const sender = new ReliableSender({
+  send: payload => Boolean(state.me && !state.leaving) && sendSocket(payload),
+  verify: verifyOwnMessage,
+  changed: () => { savePendingMessages(); renderCurrentMessages(); },
+  persisted: (entry, message) => {
+    savePendingMessages();
+    if (!state.me) return;
+    const cached = history.records.get(String(message.id));
+    const full = !message.createdAt && cached ? cached : { ...message, senderId: state.me.id };
+    appendMessage(full);
+    advanceConversationSequence(message.conversationId, message.sequence);
+    renderConversations();
+    if (Number(message.conversationId) === Number(state.conversation?.id) &&
+        Number(message.sequence) > history.cursor) scheduleCatchup();
+    // 精简 accepted 没有服务端时间，查询完整记录后才能正确判断撤回时间窗。
+    if (!full.createdAt) verifyOwnMessage(entry.payload).then(found => {
+      if (found && Number(found.senderId) === Number(state.me?.id)) appendMessage(found);
+    }).catch(() => scheduleCatchup());
+  },
+});
+
+function settleHistoryPending() {
+  history.messages.forEach(message => {
+    if (Number(message.senderId) === Number(state.me?.id)) sender.confirmMessage(message);
+  });
+}
+
+function scheduleCatchup() {
+  clearTimeout(state.catchupTimer);
+  state.catchupTimer = setTimeout(() => recoverRealtime(), 100);
+}
+
+/** 重连不仅取新消息，也重查可见窗口，恢复断线期间发生的撤回和权限变化。 */
+async function recoverRealtime() {
+  state.recoverRequested = true;
+  if (state.recovery) return state.recovery;
+  const userId = state.me?.id;
+  const recovery = (async () => {
+    while (state.recoverRequested && userId && state.me?.id === userId && !state.leaving) {
+      state.recoverRequested = false;
+      const loaded = await loadConversations();
+      if (!loaded || state.me?.id !== userId) break;
+      const conversation = state.conversation;
+      const version = state.viewVersion;
+      if (conversation) {
+        try {
+          const members = await api(`/api/conversations/${conversation.id}/members`);
+          if (version !== state.viewVersion || state.me?.id !== userId) continue;
+          state.members = members;
+          await history.synchronize(Math.max(history.latest, Number(conversation.nextSequence) - 1),
+                                    { refreshLoaded: true });
+          if (version !== state.viewVersion || state.me?.id !== userId) continue;
+          settleHistoryPending();
+          renderConversationMembers();
+          renderGroupGovernance();
+          renderCurrentMessages();
+          acknowledge({ conversationId: conversation.id, sequence: history.cursor });
+        } catch (error) { setStatus(elements.chatStatus, error.message, 'error'); }
+      }
+      if (state.me?.id === userId) await sender.connected();
+    }
+  })().finally(() => { if (state.recovery === recovery) state.recovery = null; });
+  state.recovery = recovery;
+  return recovery;
+}
 
 function setStatus(element, message = '', kind = '') {
   element.textContent = message;
@@ -130,6 +226,8 @@ function myMembership() {
 }
 
 function clearConversationView() {
+  state.viewVersion += 1;
+  history.reset();
   state.conversation = null;
   state.members = [];
   $('#conversation-title').textContent = '请选择会话';
@@ -294,6 +392,9 @@ function setRealtimeState(kind, status) {
 async function showChat(me) {
   state.me = me;
   state.leaving = false;
+  sender.clear();
+  try { sender.restore(JSON.parse(sessionStorage.getItem(`phase11:pending:${me.id}`) || '[]')); }
+  catch { /* 不信任损坏的缓存；恢复方法还会逐项验证载荷。 */ }
   updateProfileView();
   elements.authPanel.classList.add('hidden');
   elements.chatPanel.classList.remove('hidden');
@@ -302,6 +403,11 @@ async function showChat(me) {
 }
 
 function showLoggedOut() {
+  savePendingMessages();
+  sender.clear();
+  state.viewVersion += 1;
+  history.reset();
+  state.transientMessages.clear();
   state.me = null;
   state.csrf = '';
   state.conversation = null;
@@ -311,7 +417,9 @@ function showLoggedOut() {
   state.members = [];
   state.unread.clear();
   state.seenMessageIds.clear();
+  state.pendingRecalls.forEach(item => clearTimeout(item.timer));
   state.pendingRecalls.clear();
+  clearTimeout(state.catchupTimer);
   clearTimeout(state.reconnectTimer);
   state.socket?.close();
   state.events?.close();
@@ -368,13 +476,17 @@ function renderConversations() {
 }
 
 async function loadConversations() {
+  const userId = state.me?.id;
+  const version = ++state.listVersion;
   elements.conversationLoading.classList.remove('hidden');
   try {
-    state.conversations = await api('/api/conversations');
+    const conversations = await api('/api/conversations');
+    if (state.me?.id !== userId || state.listVersion !== version) return false;
+    state.conversations = conversations;
     state.unread.clear();
     state.conversations.forEach(conversation => {
       const unread = Math.max(0, Number(conversation.unreadCount) || 0);
-      if (unread && Number(conversation.id) !== Number(state.conversation?.id)) {
+      if (unread) {
         state.unread.set(Number(conversation.id), unread);
       }
     });
@@ -387,16 +499,18 @@ async function loadConversations() {
     }
     renderConversations();
     setStatus(elements.chatStatus);
+    return true;
   } catch (error) {
     setStatus(elements.chatStatus, error.message, 'error');
+    return false;
   } finally {
     elements.conversationLoading.classList.add('hidden');
   }
 }
 
 async function openConversation(conversation) {
+  const version = ++state.viewVersion;
   state.conversation = conversation;
-  state.unread.delete(Number(conversation.id));
   renderConversations();
 
   const title = conversationTitle(conversation);
@@ -424,10 +538,12 @@ async function openConversation(conversation) {
   elements.chatPanel.classList.add('conversation-open');
 
   try {
-    const [messages, members] = await Promise.all([
-      api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages?after=0&limit=100`),
+    const [, members] = await Promise.all([
+      history.open(conversation.id),
       api(`/api/conversations/${encodeURIComponent(conversation.id)}/members`),
     ]);
+    if (version !== state.viewVersion) return;
+    const messages = history.messages;
     state.members = members;
     const aiMember = members.find(member => member.aiAccount &&
       Number(member.userId) !== Number(state.me?.id));
@@ -439,7 +555,8 @@ async function openConversation(conversation) {
     if (aiMember || messages.some(message => message.clientMessageId?.startsWith('ai:'))) {
       state.aiConversations.add(Number(conversation.id));
     }
-    renderMessages(messages);
+    settleHistoryPending();
+    renderCurrentMessages('bottom');
     renderConversations();
     renderConversationMembers();
     const me = members.find(member => Number(member.userId) === Number(state.me?.id));
@@ -447,10 +564,12 @@ async function openConversation(conversation) {
       'hidden', conversation.kind !== 'group' || !['owner', 'administrator'].includes(me?.role),
     );
     renderGroupGovernance();
-    if (messages.length) acknowledge(messages.at(-1));
+    await history.synchronize(Math.max(history.latest, Number(conversation.nextSequence) - 1));
+    if (version !== state.viewVersion) return;
+    acknowledge({ conversationId: conversation.id, sequence: history.cursor });
     setStatus(elements.chatStatus);
   } catch (error) {
-    setStatus(elements.chatStatus, error.message, 'error');
+    if (version === state.viewVersion) setStatus(elements.chatStatus, error.message, 'error');
   }
 }
 
@@ -577,6 +696,8 @@ function formatMessageTime(value) {
 function deliveryLabel(message) {
   if (message.state === 'recalled') return '已撤回';
   if (message.deliveryState === 'sending') return '发送中…';
+  if (message.deliveryState === 'waiting') return '等待连接，尚未确认';
+  if (message.deliveryState === 'unknown') return '结果未知，正在核对或等待重试';
   if (message.deliveryState === 'failed') return '发送失败';
   if (Number(message.senderId) !== Number(state.me?.id) || !message.sequence) return '';
   const peers = state.members.filter(member => Number(member.userId) !== Number(state.me?.id));
@@ -591,13 +712,13 @@ function deliveryLabel(message) {
 }
 
 function canRecall(message) {
-  if (message.state === 'recalled' || !message.id ||
-      Number(message.senderId) !== Number(state.me?.id)) return false;
-  const createdAt = Number(message.createdAt);
-  return createdAt > 0 && Date.now() - createdAt <= 2 * 60 * 1000;
+  return canRecallMessage(message, state.me?.id, state.conversation, state.members);
 }
 
 function requestRecall(message, button) {
+  if (!canRecall(message)) { renderCurrentMessages(); return; }
+  if (Number(message.senderId) !== Number(state.me?.id) &&
+      !window.confirm('以群管理权限撤回这条消息？撤回后所有成员看到撤回占位。')) return;
   const commandId = createClientId();
   const sent = sendSocket({
     v: 1,
@@ -610,7 +731,13 @@ function requestRecall(message, button) {
     setStatus(elements.chatStatus, '消息撤回失败：实时连接当前不可写。', 'error');
     return;
   }
-  state.pendingRecalls.set(commandId, String(message.id));
+  const pending = { id: String(message.id), timer: setTimeout(() => {
+    state.pendingRecalls.delete(commandId);
+    renderCurrentMessages();
+    setStatus(elements.chatStatus, '撤回结果暂未确认，正在同步服务器状态。');
+    recoverRealtime();
+  }, 5000) };
+  state.pendingRecalls.set(commandId, pending);
   button.disabled = true;
   button.textContent = '撤回中…';
 }
@@ -632,9 +759,9 @@ function createMessageElement(message, options = {}) {
 
   const avatar = document.createElement('span');
   avatar.className = 'avatar';
-  const sender = mine ? state.me : state.members.find(
+  const messageSender = mine ? state.me : state.members.find(
     member => Number(member.userId) === Number(message.senderId));
-  paintAvatar(avatar, sender, mine ? initials(state.me?.displayName || state.me?.username)
+  paintAvatar(avatar, messageSender, mine ? initials(state.me?.displayName || state.me?.username)
     : (aiMessage ? 'AI' : `#${message.senderId || '?'}`));
   const content = document.createElement('div');
   content.className = 'message-content';
@@ -684,6 +811,15 @@ function createMessageElement(message, options = {}) {
   status.className = `message-delivery ${message.deliveryState || ''}`.trim();
   status.textContent = deliveryLabel(message);
   footer.append(status);
+  if (message.clientMessageId && ['unknown', 'waiting', 'failed'].includes(message.deliveryState) &&
+      sender.entries.has(message.clientMessageId)) {
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'message-retry';
+    retry.textContent = '核对并重试';
+    retry.addEventListener('click', () => sender.retry(message.clientMessageId));
+    footer.append(retry);
+  }
   if (aiMessage && generationId && !options.streaming && message.state !== 'recalled') {
     const sources = document.createElement('button');
     sources.type = 'button';
@@ -706,7 +842,9 @@ function createMessageElement(message, options = {}) {
     const recall = document.createElement('button');
     recall.type = 'button';
     recall.className = 'message-recall';
-    recall.textContent = '撤回';
+    const pending = [...state.pendingRecalls.values()].some(entry => entry.id === String(message.id));
+    recall.disabled = pending;
+    recall.textContent = pending ? '撤回中…' : mine ? '撤回' : '管理撤回';
     recall.addEventListener('click', () => requestRecall(message, recall));
     footer.append(recall);
   }
@@ -728,7 +866,65 @@ function renderMessages(messages) {
     empty.textContent = '这里还没有消息，发送第一句话吧。';
     elements.messageList.append(empty);
   }
-  scrollMessages();
+}
+
+/** 统一重排历史、待确认命令和 AI 流式气泡；保留阅读锚点，加载旧页不跳回底部。 */
+function renderCurrentMessages(mode = 'preserve') {
+  if (!state.conversation || history.conversationId !== Number(state.conversation.id)) return;
+  const list = elements.messageList;
+  const top = list.scrollTop;
+  const nearBottom = list.scrollHeight - top - list.clientHeight < 80;
+  const anchor = [...list.children].find(item => item.dataset.messageId &&
+    item.offsetTop + item.offsetHeight >= top);
+  const anchorId = anchor?.dataset.messageId;
+  const anchorOffset = anchor ? anchor.offsetTop - top : 0;
+  const streams = [...list.children].filter(item => item.dataset.generationId && !item.dataset.messageId);
+  const pending = [...sender.entries.values()]
+    .filter(entry => entry.payload.conversationId === Number(state.conversation.id))
+    .map(entry => ({ conversationId: entry.payload.conversationId, senderId: state.me?.id,
+      clientMessageId: entry.payload.id, body: entry.payload.content, createdAt: entry.createdAt,
+      state: 'active', deliveryState: entry.status }));
+  const files = [...state.transientMessages.values()].filter(message =>
+    Number(message.conversationId) === Number(state.conversation.id));
+  renderMessages([...history.messages, ...pending, ...files]);
+  streams.forEach(stream => {
+    if (!history.messages.some(message => message.clientMessageId === `ai:${stream.dataset.generationId}`)) {
+      list.querySelector('.list-empty')?.remove();
+      list.append(stream);
+    }
+  });
+  const pager = document.createElement('li');
+  pager.className = 'history-pager';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'history-load-button';
+  button.disabled = !history.loaded || history.loadingOlder || !history.hasOlder;
+  button.textContent = !history.loaded ? '正在加载最新消息…' : history.loadingOlder ? '正在加载…'
+    : history.hasOlder ? '加载更早消息' : '已到最早消息';
+  button.addEventListener('click', () => history.older().then(settleHistoryPending)
+    .catch(error => setStatus(elements.chatStatus, error.message, 'error')));
+  pager.append(button);
+  if (history.loaded) {
+    const copy = document.createElement('small');
+    copy.textContent = `已显示 ${history.records.size} 条 · 同步至 #${history.cursor}`;
+    pager.append(copy);
+  }
+  const sync = document.createElement('button');
+  sync.type = 'button';
+  sync.className = 'history-sync-button';
+  sync.textContent = '同步消息';
+  sync.addEventListener('click', () => recoverRealtime());
+  pager.append(sync);
+  list.prepend(pager);
+  const version = state.viewVersion;
+  requestAnimationFrame(() => {
+    if (version !== state.viewVersion) return;
+    const restored = anchorId && existingMessage(anchorId);
+    if (mode === 'bottom') list.scrollTop = list.scrollHeight;
+    else if (restored) list.scrollTop = restored.offsetTop - anchorOffset;
+    else list.scrollTop = top;
+    if (mode === 'follow' && nearBottom) list.scrollTop = list.scrollHeight;
+  });
 }
 
 function scrollMessages() {
@@ -876,53 +1072,34 @@ function generationElement(generationId) {
 
 function appendMessage(message) {
   if (!message) return;
-  const pending = message.clientMessageId && messageByClientId(message.clientMessageId);
-  if (pending) {
-    pending.replaceWith(createMessageElement(message));
+  if (message.id) {
+    if (Number(message.senderId) === Number(state.me?.id)) state.transientMessages.delete(message.clientMessageId);
+    if (Number(message.conversationId) === history.conversationId) history.ingest(message);
     rememberMessageId(message.id);
-    scrollMessages();
-    return;
-  }
-  if (existingMessage(message.id)) return;
-  if (message.clientMessageId?.startsWith('ai:')) {
-    generationElement(message.clientMessageId.slice(3))?.remove();
-  }
-  elements.messageList.querySelector('.list-empty')?.remove();
-  elements.messageList.append(createMessageElement(message));
-  rememberMessageId(message.id);
-  scrollMessages();
+  } else if (message.clientMessageId) state.transientMessages.set(message.clientMessageId, { ...message });
+  renderCurrentMessages('follow');
 }
 
 function acceptPendingMessage(message) {
-  const pending = messageByClientId(message.replyTo);
-  if (!pending) return;
-  // Outbox 广播可能比命令回执先到。若 DOM 已经是同一条持久消息，就保留广播携带的
-  // 准确 createdAt/state，不再用回执中的精简字段覆盖它。
-  if (pending.dataset.messageId === String(message.id)) return;
-  const body = pending.querySelector('.message-bubble')?.textContent || '';
-  const accepted = {
-    id: message.id,
-    conversationId: message.conversationId,
-    sequence: message.sequence,
-    senderId: state.me?.id,
-    clientMessageId: message.replyTo,
-    body,
-    // chat.accepted 只证明已经落库，不携带服务端时间。先不显示依赖时间窗的撤回按钮，
-    // 随后的 chat.message / SSE 持久事件会用完整记录替换这个临时状态。
-    createdAt: 0,
-    state: 'active',
-  };
-  pending.replaceWith(createMessageElement(accepted));
+  sender.confirm(message);
   advanceConversationSequence(message.conversationId, message.sequence);
   renderConversations();
 }
 
 function applyRecall(message) {
-  const existing = existingMessage(message.id);
-  if (existing) existing.replaceWith(createMessageElement(message));
+  history.ingest(message);
+  state.pendingRecalls.forEach((entry, commandId) => {
+    if (entry.id === String(message.id)) {
+      clearTimeout(entry.timer);
+      state.pendingRecalls.delete(commandId);
+    }
+  });
+  renderCurrentMessages();
 }
 
 function failPendingMessage(clientMessageId) {
+  const transient = state.transientMessages.get(clientMessageId);
+  if (transient) { transient.deliveryState = 'failed'; renderCurrentMessages(); }
   const pending = messageByClientId(clientMessageId);
   if (!pending) return;
   pending.classList.add('send-failed');
@@ -945,13 +1122,16 @@ function sendSocket(payload) {
 }
 
 function acknowledge(message) {
-  if (!state.conversation || !message?.sequence) return;
+  if (!state.conversation || !history.loaded || !message?.sequence ||
+      Number(message.conversationId) !== Number(state.conversation.id)) return;
   const base = {
     v: 1,
     id: createClientId(),
     conversationId: Number(state.conversation.id),
-    sequence: Number(message.sequence),
+    // 只上报连续恢复到的书签，不能把较高的乱序广播误报为已经读完中间缺页。
+    sequence: Math.min(Number(message.sequence), history.cursor),
   };
+  if (!base.sequence) return;
   sendSocket({ ...base, type: 'chat.ack' });
   sendSocket({ ...base, id: createClientId(), type: 'chat.read' });
 }
@@ -965,13 +1145,16 @@ function refreshCancelButton() {
 
 function onRealtimeMessage(message) {
   if (message.type === 'chat.message') {
-    if (rememberMessageId(message.id)) return;
+    // 先收敛待确认命令，再做双通道去重。发送成功证明可能先于 accepted 抵达。
+    if (Number(message.senderId) === Number(state.me?.id)) sender.confirmMessage(message);
+    const duplicate = rememberMessageId(message.id);
     advanceConversationSequence(message.conversationId, message.sequence);
     const isCurrent = Number(message.conversationId) === Number(state.conversation?.id);
     if (isCurrent) {
       appendMessage(message);
       acknowledge(message);
-    } else {
+      if (Number(message.sequence) > history.cursor) scheduleCatchup();
+    } else if (!duplicate) {
       const id = Number(message.conversationId);
       // 同一账号的另一浏览器标签页可能收到自己刚发送的广播；发送者游标已经在
       // 服务端推进，因此这里只给真正来自其他成员的消息增加本地未读数。
@@ -1070,19 +1253,19 @@ function onRealtimeMessage(message) {
       : '消息已由服务器持久化；接收方离线也可以稍后恢复。';
     setStatus(elements.chatStatus, text, 'success');
   } else if (message.type === 'chat.error') {
-    failPendingMessage(message.replyTo);
+    sender.reject(message.replyTo, message.status);
     const recalledMessage = state.pendingRecalls.get(message.replyTo);
     if (recalledMessage) {
+      clearTimeout(recalledMessage.timer);
       state.pendingRecalls.delete(message.replyTo);
-      const recall = existingMessage(recalledMessage)?.querySelector('.message-recall');
-      if (recall) {
-        recall.disabled = false;
-        recall.textContent = '撤回';
-      }
+      renderCurrentMessages();
     }
     setStatus(elements.chatStatus, message.status || '消息发送失败', 'error');
   } else if (message.type === 'chat.recall.accepted') {
+    clearTimeout(state.pendingRecalls.get(message.replyTo)?.timer);
     state.pendingRecalls.delete(message.replyTo);
+    renderCurrentMessages();
+    scheduleCatchup();
     setStatus(elements.chatStatus,
       message.status === 'already_recalled' ? '该消息已经撤回。' : '撤回请求已提交。',
       'success');
@@ -1103,17 +1286,21 @@ function connectRealtime() {
   const socket = new WebSocket(`${protocol}://${location.host}/ws`);
   state.socket = socket;
   socket.addEventListener('open', () => {
-    if (state.socket !== socket) return;
+    if (state.socket !== socket || !state.me || state.leaving) return;
     setRealtimeState('ws', 'online');
-    if (state.conversation) openConversation(state.conversation);
+    recoverRealtime();
   });
   socket.addEventListener('close', () => {
     if (state.socket !== socket) return;
+    sender.disconnected();
     setRealtimeState('ws', state.me && !state.leaving ? 'error' : 'offline');
     if (state.me && !state.leaving) state.reconnectTimer = setTimeout(connectRealtime, 1600);
   });
-  socket.addEventListener('error', () => setRealtimeState('ws', 'error'));
+  socket.addEventListener('error', () => {
+    if (state.socket === socket && state.me) setRealtimeState('ws', 'error');
+  });
   socket.addEventListener('message', event => {
+    if (state.socket !== socket || !state.me || state.leaving) return;
     try { onRealtimeMessage(JSON.parse(event.data)); }
     catch { setStatus(elements.chatStatus, '收到无法解析的实时消息', 'error'); }
   });
@@ -1122,8 +1309,16 @@ function connectRealtime() {
   setRealtimeState('sse', 'error');
   const events = new EventSource('/events');
   state.events = events;
-  events.addEventListener('open', () => setRealtimeState('sse', 'online'));
-  events.addEventListener('error', () => setRealtimeState('sse', state.me ? 'error' : 'offline'));
+  events.addEventListener('open', () => {
+    if (state.events !== events || !state.me || state.leaving) return;
+    setRealtimeState('sse', 'online');
+    recoverRealtime();
+  });
+  events.addEventListener('error', () => {
+    if (state.events === events) setRealtimeState('sse', state.me ? 'error' : 'offline');
+  });
+  // 回放窗口过期时，数据库历史是最终恢复来源。
+  events.addEventListener('replay-reset', () => scheduleCatchup());
   events.addEventListener('message.notification', event => {
     try { onRealtimeMessage(JSON.parse(event.data)); } catch { /* EventSource will keep running. */ }
   });
@@ -1177,7 +1372,7 @@ function connectRealtime() {
     item?.querySelector('.message-bubble')?.classList.remove('typing-caret');
     item?.classList.remove('ai-streaming');
     if (completed.success) {
-      await openConversation(state.conversation);
+      await recoverRealtime();
       setStatus(elements.chatStatus);
     } else {
       const reason = completed.cancelled ? '生成已取消' : (completed.error || 'AI 生成失败');
@@ -1549,12 +1744,13 @@ elements.messageForm.addEventListener('submit', async event => {
     return;
   }
   const messageId = createClientId();
+  const conversationId = Number(state.conversation.id);
   if (selectedFile) {
     const sendButton = form.querySelector('.send-button');
     state.uploadingFile = true;
     setButtonBusy(sendButton, true, '上传 0%');
     appendMessage({
-      conversationId: Number(state.conversation.id),
+      conversationId,
       senderId: Number(state.me.id),
       clientMessageId: messageId,
       body: content,
@@ -1569,7 +1765,7 @@ elements.messageForm.addEventListener('submit', async event => {
         showSelectedFile(selectedFile, progress);
         sendButton.textContent = `上传 ${Math.round(progress * 100)}%`;
       });
-      const result = await api(`/api/conversations/${state.conversation.id}/file-messages`, {
+      const result = await api(`/api/conversations/${conversationId}/file-messages`, {
         method: 'POST',
         body: JSON.stringify({ fileId: String(uploaded.id),
           clientMessageId: messageId, caption: content }),
@@ -1589,36 +1785,25 @@ elements.messageForm.addEventListener('submit', async event => {
     }
     return;
   }
-  if (state.socket?.readyState !== WebSocket.OPEN) {
-    setStatus(elements.chatStatus, 'WebSocket 正在重连，暂时无法发送文字消息。', 'error');
-    return;
-  }
-  const sent = sendSocket({
+  const payload = {
     v: 1,
     type: aiMode ? 'ai.generate' : 'chat.send',
-    conversationId: Number(state.conversation.id),
+    conversationId,
     id: messageId,
     ...(aiMode ? { to: Number(aiUserId) } : {}),
     content,
-  });
-  if (!sent) {
-    setStatus(elements.chatStatus, '消息未发送：WebSocket 当前不可写，请等待重连后重试。', 'error');
-    return;
-  }
+  };
   if (aiMode) {
+    if (!sendSocket(payload)) {
+      setStatus(elements.chatStatus, 'AI 请求未发送：请等待实时通道重连后重试。', 'error');
+      return;
+    }
     state.activeGenerations.set(messageId, { generationId: messageId, conversationId: state.conversation.id });
     refreshCancelButton();
     setStatus(elements.chatStatus, 'AI 请求已进入后台队列。', 'success');
   } else {
-    appendMessage({
-      conversationId: Number(state.conversation.id),
-      senderId: Number(state.me.id),
-      clientMessageId: messageId,
-      body: content,
-      createdAt: Date.now(),
-      state: 'active',
-      deliveryState: 'sending',
-    });
+    try { sender.submit(payload); }
+    catch (error) { setStatus(elements.chatStatus, error.message, 'error'); return; }
     setStatus(elements.chatStatus);
   }
   input.value = '';

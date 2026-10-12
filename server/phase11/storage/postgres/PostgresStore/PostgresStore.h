@@ -104,6 +104,12 @@ public:
     std::vector<Message> messagesAfter(ConversationId conversation,
                                        std::uint64_t sequence,
                                        std::size_t limit) const override;
+    std::vector<Message> messagesBefore(ConversationId conversation,
+                                        std::uint64_t before,
+                                        std::size_t limit) const override;
+    std::optional<Message> findOwnMessage(ConversationId conversation,
+                                          UserId sender,
+                                          std::string_view clientMessageId) const override;
     std::vector<Message> searchMessages(ConversationId conversation,
                                         std::string_view query,
                                         std::size_t limit) const override;

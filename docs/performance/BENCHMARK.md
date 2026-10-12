@@ -1,14 +1,14 @@
 # 可复现性能实验
 
 > Phase 15 已把本方法扩展到账号、PostgreSQL、WebSocket、SSE、Outbox、私聊和群聊。真实业务
-> 三轮结果、脚本和原始 JSON 见 [Phase 15：真实业务性能基线](../architecture/phase15.md)。本页后续
+> 三轮结果、脚本和原始 JSON 见 [Phase 15：真实业务性能基线](../architecture/business/phase15.md)。本页后续
 > 的 `/fast`/wrk 方法用于网络热路径和容量曲线，不能代替业务端到端结果。
 >
 > Phase 16 使用同一业务脚本完成固定轮询与主动唤醒的同二进制 A/B，并采集执行器、连接池和 Outbox
-> 内部指标，见 [Phase 16：可观测性与运维闭环](../architecture/phase16.md)。
+> 内部指标，见 [Phase 16：可观测性与运维闭环](../architecture/business/phase16.md)。
 >
 > 长驻 WebSocket、真实 AI 并发以及 AI/普通聊天隔离矩阵见
-> [Phase 26：长连接容量、AI 并发与混合负载证据](../architecture/phase26.md)。工具已就绪，正式三轮
+> [Phase 26：长连接容量、AI 并发与混合负载证据](../architecture/business/phase26.md)。工具已就绪，正式三轮
 > 结果等待当前 24 小时长稳结束后采集。
 
 本文给出实验协议和结果模板。虚拟机上一次 `GET /` 快照见 [../closeout/CLOSEOUT.md](../closeout/CLOSEOUT.md)；

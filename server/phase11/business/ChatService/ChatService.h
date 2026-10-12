@@ -67,6 +67,11 @@ public:
     std::vector<Message> history(UserId user, ConversationId conversation,
                                  std::uint64_t afterSequence,
                                  std::size_t limit) const override;
+    std::vector<Message> historyBefore(UserId user, ConversationId conversation,
+                                      std::uint64_t beforeSequence,
+                                      std::size_t limit) const override;
+    std::optional<Message> ownMessage(UserId user, ConversationId conversation,
+                                      std::string_view clientMessageId) const override;
     std::vector<Message> search(UserId user, ConversationId conversation,
                                 std::string_view query,
                                 std::size_t limit) const override;

@@ -252,13 +252,13 @@ Function2 的代码功能主体已经实现，但提交时以下证据仍在收�
 
 ## 14. 文档入口
 
-1. [Phase 11 总体架构](phase11.md)
-2. [Phase 12：消息生命周期](phase12.md)
-3. [Phase 13：群聊治理](phase13.md)
-4. [Phase 14：联系人与多设备 Presence](phase14.md)
-5. [Phase 15/16：真实性能与可观测性](phase15.md)
-6. [Phase 17：文件消息](phase17.md)
-7. [Phase 18–24：AI、RAG、评测、训练与血缘](phase18.md)
-8. [Phase 25：用户态 Supervisor](phase25.md)
-9. [Phase 26：长连接与 AI 容量矩阵](phase26.md)
+1. [Phase 11 总体架构](business/phase11.md)
+2. [Phase 12：消息生命周期](business/phase12.md)
+3. [Phase 13：群聊治理](business/phase13.md)
+4. [Phase 14：联系人与多设备 Presence](business/phase14.md)
+5. [Phase 15/16：真实性能与可观测性](business/phase15.md)
+6. [Phase 17：文件消息](business/phase17.md)
+7. [Phase 18–24：AI、RAG、评测、训练与血缘](business/phase18.md)
+8. [Phase 25：用户态 Supervisor](business/phase25.md)
+9. [Phase 26：长连接与 AI 容量矩阵](business/phase26.md)
 10. [数据库表结构](../database/README.md)
