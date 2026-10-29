@@ -1,0 +1,93 @@
+#pragma once
+
+#include "backend/ai/models/ModelProvider/ModelProvider.h"
+#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/ports/Ports/Ports.h"
+
+#include <memory>
+#include <mutex>
+#include <unordered_map>
+
+namespace webserver::phase11
+{
+
+class ModelRegistryService
+{
+public:
+    explicit ModelRegistryService(IModelRepository &models,
+                                  IModelQualityGate *qualityGate = nullptr)
+        : models_(models), qualityGate_(qualityGate)
+    {
+    }
+
+    ModelNode createNode(std::string name, ModelNodeKind kind, TimePoint now);
+    ModelVersion registerVersion(ModelNodeId node, std::string runtime,
+                                 std::string modelArtifact,
+                                 std::string adapterArtifact,
+                                 std::string checksum, TimePoint now);
+    ModelVersion registerTrainedVersion(
+        ModelNodeId node, std::string runtime, std::string modelArtifact,
+        std::string adapterArtifact, std::string checksum,
+        ModelTrainingLineage lineage, TimePoint now);
+    ModelEdge connect(ModelNodeId from, ModelNodeId to,
+                      ModelEdgeKind kind);
+    void bindAiAccount(UserId aiUser, ModelNodeId node);
+    void registerValidator(std::shared_ptr<IModelArtifactValidator> validator);
+    /**
+     * 先让对应 Runtime 试装模型/Adapter，成功后才切换 Active 指针。
+     * 调用可能很慢，必须由管理端 Worker 执行，不能占用 Reactor。
+     */
+    void activate(ModelNodeId node, ModelVersionId version,
+                  std::string actor = "system",std::function<void()> beforeCommit = {});
+    /** 重新启用该节点的一个 Retired 版本；目标仍需再次通过完整校验。 */
+    void rollback(ModelNodeId node, ModelVersionId retiredVersion,
+                  std::string actor = "system",std::function<void()> beforeCommit = {});
+
+private:
+    bool createsParentCycle(ModelNodeId from, ModelNodeId to) const;
+    void validateAndActivate(ModelNodeId node, ModelVersionId version,
+                             bool rollbackOnly, std::string actor,std::function<void()> beforeCommit);
+
+    IModelRepository &models_;
+    IModelQualityGate *qualityGate_ = nullptr;
+    mutable std::mutex validatorsMutex_;
+    std::unordered_map<std::string, std::shared_ptr<IModelArtifactValidator>>
+        validators_;
+};
+
+struct GenerationSelection
+{
+    ModelNodeId nodeId = 0;
+    ModelVersionId versionId = 0;
+    std::string runtime;
+    std::string modelArtifact;
+    std::string adapterArtifact;
+    std::string modelChecksum;
+};
+
+using SelectionSink = std::function<void(const GenerationSelection &)>;
+
+/**
+ * ModelRegistryService 管“模型档案”，ModelRouter 管“这次请求找哪台发动机”。
+ * 分开后，数据库不会知道 libcurl/ONNX，Provider 也不需要知道模型树如何存储。
+ */
+class ModelRouter
+{
+public:
+    explicit ModelRouter(IModelRepository &models) : models_(models) {}
+
+    void registerProvider(std::shared_ptr<IModelProvider> provider);
+    [[nodiscard]] bool modelReady(UserId aiUser) const;
+    GenerationHandle generate(UserId aiUser, GenerationRequest request,
+                              TokenSink onToken,
+                              CompletionSink onComplete,
+                              CancellationToken cancellation = {},
+                              SelectionSink onSelected = {});
+
+private:
+    IModelRepository &models_;
+    mutable std::mutex mutex_;
+    std::unordered_map<std::string, std::shared_ptr<IModelProvider>> providers_;
+};
+
+} // namespace webserver::phase11

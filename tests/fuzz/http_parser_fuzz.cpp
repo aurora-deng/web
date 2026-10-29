@@ -38,9 +38,9 @@
 #include <algorithm>
 
 // 项目自定义环形缓冲区封装，用于模拟TCP分片接收的数据缓冲区
-#include "server/Buffer/Buffer.h"
+#include "backend/server/Buffer/Buffer.h"
 // 自研HTTP请求解析器核心状态机
-#include "server/http/HttpParser/HttpParser.h"
+#include "backend/server/http/HttpParser/HttpParser.h"
 
 /**
  * @brief libFuzzer 标准入口：每收到一份随机样本就调用一次

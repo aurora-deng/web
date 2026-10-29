@@ -1,6 +1,7 @@
 #pragma once
 
-#include "server/phase11/ports/Ports/Ports.h"
+#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
 
 #include <stdexcept>
 #include <string>
@@ -48,6 +49,13 @@ inline void runRepositoryContract(RepositoryBundle repositories,
         {0, "contract-alice", "Alice", {}, "hash-a", false, false, now});
     auto bob = repositories.users.create(
         {0, "contract-bob", "Bob", {}, "hash-b", false, false, now});
+    auto*profiles=dynamic_cast<IProfileOperations*>(&repositories.users);
+    contractRequire(profiles!=nullptr,"profile operation port missing");
+    contractRequire(profiles->writeProfileOnce(alice.id,"operation-1","Alice once","confirmed")==ProfileWriteResult::Applied,"profile operation not applied");
+    repositories.users.updateProfile(alice.id,"Alice later","");
+    contractRequire(profiles->writeProfileOnce(alice.id,"operation-1","Alice once","confirmed")==ProfileWriteResult::Replay,"profile replay not detected");
+    contractRequire(repositories.users.findUser(alice.id)->displayName=="Alice later","replay overwrote a later profile update");
+    contractRequire(profiles->writeProfileOnce(alice.id,"operation-1","Changed","confirmed")==ProfileWriteResult::Conflict,"profile payload substitution accepted");
 
     const auto session = repositories.sessions.createSession(
         {"contract-session", alice.id, "contract-token-hash",

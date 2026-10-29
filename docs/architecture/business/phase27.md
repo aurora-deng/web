@@ -134,12 +134,12 @@ flowchart TD
 | [app.js](../../../frontend/phase11/app.js) | 接入上述两个模块；分页按钮、状态/重试入口、重连编排、管理撤回 |
 | [index.html](../../../frontend/phase11/index.html) / [styles.css](../../../frontend/phase11/styles.css) | 脚本版本与历史工具条/待确认状态样式 |
 | [main.cpp](../../../main.cpp) | 注册两个新 ES Module 的静态资源路由 |
-| [BusinessInterfaces.h](../../../server/phase11/business/BusinessInterfaces/BusinessInterfaces.h) | 增加 `historyBefore/ownMessage` 业务接口 |
-| [ChatService.h](../../../server/phase11/business/ChatService/ChatService.h) / [ChatService.cpp](../../../server/phase11/business/ChatService/ChatService.cpp) | 成员权限、分页参数与当前发送者作用域 |
-| [Ports.h](../../../server/phase11/ports/Ports/Ports.h) | `messagesBefore/findOwnMessage` 仓储端口 |
-| [InMemoryStore.h](../../../server/phase11/storage/InMemoryStore/InMemoryStore.h) / [InMemoryStore.cpp](../../../server/phase11/storage/InMemoryStore/InMemoryStore.cpp) | 不依赖数据库的同语义实现 |
-| [PostgresStore.h](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.h) / [PostgresStore.cpp](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) | 利用已有索引查询旧页与自己的幂等记录 |
-| [Phase11SocialChatHttp.cpp](../../../server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) | 翻译 HTTP 参数，在原有数据库执行器上执行查询 |
+| [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) | 增加 `historyBefore/ownMessage` 业务接口 |
+| [ChatService.h](../../../backend/application/business/ChatService/ChatService.h) / [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) | 成员权限、分页参数与当前发送者作用域 |
+| [Ports.h](../../../backend/application/ports/Ports/Ports.h) | `messagesBefore/findOwnMessage` 仓储端口 |
+| [InMemoryStore.h](../../../backend/application/storage/InMemoryStore/InMemoryStore.h) / [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) | 不依赖数据库的同语义实现 |
+| [PostgresStore.h](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.h) / [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) | 利用已有索引查询旧页与自己的幂等记录 |
+| [Phase11SocialChatHttp.cpp](../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) | 翻译 HTTP 参数，在原有数据库执行器上执行查询 |
 | [CMakeLists.txt](../../../CMakeLists.txt) | 登记新 C++ 回归测试；不下载依赖 |
 
 协议解析器、Reactor、Sender、消息表结构和撤回权限规则保持已有实现。新增查询经过现有业务层、Repository 和数据库执行器，没有让 Reactor 同步执行 SQL。

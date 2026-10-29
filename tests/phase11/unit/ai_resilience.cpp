@@ -1,4 +1,4 @@
-#include "server/phase11/ai/ResilientModelProvider/ResilientModelProvider.h"
+#include "backend/ai/models/ResilientModelProvider/ResilientModelProvider.h"
 
 #include <atomic>
 #include <chrono>

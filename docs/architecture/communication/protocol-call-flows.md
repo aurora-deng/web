@@ -35,10 +35,10 @@ sequenceDiagram
 3. 协程只是把状态机写得像顺序代码，不会把阻塞调用自动变成异步调用。
 4. Reactor 关闭连接时请求协程协作退出，由 Scheduler 在 `final_suspend` 后统一销毁帧。
 
-代码入口：[`ReactorGroup`](../../../server/Reactor/ReactorGroup.cpp)、
-[`SubReactor`](../../../server/SubReactor/SubReactor.cpp)、
-[`CoroutineScheduler`](../../../server/CoroutineScheduler/CoroutineScheduler.cpp)、
-[`Connection`](../../../server/transport/Connection.h)。
+代码入口：[`ReactorGroup`](../../../backend/server/Reactor/ReactorGroup.cpp)、
+[`SubReactor`](../../../backend/server/SubReactor/SubReactor.cpp)、
+[`CoroutineScheduler`](../../../backend/server/CoroutineScheduler/CoroutineScheduler.cpp)、
+[`Connection`](../../../backend/server/transport/Connection.h)。
 
 ## 2. HTTP/1.1
 
@@ -62,10 +62,10 @@ flowchart LR
 - Router 冻结后走只读查找；普通业务进入有界 Executor，避免慢 handler 卡住 Reactor。
 - 队列满、业务异常和 deadline 分别收口为过载、500 和 504 类结果。
 
-代码入口：[`HttpParser`](../../../server/http/HttpParser/HttpParser.cpp)、
-[`HttpSession`](../../../server/http/HttpSession/HttpSession.cpp)、
-[`HttpCodec`](../../../server/http/HttpCodec/HttpCodec.h)、
-[`Router`](../../../server/Route/Router.cpp)。
+代码入口：[`HttpParser`](../../../backend/server/http/HttpParser/HttpParser.cpp)、
+[`HttpSession`](../../../backend/server/http/HttpSession/HttpSession.cpp)、
+[`HttpCodec`](../../../backend/server/http/HttpCodec/HttpCodec.h)、
+[`Router`](../../../backend/server/Route/Router.cpp)。
 
 ## 3. WebSocket
 
@@ -93,10 +93,10 @@ flowchart TD
 - 投递分为“邮箱接纳、写入内核、对端业务 ACK”三种不同完成程度。
 - 接收方离线不等于业务发送失败：消息先持久化；实时推送只负责加速在线到达。
 
-代码入口：[`WebSocketSession`](../../../server/websocket/WebSocketSession/WebSocketSession.cpp)、
-[`WebSocketParser`](../../../server/websocket/WebSocketParser/WebSocketParser.cpp)、
-[`WebSocketDispatcher`](../../../server/websocket/WebSocketDispatcher/WebSocketDispatcher.cpp)、
-[`WebSocketDeliveryService`](../../../server/websocket/WebSocketDelivery/WebSocketDeliveryService.cpp)。
+代码入口：[`WebSocketSession`](../../../backend/server/websocket/WebSocketSession/WebSocketSession.cpp)、
+[`WebSocketParser`](../../../backend/server/websocket/WebSocketParser/WebSocketParser.cpp)、
+[`WebSocketDispatcher`](../../../backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.cpp)、
+[`WebSocketDeliveryService`](../../../backend/server/websocket/WebSocketDelivery/WebSocketDeliveryService.cpp)。
 
 ## 4. SSE
 
@@ -125,10 +125,10 @@ SSE 是一条长时间不结束的 HTTP 响应。SSE 格式负责事件语义，
 `SseReplayBuffer` 保存有界历史，浏览器重连时用 `Last-Event-ID` 补发。SSE 适合通知与 AI token，客户端命令仍走
 HTTP 或 WebSocket。
 
-代码入口：[`SseCodec`](../../../server/sse/SseCodec.cpp)、
-[`SseSession`](../../../server/sse/SseSession.cpp)、
-[`SseSessionManager`](../../../server/sse/SseSessionManager.cpp)、
-[`SseReplayBuffer`](../../../server/sse/SseReplayBuffer.cpp)。
+代码入口：[`SseCodec`](../../../backend/server/sse/SseCodec.cpp)、
+[`SseSession`](../../../backend/server/sse/SseSession.cpp)、
+[`SseSessionManager`](../../../backend/server/sse/SseSessionManager.cpp)、
+[`SseReplayBuffer`](../../../backend/server/sse/SseReplayBuffer.cpp)。
 
 ## 5. HTTP/2、TLS 与 ALPN
 
@@ -152,14 +152,14 @@ flowchart TD
 ```
 
 - 明文端口使用 prior knowledge 前言识别；TLS 端口使用 ALPN 明确选择 `h2` 或 `http/1.1`。
-- 生产路径把帧、HPACK、流状态和流量控制交给 nghttp2；`server/http2/learn` 是可逐步阅读的简化教学版。
+- 生产路径把帧、HPACK、流状态和流量控制交给 nghttp2；`backend/server/http2/learn` 是可逐步阅读的简化教学版。
 - TLS 位于 HTTP 下面。`TlsTransport` 把 OpenSSL 的 `WANT_READ/WANT_WRITE` 映射回协程等待。
 - HTTP/2 的 Stream 是一条连接里的逻辑请求，不等于线程；Stream 协程仍受连接级和流级窗口约束。
 
-代码入口：[`Http2Codec`](../../../server/http2/Http2Codec.cpp)、
-[`Http2StreamCoroutine`](../../../server/http2/Http2StreamCoroutine.h)、
-[`TlsSession`](../../../server/tls/TlsSession.cpp)、
-[`TlsTransport`](../../../server/tls/TlsTransport.cpp)。
+代码入口：[`Http2Codec`](../../../backend/server/http2/Http2Codec.cpp)、
+[`Http2StreamCoroutine`](../../../backend/server/http2/Http2StreamCoroutine.h)、
+[`TlsSession`](../../../backend/server/tls/TlsSession.cpp)、
+[`TlsTransport`](../../../backend/server/tls/TlsTransport.cpp)。
 
 ## 6. gRPC
 
@@ -181,13 +181,13 @@ flowchart LR
 ```
 
 gRPC 使用 HTTP/2，但业务看到的是 Service/Method、Metadata、Deadline、Cancellation、Status 和 Streaming。
-当前生产路径使用官方 gRPC C++ Callback API；`server/grpc/learn` 只演示 5 字节消息信封，不重复手写完整 HTTP/2。
+当前生产路径使用官方 gRPC C++ Callback API；`backend/server/grpc/learn` 只演示 5 字节消息信封，不重复手写完整 HTTP/2。
 Callback 对象的最终清理在 `OnDone`，避免异步 Alarm 或回调仍引用已经销毁的上下文。
 
-代码入口：[`proto`](../../../server/grpc/proto/web_learning.proto)、
-[`GrpcServer`](../../../server/grpc/GrpcServer.cpp)、
-[`GrpcMain`](../../../server/grpc/GrpcMain.cpp)、
-[`教学 Codec`](../../../server/grpc/learn/GrpcMessageCodec.cpp)。
+代码入口：[`proto`](../../../backend/server/grpc/proto/web_learning.proto)、
+[`GrpcServer`](../../../backend/server/grpc/GrpcServer.cpp)、
+[`GrpcMain`](../../../backend/server/grpc/GrpcMain.cpp)、
+[`教学 Codec`](../../../backend/server/grpc/learn/GrpcMessageCodec.cpp)。
 
 ## 7. 统一出站与背压
 
@@ -213,7 +213,7 @@ flowchart LR
 每连接字节、Reactor 邮箱任务/字节和单轮写预算。唯一 writerLoop 保证同一连接的字节顺序，
 `OutboundReceipt` 只为需要追踪的任务记录终态。
 
-代码入口：[`OutboundTask`](../../../server/transport/OutboundTask.h)、
-[`OutboundAdmission`](../../../server/transport/OutboundAdmission.cpp)、
-[`OutboundQueue`](../../../server/transport/OutboundQueue.cpp)、
-[`TransportWriter`](../../../server/transport/TransportWriter.cpp)。
+代码入口：[`OutboundTask`](../../../backend/server/transport/OutboundTask.h)、
+[`OutboundAdmission`](../../../backend/server/transport/OutboundAdmission.cpp)、
+[`OutboundQueue`](../../../backend/server/transport/OutboundQueue.cpp)、
+[`TransportWriter`](../../../backend/server/transport/TransportWriter.cpp)。

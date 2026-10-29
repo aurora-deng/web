@@ -1,188 +1,64 @@
-# 项目目录分层
+# 项目目录与构建边界
 
-本次整理的目标不是把文件机械地塞进更多文件夹，而是让“看到路径就知道职责”。可以把仓库想成一座教学楼：
-`server/` 是上课和运行的教室，`frontend/` 是用户入口，`tests/` 是考场，`scripts/` 是实验工具，
-`docs/` 是教材，`artifacts/` 是已经产生的实验记录。运行代码、测试输入和测试结果不再混在同一层。
-
-## 1. 当前目录
+当前源码按运行位置和职责分类；Phase36–41仍在本地验收，日常实例没有切换。历史移动记录保存在 [移动清单](source-layout-migration.json)，不要重新执行一次性迁移脚本。
 
 ```text
-web/
-├─ CMakeLists.txt                  构建入口
-├─ main.cpp                       进程装配入口，只连接组件和注册路由
-├─ frontend/
-│  └─ phase11/                    浏览器端 HTML/CSS/JavaScript；chat/ 存放历史与可靠发送组件
-├─ server/
-│  ├─ phase11/
-│  │  ├─ ai/<Component>/          每个模型 Provider、Decoder、Worker 独立成组
-│  │  ├─ business/<Component>/    业务接口、账号、社交、聊天、AI 和 Outbox 实现
-│  │  ├─ domain/Domain/           领域实体和值对象
-│  │  ├─ ports/Ports/             Repository、事务和安全端口
-│  │  ├─ runtime/<Component>/     Phase 11 有界执行器
-│  │  ├─ security/<Component>/    限流与凭据实现
-│  │  ├─ storage/<Component>/     内存、PostgreSQL 与文件正文存储适配器
-│  │  ├─ training/<Component>/    训练数据授权与导出
-│  │  └─ transport/               HTTP、WebSocket、SSE DTO 与协议适配器
-│  ├─ http/ websocket/ sse/       HTTP/1.1、WebSocket、SSE 协议层
-│  ├─ http2/ grpc/ tls/           HTTP/2、gRPC、TLS/ALPN
-│  ├─ Reactor/ SubReactor/        网络事件循环
-│  ├─ CoroutineScheduler/         协程调度
-│  ├─ Executor/ Runtime/          业务执行与进程生命周期
-│  ├─ transport/                  跨协议出站队列和写入边界
-│  └─ observability/logger/       日志与观测基础设施
-├─ tests/
-│  ├─ phase11/unit/               Phase 11 快速单元和 Repository 契约测试
-│  ├─ phase11/frontend/           聊天状态机单元测试与浏览器故障交互回归
-│  ├─ phase11/integration/        真实进程、数据库、WS/SSE/AI 黑盒脚本
-│  ├─ phase11/smoke/              真实 ONNX 模型最小加载验证
-│  ├─ integration/                通用协议黑盒测试
-│  └─ fuzz/                       解析器模糊测试源码与 corpus
-├─ scripts/
-│  └─ phase11/                    Phase 11 迁移、训练/模型导出和运行辅助脚本
-├─ tools/                         需显式执行的训练、评测与模型发布管理入口
+项目根目录
+├─ backend/
+│  ├─ server/                  Linux通信内核：Reactor、Connection、HTTP、WS、SSE、H2、TLS、gRPC
+│  ├─ application/             共享业务：账号、社交、聊天、文件、动态、神树、榜单、管理与Outbox
+│  │  ├─ business/             既有业务服务及兼容接口
+│  │  ├─ modules/              Tree / Activities / Assistant / Admin / Messaging 等隔离模块
+│  │  ├─ ports/ domain/        既有领域与Repository端口
+│  │  ├─ storage/              内存实现、PostgreSQL实现与追加式迁移
+│  │  ├─ security/             密码、Session、CSRF、限流
+│  │  ├─ runtime/              有界业务/数据库执行器
+│  │  └─ transport/            HTTP/WS/SSE业务DTO、适配与路由注册
+│  └─ ai/
+│     ├─ models/               Provider、模型注册、RAG、评测、gRPC推理Worker
+│     ├─ private/              无正文落库的限时私人推理编排与端口
+│     ├─ speech/               语音策略、协议、云适配、独立Kokoro Worker
+│     └─ training/             授权数据、审核、数据集导出与训练控制
+├─ client/
+│  ├─ companion/              Windows本机入口、HTTP/WS/SSE代理、Schannel、Host/Origin保护
+│  ├─ assistant/              私人线程、授权词法检索、记忆、确认操作、迁移、个人语音
+│  └─ storage/                Windows SQLite、NTFS目录权限、DPAPI凭据
+├─ frontend/phase11/
+│  ├─ shared/                 导航、主题、会话、统一发布器、私人助手、语音设置
+│  ├─ chat/                   聊天列表、可靠发送、历史恢复
+│  ├─ tree/                   3D场景、广场、榜单、果实详情
+│  ├─ profile/                个人资料与统一动态
+│  ├─ assistant/              好友式私人助手独立页
+│  └─ admin/                  站点管理、模型、公告音色与运行状态
+├─ tests/                     按通信、业务、Function3、本机客户端分类
+├─ scripts/                   按运行、依赖准备、验证、训练与目录迁移分类
+├─ benchmarks/                可复现网络和真实业务基准
 ├─ docs/
-│  ├─ architecture/
-│  │  ├─ communication/           Reactor、HTTP、WebSocket、SSE、HTTP/2、TLS、gRPC 与 Phase 3–10
-│  │  ├─ business/                账号、聊天、文件、AI、训练、模型治理与 Phase 11–27
-│  │  └─ ARCHITECTURE.md          从网络接入到业务、模型训练和返回的端到端总图
-│  ├─ database/                   数据库表结构、关系与数据流学习文档
-│  ├─ testing/ performance/ ops/  测试、性能与运维说明
-│  ├─ reports/                    已完成的历史测试报告
-│  └─ archive/                    仍有参考价值但不参与构建的旧代码
-├─ artifacts/
-│  ├─ benchmarks/                 已生成的基准结果
-│  ├─ profiling/                  火焰图等性能分析产物
-│  └─ test-results/               已生成的测试输出
-├─ benchmarks/                    可重复执行的基准程序源码
-├─ examples/                      面向学习的最小示例
-└─ static/                        `/logo` 等通用静态响应测试资源
+│  ├─ architecture/communication/  底层协议与Phase3–10讲义
+│  ├─ architecture/business/       业务、AI与Phase11–41讲义
+│  ├─ database/                    表含义、权限、事务与迁移说明
+│  ├─ testing/ performance/ ops/   验证、性能证据与启动说明
+│  └─ reports/ archive/            历史结果与参考资料
+├─ tools/                     显式运行的管理、评测、数据与模型工具
+├─ artifacts/                 经筛选可分享的历史验证证据
+├─ CMakeLists.txt             Linux装配与可选依赖开关
+└─ main.cpp                   Linux装配根，只创建组件、连接接口和注册路由
 ```
 
-## 2. 本次移动
+## 依赖方向
 
-| 原位置 | 新位置 | 原因 |
-|---|---|---|
-| `static/phase11/` | `frontend/phase11/` | 与 `/logo` 等服务器测试资源分离，明确它是完整前端应用 |
-| `tests/phase11_*.cpp` | `tests/phase11/unit/` | Phase 11 测试按层级集中 |
-| `tests/integration/phase11_*` | `tests/phase11/integration/` | Phase 11 黑盒脚本与通用协议黑盒分开 |
-| `fuzz/*.cpp`、`fuzz-corpus/` | `tests/fuzz/` | 模糊测试源码和输入都属于测试域 |
-| `log/logger/` | `server/observability/logger/` | Logger 是服务端观测基础设施 |
-| `benchmark-results/` | `artifacts/benchmarks/` | 结果与 `benchmarks/` 下的基准源码分开 |
-| `test-output/` | `artifacts/test-results/` | 生成结果不占据仓库根目录 |
-| `flame.svg` | `artifacts/profiling/flame.svg` | 性能分析产物集中保存 |
-| `preview.cpp` | `docs/archive/legacy_subreactor_preview.cpp` | 历史教学快照不再伪装成当前构建源码 |
-| 根目录历史测试讲义 | `docs/testing/learning/legacy-guide/` | 所有教材统一从文档导航进入 |
-| `server/phase11/application/*` | `server/phase11/business/<Component>/` | 业务接口和业务实现归入同一层，传输层只依赖业务门面 |
-| `server/phase11` 各分类目录中的平铺文件 | 对应 `<Component>/` 子目录 | 与 HTTP/WebSocket 一致，一个组件的 `.h/.cpp` 相邻存放 |
-| 7 个空占位目录 | 删除 | 没有源码、构建引用或文档职责，保留只会干扰目录阅读 |
+1. HTTP/WebSocket适配器调用Application Service；业务服务只依赖领域对象和Port。
+2. PostgreSQL、Redis、RocketMQ、云语音等驱动实现Port，不能把驱动类型送进业务接口。
+3. `webserver_application_support`提供便携执行器与DTO支持；`webserver_ai`不依赖Reactor；协议到私人推理的HTTP适配由独立目标装配。
+4. Windows有独立的 `client/CMakeLists.txt`。共享语音策略不依赖Windows/Linux平台类型；WinHTTP和curl分别留在平台驱动内。
+5. 目录分离不等于进程隔离，也不自动提高性能。实际独立进程是ONNX gRPC Worker、Kokoro Worker和显式执行的转换/训练任务。
 
-所有受影响的 CMake 源文件路径、`#include`、测试脚本和文档链接同步更新。文件只做了可追踪移动，
-没有删除仍被构建、路由或测试引用的资源。
+## 文件创建与数据位置
 
-## 3. 前端资源如何进入运行目录
+C++组件使用同名目录，`.h`和`.cpp`放在一起；纯接口不制造空实现。小型紧密相关辅助文件留在所属组件目录。前端公共组件同样独立分组，不把新功能堆进页面入口。
 
-服务器的静态路由使用相对路径读取 `frontend/phase11`。过去从源码根目录启动时正常，从 build
-目录启动则可能只得到 HTML 或 404，表现就是页面退回浏览器默认样式。现在 CMake 的
-`phase11_frontend_assets` 目标会在每次构建时把资源同步到：
+`build-*`、下载缓存、数据库、用户文件、模型、证书私钥、云Key、私人历史与训练数据不提交Git。构建目录是可再生结果，测试语料属于tests，验收结果属于artifacts或明确的忽略目录。
 
-```text
-<build>/frontend/phase11/
-```
+Linux原业务库保持权威；Windows仅新增账号隔离的私人SQLite，不创建另一份公共聊天库。数据库升级只追加迁移文件。启动、备份、切换日常服务需要按运维文档显式执行，本轮不自动替换。
 
-因此下面两种学习方式都能工作：
-
-```bash
-# 在源码根目录运行
-./build/webserver
-
-# 在构建目录运行
-cd build && ./webserver
-```
-
-页面仍从同源 `/phase11/` 加载资源并调用 `/api/*`、`/ws`、`/events`，不引入额外开发服务器，
-也不存在跨域配置差异。
-
-## 4. 后续放置规则
-
-1. 新协议实现进入 `server/<protocol>/`，跨协议共享发送逻辑进入 `server/transport/`。
-2. Phase 11 公共用例接口和实现都进入 `server/phase11/business/<Component>/`；数据库和外部模型
-   细节进入对应 adapter。新增类使用“一个组件一个目录”，让 `.h/.cpp` 保持相邻，同时不把
-   PostgreSQL、curl、ONNX、HTTP 或 WebSocket 类型暴露给业务接口。
-3. 浏览器代码只进入 `frontend/phase11/`；不要再放回通用 `static/`。
-4. 单元测试、进程级黑盒、真实依赖 smoke 和 fuzz 分别进入现有四类目录。
-5. 可执行脚本进入 `scripts/`，脚本生成的结果进入 `artifacts/`。
-6. 通信协议和网络运行时放 `docs/architecture/communication/`，业务功能与模型流程放
-   `docs/architecture/business/`，跨层总览放 `docs/architecture/ARCHITECTURE.md`；数据库 Schema 学习材料放
-   `docs/database/`，一次性报告放 `docs/reports/`，过期但有学习价值的材料放 `docs/archive/`。
-7. 密钥、数据库数据、模型权重和临时 build 目录继续由 `.gitignore` 排除，不能放进任何文档或
-   artifacts 目录。
-
-## 5. Phase 11 组件索引
-
-```text
-server/phase11/
-├─ ai/
-│  ├─ ModelProvider/
-│  ├─ ModelRegistryService/
-│  ├─ ModelEvaluationService/    评测 Run、逐题结果、汇总与激活质量门禁
-│  ├─ DeterministicExactScorer/  固定规则精确评分，供候选版本回归使用
-│  ├─ DeterministicKnowledgeIndex/
-│  ├─ RagService/
-│  ├─ ResilientModelProvider/    Provider 超时、熔断与同 Runtime 备用端点
-│  ├─ OllamaModelProvider/        libcurl multi 调用与生成生命周期
-│  ├─ OllamaStreamDecoder/        NDJSON 增量解码
-│  ├─ InProcessOnnxModelProvider/
-│  ├─ GrpcOnnxModelProvider/      聊天进程中的 gRPC 客户端
-│  └─ GrpcOnnxWorker/             独立推理进程入口与服务
-├─ business/
-│  ├─ BusinessInterfaces/         HTTP、WS、SSE 共用的业务接口
-│  ├─ ApplicationError/
-│  ├─ AuthService/
-│  ├─ SocialService/
-│  ├─ ChatService/
-│  ├─ FileService/                分片上传、封存、下载权限与头像绑定
-│  ├─ AiChatService/
-│  └─ OutboxDispatcher/
-├─ domain/Domain/
-├─ ports/Ports/
-├─ runtime/BoundedExecutor/
-├─ security/
-│  ├─ InMemoryLoginRateLimiter/
-│  └─ SodiumCredentialCodec/
-├─ storage/
-│  ├─ InMemoryStore/
-│  ├─ files/LocalFileStorage/     文件正文、哈希和原子封存
-│  └─ postgres/
-│     ├─ PostgresConnectionPool/
-│     ├─ PostgresStore/
-│     └─ migrations/
-├─ training/
-│  ├─ TrainingDataService/        授权、审核、撤销与事务化数据集版本
-│  └─ JsonlTrainingDataExporter/  内容寻址 JSONL 与原子发布
-└─ transport/
-   ├─ Contracts/
-   ├─ FlatJson/
-   ├─ http/
-   │  ├─ Phase11AuthHttp/
-   │  ├─ Phase11SocialChatHttp/
-   │  ├─ Phase11FileHttp/
-   │  ├─ Phase11KnowledgeHttp/
-   │  └─ Phase11TrainingHttp/
-   ├─ serialization/MessageJson/  HTTP/WS/SSE 共用消息格式
-   └─ realtime/Phase11Realtime/
-```
-
-这套结构与 `server/http/HttpParser/`、`server/websocket/WebSocketSession/` 的规则一致：上层目录表达
-技术或业务类别，最末级目录表达一个可独立阅读、编译和测试的组件。
-
-仓库根部 `tools/` 放置人工触发、但复用正式业务服务的管理程序：
-
-- `phase11_training_admin.cpp`：训练候选审核、数据集导出和训练授权；
-- `phase11_model_admin.cpp`：普通/训练 ONNX Candidate 登记、训练血缘校验、真实逐题评测和人工激活。
-
-它们不是 HTTP 传输层，也不是一次性脚本：二者直接链接 `webserver_phase11`，沿用 PostgreSQL
-Repository、领域状态机和业务门禁，因此集中在 `tools/`，避免把带 `main()` 的运维入口塞进 `server/`。
-
-训练脚本仍放在 `scripts/phase11/`：`train-qwen-lora.py` 负责受控训练，
-`export-trained-lora-onnx.py` 负责 Olive/OGA 部署转换并生成 Phase 24 血缘清单。它们调用外部训练工具，
-不进入服务器进程；最终 Candidate 必须通过 `phase11_model_admin.cpp` 的 C++ 业务和数据库门禁登记。
+相关文档：[端到端总图](business/phase36-41-end-to-end.md)、[Phase38本机入口](business/phase38.md)、[Phase39私人AI与确认操作](business/phase39.md)、[Phase40语音](business/phase40.md)。

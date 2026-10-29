@@ -112,7 +112,7 @@ Function1.0 将历史文件按职责迁移：
 |---|---|
 | `static/phase11/` | `frontend/phase11/` |
 | `fuzz/`、`fuzz-corpus/` | `tests/fuzz/` |
-| `log/logger/` | `server/observability/logger/` |
+| `log/logger/` | `backend/server/observability/logger/` |
 | `benchmark-results/` | `artifacts/benchmarks/` |
 | `test-output/` | `artifacts/test-results/` |
 | 根目录 `flame.svg` | `artifacts/profiling/flame.svg` |

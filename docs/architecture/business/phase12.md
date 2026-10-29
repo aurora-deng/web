@@ -88,7 +88,7 @@ enum class MessageState { Active, Recalled };
 ```
 
 `Message` 还保存 `recalledBy` 和 `recalledAt`。数据库迁移
-[002_message_lifecycle.sql](../../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)
+[002_message_lifecycle.sql](../../../backend/application/storage/postgres/migrations/002_message_lifecycle.sql)
 用约束保证三者形状一致：正常消息没有撤回元数据，撤回消息必须同时有撤回人和时间。
 
 ### 3.3 三条关键不变量
@@ -177,16 +177,16 @@ Outbox 仍是至少一次投递，所以浏览器维护一个有界的“验票�
 
 | 职责 | 文件 |
 |---|---|
-| 会话摘要、消息状态、撤回结果 | [Domain.h](../../../server/phase11/domain/Domain/Domain.h) |
-| Repository 接口 | [Ports.h](../../../server/phase11/ports/Ports/Ports.h) |
-| 业务门面 | [BusinessInterfaces.h](../../../server/phase11/business/BusinessInterfaces/BusinessInterfaces.h) |
-| 发送、回执、未读与撤回规则 | [ChatService.cpp](../../../server/phase11/business/ChatService/ChatService.cpp) |
-| 内存 Repository | [InMemoryStore.cpp](../../../server/phase11/storage/InMemoryStore/InMemoryStore.cpp) |
-| PostgreSQL 查询与原子更新 | [PostgresStore.cpp](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
-| 第 2 号迁移 | [002_message_lifecycle.sql](../../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql) |
+| 会话摘要、消息状态、撤回结果 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
+| Repository 接口 | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
+| 业务门面 | [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
+| 发送、回执、未读与撤回规则 | [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) |
+| 内存 Repository | [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
+| PostgreSQL 查询与原子更新 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
+| 第 2 号迁移 | [002_message_lifecycle.sql](../../../backend/application/storage/postgres/migrations/002_message_lifecycle.sql) |
 | 顺序增量迁移脚本 | [postgres-migrate.sh](../../../scripts/phase11/postgres-migrate.sh) |
-| HTTP 会话摘要与历史 JSON | [Phase11SocialChatHttp.cpp](../../../server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
-| WebSocket 命令与 Outbox 实时事件 | [Phase11Realtime.cpp](../../../server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) |
+| HTTP 会话摘要与历史 JSON | [Phase11SocialChatHttp.cpp](../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
+| WebSocket 命令与 Outbox 实时事件 | [Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) |
 | 浏览器状态与交互 | [app.js](../../../frontend/phase11/app.js) |
 | 消息状态样式 | [styles.css](../../../frontend/phase11/styles.css) |
 | 领域与事务测试 | [core.cpp](../../../tests/phase11/unit/core.cpp) |

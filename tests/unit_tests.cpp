@@ -49,17 +49,17 @@
 #include <unistd.h>
 #include <vector>
 
-#include "server/Buffer/Buffer.h"
-#include "server/response/FileBody.h"
-#include "server/response/StringBody.h"
-#include "server/Route/Router.h"
-#include "server/http/http.h"
-#include "server/http/HttpParser/HttpParser.h"
-#include "server/http/RequestContext/RequestContext.h"
-#include "server/ops/OperationalMetrics.h"
-#include "server/sse/SseCodec.h"
-#include "server/SegmentPool/SegmentPool.h"
-#include "server/timer/TimeWheel.h"
+#include "backend/server/Buffer/Buffer.h"
+#include "backend/server/response/FileBody.h"
+#include "backend/server/response/StringBody.h"
+#include "backend/server/Route/Router.h"
+#include "backend/server/http/http.h"
+#include "backend/server/http/HttpParser/HttpParser.h"
+#include "backend/server/http/RequestContext/RequestContext.h"
+#include "backend/server/ops/OperationalMetrics.h"
+#include "backend/server/sse/SseCodec.h"
+#include "backend/server/SegmentPool/SegmentPool.h"
+#include "backend/server/timer/TimeWheel.h"
 
 #include <utility>
 // ----------------------------------------------------------------------------
@@ -841,18 +841,18 @@ TEST(RouterTest, ProducesNotFoundResponse)
 // 编解码、增量解析、消息分发和升级标志五个层面，与 HttpParser 测试对称。
 // 注意：WebSocket 的 include 集中放在此处而非文件头，是为了让上面的 HTTP
 // 测试区在阅读时不被 WebSocket 头文件干扰，体现"按协议分块"的组织方式。
-#include "server/websocket/WebSocketHandshake/WebSocketHandshake.h"
-#include "server/websocket/WebSocketCodec/WebSocketCodec.h"
-#include "server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
-#include "server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h"
-#include "server/websocket/WebSocketParser/WebSocketParser.h"
-#include "server/websocket/WebSocketMessageAssembler/WebSocketMessageAssembler.h"
-#include "server/websocket/WebSocketValidation/WebSocketValidation.h"
-#include "server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
-#include "server/websocket/WebSocketSession/WebSocketSession.h"
-#include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
-#include "server/Executor/Executor.h"
-#include "server/Executor/HandlerCancellation.h"
+#include "backend/server/websocket/WebSocketHandshake/WebSocketHandshake.h"
+#include "backend/server/websocket/WebSocketCodec/WebSocketCodec.h"
+#include "backend/server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
+#include "backend/server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h"
+#include "backend/server/websocket/WebSocketParser/WebSocketParser.h"
+#include "backend/server/websocket/WebSocketMessageAssembler/WebSocketMessageAssembler.h"
+#include "backend/server/websocket/WebSocketValidation/WebSocketValidation.h"
+#include "backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
+#include "backend/server/websocket/WebSocketSession/WebSocketSession.h"
+#include "backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
+#include "backend/server/Executor/Executor.h"
+#include "backend/server/Executor/HandlerCancellation.h"
 
 /**
  * @test WebSocketHandshakeTest.AcceptKeyMatchesRfc6455Example
@@ -1930,6 +1930,19 @@ TEST(WebSocketSessionManagerTest, MultiDeviceUnregisterKeepsOtherConnection)
     EXPECT_EQ(manager.connectionCount(uid), 1U);
     EXPECT_TRUE(manager.unregister(uid, newKey));
     EXPECT_EQ(manager.onlineCount(), 0U);
+}
+
+TEST(WebSocketSessionManagerTest, RevocationRemovesRoutesEvenWhenCloseCannotBeQueued)
+{
+    WebSocketDispatcher dispatcher;WebSocketSessionManager manager;Executor executor(1);
+    const ConnectionKey key{17,1003};
+    auto session=std::make_shared<WebSocketSession>(key,nullptr,42,&manager,dispatcher,executor);
+    ASSERT_TRUE(manager.registerSession(42,session,0,key));
+    std::size_t observed=99;manager.setPresenceObserver([&](UserId,std::size_t count){observed=count;});
+    EXPECT_EQ(manager.closeUser(42),0U); // 未绑定 Reactor，模拟关闭指令未获准入。
+    EXPECT_EQ(manager.connectionCount(42),0U);EXPECT_EQ(observed,0U);
+    EXPECT_FALSE(manager.unregister(42,key));
+    EXPECT_EQ(manager.sendText(42,"private"),EnqueueResult::Closed);
 }
 
 TEST(WebSocketSessionManagerTest, PreservesOutboundRejectionReason)

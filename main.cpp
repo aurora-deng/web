@@ -1,3 +1,7 @@
+#include "backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.h"
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+#include "backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.h"
+#endif
 // ============================================================
 // 文件名：main.cpp
 // ------------------------------------------------------------
@@ -22,51 +26,54 @@
 //      WebSocket；真正的握手应答（101 Switching Protocols + Sec-WebSocket-Accept）
 //      和后续帧收发由框架的 WebSocketSession 接管，体现协议边界的清晰划分。
 // ============================================================
-#include "server/Runtime/ServerRuntime.h"
-#include "server/http/RequestContext/RequestContext.h"
-#include "server/sse/SseEvent.h"
-#include "server/ops/OperationalMetrics.h"
-#include "server/security/AuthToken.h"
-#include "server/security/FixedWindowRateLimiter.h"
-#include "server/websocket/WebSocketCodec/WebSocketCodec.h"
-#include "server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
-#include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
+#include "backend/server/Runtime/ServerRuntime.h"
+#include "backend/server/http/RequestContext/RequestContext.h"
+#include "backend/server/sse/SseEvent.h"
+#include "backend/server/ops/OperationalMetrics.h"
+#include "backend/server/security/AuthToken.h"
+#include "backend/server/security/FixedWindowRateLimiter.h"
+#include "backend/server/websocket/WebSocketCodec/WebSocketCodec.h"
+#include "backend/server/websocket/WebSocketDelivery/WebSocketDeliveryService.h"
+#include "backend/server/websocket/WebSocketDispatcher/WsMessageContext.h"
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
-#include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
-#include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
-#include "server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
-#include "server/phase11/ai/RagService/RagService.h"
-#include "server/phase11/ai/ResilientModelProvider/ResilientModelProvider.h"
+#include "backend/ai/models/ModelEvaluationService/ModelEvaluationService.h"
+#include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
+#include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "backend/ai/models/RagService/RagService.h"
+#include "backend/ai/models/ResilientModelProvider/ResilientModelProvider.h"
 #ifdef WEBSERVER_HAS_CURL_CLIENT
-#include "server/phase11/ai/OllamaModelProvider/OllamaModelProvider.h"
+#include "backend/ai/models/OllamaModelProvider/OllamaModelProvider.h"
 #endif
 #ifdef WEBSERVER_HAS_ONNX_GENAI
-#include "server/phase11/ai/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
+#include "backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
 #endif
 #ifdef WEBSERVER_HAS_PHASE11_GRPC_ONNX
-#include "server/phase11/ai/GrpcOnnxModelProvider/GrpcOnnxModelProvider.h"
+#include "backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.h"
 #endif
-#include "server/phase11/business/AiChatService/AiChatService.h"
-#include "server/phase11/business/AuthService/AuthService.h"
-#include "server/phase11/business/ChatService/ChatService.h"
-#include "server/phase11/business/FileService/FileService.h"
-#include "server/phase11/business/SocialService/SocialService.h"
-#include "server/phase11/runtime/BoundedExecutor/BoundedExecutor.h"
-#include "server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
-#include "server/phase11/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
-#include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
-#include "server/phase11/storage/files/LocalFileStorage/LocalFileStorage.h"
-#include "server/phase11/training/TrainingDataService/TrainingDataService.h"
-#include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
-#include "server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.h"
-#include "server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h"
-#include "server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
-#include "server/phase11/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.h"
-#include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
+#include "backend/application/business/AiChatService/AiChatService.h"
+#include "backend/ai/private/infrastructure/PrivateModelRouter/PrivateModelRouter.h"
+#include "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.h"
+#include "backend/application/business/AuthService/AuthService.h"
+#include "backend/application/business/ChatService/ChatService.h"
+#include "backend/application/business/FileService/FileService.h"
+#include "backend/application/business/SocialService/SocialService.h"
+#include "backend/application/runtime/BoundedExecutor/BoundedExecutor.h"
+#include "backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
+#include "backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
+#include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
+#include "backend/application/modules/messaging/infrastructure/ChatOutboxWriter/ChatOutboxWriter.h"
+#include "backend/application/storage/files/LocalFileStorage/LocalFileStorage.h"
+#include "backend/ai/training/TrainingDataService/TrainingDataService.h"
+#include "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.h"
+#include "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h"
+#include "backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
+#include "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.h"
+#include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #endif
-#include "server/observability/logger/logger.h"
+#include "backend/server/observability/logger/logger.h"
 #ifdef WEBSERVER_HAS_GRPC
-#include "server/grpc/GrpcServer.h"
+#include "backend/server/grpc/GrpcServer.h"
 #endif
 #include <unistd.h>
 #include <cerrno>
@@ -303,6 +310,7 @@ int main()
         // 这些对象先于 ServerRuntime 声明，因此退出时 ServerRuntime 会先停止网络线程，
         // 然后认证适配器、数据库执行器和连接池才依次销毁，避免路由捕获悬空对象。
         std::unique_ptr<webserver::phase11::PostgresStore> phase11Store;
+        std::unique_ptr<webserver::phase11::PostgresStore> phase11DeliveryStore;
         std::unique_ptr<webserver::phase11::SodiumCredentialCodec> phase11Credentials;
         std::unique_ptr<webserver::phase11::InMemoryLoginRateLimiter>
             phase11LoginLimiter;
@@ -351,10 +359,16 @@ int main()
         std::vector<std::shared_ptr<webserver::phase11::ResilientModelProvider>>
             phase11ResilientProviders;
         std::unique_ptr<webserver::phase11::AiChatService> phase11AiChat;
+        std::unique_ptr<webserver::phase11::PrivateModelRouter> phase11PrivateModel;
+        std::unique_ptr<webserver::phase11::PrivateGenerationService> phase11PrivateGenerations;
+        std::unique_ptr<webserver::phase11::PrivateGenerationService> phase11WebGenerations;
+        std::unique_ptr<webserver::phase11::transport::PrivateGenerationHttp> phase11PrivateHttp;
+        std::unique_ptr<webserver::phase11::transport::PrivateGenerationHttp> phase11WebHttp;
         std::unique_ptr<webserver::phase11::transport::Phase11Realtime>
             phase11Realtime;
         std::unique_ptr<webserver::phase11::transport::Phase11RealtimeOutboxSink>
             phase11OutboxSink;
+        std::unique_ptr<webserver::function3::Function3Runtime> function3Runtime;
         std::unique_ptr<webserver::phase11::transport::Phase11OutboxPump>
             phase11OutboxPump;
         std::unique_ptr<webserver::phase11::transport::Phase11PresenceBridge>
@@ -495,6 +509,10 @@ int main()
                 webserver::phase11::transport::Phase11AuthHttp>(
                     *phase11Auth, *phase11DatabaseExecutor,
                     std::move(httpConfig));
+            if (environmentFlag("WEB_FUNCTION3_ENABLE"))
+                function3Runtime = std::make_unique<webserver::function3::Function3Runtime>(
+                    phase11Database, *phase11AuthHttp, *phase11DatabaseExecutor, server.sseManager(), *phase11Files, *phase11Social, server.wsManager(),
+                    *phase11Store, *phase11ModelRegistry, *phase11ModelEvaluations,[index=phase11KnowledgeIndex.get()](std::uint64_t document){index->removeDocument(document);});
             phase11AiEvents = std::make_unique<
                 webserver::phase11::transport::Phase11AiEventSink>(
                     server.sseManager());
@@ -669,14 +687,30 @@ int main()
                 *phase11ModelRouter, *phase11DatabaseExecutor,
                 *phase11Store, *phase11AiEvents, aiChatConfig,
                 phase11Rag.get());
+            phase11PrivateModel=std::make_unique<webserver::phase11::PrivateModelRouter>(*phase11ModelRouter,*phase11Store);
+            // 网页非保密任务单独拥有任务表：HTTP 网页接口不能读取 HTTPS 私人任务。
+            phase11WebGenerations=std::make_unique<webserver::phase11::PrivateGenerationService>(*phase11PrivateModel);
+            phase11WebHttp=std::make_unique<webserver::phase11::transport::PrivateGenerationHttp>(*phase11AuthHttp,*phase11DatabaseExecutor,*phase11WebGenerations,true);
+            phase11PrivateGenerations=std::make_unique<webserver::phase11::PrivateGenerationService>(*phase11PrivateModel);
+            phase11PrivateHttp=std::make_unique<webserver::phase11::transport::PrivateGenerationHttp>(*phase11AuthHttp,*phase11DatabaseExecutor,*phase11PrivateGenerations);
+            // MQ 消费者的历史/成员/通知偏好查询使用独立小池，避免与聊天提交争抢连接。
+            // 仍访问同一数据库，不复制业务数据；两个池都保留明确等待期限。
+            if(function3Runtime)phase11DeliveryStore=std::make_unique<webserver::phase11::PostgresStore>(
+                webserver::phase11::PostgresPoolConfig{phase11Database,
+                    boundedEnvironmentSize("WEB_FUNCTION3_DELIVERY_DB_POOL",2,1,8),std::chrono::milliseconds(2000)});
+            auto&deliveryStore=phase11DeliveryStore?*phase11DeliveryStore:*phase11Store;
+            if(function3Runtime){const char*endpoint=std::getenv("WEB_FUNCTION3_MQ_ENDPOINT");
+                if(endpoint&&*endpoint)phase11Store->setOutboxWriter(std::make_shared<webserver::function3::ChatOutboxWriter>(function3Runtime->commitNotifier()));}
             phase11OutboxSink = std::make_unique<
                 webserver::phase11::transport::Phase11RealtimeOutboxSink>(
-                    *phase11Store, *phase11Store, *phase11Store,
+                    deliveryStore, deliveryStore, deliveryStore,
                     server.wsManager(),
                     server.sseManager());
             phase11OutboxPump = std::make_unique<
                 webserver::phase11::transport::Phase11OutboxPump>(
-                    *phase11Store, *phase11OutboxSink);
+                    *phase11Store, function3Runtime
+                        ? function3Runtime->startMessaging(*phase11OutboxSink, deliveryStore)
+                        : *phase11OutboxSink);
             const bool notifyOutboxAfterCommit =
                 !environmentFlag("WEB_PHASE11_OUTBOX_POLL_ONLY");
             const auto notifyOutbox =
@@ -715,6 +749,7 @@ int main()
                     *phase11Social, *phase11DatabaseExecutor,
                     server.wsManager(), notifyOutbox);
             phase11MetricsText = [store = phase11Store.get(),
+                                  deliveryStore = phase11DeliveryStore.get(),
                                   executor = phase11DatabaseExecutor.get(),
                                   fileExecutor = phase11FileExecutor.get(),
                                   knowledgeExecutor =
@@ -745,6 +780,10 @@ int main()
                     aiProviders.active += current.active;
                 }
                 std::ostringstream text;
+                if(deliveryStore){const auto delivery=deliveryStore->poolSnapshot();
+                    text<<"webserver_function3_delivery_pool_in_use "<<delivery.inUse<<'\n'
+                        <<"webserver_function3_delivery_pool_waited_total "<<delivery.waitedAcquires<<'\n'
+                        <<"webserver_function3_delivery_pool_wait_microseconds_total "<<delivery.totalAcquireWaitMicroseconds<<'\n';}
                 text << "# TYPE webserver_phase11_db_executor_submitted_total counter\n"
                      << "webserver_phase11_db_executor_submitted_total " << queue.submitted << '\n'
                      << "webserver_phase11_db_executor_rejected_total " << queue.rejected << '\n'
@@ -1144,10 +1183,13 @@ int main()
         if (phase11AuthHttp)
         {
             phase11AuthHttp->registerRoutes(server.router());
+            if(phase11PrivateHttp)phase11PrivateHttp->registerRoutes(server.router());
+            if(phase11WebHttp)phase11WebHttp->registerRoutes(server.router());
             phase11SocialChatHttp->registerRoutes(server.router());
             phase11FileHttp->registerRoutes(server.router());
             phase11KnowledgeHttp->registerRoutes(server.router());
             phase11TrainingHttp->registerRoutes(server.router());
+            if (function3Runtime) function3Runtime->registerRoutes(server.router());
         }
         else
 #endif
@@ -1164,47 +1206,7 @@ int main()
             server.router().GET("/api/me", unavailable);
             server.router().PATCH("/api/me", unavailable);
         }
-        const auto servePhase11Asset = [](std::string path,
-                                          std::string contentType)
-        {
-            return [path = std::move(path),
-                    contentType = std::move(contentType)](RequestContext &ctx) -> bool
-            {
-                ctx.response->setHeader("Content-Type", contentType);
-                ctx.response->setHeader("Cache-Control", "no-store");
-                if (!ctx.response->sendfile(path, ctx.request, ctx.request.range))
-                {
-                    ctx.response->status = 404;
-                    ctx.response->statusText = "Not Found";
-                    ctx.response->text("Not Found");
-                }
-                return true;
-            };
-        };
-        server.router().GET(
-            "/phase11",
-            servePhase11Asset("./frontend/phase11/index.html",
-                              "text/html; charset=utf-8"));
-        server.router().GET(
-            "/phase11/",
-            servePhase11Asset("./frontend/phase11/index.html",
-                              "text/html; charset=utf-8"));
-        server.router().GET(
-            "/phase11/app.js",
-            servePhase11Asset("./frontend/phase11/app.js",
-                              "text/javascript; charset=utf-8"));
-        server.router().GET(
-            "/phase11/styles.css",
-            servePhase11Asset("./frontend/phase11/styles.css",
-                              "text/css; charset=utf-8"));
-        server.router().GET(
-            "/phase11/chat/ChatHistory.js",
-            servePhase11Asset("./frontend/phase11/chat/ChatHistory.js",
-                              "text/javascript; charset=utf-8"));
-        server.router().GET(
-            "/phase11/chat/ReliableSender.js",
-            servePhase11Asset("./frontend/phase11/chat/ReliableSender.js",
-                              "text/javascript; charset=utf-8"));
+        webserver::function3::registerFrontendAssets(server.router());
 
         // /slow: 验证 Executor 异步执行与协作式超时。
         // 像后厨每做一小步就看一次撤单灯：超过 handler deadline 后尽快停工，

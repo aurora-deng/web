@@ -11,8 +11,8 @@
 
 | 测试阶段 | 状态 | 说明 |
 |---------|------|------|
-| **编译 Release** | ✅ 完成 | 目录：`/home/pikachu/webserver/build-release` |
-| **编译 Debug/Test** | ✅ 完成 | 目录：`/home/pikachu/webserver/build-tests` |
+| **编译 Release** | ✅ 完成 | 目录：`/home/pikachu/webbackend/server/build-release` |
+| **编译 Debug/Test** | ✅ 完成 | 目录：`/home/pikachu/webbackend/server/build-tests` |
 | **单元测试 Unit** | ✅ PASSED（成功） | GoogleTest 组件级回归 |
 | **黑盒测试 Blackbox** | ✅ PASSED（成功） | 真实 TCP 端到端 |
 | **压测 Benchmark** | ✅ COMPLETED（成功） | wrk/wrk2 吞吐与延迟 |
@@ -148,8 +148,8 @@ wrk 版本信息不可用
 Python 3.9.23
 
 --- 服务器二进制 ---
-294ab689aa636807b375a3f11d10ccc12068e338f30f3d1369c54c2a3deeedec  /home/pikachu/webserver/build-release/webserver
--rwxr-xr-x. 1 pikachu pikachu 262K  7月 30 18:21 /home/pikachu/webserver/build-release/webserver
+294ab689aa636807b375a3f11d10ccc12068e338f30f3d1369c54c2a3deeedec  /home/pikachu/webbackend/server/build-release/webserver
+-rwxr-xr-x. 1 pikachu pikachu 262K  7月 30 18:21 /home/pikachu/webbackend/server/build-release/webserver
 ```
 
 
@@ -207,7 +207,7 @@ Python 3.9.23
 <summary>原始日志（点击展开）</summary>
 
 ```text
-Running main() from /home/pikachu/webserver/googletest/googletest/src/gtest_main.cc
+Running main() from /home/pikachu/webbackend/server/googletest/googletest/src/gtest_main.cc
 [==========] Running 15 tests from 5 test suites.
 [----------] Global test environment set-up.
 [----------] 1 test from BufferTest
@@ -308,7 +308,7 @@ threads=4
 connections=128
 duration=10s
 url=http://127.0.0.1:8080/
-server_bin=/home/pikachu/webserver/build-release/webserver
+server_bin=/home/pikachu/webbackend/server/build-release/webserver
 2026-07-30T10:58:53+00:00
 ```
 
@@ -374,7 +374,7 @@ INFO: Running with entropic power schedule (0xFF, 100).
 INFO: Seed: 3263365614
 INFO: Loaded 1 modules   (384 inline 8-bit counters): 384 [0x6a1780, 0x6a1900), 
 INFO: Loaded 1 PC tables (384 PCs): 384 [0x62b600,0x62ce00), 
-INFO:       33 files found in /home/pikachu/webserver/tests/fuzz/corpus
+INFO:       33 files found in /home/pikachu/webbackend/server/tests/fuzz/corpus
 INFO: seed corpus: files: 33 min: 1b max: 316b total: 2867b rss: 47Mb
 #34	INITED cov: 163 ft: 326 corp: 27/2559b exec/s: 0 rss: 49Mb
 #128	REDUCE cov: 163 ft: 326 corp: 27/2558b lim: 316 exec/s: 0 rss: 50Mb L: 26/316 MS: 4 InsertByte-CrossOver-ShuffleBytes-EraseBytes-

@@ -1,0 +1,851 @@
+--- a/cpp/CMakeLists.txt
++++ b/cpp/CMakeLists.txt
+@@ -1,12 +1,12 @@
+ cmake_minimum_required(VERSION 3.16)
+ project(rocketmq VERSION 5.1.0 LANGUAGES CXX)
+-set(CMAKE_CXX_STANDARD 11)
++set(CMAKE_CXX_STANDARD 17)
+ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+ 
+ include(GNUInstallDirs)
+ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+ # Minimum versions aligned with the gRPC 1.46.x dependency chain (gRPC 1.46 bundles protobuf 3.19)
+-find_package(protobuf 3.19 CONFIG REQUIRED)
++find_package(protobuf CONFIG REQUIRED)
+ find_package(gRPC 1.46 CONFIG REQUIRED)
+ find_package(absl REQUIRED)
+ find_package(OpenSSL 1.1 REQUIRED)
+--- a/cpp/source/base/CredentialsProvider.cpp
++++ b/cpp/source/base/CredentialsProvider.cpp
+@@ -88,7 +88,7 @@
+       config_file_stream.read(&content[0], size);
+       config_file_stream.close();
+       google::protobuf::Struct root;
+-      google::protobuf::util::Status status = google::protobuf::util::JsonStringToMessage(content, &root);
++      auto status = google::protobuf::util::JsonStringToMessage(content, &root);
+       if (status.ok()) {
+         auto&& fields = root.fields();
+         if (fields.contains(ACCESS_KEY_FIELD_NAME)) {
+--- a/cpp/source/base/include/UniqueIdGenerator.h
++++ b/cpp/source/base/include/UniqueIdGenerator.h
+@@ -31,7 +31,7 @@
+ public:
+   static UniqueIdGenerator& instance();
+ 
+-  std::string next() LOCKS_EXCLUDED(mtx_);
++  std::string next() ABSL_LOCKS_EXCLUDED(mtx_);
+ 
+   static std::string nextUuidV4Std();
+ 
+--- a/cpp/source/client/include/ClientManagerImpl.h
++++ b/cpp/source/client/include/ClientManagerImpl.h
+@@ -54,7 +54,7 @@
+ 
+   void start() override;
+ 
+-  void shutdown() override LOCKS_EXCLUDED(rpc_clients_mtx_);
++  void shutdown() override ABSL_LOCKS_EXCLUDED(rpc_clients_mtx_);
+ 
+   std::shared_ptr<grpc::Channel> createChannel(const std::string& target_host) override;
+ 
+@@ -72,19 +72,19 @@
+                     const QueryRouteRequest& request,
+                     std::chrono::milliseconds timeout,
+                     const std::function<void(const std::error_code&, const TopicRouteDataPtr&)>& cb) override
+-      LOCKS_EXCLUDED(rpc_clients_mtx_);
++      ABSL_LOCKS_EXCLUDED(rpc_clients_mtx_);
+ 
+   /**
+    * If inactive RPC clients refer to remote hosts that are absent from topic_route_table_, we need to purge them
+    * immediately.
+    */
+-  std::vector<std::string> cleanOfflineRpcClients() LOCKS_EXCLUDED(clients_mtx_, rpc_clients_mtx_);
++  std::vector<std::string> cleanOfflineRpcClients() ABSL_LOCKS_EXCLUDED(clients_mtx_, rpc_clients_mtx_);
+ 
+   bool send(const std::string& target_host,
+             const Metadata& metadata,
+             SendMessageRequest& request,
+             std::chrono::milliseconds timeout,
+-            SendResultCallback cb) override LOCKS_EXCLUDED(rpc_clients_mtx_);
++            SendResultCallback cb) override ABSL_LOCKS_EXCLUDED(rpc_clients_mtx_);
+ 
+   /**
+    * Get a RpcClient according to the given target hosts, which follows scheme specified
+@@ -98,17 +98,17 @@
+    * @return
+    */
+   RpcClientSharedPtr getRpcClient(const std::string& target_host, bool need_heartbeat = true) override
+-      LOCKS_EXCLUDED(rpc_clients_mtx_);
++      ABSL_LOCKS_EXCLUDED(rpc_clients_mtx_);
+ 
+   static SendResult processSendResponse(const rmq::MessageQueue& message_queue,
+                                          const SendMessageResponse& response,
+                                          std::error_code& ec);
+ 
+   // only for test
+-  void addRpcClient(const std::string& target_host, const RpcClientSharedPtr& client) LOCKS_EXCLUDED(rpc_clients_mtx_);
++  void addRpcClient(const std::string& target_host, const RpcClientSharedPtr& client) ABSL_LOCKS_EXCLUDED(rpc_clients_mtx_);
+ 
+   // Test purpose only
+-  void cleanRpcClients() LOCKS_EXCLUDED(rpc_clients_mtx_);
++  void cleanRpcClients() ABSL_LOCKS_EXCLUDED(rpc_clients_mtx_);
+ 
+   void addClientObserver(std::weak_ptr<Client> client) override;
+ 
+@@ -122,7 +122,7 @@
+                       const Metadata& metadata,
+                       const ReceiveMessageRequest& request,
+                       std::chrono::milliseconds timeout,
+-                      ReceiveMessageCallback cb) override LOCKS_EXCLUDED(rpc_clients_mtx_);
++                      ReceiveMessageCallback cb) override ABSL_LOCKS_EXCLUDED(rpc_clients_mtx_);
+ 
+   /**
+    * Translate protobuf message struct to domain model.
+@@ -214,17 +214,17 @@
+ 
+   std::atomic<State> state_;
+ 
+-  std::vector<std::weak_ptr<Client>> clients_ GUARDED_BY(clients_mtx_);
++  std::vector<std::weak_ptr<Client>> clients_ ABSL_GUARDED_BY(clients_mtx_);
+   absl::Mutex clients_mtx_;
+ 
+-  absl::flat_hash_map<std::string, std::shared_ptr<RpcClient>> rpc_clients_ GUARDED_BY(rpc_clients_mtx_);
++  absl::flat_hash_map<std::string, std::shared_ptr<RpcClient>> rpc_clients_ ABSL_GUARDED_BY(rpc_clients_mtx_);
+   absl::Mutex rpc_clients_mtx_;  // protects rpc_clients_
+ 
+   std::uint32_t heartbeat_task_id_{0};
+ 
+   std::unique_ptr<ThreadPoolImpl> callback_thread_pool_;
+ 
+-  absl::flat_hash_set<std::string> exporter_endpoint_set_ GUARDED_BY(exporter_endpoint_set_mtx_);
++  absl::flat_hash_set<std::string> exporter_endpoint_set_ ABSL_GUARDED_BY(exporter_endpoint_set_mtx_);
+   absl::Mutex exporter_endpoint_set_mtx_;
+ 
+   /**
+--- a/cpp/source/client/include/TelemetryBidiReactor.h
++++ b/cpp/source/client/include/TelemetryBidiReactor.h
+@@ -114,7 +114,7 @@
+    * TODO: move buffered commands to a shared container, which may survive
+    * multiple TelemetryBidiReactor lifecycles.
+    */
+-  std::list<TelemetryCommand> writes_ GUARDED_BY(writes_mtx_);
++  std::list<TelemetryCommand> writes_ ABSL_GUARDED_BY(writes_mtx_);
+   absl::Mutex writes_mtx_;
+ 
+   /**
+@@ -127,7 +127,7 @@
+    */
+   std::string peer_address_;
+ 
+-  StreamState state_ GUARDED_BY(state_mtx_);
++  StreamState state_ ABSL_GUARDED_BY(state_mtx_);
+   absl::Mutex state_mtx_;
+   absl::CondVar state_cv_;
+ 
+@@ -146,7 +146,7 @@
+   void applySubscriptionConfig(const rmq::Settings& settings, std::shared_ptr<Client> client);
+ 
+   /// Attempt to write pending telemetry command to server.
+-  void tryWriteNext() LOCKS_EXCLUDED(state_mtx_, writes_mtx_);
++  void tryWriteNext() ABSL_LOCKS_EXCLUDED(state_mtx_, writes_mtx_);
+ 
+   void signalClose();
+ };
+--- a/cpp/source/concurrent/include/CountdownLatch.h
++++ b/cpp/source/concurrent/include/CountdownLatch.h
+@@ -33,14 +33,14 @@
+   CountdownLatch(int32_t count, absl::string_view name) : count_(count), name_(name.data(), name.length()) {
+   }
+ 
+-  void await() LOCKS_EXCLUDED(mtx_);
++  void await() ABSL_LOCKS_EXCLUDED(mtx_);
+ 
+-  void countdown() LOCKS_EXCLUDED(mtx_);
++  void countdown() ABSL_LOCKS_EXCLUDED(mtx_);
+ 
+-  void increaseCount() LOCKS_EXCLUDED(mtx_);
++  void increaseCount() ABSL_LOCKS_EXCLUDED(mtx_);
+ 
+ private:
+-  int32_t count_ GUARDED_BY(mtx_);
++  int32_t count_ ABSL_GUARDED_BY(mtx_);
+ 
+   absl::Mutex mtx_; // protects count_
+   absl::CondVar cv_;
+--- a/cpp/source/rocketmq/FifoProducerPartition.cpp
++++ b/cpp/source/rocketmq/FifoProducerPartition.cpp
+@@ -1,123 +1,81 @@
+-/*
+- * Licensed to the Apache Software Foundation (ASF) under one or more
+- * contributor license agreements.  See the NOTICE file distributed with
+- * this work for additional information regarding copyright ownership.
+- * The ASF licenses this file to You under the Apache License, Version 2.0
+- * (the "License"); you may not use this file except in compliance with
+- * the License.  You may obtain a copy of the License at
+- *
+- *     http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-#include "FifoProducerPartition.h"
+-
+-#include "absl/synchronization/mutex.h"
+-
+-#include <atomic>
+-#include <memory>
+-#include <system_error>
+-
+-#include "FifoContext.h"
+-#include "rocketmq/Message.h"
+-#include "rocketmq/RocketMQ.h"
+-#include "rocketmq/SendCallback.h"
+-#include "rocketmq/SendReceipt.h"
+-#include "spdlog/spdlog.h"
+-
+-ROCKETMQ_NAMESPACE_BEGIN
+-
+-void FifoProducerPartition::add(FifoContext&& context) {
+-  {
+-    absl::MutexLock lk(&messages_mtx_);
+-    messages_.emplace_back(std::move(context));
+-    SPDLOG_DEBUG("{} has {} pending messages after #add", name_, messages_.size());
+-  }
+-
+-  trySend();
+-}
+-
+-void FifoProducerPartition::trySend() {
+-  bool expected = false;
+-  if (inflight_.compare_exchange_strong(expected, true, std::memory_order_relaxed)) {
+-    MessageConstPtr message;
+-    SendCallback send_callback;
+-
+-    {
+-      absl::MutexLock lk(&messages_mtx_);
+-      if (messages_.empty()) {
+-        SPDLOG_DEBUG("There is no more messages to send");
+-        inflight_.store(false, std::memory_order_release);
+-        return;
+-      }
+-
+-      FifoContext& ctx = messages_.front();
+-      message = std::move(ctx.message);
+-      send_callback = ctx.callback;
+-      messages_.pop_front();
+-    }
+-    // Lock released — producer_->send() and its callbacks run without holding messages_mtx_.
+-    // This prevents deadlock when send() fails synchronously and invokes the callback
+-    // on the same thread (onComplete would try to re-acquire messages_mtx_).
+-
+-    std::shared_ptr<FifoProducerPartition> partition = shared_from_this();
+-    auto fifo_callback = [=](const std::error_code& ec, SendReceipt&& receipt) mutable {
+-      partition->onComplete(ec, std::move(receipt), send_callback);
+-    };
+-    SPDLOG_DEBUG("Sending FIFO message from {}", name_);
+-    try {
+-      producer_->send(std::move(message), fifo_callback);
+-    } catch (const std::exception& e) {
+-      SPDLOG_ERROR("Exception in FifoProducerPartition::trySend: {}", e.what());
+-      // Message is lost (consumed by the throwing send call via unique_ptr move).
+-      // Invoke user callback directly to avoid null deref from retrying with empty SendReceipt.
+-      std::error_code ec = std::make_error_code(std::errc::operation_canceled);
+-      SendReceipt empty;
+-      send_callback(ec, std::move(empty));
+-      inflight_.store(false, std::memory_order_release);
+-    }
+-  } else {
+-    SPDLOG_DEBUG("There is an inflight message");
+-  }
+-}
+-
+-void FifoProducerPartition::onComplete(const std::error_code& ec, SendReceipt&& receipt, SendCallback& callback) {
+-  if (ec) {
+-    SPDLOG_INFO("{} completed with a failure: {}", name_, ec.message());
+-  } else {
+-    SPDLOG_DEBUG("{} completed OK", name_);
+-  }
+-
+-  if (!ec) {
+-    callback(ec, std::move(receipt));
+-    // update inflight status
+-    bool expected = true;
+-    if (inflight_.compare_exchange_strong(expected, false, std::memory_order_relaxed)) {
+-      trySend();
+-    } else {
+-      SPDLOG_ERROR("{}: Unexpected inflight status", name_);
+-    }
+-    return;
+-  }
+-
+-  // Put the message back to the front of the list.
+-  FifoContext retry_context(std::move(receipt.message), callback);
+-  {
+-    absl::MutexLock lk(&messages_mtx_);
+-    messages_.emplace_front(std::move(retry_context));
+-  }
+-
+-  // Update inflight status
+-  bool expected = true;
+-  if (inflight_.compare_exchange_strong(expected, false, std::memory_order_relaxed)) {
+-    trySend();
+-  } else {
+-    SPDLOG_ERROR("Unexpected inflight status");
+-  }
+-}
+-
+-ROCKETMQ_NAMESPACE_END
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#include "FifoProducerPartition.h"
++#include "absl/synchronization/mutex.h"
++#include <atomic>
++#include <memory>
++#include <system_error>
++#include "FifoContext.h"
++#include "rocketmq/Message.h"
++#include "rocketmq/RocketMQ.h"
++#include "rocketmq/SendCallback.h"
++#include "rocketmq/SendReceipt.h"
++#include "spdlog/spdlog.h"
++
++ROCKETMQ_NAMESPACE_BEGIN
++
++void FifoProducerPartition::add(FifoContext&& context) {
++  {
++    absl::MutexLock lock(&messages_mtx_);
++    messages_.emplace_back(std::move(context));
++  }
++  trySend();
++}
++
++void FifoProducerPartition::trySend() {
++  bool expected = false;
++  if (!inflight_.compare_exchange_strong(expected, true, std::memory_order_relaxed)) return;
++  MessageConstPtr message;
++  SendCallback callback;
++  {
++    absl::MutexLock lock(&messages_mtx_);
++    if (messages_.empty()) {
++      inflight_.store(false, std::memory_order_release);
++      return;
++    }
++    auto& context = messages_.front();
++    message = std::move(context.message);
++    callback = context.callback;
++    messages_.pop_front();
++  }
++  // A synchronous failure may invoke onComplete on this very thread.
++  // Release the queue mutex before entering the internal producer.
++  const auto partition = shared_from_this();
++  try {
++    producer_->send(std::move(message), [partition, callback](const std::error_code& error,
++                                                           SendReceipt&& receipt) mutable {
++      partition->onComplete(error, std::move(receipt), callback);
++    });
++  } catch (const std::exception& error) {
++    SPDLOG_ERROR("FIFO send failed before dispatch: {}", error.what());
++    SendReceipt receipt;
++    onComplete(std::make_error_code(std::errc::operation_canceled), std::move(receipt), callback);
++  }
++}
++
++void FifoProducerPartition::onComplete(const std::error_code& error, SendReceipt&& receipt,
++                                     SendCallback& callback) {
++  // Function3 policy: internal Producer already performs its finite RPC attempts.
++  // Report final failure exactly once; durable Outbox owns retry and dead letters.
++  // Requeueing here forever hides failure and retains messages beyond its budget.
++  try { callback(error, std::move(receipt)); }
++  catch (...) { SPDLOG_ERROR("FIFO completion callback threw"); }
++  inflight_.store(false, std::memory_order_release);
++  trySend();
++}
++
++ROCKETMQ_NAMESPACE_END
+--- a/cpp/source/rocketmq/include/ClientImpl.h
++++ b/cpp/source/rocketmq/include/ClientImpl.h
+@@ -59,7 +59,7 @@
+   virtual void shutdown() noexcept;
+ 
+   void getRouteFor(const std::string& topic, const std::function<void(const std::error_code&, TopicRouteDataPtr)>& cb)
+-      LOCKS_EXCLUDED(inflight_route_requests_mtx_, topic_route_table_mtx_);
++      ABSL_LOCKS_EXCLUDED(inflight_route_requests_mtx_, topic_route_table_mtx_);
+ 
+   /**
+    * Gather collection of endpoints that are reachable from latest topic route
+@@ -67,7 +67,7 @@
+    *
+    * @param endpoints
+    */
+-  void endpointsInUse(absl::flat_hash_set<std::string>& endpoints) override LOCKS_EXCLUDED(topic_route_table_mtx_);
++  void endpointsInUse(absl::flat_hash_set<std::string>& endpoints) override ABSL_LOCKS_EXCLUDED(topic_route_table_mtx_);
+ 
+   void heartbeat() override;
+ 
+@@ -75,7 +75,7 @@
+     return State::STARTED == state_.load(std::memory_order_relaxed);
+   }
+ 
+-  void onRemoteEndpointRemoval(const std::vector<std::string>& hosts) override LOCKS_EXCLUDED(isolated_endpoints_mtx_);
++  void onRemoteEndpointRemoval(const std::vector<std::string>& hosts) override ABSL_LOCKS_EXCLUDED(isolated_endpoints_mtx_);
+ 
+   void schedule(const std::string& task_name, const std::function<void(void)>& task,
+                 std::chrono::milliseconds delay) override;
+@@ -154,12 +154,12 @@
+   std::atomic<State> state_;
+   std::atomic<bool> shutdown_requested_{false};
+ 
+-  absl::flat_hash_map<std::string, TopicRouteDataPtr> topic_route_table_ GUARDED_BY(topic_route_table_mtx_);
+-  absl::Mutex topic_route_table_mtx_ ACQUIRED_AFTER(inflight_route_requests_mtx_); // protects topic_route_table_
++  absl::flat_hash_map<std::string, TopicRouteDataPtr> topic_route_table_ ABSL_GUARDED_BY(topic_route_table_mtx_);
++  absl::Mutex topic_route_table_mtx_ ABSL_ACQUIRED_AFTER(inflight_route_requests_mtx_); // protects topic_route_table_
+ 
+   absl::flat_hash_map<std::string, std::vector<std::function<void(const std::error_code&, const TopicRouteDataPtr&)>>>
+-      inflight_route_requests_ GUARDED_BY(inflight_route_requests_mtx_);
+-  absl::Mutex inflight_route_requests_mtx_ ACQUIRED_BEFORE(topic_route_table_mtx_); // Protects inflight_route_requests_
++      inflight_route_requests_ ABSL_GUARDED_BY(inflight_route_requests_mtx_);
++  absl::Mutex inflight_route_requests_mtx_ ABSL_ACQUIRED_BEFORE(topic_route_table_mtx_); // Protects inflight_route_requests_
+ 
+   static const char* UPDATE_ROUTE_TASK_NAME;
+   std::uint32_t route_update_handle_{0};
+@@ -167,7 +167,7 @@
+   static const char* TELEMETRY_TASK_NAME;
+   std::uint32_t telemetry_handle_{0};
+ 
+-  void syncClientSettings() LOCKS_EXCLUDED(session_map_mtx_);
++  void syncClientSettings() ABSL_LOCKS_EXCLUDED(session_map_mtx_);
+ 
+   // Set Name Server Resolver
+   std::shared_ptr<NameServerResolver> name_server_resolver_;
+@@ -175,16 +175,16 @@
+   absl::flat_hash_map<std::string, absl::Time> multiplexing_requests_;
+   absl::Mutex multiplexing_requests_mtx_;
+ 
+-  absl::flat_hash_set<std::string> isolated_endpoints_ GUARDED_BY(isolated_endpoints_mtx_);
++  absl::flat_hash_set<std::string> isolated_endpoints_ ABSL_GUARDED_BY(isolated_endpoints_mtx_);
+   absl::Mutex isolated_endpoints_mtx_;
+ 
+-  absl::flat_hash_map<std::string, std::unique_ptr<Session>> session_map_ GUARDED_BY(session_map_mtx_);
++  absl::flat_hash_map<std::string, std::unique_ptr<Session>> session_map_ ABSL_GUARDED_BY(session_map_mtx_);
+   absl::Mutex session_map_mtx_;
+ 
+   virtual void topicsOfInterest(std::vector<std::string> &topics) {
+   }
+ 
+-  void updateRouteInfo() LOCKS_EXCLUDED(topic_route_table_mtx_);
++  void updateRouteInfo() ABSL_LOCKS_EXCLUDED(topic_route_table_mtx_);
+ 
+   /**
+    * Sub-class is supposed to inherit from std::enable_shared_from_this.
+@@ -236,7 +236,7 @@
+    * @param route
+    */
+   void onTopicRouteReady(const std::string& topic, const std::error_code& ec, const TopicRouteDataPtr& route)
+-      LOCKS_EXCLUDED(inflight_route_requests_mtx_);
++      ABSL_LOCKS_EXCLUDED(inflight_route_requests_mtx_);
+ 
+   /**
+    * Update local cache for the topic. Note, route differences are logged in
+@@ -246,7 +246,7 @@
+    * @param route
+    */
+   void updateRouteCache(const std::string& topic, const std::error_code& ec, const TopicRouteDataPtr& route)
+-      LOCKS_EXCLUDED(topic_route_table_mtx_);
++      ABSL_LOCKS_EXCLUDED(topic_route_table_mtx_);
+ 
+   void doVerify(std::string target, std::string command_id, MessageConstPtr message);
+ 
+--- a/cpp/source/rocketmq/include/FifoProducerPartition.h
++++ b/cpp/source/rocketmq/include/FifoProducerPartition.h
+@@ -16,7 +16,7 @@
+  */
+ #pragma once
+ 
+-#include "absl/base/internal/thread_annotations.h"
++#include "absl/base/thread_annotations.h"
+ 
+ #include <atomic>
+ #include <list>
+@@ -38,15 +38,15 @@
+       : producer_(producer), name_(std::move(name)) {
+   }
+ 
+-  void add(FifoContext&& context) LOCKS_EXCLUDED(messages_mtx_);
++  void add(FifoContext&& context) ABSL_LOCKS_EXCLUDED(messages_mtx_);
+ 
+-  void trySend() LOCKS_EXCLUDED(messages_mtx_);
++  void trySend() ABSL_LOCKS_EXCLUDED(messages_mtx_);
+ 
+   void onComplete(const std::error_code& ec, SendReceipt&& receipt, SendCallback& callback);
+ 
+ private:
+   std::shared_ptr<ProducerImpl> producer_;
+-  std::list<FifoContext> messages_ GUARDED_BY(messages_mtx_);
++  std::list<FifoContext> messages_ ABSL_GUARDED_BY(messages_mtx_);
+   absl::Mutex messages_mtx_;
+   std::atomic_bool inflight_{false};
+   std::string name_;
+--- a/cpp/source/rocketmq/include/ProducerImpl.h
++++ b/cpp/source/rocketmq/include/ProducerImpl.h
+@@ -90,13 +90,13 @@
+    * @param endpoint Address of target host.
+    * @return true if client is active; false otherwise.
+    */
+-  bool isEndpointIsolated(const std::string& endpoint) LOCKS_EXCLUDED(isolated_endpoints_mtx_);
++  bool isEndpointIsolated(const std::string& endpoint) ABSL_LOCKS_EXCLUDED(isolated_endpoints_mtx_);
+ 
+   /**
+    * Note: This function is purpose-made public such that the whole isolate/add-back mechanism can be properly tested.
+    * @param target Endpoint of the target host
+    */
+-  void isolateEndpoint(const std::string& target) LOCKS_EXCLUDED(isolated_endpoints_mtx_);
++  void isolateEndpoint(const std::string& target) ABSL_LOCKS_EXCLUDED(isolated_endpoints_mtx_);
+ 
+   std::size_t maxAttemptTimes() const {
+     return max_attempt_times_;
+@@ -126,9 +126,9 @@
+ 
+   void buildClientSettings(rmq::Settings& settings) override;
+ 
+-  void topicsOfInterest(std::vector<std::string> &topics) override LOCKS_EXCLUDED(topics_mtx_);
++  void topicsOfInterest(std::vector<std::string> &topics) override ABSL_LOCKS_EXCLUDED(topics_mtx_);
+ 
+-  void withTopics(std::vector<std::string> topics) LOCKS_EXCLUDED(topics_mtx_);
++  void withTopics(std::vector<std::string> topics) ABSL_LOCKS_EXCLUDED(topics_mtx_);
+ 
+   const PublishStats& stats() const {
+     return stats_;
+@@ -146,13 +146,13 @@
+   void notifyClientTermination() override;
+ 
+ private:
+-  absl::flat_hash_map<std::string, TopicPublishInfoPtr> topic_publish_info_table_ GUARDED_BY(topic_publish_info_mtx_);
++  absl::flat_hash_map<std::string, TopicPublishInfoPtr> topic_publish_info_table_ ABSL_GUARDED_BY(topic_publish_info_mtx_);
+   absl::Mutex topic_publish_info_mtx_;  // protects topic_publish_info_
+   std::size_t max_attempt_times_{MixAll::MAX_SEND_MESSAGE_ATTEMPT_TIMES_};
+   int32_t failed_times_{0};  // only for test
+   uint32_t compress_body_threshold_;
+   TransactionChecker transaction_checker_;
+-  std::vector<std::string> topics_ GUARDED_BY(topics_mtx_);
++  std::vector<std::string> topics_ ABSL_GUARDED_BY(topics_mtx_);
+   absl::Mutex topics_mtx_;
+ 
+   PublishStats stats_;
+@@ -163,9 +163,9 @@
+    * If not found, query name servers.
+    */
+   void getPublishInfoAsync(const std::string& topic, const PublishInfoCallback& cb)
+-      LOCKS_EXCLUDED(topic_publish_info_mtx_);
++      ABSL_LOCKS_EXCLUDED(topic_publish_info_mtx_);
+ 
+-  void cachePublishInfo(const std::string&, TopicPublishInfoPtr info) LOCKS_EXCLUDED(topic_publish_info_mtx_);
++  void cachePublishInfo(const std::string&, TopicPublishInfoPtr info) ABSL_LOCKS_EXCLUDED(topic_publish_info_mtx_);
+ 
+   TopicPublishInfoPtr getPublishInfo(const std::string& topic);
+ 
+@@ -181,7 +181,7 @@
+ 
+   void send0(MessageConstPtr message, const SendCallback& callback, std::vector<rmq::MessageQueue> list);
+ 
+-  void isolatedEndpoints(absl::flat_hash_set<std::string>& endpoints) LOCKS_EXCLUDED(isolated_endpoints_mtx_);
++  void isolatedEndpoints(absl::flat_hash_set<std::string>& endpoints) ABSL_LOCKS_EXCLUDED(isolated_endpoints_mtx_);
+ 
+   friend class ProducerBuilder;
+ };
+--- a/cpp/source/rocketmq/include/PushConsumerImpl.h
++++ b/cpp/source/rocketmq/include/PushConsumerImpl.h
+@@ -48,11 +48,11 @@
+ 
+   ~PushConsumerImpl() override;
+ 
+-  void buildClientSettings(rmq::Settings& settings) override LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
++  void buildClientSettings(rmq::Settings& settings) override ABSL_LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
+ 
+   void prepareHeartbeatData(HeartbeatRequest& request) override;
+ 
+-  void topicsOfInterest(std::vector<std::string> &topics) override LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
++  void topicsOfInterest(std::vector<std::string> &topics) override ABSL_LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
+ 
+   void start() override;
+ 
+@@ -61,16 +61,16 @@
+   void subscribe(const std::string& topic,
+                  const std::string& expression,
+                  ExpressionType expression_type = ExpressionType::TAG)
+-      LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
+-
+-  void unsubscribe(const std::string& topic) LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
++      ABSL_LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
++
++  void unsubscribe(const std::string& topic) ABSL_LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
+ 
+   absl::optional<FilterExpression> getFilterExpression(const std::string& topic) const
+-      LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
++      ABSL_LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
+ 
+   void registerMessageListener(MessageListener message_listener);
+ 
+-  void scanAssignments() LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
++  void scanAssignments() ABSL_LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
+ 
+   bool selectBroker(const TopicRouteDataPtr& route, std::string& broker_host);
+ 
+@@ -93,15 +93,15 @@
+ 
+   void syncProcessQueue(const std::string& topic,
+                         const TopicAssignmentPtr& topic_assignment,
+-                        const FilterExpression& filter_expression) LOCKS_EXCLUDED(process_queue_table_mtx_);
++                        const FilterExpression& filter_expression) ABSL_LOCKS_EXCLUDED(process_queue_table_mtx_);
+ 
+   std::shared_ptr<ProcessQueue> getOrCreateProcessQueue(const rmq::MessageQueue& message_queue,
+                                                         const FilterExpression& filter_expression)
+-      LOCKS_EXCLUDED(process_queue_table_mtx_);
++      ABSL_LOCKS_EXCLUDED(process_queue_table_mtx_);
+ 
+   bool receiveMessage(const rmq::MessageQueue& message_queue,
+                       const FilterExpression& filter_expression,
+-                      std::string& attempt_id) LOCKS_EXCLUDED(process_queue_table_mtx_);
++                      std::string& attempt_id) ABSL_LOCKS_EXCLUDED(process_queue_table_mtx_);
+ 
+   uint32_t consumeThreadPoolSize() const;
+ 
+@@ -126,7 +126,7 @@
+   void wrapAckMessageRequest(const Message& msg, AckMessageRequest& request);
+ 
+   // only for test
+-  std::size_t getProcessQueueTableSize() LOCKS_EXCLUDED(process_queue_table_mtx_);
++  std::size_t getProcessQueueTableSize() ABSL_LOCKS_EXCLUDED(process_queue_table_mtx_);
+ 
+   void setCustomExecutor(const Executor& executor) {
+     custom_executor_ = executor;
+@@ -179,7 +179,7 @@
+ 
+ private:
+   absl::flat_hash_map<std::string, FilterExpression> topic_filter_expression_table_
+-      GUARDED_BY(topic_filter_expression_table_mtx_);
++      ABSL_GUARDED_BY(topic_filter_expression_table_mtx_);
+   mutable absl::Mutex topic_filter_expression_table_mtx_;
+ 
+   /**
+@@ -201,13 +201,13 @@
+    * simple-queue-name ==> process-queue
+    */
+   absl::flat_hash_map<std::string, std::shared_ptr<ProcessQueue>> process_queue_table_
+-      GUARDED_BY(process_queue_table_mtx_);
++      ABSL_GUARDED_BY(process_queue_table_mtx_);
+   absl::Mutex process_queue_table_mtx_;
+ 
+   Executor custom_executor_;
+ 
+   absl::flat_hash_map<std::string /* Topic */, uint32_t /* Threshold */> throttle_table_
+-      GUARDED_BY(throttle_table_mtx_);
++      ABSL_GUARDED_BY(throttle_table_mtx_);
+   absl::Mutex throttle_table_mtx_;
+ 
+   int32_t max_delivery_attempts_{MixAll::DEFAULT_MAX_DELIVERY_ATTEMPTS};
+@@ -216,9 +216,9 @@
+   std::uintptr_t collect_stats_handle_{0};
+   static const char* COLLECT_STATS_TASK_NAME;
+ 
+-  void fetchRoutes() LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
+-
+-  void collectCacheStats() LOCKS_EXCLUDED(process_queue_table_mtx_);
++  void fetchRoutes() ABSL_LOCKS_EXCLUDED(topic_filter_expression_table_mtx_);
++
++  void collectCacheStats() ABSL_LOCKS_EXCLUDED(process_queue_table_mtx_);
+ 
+   friend class ConsumeMessageService;
+   friend class ConsumeFifoMessageService;
+--- a/cpp/source/rocketmq/include/SimpleConsumerImpl.h
++++ b/cpp/source/rocketmq/include/SimpleConsumerImpl.h
+@@ -42,9 +42,9 @@
+ 
+   void shutdown() noexcept override;
+ 
+-  void subscribe(std::string topic, FilterExpression expression) LOCKS_EXCLUDED(subscriptions_mtx_);
++  void subscribe(std::string topic, FilterExpression expression) ABSL_LOCKS_EXCLUDED(subscriptions_mtx_);
+ 
+-  void unsubscribe(const std::string& topic) LOCKS_EXCLUDED(subscriptions_mtx_);
++  void unsubscribe(const std::string& topic) ABSL_LOCKS_EXCLUDED(subscriptions_mtx_);
+ 
+   void receive(std::size_t limit, std::chrono::milliseconds invisible_duration, ReceiveCallback callback);
+ 
+@@ -64,14 +64,14 @@
+   void topicsOfInterest(std::vector<std::string> &topics) override;
+ 
+ private:
+-  absl::flat_hash_map<std::string, FilterExpression> subscriptions_ GUARDED_BY(subscriptions_mtx_);
++  absl::flat_hash_map<std::string, FilterExpression> subscriptions_ ABSL_GUARDED_BY(subscriptions_mtx_);
+   mutable absl::Mutex subscriptions_mtx_;
+ 
+-  absl::flat_hash_map<std::string, std::vector<rmq::Assignment>> topic_assignments_ GUARDED_BY(topic_assignments_mtx_);
++  absl::flat_hash_map<std::string, std::vector<rmq::Assignment>> topic_assignments_ ABSL_GUARDED_BY(topic_assignments_mtx_);
+   absl::Mutex topic_assignments_mtx_;
+ 
+   std::vector<rmq::Assignment> assignments_;
+-  absl::Mutex assignments_mtx_ ACQUIRED_AFTER(topic_assignments_mtx_);
++  absl::Mutex assignments_mtx_ ABSL_ACQUIRED_AFTER(topic_assignments_mtx_);
+ 
+   std::size_t refresh_assignment_task_{0};
+ 
+@@ -79,18 +79,18 @@
+ 
+   std::chrono::milliseconds long_polling_duration_{MixAll::DefaultReceiveMessageTimeout};
+ 
+-  void refreshAssignments0() LOCKS_EXCLUDED(topic_assignments_mtx_, subscriptions_mtx_);
++  void refreshAssignments0() ABSL_LOCKS_EXCLUDED(topic_assignments_mtx_, subscriptions_mtx_);
+ 
+-  void refreshAssignments() LOCKS_EXCLUDED(subscriptions_mtx_);
++  void refreshAssignments() ABSL_LOCKS_EXCLUDED(subscriptions_mtx_);
+ 
+   void refreshAssignment(const std::string& topic, std::function<void(const std::error_code&)> cb);
+ 
+   void updateAssignments(const std::string& topic, const std::vector<rmq::Assignment>& assignments)
+-      LOCKS_EXCLUDED(assignments_mtx_, topic_assignments_mtx_);
++      ABSL_LOCKS_EXCLUDED(assignments_mtx_, topic_assignments_mtx_);
+ 
+   void wrapAckRequest(const Message& message, AckMessageRequest& request);
+ 
+-  void removeAssignmentsByTopic(const std::string& topic) LOCKS_EXCLUDED(topic_assignments_mtx_, assignments_mtx_);
++  void removeAssignmentsByTopic(const std::string& topic) ABSL_LOCKS_EXCLUDED(topic_assignments_mtx_, assignments_mtx_);
+ 
+   absl::optional<FilterExpression> getFilterExpression(const std::string &topic) const;
+ };
+--- a/cpp/source/rocketmq/include/TopicPublishInfo.h
++++ b/cpp/source/rocketmq/include/TopicPublishInfo.h
+@@ -35,7 +35,7 @@
+   TopicPublishInfo(std::weak_ptr<ProducerImpl> producer, absl::string_view topic, TopicRouteDataPtr topic_route_data);
+ 
+   bool selectMessageQueues(absl::optional<std::string> message_group, std::vector<rmq::MessageQueue>& result)
+-      LOCKS_EXCLUDED(queue_list_mtx_);
++      ABSL_LOCKS_EXCLUDED(queue_list_mtx_);
+ 
+   void topicRouteData(TopicRouteDataPtr topic_route_data);
+ 
+@@ -44,10 +44,10 @@
+    *
+    * @return
+    */
+-  std::vector<rmq::MessageQueue> getMessageQueueList() LOCKS_EXCLUDED(queue_list_mtx_);
++  std::vector<rmq::MessageQueue> getMessageQueueList() ABSL_LOCKS_EXCLUDED(queue_list_mtx_);
+ 
+ private:
+-  std::vector<rmq::MessageQueue> queue_list_ GUARDED_BY(queue_list_mtx_);
++  std::vector<rmq::MessageQueue> queue_list_ ABSL_GUARDED_BY(queue_list_mtx_);
+   absl::Mutex                                queue_list_mtx_;  // protects message_queue_list_
+   std::weak_ptr<ProducerImpl>                producer_;
+   std::string                                topic_;
+--- a/cpp/source/rocketmq/include/TransactionImpl.h
++++ b/cpp/source/rocketmq/include/TransactionImpl.h
+@@ -47,14 +47,14 @@
+ 
+   bool rollback() override;
+ 
+-  void appendMiniTransaction(MiniTransaction mini_transaction) LOCKS_EXCLUDED(pending_transactions_mtx_) {
++  void appendMiniTransaction(MiniTransaction mini_transaction) ABSL_LOCKS_EXCLUDED(pending_transactions_mtx_) {
+     absl::MutexLock lk(&pending_transactions_mtx_);
+     pending_transactions_.emplace_back(std::move(mini_transaction));
+   }
+ 
+ private:
+   std::weak_ptr<ProducerImpl> producer_;
+-  std::vector<MiniTransaction> pending_transactions_ GUARDED_BY(pending_transactions_mtx_);
++  std::vector<MiniTransaction> pending_transactions_ ABSL_GUARDED_BY(pending_transactions_mtx_);
+   absl::Mutex pending_transactions_mtx_;
+ };
+ 
+--- a/cpp/source/rocketmq/tests/FifoProducerPartitionTest.cpp
++++ b/cpp/source/rocketmq/tests/FifoProducerPartitionTest.cpp
+@@ -198,7 +198,7 @@
+ 
+   absl::Mutex mtx_;
+   absl::CondVar cv_;
+-  int send_count_ GUARDED_BY(mtx_) = 0;
++  int send_count_ ABSL_GUARDED_BY(mtx_) = 0;
+   std::vector<std::error_code> results_;
+ };
+ 
+--- a/cpp/source/rocketmq/tests/ProducerImplTest.cpp
++++ b/cpp/source/rocketmq/tests/ProducerImplTest.cpp
+@@ -167,7 +167,7 @@
+ 
+   absl::Mutex mtx_;
+   absl::CondVar cv_;
+-  int send_count_ GUARDED_BY(mtx_) = 0;
++  int send_count_ ABSL_GUARDED_BY(mtx_) = 0;
+ };
+ 
+ // Test 1: Sending a message with an empty body should fail with MessageBodyEmpty
+--- a/cpp/source/scheduler/include/SchedulerImpl.h
++++ b/cpp/source/scheduler/include/SchedulerImpl.h
+@@ -52,7 +52,7 @@
+ 
+   void start() override;
+ 
+-  void shutdown() override LOCKS_EXCLUDED(tasks_mtx_);
++  void shutdown() override ABSL_LOCKS_EXCLUDED(tasks_mtx_);
+ 
+   /**
+    * @functor Pointer to the functor. Lifecycle of this functor should be maintained by the caller.
+@@ -62,13 +62,13 @@
+    */
+   std::uint32_t schedule(const std::function<void(void)>& functor, const std::string& task_name,
+                          std::chrono::milliseconds delay, std::chrono::milliseconds interval) override
+-      LOCKS_EXCLUDED(tasks_mtx_);
++      ABSL_LOCKS_EXCLUDED(tasks_mtx_);
+ 
+   /**
+    * Note:
+    * Periodic tasks should be explicitly cancelled once they are no longer needed.
+    */
+-  void cancel(std::uint32_t task_id) override LOCKS_EXCLUDED(tasks_mtx_);
++  void cancel(std::uint32_t task_id) override ABSL_LOCKS_EXCLUDED(tasks_mtx_);
+ 
+ private:
+   asio::io_context context_;
+@@ -79,7 +79,7 @@
+   std::vector<std::thread> threads_;
+   std::atomic<State> state_{State::CREATED};
+ 
+-  absl::flat_hash_map<std::uint32_t, std::shared_ptr<TimerTask>> tasks_ GUARDED_BY(tasks_mtx_);
++  absl::flat_hash_map<std::uint32_t, std::shared_ptr<TimerTask>> tasks_ ABSL_GUARDED_BY(tasks_mtx_);
+   absl::Mutex tasks_mtx_;
+ 
+   static void execute(const asio::error_code& ec, std::weak_ptr<TimerTask> task);
+--- a/cpp/source/stats/include/MetricBidiReactor.h
++++ b/cpp/source/stats/include/MetricBidiReactor.h
+@@ -61,7 +61,7 @@
+   /// \param[in] s The status outcome of this RPC
+   void OnDone(const grpc::Status & /*s*/) override;
+ 
+-  void write(ExportMetricsServiceRequest request) LOCKS_EXCLUDED(requests_mtx_);
++  void write(ExportMetricsServiceRequest request) ABSL_LOCKS_EXCLUDED(requests_mtx_);
+ 
+ private:
+   std::weak_ptr<Client> client_;
+@@ -69,7 +69,7 @@
+   grpc::ClientContext context_;
+ 
+   /// Pending ExportMetricsServiceRequest items to write to server
+-  std::list<ExportMetricsServiceRequest> requests_ GUARDED_BY(requests_mtx_);
++  std::list<ExportMetricsServiceRequest> requests_ ABSL_GUARDED_BY(requests_mtx_);
+   absl::Mutex requests_mtx_;
+ 
+   std::atomic_bool inflight_{false};

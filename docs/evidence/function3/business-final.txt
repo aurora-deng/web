@@ -1,0 +1,4 @@
+Verified certificate, ALPN=h2, two authenticated business streams and sibling RST_STREAM passed
+{"passed": true, "post": "16", "rankVersion": "418", "announcement": "11", "coverage": ["auth/CSRF", "real PNG/WAV decode", "malformed/long audio rejection", "media ownership", "persistent idempotency", "likes/replies", "rank/announcement", "MQ/TTS both voices", "playback claim dedup", "report/hide/old media URL", "session revocation"]}
+Started isolated current PID 78486 HTTP 18094 / HTTPS 18443
+{"passed": true, "coverage": ["Broker paused", "HTTP accepted without waiting for MQ", "retry/dead", "audited replay", "app SIGKILL", "restart dedup", "pending event recovery"]}

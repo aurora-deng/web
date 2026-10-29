@@ -10,10 +10,10 @@
 rg "\[CLOSE\]"   # 日志格式: fd= connId= reason= initiator=
 
 # 出站入队/拒绝
-rg "enqueueOutbound|Backpressure|outbound queue" server/
+rg "enqueueOutbound|Backpressure|outbound queue" backend/server/
 
 # 协议升级
-rg "handoffWebSocket|createWebSocketSession" server/
+rg "handoffWebSocket|createWebSocketSession" backend/server/
 ```
 
 ## 症状对照表

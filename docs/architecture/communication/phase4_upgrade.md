@@ -10,7 +10,7 @@
 
 ### 1.1 目标
 
-1. 引入协议无关的 **Session** 基类（`server/session/Session/Session.h`，纯虚 `run()` + `onTimeout()`/`onClose()` 生命周期钩子），使 HTTP 与 WebSocket 可并列扩展。
+1. 引入协议无关的 **Session** 基类（`backend/server/session/Session/Session.h`，纯虚 `run()` + `onTimeout()`/`onClose()` 生命周期钩子），使 HTTP 与 WebSocket 可并列扩展。
 2. 在既有 `ServerRuntime → ReactorGroup → SubReactor → Connection` 上，支持 **HTTP 握手升级 → WebSocket 会话交接 → 帧循环**。
 3. 业务通过路由 `ctx.acceptWebSocket()` 显式接受升级；通过 `WebSocketDispatcher::on(type, handler)` 注册业务分发；通过 `WebSocketSessionManager` 实现跨 Reactor 主动推送（点对点聊天）。
 4. 用统一的 **出站任务体系（OutboundTask + OutboundQueue + TransportWriter + writerLoop）** 取代旧版 HTTP 专用发送器，承载 HTTP 响应与 WS 帧的出站发送，支持 writev 聚集、sendfile 零拷贝与背压。
@@ -162,63 +162,63 @@ A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
 
 ## 三、新增文件清单（按模块分组）
 
-### 3.1 传输出站任务体系（`server/transport/`）
+### 3.1 传输出站任务体系（`backend/server/transport/`）
 
 | 路径 | 作用 |
 |------|------|
-| [`transport/OutboundTask.h`](../../../server/transport/OutboundTask.h) | `OutboundTask`（payload 为 `variant<EncodedBufferTask, SharedEncodedBufferTask, HttpStreamTask>`）；静态工厂 `encoded`/`http`/`sharedEncoded`；`OutboundCompletion` 枚举；`PooledHttpResponse`（RAII 归还对象池） |
-| [`transport/OutboundTask.cpp`](../../../server/transport/OutboundTask.cpp) | 移动语义 + `remainingBytes()` |
-| [`transport/OutboundQueue.h`](../../../server/transport/OutboundQueue.h) | `OutboundQueue`（2.0 新增）：本线程 `enqueue` + 跨线程 `post` + `processPending`；回调注入解耦 SubReactor |
-| [`transport/OutboundQueue.cpp`](../../../server/transport/OutboundQueue.cpp) | 跨线程 pending 队列 + connId 代际校验 |
-| [`transport/TransportWriter.h`](../../../server/transport/TransportWriter.h) | `TransportWriter`（持 `SegmentPool&`+`TimerWheel&`）；`EnqueueResult`/`FlushStatus` 枚举；`enqueue`/`flush`；内部 `flushEncoded`（writev 聚集）/`flushHttp`（sendfile+writev）；背压常量 |
-| [`transport/TransportWriter.cpp`](../../../server/transport/TransportWriter.cpp) | writev 聚集 / sendfile / 高低水位背压实现 |
-| [`transport/Connection.h`](../../../server/transport/Connection.h) | `ConnTransport`（`deque<OutboundTask>` + `pendingWriteBytes` + tickets + `pauseByWrite`）+ `ConnTimer` + `Connection`（聚合 + `shared_ptr<Session>` + `CoroutineSlots`） |
+| [`transport/OutboundTask.h`](../../../backend/server/transport/OutboundTask.h) | `OutboundTask`（payload 为 `variant<EncodedBufferTask, SharedEncodedBufferTask, HttpStreamTask>`）；静态工厂 `encoded`/`http`/`sharedEncoded`；`OutboundCompletion` 枚举；`PooledHttpResponse`（RAII 归还对象池） |
+| [`transport/OutboundTask.cpp`](../../../backend/server/transport/OutboundTask.cpp) | 移动语义 + `remainingBytes()` |
+| [`transport/OutboundQueue.h`](../../../backend/server/transport/OutboundQueue.h) | `OutboundQueue`（2.0 新增）：本线程 `enqueue` + 跨线程 `post` + `processPending`；回调注入解耦 SubReactor |
+| [`transport/OutboundQueue.cpp`](../../../backend/server/transport/OutboundQueue.cpp) | 跨线程 pending 队列 + connId 代际校验 |
+| [`transport/TransportWriter.h`](../../../backend/server/transport/TransportWriter.h) | `TransportWriter`（持 `SegmentPool&`+`TimerWheel&`）；`EnqueueResult`/`FlushStatus` 枚举；`enqueue`/`flush`；内部 `flushEncoded`（writev 聚集）/`flushHttp`（sendfile+writev）；背压常量 |
+| [`transport/TransportWriter.cpp`](../../../backend/server/transport/TransportWriter.cpp) | writev 聚集 / sendfile / 高低水位背压实现 |
+| [`transport/Connection.h`](../../../backend/server/transport/Connection.h) | `ConnTransport`（`deque<OutboundTask>` + `pendingWriteBytes` + tickets + `pauseByWrite`）+ `ConnTimer` + `Connection`（聚合 + `shared_ptr<Session>` + `CoroutineSlots`） |
 
-### 3.2 会话基类（`server/session/`）
+### 3.2 会话基类（`backend/server/session/`）
 
 | 路径 | 作用 |
 |------|------|
-| [`session/Session/Session.h`](../../../server/session/Session/Session.h) | 协议抽象基类：纯虚 `run()` + `onTimeout()`/`onClose()` 生命周期钩子。**唯一的协议抽象基类**，不存在 ProtocolCodec/Sender 基类 |
+| [`session/Session/Session.h`](../../../backend/server/session/Session/Session.h) | 协议抽象基类：纯虚 `run()` + `onTimeout()`/`onClose()` 生命周期钩子。**唯一的协议抽象基类**，不存在 ProtocolCodec/Sender 基类 |
 
 ### 3.3 WebSocket 协议层五件套
 
 | 路径 | 作用 |
 |------|------|
-| [`websocket/WebSocketTypes/WebSocketTypes.h`](../../../server/websocket/WebSocketTypes/WebSocketTypes.h) | `WsOpcode` / `WsDecodeResult` / `WsFrame` / `WsCloseCode` |
-| [`websocket/WebSocketTypes/UserId.h`](../../../server/websocket/WebSocketTypes/UserId.h) | `using UserId = uint64_t;` |
-| [`websocket/WebSocketHandshake/WebSocketHandshake.{h,cpp}`](../../../server/websocket/WebSocketHandshake/WebSocketHandshake.h) | `isUpgradeRequest` / `validate` / `fillResponse`(101) / `computeAcceptKey`；内置 SHA-1+Base64（无 OpenSSL） |
-| [`websocket/WebSocketParser/WebSocketParser.{h,cpp}`](../../../server/websocket/WebSocketParser/WebSocketParser.h) | 帧解析状态机 `BASE_HEADER→EXT_LENGTH→MASK_KEY→PAYLOAD→COMPLETE`；组合 4 个子解析器（栈上成员） |
-| [`websocket/WebSocketParser/FrameHeaderParser.h`](../../../server/websocket/WebSocketParser/FrameHeaderParser.h) | 基础 2 字节头拆解 |
-| [`websocket/WebSocketParser/ExtendedLengthParser.h`](../../../server/websocket/WebSocketParser/ExtendedLengthParser.h) | 126/127 扩展长度展开 |
-| [`websocket/WebSocketParser/MaskKeyParser.h`](../../../server/websocket/WebSocketParser/MaskKeyParser.h) | 4 字节掩码密钥收取 |
-| [`websocket/WebSocketParser/PayloadParser.h`](../../../server/websocket/WebSocketParser/PayloadParser.h) | payload 取出 + 解掩码 |
-| [`websocket/WebSocketParser/ParserUtils.h`](../../../server/websocket/WebSocketParser/ParserUtils.h) | `kWsMaxPayloadBytes=1MB` / `WsParseContext` / `applyWsMask` / `isWsControlOpcode` |
-| [`websocket/WebSocketCodec/WebSocketCodec.{h,cpp}`](../../../server/websocket/WebSocketCodec/WebSocketCodec.h) | `class WebSocketCodec`（无继承）：`decode` 委托 Parser、`messageFromFrame`、`dispatch` 委托 Dispatcher、`encode`+静态 `encodeText/Binary/Close/Ping/Pong`（服务端发帧不掩码）；构造绑定 `WebSocketDispatcher&` |
+| [`websocket/WebSocketTypes/WebSocketTypes.h`](../../../backend/server/websocket/WebSocketTypes/WebSocketTypes.h) | `WsOpcode` / `WsDecodeResult` / `WsFrame` / `WsCloseCode` |
+| [`websocket/WebSocketTypes/UserId.h`](../../../backend/server/websocket/WebSocketTypes/UserId.h) | `using UserId = uint64_t;` |
+| [`websocket/WebSocketHandshake/WebSocketHandshake.{h,cpp}`](../../../backend/server/websocket/WebSocketHandshake/WebSocketHandshake.h) | `isUpgradeRequest` / `validate` / `fillResponse`(101) / `computeAcceptKey`；内置 SHA-1+Base64（无 OpenSSL） |
+| [`websocket/WebSocketParser/WebSocketParser.{h,cpp}`](../../../backend/server/websocket/WebSocketParser/WebSocketParser.h) | 帧解析状态机 `BASE_HEADER→EXT_LENGTH→MASK_KEY→PAYLOAD→COMPLETE`；组合 4 个子解析器（栈上成员） |
+| [`websocket/WebSocketParser/FrameHeaderParser.h`](../../../backend/server/websocket/WebSocketParser/FrameHeaderParser.h) | 基础 2 字节头拆解 |
+| [`websocket/WebSocketParser/ExtendedLengthParser.h`](../../../backend/server/websocket/WebSocketParser/ExtendedLengthParser.h) | 126/127 扩展长度展开 |
+| [`websocket/WebSocketParser/MaskKeyParser.h`](../../../backend/server/websocket/WebSocketParser/MaskKeyParser.h) | 4 字节掩码密钥收取 |
+| [`websocket/WebSocketParser/PayloadParser.h`](../../../backend/server/websocket/WebSocketParser/PayloadParser.h) | payload 取出 + 解掩码 |
+| [`websocket/WebSocketParser/ParserUtils.h`](../../../backend/server/websocket/WebSocketParser/ParserUtils.h) | `kWsMaxPayloadBytes=1MB` / `WsParseContext` / `applyWsMask` / `isWsControlOpcode` |
+| [`websocket/WebSocketCodec/WebSocketCodec.{h,cpp}`](../../../backend/server/websocket/WebSocketCodec/WebSocketCodec.h) | `class WebSocketCodec`（无继承）：`decode` 委托 Parser、`messageFromFrame`、`dispatch` 委托 Dispatcher、`encode`+静态 `encodeText/Binary/Close/Ping/Pong`（服务端发帧不掩码）；构造绑定 `WebSocketDispatcher&` |
 
 ### 3.4 WebSocket 业务层三件套（旧文档完全缺失）
 
 | 路径 | 作用 |
 |------|------|
-| [`websocket/WebSocketMessage/WebSocketMessage.h`](../../../server/websocket/WebSocketMessage/WebSocketMessage.h) | 应用信封：`v/type/id/replyTo/status/attempt/text/from/to/ack` + `payload()` / `isBinary()` |
-| [`websocket/WebSocketDispatcher/WebSocketDispatcher.{h,cpp}`](../../../server/websocket/WebSocketDispatcher/WebSocketDispatcher.h) | `WsHandler = function<bool(WsMessageContext&)>`；`on(type, handler)` / `onDefault(handler)` / `dispatch(ctx)`（先精确 type，再 fallback default） |
-| [`websocket/WebSocketDispatcher/WsMessageContext.h`](../../../server/websocket/WebSocketDispatcher/WsMessageContext.h) | `struct WsMessageContext { inbound; outbound; hasOutbound; keepConnection; uid; session*; manager*; }` |
-| [`websocket/WebSocketSessionManager/WebSocketSessionManager.{h,cpp}`](../../../server/websocket/WebSocketSessionManager/WebSocketSessionManager.h) | 全局会话目录 `unordered_map<UserId, Locator>`；`bind` / `registerSession` / `unregister` / `sendEncoded` / `sendText` / `broadcastText`（sharedEncoded 共享帧）/ `onlineCount` |
-| [`websocket/WebSocketDelivery/WebSocketDeliveryTracker.{h,cpp}`](../../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h) | 应用层消息 ID、ACK 归属校验、幂等窗口与超时重试决策；不执行 I/O |
-| [`websocket/WebSocketDelivery/WebSocketDeliveryService.{h,cpp}`](../../../server/websocket/WebSocketDelivery/WebSocketDeliveryService.h) | 观察最终写回执、周期自动重试、失败通知与 stop/join 生命周期 |
+| [`websocket/WebSocketMessage/WebSocketMessage.h`](../../../backend/server/websocket/WebSocketMessage/WebSocketMessage.h) | 应用信封：`v/type/id/replyTo/status/attempt/text/from/to/ack` + `payload()` / `isBinary()` |
+| [`websocket/WebSocketDispatcher/WebSocketDispatcher.{h,cpp}`](../../../backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.h) | `WsHandler = function<bool(WsMessageContext&)>`；`on(type, handler)` / `onDefault(handler)` / `dispatch(ctx)`（先精确 type，再 fallback default） |
+| [`websocket/WebSocketDispatcher/WsMessageContext.h`](../../../backend/server/websocket/WebSocketDispatcher/WsMessageContext.h) | `struct WsMessageContext { inbound; outbound; hasOutbound; keepConnection; uid; session*; manager*; }` |
+| [`websocket/WebSocketSessionManager/WebSocketSessionManager.{h,cpp}`](../../../backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.h) | 全局会话目录 `unordered_map<UserId, Locator>`；`bind` / `registerSession` / `unregister` / `sendEncoded` / `sendText` / `broadcastText`（sharedEncoded 共享帧）/ `onlineCount` |
+| [`websocket/WebSocketDelivery/WebSocketDeliveryTracker.{h,cpp}`](../../../backend/server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h) | 应用层消息 ID、ACK 归属校验、幂等窗口与超时重试决策；不执行 I/O |
+| [`websocket/WebSocketDelivery/WebSocketDeliveryService.{h,cpp}`](../../../backend/server/websocket/WebSocketDelivery/WebSocketDeliveryService.h) | 观察最终写回执、周期自动重试、失败通知与 stop/join 生命周期 |
 
 ### 3.5 WebSocket 会话层
 
 | 路径 | 作用 |
 |------|------|
-| [`websocket/WebSocketSession/WebSocketSession.{h,cpp}`](../../../server/websocket/WebSocketSession/WebSocketSession.h) | `run()` 帧循环；`startAppMessage/finishAppMessage` 跨 Executor 两段式业务处理；`enqueueOutbound` 出站 |
-| [`session/ProtocolSessionFactory.{h,cpp}`](../../../server/session/ProtocolSessionFactory.h) | 本阶段曾使用 `WebSocketSessionFactory`；接入 SSE 后改为 `ProtocolSessionFactory`，继续承担 `SessionFactory` 的具体装配 |
+| [`websocket/WebSocketSession/WebSocketSession.{h,cpp}`](../../../backend/server/websocket/WebSocketSession/WebSocketSession.h) | `run()` 帧循环；`startAppMessage/finishAppMessage` 跨 Executor 两段式业务处理；`enqueueOutbound` 出站 |
+| [`session/ProtocolSessionFactory.{h,cpp}`](../../../backend/server/session/ProtocolSessionFactory.h) | 本阶段曾使用 `WebSocketSessionFactory`；接入 SSE 后改为 `ProtocolSessionFactory`，继续承担 `SessionFactory` 的具体装配 |
 
 ### 3.6 其它
 
 | 路径 | 作用 |
 |------|------|
-| [`CoroutineScheduler/CoroutineSlot.h`](../../../server/CoroutineScheduler/CoroutineSlot.h) | `CoroutineSlots`（Reader/Writer/Executor 槽位），供 `Connection` 持有 |
-| [`common/Units.h`](../../../server/common/Units.h) | `server/common/` 新目录；通用单位/常量 |
+| [`CoroutineScheduler/CoroutineSlot.h`](../../../backend/server/CoroutineScheduler/CoroutineSlot.h) | `CoroutineSlots`（Reader/Writer/Executor 槽位），供 `Connection` 持有 |
+| [`common/Units.h`](../../../backend/server/common/Units.h) | `backend/server/common/` 新目录；通用单位/常量 |
 
 ---
 
@@ -226,7 +226,7 @@ A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
 
 ### 4.1 SubReactor
 
-**路径**：[`server/SubReactor/SubReactor.h`](../../../server/SubReactor/SubReactor.h) / [`SubReactor.cpp`](../../../server/SubReactor/SubReactor.cpp)
+**路径**：[`backend/server/SubReactor/SubReactor.h`](../../../backend/server/SubReactor/SubReactor.h) / [`SubReactor.cpp`](../../../backend/server/SubReactor/SubReactor.cpp)
 
 | 改动 | 作用 |
 |------|------|
@@ -241,7 +241,7 @@ A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
 
 ### 4.2 ReactorGroup
 
-**路径**：[`server/Reactor/ReactorGroup.h`](../../../server/Reactor/ReactorGroup.h) / [`ReactorGroup.cpp`](../../../server/Reactor/ReactorGroup.cpp)
+**路径**：[`backend/server/Reactor/ReactorGroup.h`](../../../backend/server/Reactor/ReactorGroup.h) / [`ReactorGroup.cpp`](../../../backend/server/Reactor/ReactorGroup.cpp)
 
 | 改动 | 作用 |
 |------|------|
@@ -252,7 +252,7 @@ A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
 
 ### 4.3 ServerRuntime
 
-**路径**：[`server/Runtime/ServerRuntime.h`](../../../server/Runtime/ServerRuntime.h) / [`ServerRuntime.cpp`](../../../server/Runtime/ServerRuntime.cpp)
+**路径**：[`backend/server/Runtime/ServerRuntime.h`](../../../backend/server/Runtime/ServerRuntime.h) / [`ServerRuntime.cpp`](../../../backend/server/Runtime/ServerRuntime.cpp)
 
 | 改动 | 作用 |
 |------|------|
@@ -263,7 +263,7 @@ A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
 
 ### 4.4 HttpSession
 
-**路径**：[`server/http/HttpSession/HttpSession.h`](../../../server/http/HttpSession/HttpSession.h) / [`HttpSession.cpp`](../../../server/http/HttpSession/HttpSession.cpp)
+**路径**：[`backend/server/http/HttpSession/HttpSession.h`](../../../backend/server/http/HttpSession/HttpSession.h) / [`HttpSession.cpp`](../../../backend/server/http/HttpSession/HttpSession.cpp)
 
 | 改动 | 作用 |
 |------|------|
@@ -278,9 +278,9 @@ A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
 
 | 文件 | 改动 | 作用 |
 |------|------|------|
-| [`RequestContext.h`](../../../server/http/RequestContext/RequestContext.h) | `fd=-1`；新增 `webSocketAccepted` + `acceptWebSocket()` | 升级意图标志 |
-| [`http.cpp`](../../../server/http/http.cpp) | `buildHeader`：`hasConnection` 检测 + `status==101` 跳过 Content-Length | 保留 `Connection: Upgrade`，符合 Switching Protocols 无体语义 |
-| [`HttpCodec.h`](../../../server/http/HttpCodec/HttpCodec.h) | `class HttpCodec`（无继承）；`HttpCodec(Router&)` | 旧文档"继承 ProtocolCodec"为错误描述 |
+| [`RequestContext.h`](../../../backend/server/http/RequestContext/RequestContext.h) | `fd=-1`；新增 `webSocketAccepted` + `acceptWebSocket()` | 升级意图标志 |
+| [`http.cpp`](../../../backend/server/http/http.cpp) | `buildHeader`：`hasConnection` 检测 + `status==101` 跳过 Content-Length | 保留 `Connection: Upgrade`，符合 Switching Protocols 无体语义 |
+| [`HttpCodec.h`](../../../backend/server/http/HttpCodec/HttpCodec.h) | `class HttpCodec`（无继承）；`HttpCodec(Router&)` | 旧文档"继承 ProtocolCodec"为错误描述 |
 | [`main.cpp`](../../../main.cpp) | `/ws` 路由 + `wsDispatcher().on("chat",...)` + `onDefault(echo)` | 暴露 WS 端点与点对点聊天 |
 | [`CMakeLists.txt`](../../../CMakeLists.txt) | webserver_core 分 4 组源文件 + 6 个测试 | 构建系统对齐 |
 
@@ -293,7 +293,7 @@ A(Reactor0) ──Text 帧 {"type":"chat","to":B,"content":"hi"}──►
 ### 5.1 OutboundTask：协议无关的出站任务
 
 ```cpp
-// server/transport/OutboundTask.h
+// backend/server/transport/OutboundTask.h
 struct EncodedBufferTask      { std::string bytes; std::size_t offset = 0; };  // WS 帧 / 已编码字节
 struct SharedEncodedBufferTask { std::shared_ptr<const std::string> bytes;       // 广播共享同一帧
                                  std::size_t offset = 0; };
@@ -385,7 +385,7 @@ writerLoop 协程循环:
 ### 5.5 SessionManager Locator：跨 Reactor 定位
 
 ```cpp
-// server/websocket/WebSocketSessionManager/WebSocketSessionManager.h
+// backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.h
 struct Locator {
     std::weak_ptr<WebSocketSession> session;  // 弱引用：Session 销毁自动失效，无循环引用
     size_t reactorIndex = 0;                  // 所在 SubReactor 下标（postOutbound 据此定位线程）
@@ -494,7 +494,7 @@ websocat "ws://127.0.0.1:8080/ws?uid=1002"   # B（另一终端）
 web-test6.1/
 ├── main.cpp                          # + /ws 路由 + wsDispatcher on("chat")/onDefault
 ├── CMakeLists.txt                    # webserver_core 分 4 组源文件 + 6 测试
-├── server/
+├── backend/server/
 │   ├── transport/                    # 【整目录新增】出站任务体系
 │   │   ├── OutboundTask.{h,cpp}      #   出站任务抽象（variant 三态）
 │   │   ├── OutboundQueue.{h,cpp}     #   出站投递窗口（2.0 新增：enqueue/post/processPending）

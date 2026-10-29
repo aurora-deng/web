@@ -1,0 +1,41 @@
+/* 公共界面使用语义色；3D 材质通过 nebula:theme 事件单独调整。 */
+:root{--nav-bg:#101521f2;--nav-text:#dce4ef;--nav-muted:#a5b1c4;--nav-border:#ffffff17;--nav-panel:#1b2231;--nav-hover:#ffffff09}
+:root[data-theme=light]{--nav-bg:#fffffff2;--nav-text:#30394d;--nav-muted:#626f85;--nav-border:#23365224;--nav-panel:#fff;--nav-hover:#6e68cc0c}
+html[data-theme=light] body[data-workspace=assistant]{background:#eff1f7}
+html[data-theme=light] .speech-settings{background:#fff;color:#30394d;border-color:#d7dce8}
+html[data-theme=light] .speech-settings p,html[data-theme=light] .speech-settings label{color:#5c6981}
+html[data-theme=light] .speech-settings input:not([type=checkbox]),html[data-theme=light] .speech-settings select{background:#f7f8fc;color:#30394d;border-color:#d7dce8}
+html[data-theme=light] .speech-settings .speech-limit{background:#f0f1fa}
+html[data-theme=light] .speech-settings [role=status]{color:#5146a1}
+
+html[data-theme=light]:has(body[data-workspace=tree]){color:#353044;background:#f4f0f5;--muted:#736d82;--line:#5c45651b;--panel:#fff;--rose:#805374}
+html[data-theme=light] body[data-workspace=tree]{color:#353044;background:#f4f0f5}
+html[data-theme=light] .community-sidebar{background:#fbf9fc;color:#595067}
+html[data-theme=light] .community-logo,html[data-theme=light] .community-sidebar nav button.active{color:#825374}
+html[data-theme=light] .community-sidebar nav button{color:#75667f}
+html[data-theme=light] .sidebar-note p{color:#8e7995}
+html[data-theme=light] .tree-stage{background:radial-gradient(ellipse at 56% 45%,#fef6f5,#ece5f1 55%,#e1dce9);border-color:#9a82a324}
+html[data-theme=light] .scene-vignette{background:linear-gradient(90deg,#ebe5f05e,transparent 37%),linear-gradient(0deg,#e4dfefcc,transparent 25%)}
+html[data-theme=light] .scene-heading h2{color:#67516d}html[data-theme=light] .scene-heading h2 span{color:#ab5a85}
+html[data-theme=light] .scene-heading p,html[data-theme=light] .scene-badge,html[data-theme=light] .scene-meta,html[data-theme=light] .scene-bottom>span{color:#796683}
+html[data-theme=light] .scene-controls button{background:#ffffffe0;color:#725776}
+html[data-theme=light] .post-card,html[data-theme=light] .rank-panel{background:#fff}
+html[data-theme=light] body[data-workspace=tree] button:not(.primary):not(.publish-entry){color:#695e79;border-color:#806d9129}
+html[data-theme=light] body[data-workspace=tree] button:hover:not(:disabled){color:#784673;background:#8a6f9b12}
+html[data-theme=light] body[data-workspace=tree] input,html[data-theme=light] body[data-workspace=tree] textarea,html[data-theme=light] body[data-workspace=tree] select{background:#faf8fc;color:#3e354c;border-color:#86719033}
+html[data-theme=light] body[data-workspace=tree] dialog{background:#fff;color:#3e354c;border-color:#86719033}
+html[data-theme=light] .post-body,html[data-theme=light] .reply p{color:#574e64}
+html[data-theme=light] .author-copy strong,html[data-theme=light] .comments-heading h3{color:#564260}
+html[data-theme=light] .rank-panel li span{color:#655b72}html[data-theme=light] .reply-name{color:#855f90}
+html[data-theme=light] .scene-bottom button{color:#895c81}
+
+html[data-theme=light]:has(body[data-workspace=admin]){background:#f2f4f9;color:#30394d;--line:#dce1eb;--muted:#68768b}
+html[data-theme=light] body[data-workspace=admin]{background:#f2f4f9;color:#30394d}
+html[data-theme=light] body[data-workspace=admin]>aside{background:#fff;border-color:#dce1eb}
+html[data-theme=light] body[data-workspace=admin] .content{background:#fff}
+html[data-theme=light] body[data-workspace=admin] th{background:#edf0f8;color:#637089}
+html[data-theme=light] body[data-workspace=admin] td{border-color:#e6e9f1}
+html[data-theme=light] body[data-workspace=admin] button,html[data-theme=light] body[data-workspace=admin] select{background:#f1f3fa;color:#525e78;border-color:#d1d8e7}
+html[data-theme=light] body[data-workspace=admin] .selected{background:#e7e5fa!important;color:#5e53a8!important}
+html[data-theme=light] body[data-workspace=admin] .notice{background:linear-gradient(100deg,#eeedfc,#eaf3f7);border-color:#d9deeb}
+html[data-theme=light] body[data-workspace=admin] .brand{color:#6860bd}

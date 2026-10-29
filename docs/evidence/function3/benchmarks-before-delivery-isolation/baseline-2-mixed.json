@@ -1,0 +1,54 @@
+{
+  "subscriptionReadySeconds": 0.049,
+  "configuration": {
+    "workers": 4,
+    "operations": 1200,
+    "httpListPercent": 50,
+    "historyPercent": 20,
+    "chatPercent": 30,
+    "residentSse": 4
+  },
+  "mixed": {
+    "name": "mixed-http-ws-sse",
+    "operations": 1200,
+    "units": 1200,
+    "elapsedSeconds": 2.53028,
+    "operationsPerSecond": 474.256,
+    "unitsPerSecond": 474.256,
+    "latencyMs": {
+      "average": 8.392,
+      "p50": 6.765,
+      "p95": 18.579,
+      "p99": 23.459,
+      "maximum": 30.136
+    },
+    "errors": 0,
+    "errorSamples": []
+  },
+  "durableChatAckMs": {
+    "p50": 8.29,
+    "p95": 14.008,
+    "p99": 17.623
+  },
+  "durableChatAckSamples": 360,
+  "resources": {
+    "available": true,
+    "samples": 12,
+    "rssKiB": {
+      "average": 30335.3,
+      "peak": 30504
+    },
+    "fileDescriptors": {
+      "average": 40.0,
+      "peak": 40
+    },
+    "threads": {
+      "average": 32.0,
+      "peak": 32
+    },
+    "cpuPercent": {
+      "average": 49.17,
+      "peak": 54.58
+    }
+  }
+}

@@ -1,5 +1,8 @@
 # 业务功能架构
 
+最新开发阶段：[Phase36 聊天布局与目录边界](phase36.md)、[Phase37 统一动态与个人主页](phase37.md)、[Phase38 Windows本机入口](phase38.md)、[Phase39 私人助手与确认行动](phase39.md)。后续语音和完整验收继续实施，不能把分项通过当成整套方案完成。
+
+
 本目录集中说明“用户能做什么，以及这些操作如何落到业务服务、Repository、数据库、实时通知和模型系统”。
 通信层负责送货，业务层负责判断这件货能不能收、应该写入哪些状态、之后通知谁。
 
@@ -69,14 +72,26 @@ flowchart TB
 ## 4. 代码区域
 
 ```text
-server/phase11/
+backend/application/
 ├─ domain/          用户、会话、消息、文件、知识、训练与模型实体
 ├─ ports/           Repository、事务、安全、索引和模型端口
 ├─ business/        Auth、Social、Chat、File、AiChat、Outbox 用例
 ├─ transport/       HTTP 路由、实时命令/事件、序列化契约
 ├─ storage/         内存、PostgreSQL、文件正文
-├─ ai/              Provider、RAG、模型注册、评测和韧性封装
-├─ training/        授权数据、审核、数据集和 JSONL 导出
 ├─ security/        密码哈希与登录限流
 └─ runtime/         数据库等慢任务的有界执行器
 ```
+
+## Function3：模块隔离与苦情树社区
+
+[Phase28](phase28.md) → [Phase29](phase29.md) → [Phase30](phase30.md) → [Phase31](phase31.md) → [Phase32](phase32.md) → [Phase33](phase33.md) → [Phase34 验收](phase34.md)。
+
+参见 [总图](function3-end-to-end.md)、[组件索引](function3-code-index.md)、[实际进度](function3-progress.md)。
+
+Function3逐步教学：[从浏览器发布到事务、MQ与语音](function3-walkthrough.md)。
+
+当前增量：[Phase35：原业务库复用、语音修复、Redis与界面重构](phase35.md)。日常实例使用原 `phase11` 和18090，操作见[启动与停止](../../ops/function3-runtime.md)；Phase34旧性能未达标项仍保留。
+
+本地新轮次：[Phase36 聊天布局](phase36.md) → [Phase37 统一动态/主页](phase37.md) → [Phase38 Windows客户端](phase38.md) → [Phase39 三形态AI/确认操作](phase39.md) → [Phase40 语音](phase40.md)。[新端到端架构图](phase36-41-end-to-end.md)、[Phase41验收与未达标项](phase41.md)、[组件索引](phase36-41-code-index.md)、[本地预览](../../ops/phase36-41-local-preview.md)。模型、训练和语音代码位于 `backend/ai`，不再放在 `backend/application` 内。
+
+保持上述架构方向的后续改进：[Phase42：TLS复用、神树批量读取与绘制/外观优化](phase42.md)。

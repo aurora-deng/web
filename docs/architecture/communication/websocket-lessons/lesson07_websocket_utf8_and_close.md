@@ -125,7 +125,7 @@ Close 是控制帧，payload 最多 125 字节。它有三种有意义的形态�
 
 ## 8. 与你熟悉的 web-test6.1 核心差别
 
-重新核对上传压缩包后，里面没有 `server/websocket` 目录；它的主线是 HTTP、Reactor、协程、
+重新核对上传压缩包后，里面没有 `backend/server/websocket` 目录；它的主线是 HTTP、Reactor、协程、
 ResponseSender 和连接生命周期。你已经熟悉的部分正好充当 2.0 的“地基”，WebSocket 是架在
 同一套事件循环与连接对象上的新协议层。
 

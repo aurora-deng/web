@@ -1,0 +1,53 @@
+{
+  "configuration": {
+    "workers": 4,
+    "operations": 1200,
+    "httpListPercent": 50,
+    "historyPercent": 20,
+    "chatPercent": 30,
+    "residentSse": 4
+  },
+  "mixed": {
+    "name": "mixed-http-ws-sse",
+    "operations": 1200,
+    "units": 1200,
+    "elapsedSeconds": 2.601273,
+    "operationsPerSecond": 461.313,
+    "unitsPerSecond": 461.313,
+    "latencyMs": {
+      "average": 8.641,
+      "p50": 6.755,
+      "p95": 19.911,
+      "p99": 24.603,
+      "maximum": 34.019
+    },
+    "errors": 0,
+    "errorSamples": []
+  },
+  "durableChatAckMs": {
+    "p50": 8.435,
+    "p95": 16.227,
+    "p99": 21.281
+  },
+  "durableChatAckSamples": 360,
+  "resources": {
+    "available": true,
+    "samples": 12,
+    "rssKiB": {
+      "average": 30332.3,
+      "peak": 30512
+    },
+    "fileDescriptors": {
+      "average": 40.0,
+      "peak": 40
+    },
+    "threads": {
+      "average": 32.0,
+      "peak": 32
+    },
+    "cpuPercent": {
+      "average": 49.17,
+      "peak": 59.42
+    }
+  }
+}

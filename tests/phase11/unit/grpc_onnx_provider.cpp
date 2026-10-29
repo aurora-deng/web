@@ -1,5 +1,5 @@
-#include "server/phase11/ai/GrpcOnnxModelProvider/GrpcOnnxModelProvider.h"
-#include "server/phase11/ai/GrpcOnnxWorker/GrpcOnnxWorkerService.h"
+#include "backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.h"
+#include "backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerService.h"
 
 #include <grpcpp/grpcpp.h>
 

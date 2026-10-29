@@ -148,13 +148,13 @@ scripts/phase11/postgres-migrate.sh phase11_test \
 
 | 职责 | 文件 |
 |---|---|
-| 审计领域对象 | [Domain.h](../../../server/phase11/domain/Domain/Domain.h) |
-| Repository 端口 | [Ports.h](../../../server/phase11/ports/Ports/Ports.h) |
-| 模型试装、启用、回滚与选择回调 | [ModelRegistryService.cpp](../../../server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp) |
-| 生成状态、摘要、时间点和直方图采样 | [AiChatService.cpp](../../../server/phase11/business/AiChatService/AiChatService.cpp) |
-| 内存参考实现 | [InMemoryStore.cpp](../../../server/phase11/storage/InMemoryStore/InMemoryStore.cpp) |
-| PostgreSQL 原子切换与 revision upsert | [PostgresStore.cpp](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
-| 第 6 号迁移 | [006_ai_governance.sql](../../../server/phase11/storage/postgres/migrations/006_ai_governance.sql) |
+| 审计领域对象 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
+| Repository 端口 | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
+| 模型试装、启用、回滚与选择回调 | [ModelRegistryService.cpp](../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) |
+| 生成状态、摘要、时间点和直方图采样 | [AiChatService.cpp](../../../backend/application/business/AiChatService/AiChatService.cpp) |
+| 内存参考实现 | [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
+| PostgreSQL 原子切换与 revision upsert | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
+| 第 6 号迁移 | [006_ai_governance.sql](../../../backend/application/storage/postgres/migrations/006_ai_governance.sql) |
 | Prometheus 输出与生产装配 | [main.cpp](../../../main.cpp) |
 | 模型审计业务测试 | [core.cpp](../../../tests/phase11/unit/core.cpp) |
 | 生成追踪与延迟测试 | [ai_chat.cpp](../../../tests/phase11/unit/ai_chat.cpp) |

@@ -70,7 +70,7 @@ flowchart LR
 ## 4. 代码区域
 
 ```text
-server/
+backend/server/
 ├─ Reactor/ SubReactor/ CoroutineScheduler/  网络事件与协程恢复
 ├─ session/ Runtime/                         会话工厂与进程生命周期
 ├─ http/ http2/ websocket/ sse/ grpc/ tls/   各协议实现

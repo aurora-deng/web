@@ -59,7 +59,7 @@ TCP accept
 
 ### 4.1 令牌结构
 
-[`AuthToken`](../../../server/security/AuthToken.h) 使用：
+[`AuthToken`](../../../backend/server/security/AuthToken.h) 使用：
 
 ```text
 v1.userId.expiryUnixSeconds.tenant.HMAC-SHA256-hex
@@ -188,7 +188,7 @@ cmake --build "$HOME/grpc/cmake/build-systemssl" --target install --parallel 4
 
 ## 7. SSE 断线续传
 
-发布事件时，[`SseReplayBuffer`](../../../server/sse/SseReplayBuffer.cpp) 先把事件放入按用户分组的有界历史，再投递给在线连接：
+发布事件时，[`SseReplayBuffer`](../../../backend/server/sse/SseReplayBuffer.cpp) 先把事件放入按用户分组的有界历史，再投递给在线连接：
 
 ```text
 publish(uid, event 43)
@@ -230,18 +230,18 @@ HTTP/2 的 GOAWAY 像酒店挂出“停止办理新入住”：编号不大于 `
 
 | 文件 | 本阶段职责 |
 |---|---|
-| [`AuthToken.h/.cpp`](../../../server/security/AuthToken.h) | 跨协议令牌签发、提取、常量时间校验 |
-| [`FixedWindowRateLimiter.h`](../../../server/security/FixedWindowRateLimiter.h) | 有界身份表与固定窗口请求配额 |
-| [`OperationalMetrics.h`](../../../server/ops/OperationalMetrics.h) | 跨协议原子计数和 Prometheus 输出 |
-| [`SseReplayBuffer.h/.cpp`](../../../server/sse/SseReplayBuffer.h) | 有界事件历史、游标补发和 gap 检测 |
-| [`SseSessionManager.cpp`](../../../server/sse/SseSessionManager.cpp) | SSE 连接配额、保存后发布、单连接重放和指标 |
-| [`HttpSession.cpp`](../../../server/http/HttpSession/HttpSession.cpp) | 把可信身份与 Last-Event-ID 交给长连接 Session |
-| [`GrpcServer.cpp`](../../../server/grpc/GrpcServer.cpp) | CallbackService、四类 Reactor、统一 CallbackCall、TLS、健康检查与优雅停止 |
-| [`web_learning.proto`](../../../server/grpc/proto/web_learning.proto) | 四类 RPC 的 IDL 契约 |
-| [`Http2Codec.cpp`](../../../server/http2/Http2Codec.cpp) | GOAWAY 生成与现有 nghttp2 协议状态 |
-| [`Session.h`](../../../server/session/Session/Session.h) | 新增协议无关 `beginDrain()` 生命周期钩子 |
-| [`SubReactor.cpp`](../../../server/SubReactor/SubReactor.cpp) | 把跨线程 drain 请求送回连接所属 Reactor 执行 |
-| [`SegmentPool.cpp`](../../../server/SegmentPool/SegmentPool.cpp) | 有界缓存发送 Block，并在池析构时释放所有权 |
+| [`AuthToken.h/.cpp`](../../../backend/server/security/AuthToken.h) | 跨协议令牌签发、提取、常量时间校验 |
+| [`FixedWindowRateLimiter.h`](../../../backend/server/security/FixedWindowRateLimiter.h) | 有界身份表与固定窗口请求配额 |
+| [`OperationalMetrics.h`](../../../backend/server/ops/OperationalMetrics.h) | 跨协议原子计数和 Prometheus 输出 |
+| [`SseReplayBuffer.h/.cpp`](../../../backend/server/sse/SseReplayBuffer.h) | 有界事件历史、游标补发和 gap 检测 |
+| [`SseSessionManager.cpp`](../../../backend/server/sse/SseSessionManager.cpp) | SSE 连接配额、保存后发布、单连接重放和指标 |
+| [`HttpSession.cpp`](../../../backend/server/http/HttpSession/HttpSession.cpp) | 把可信身份与 Last-Event-ID 交给长连接 Session |
+| [`GrpcServer.cpp`](../../../backend/server/grpc/GrpcServer.cpp) | CallbackService、四类 Reactor、统一 CallbackCall、TLS、健康检查与优雅停止 |
+| [`web_learning.proto`](../../../backend/server/grpc/proto/web_learning.proto) | 四类 RPC 的 IDL 契约 |
+| [`Http2Codec.cpp`](../../../backend/server/http2/Http2Codec.cpp) | GOAWAY 生成与现有 nghttp2 协议状态 |
+| [`Session.h`](../../../backend/server/session/Session/Session.h) | 新增协议无关 `beginDrain()` 生命周期钩子 |
+| [`SubReactor.cpp`](../../../backend/server/SubReactor/SubReactor.cpp) | 把跨线程 drain 请求送回连接所属 Reactor 执行 |
+| [`SegmentPool.cpp`](../../../backend/server/SegmentPool/SegmentPool.cpp) | 有界缓存发送 Block，并在池析构时释放所有权 |
 | [`main.cpp`](../../../main.cpp) | 安全配置、中间件、探针、指标与 gRPC 组合入口 |
 | [`phase9_foundation.cpp`](../../../tests/phase9_foundation.cpp) | token、限流、SSE replay 单元测试 |
 | [`grpc_integration.cpp`](../../../tests/grpc_integration.cpp) | 四类真实 RPC、认证、metadata、配额、取消、Callback 非阻塞等待和 TLS 可选测试 |

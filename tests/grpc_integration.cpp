@@ -1,7 +1,7 @@
-#include "server/grpc/GrpcServer.h"
+#include "backend/server/grpc/GrpcServer.h"
 
-#include "server/ops/OperationalMetrics.h"
-#include "server/security/AuthToken.h"
+#include "backend/server/ops/OperationalMetrics.h"
+#include "backend/server/security/AuthToken.h"
 #include "web_learning.grpc.pb.h"
 
 #include <grpcpp/grpcpp.h>

@@ -108,7 +108,7 @@ enum class ConversationState { Active, Dissolved };
 不能相信浏览器自己说“禁言已结束”。当前单次设置范围为 1 秒到 30 天，传入 0 表示解除。
 
 第 3 号迁移位于
-[003_group_governance.sql](../../../server/phase11/storage/postgres/migrations/003_group_governance.sql)，包含字段、
+[003_group_governance.sql](../../../backend/application/storage/postgres/migrations/003_group_governance.sql)，包含字段、
 外键、状态形状和长度约束。
 
 ## 5. Repository 与业务层
@@ -189,15 +189,15 @@ PostgreSQL 实现还会在事务内使用 `SELECT ... FOR UPDATE` 锁住当前�
 
 | 职责 | 文件 |
 |---|---|
-| 角色、会话状态、公告和禁言领域字段 | [Domain.h](../../../server/phase11/domain/Domain/Domain.h) |
-| Repository Port | [Ports.h](../../../server/phase11/ports/Ports/Ports.h) |
-| 业务门面 | [BusinessInterfaces.h](../../../server/phase11/business/BusinessInterfaces/BusinessInterfaces.h) |
-| 权限矩阵、事务和 Outbox | [ChatService.cpp](../../../server/phase11/business/ChatService/ChatService.cpp) |
-| 内存参考实现 | [InMemoryStore.cpp](../../../server/phase11/storage/InMemoryStore/InMemoryStore.cpp) |
-| PostgreSQL 实现 | [PostgresStore.cpp](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
-| 第 3 号迁移 | [003_group_governance.sql](../../../server/phase11/storage/postgres/migrations/003_group_governance.sql) |
-| HTTP 管理接口 | [Phase11SocialChatHttp.cpp](../../../server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
-| Outbox 实时广播 | [Phase11Realtime.cpp](../../../server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) |
+| 角色、会话状态、公告和禁言领域字段 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
+| Repository Port | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
+| 业务门面 | [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
+| 权限矩阵、事务和 Outbox | [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) |
+| 内存参考实现 | [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
+| PostgreSQL 实现 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
+| 第 3 号迁移 | [003_group_governance.sql](../../../backend/application/storage/postgres/migrations/003_group_governance.sql) |
+| HTTP 管理接口 | [Phase11SocialChatHttp.cpp](../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
+| Outbox 实时广播 | [Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) |
 | 前端交互 | [app.js](../../../frontend/phase11/app.js) |
 | 页面结构 | [index.html](../../../frontend/phase11/index.html) |
 | 群治理样式 | [styles.css](../../../frontend/phase11/styles.css) |

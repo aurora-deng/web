@@ -1,0 +1,59 @@
+{
+  "baseline": {
+    "runs": [
+      {
+        "round": 1,
+        "pid": 78785,
+        "fastQps": 53625.33,
+        "ackP99Ms": 19.014,
+        "mixedErrors": 0
+      },
+      {
+        "round": 2,
+        "pid": 79176,
+        "fastQps": 55458.7,
+        "ackP99Ms": 18.481,
+        "mixedErrors": 0
+      },
+      {
+        "round": 3,
+        "pid": 79244,
+        "fastQps": 55218.59,
+        "ackP99Ms": 18.763,
+        "mixedErrors": 0
+      }
+    ],
+    "medianFastQps": 55218.59,
+    "medianAckP99Ms": 18.763
+  },
+  "current": {
+    "runs": [
+      {
+        "round": 1,
+        "pid": 78856,
+        "fastQps": 52144.42,
+        "ackP99Ms": 42.352,
+        "mixedErrors": 0
+      },
+      {
+        "round": 2,
+        "pid": 78976,
+        "fastQps": 54399.31,
+        "ackP99Ms": 33.407,
+        "mixedErrors": 0
+      },
+      {
+        "round": 3,
+        "pid": 79313,
+        "fastQps": 54526.7,
+        "ackP99Ms": 33.707,
+        "mixedErrors": 0
+      }
+    ],
+    "medianFastQps": 54399.31,
+    "medianAckP99Ms": 33.707
+  },
+  "fastRegressionPercent": 1.4837032238599335,
+  "ackP99IncreasePercent": 79.64611202899322,
+  "gatesPassed": false
+}

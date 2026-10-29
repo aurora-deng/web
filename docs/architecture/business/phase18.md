@@ -164,10 +164,10 @@ webserver_phase11_ai_provider_active
 
 | 文件 | 职责 |
 |---|---|
-| `server/phase11/business/AiChatService/AiChatService.h` | 配额/期限配置与业务指标 |
-| `server/phase11/business/AiChatService/AiChatService.cpp` | 活动表、统一看门线程、取消和停机回收 |
-| `server/phase11/ai/ResilientModelProvider/ResilientModelProvider.h` | 韧性配置、指标和 Provider 装饰器接口 |
-| `server/phase11/ai/ResilientModelProvider/ResilientModelProvider.cpp` | 熔断、主备切换、端点期限、serial 防迟到回调 |
+| `backend/application/business/AiChatService/AiChatService.h` | 配额/期限配置与业务指标 |
+| `backend/application/business/AiChatService/AiChatService.cpp` | 活动表、统一看门线程、取消和停机回收 |
+| `backend/ai/models/ResilientModelProvider/ResilientModelProvider.h` | 韧性配置、指标和 Provider 装饰器接口 |
+| `backend/ai/models/ResilientModelProvider/ResilientModelProvider.cpp` | 熔断、主备切换、端点期限、serial 防迟到回调 |
 | `main.cpp` | 环境变量、Provider 包装、Ollama 备用端点和指标装配 |
 | `scripts/phase11/webserver-user-service.sh` | Linux 用户态服务默认治理参数 |
 | `tests/phase11/unit/ai_chat.cpp` | 配额、业务超时、取消和停机故障注入 |

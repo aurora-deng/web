@@ -1,13 +1,13 @@
-#include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
-#include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
-#include "server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
-#include "server/phase11/ai/RagService/RagService.h"
+#include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
+#include "backend/ai/models/ModelEvaluationService/ModelEvaluationService.h"
+#include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "backend/ai/models/RagService/RagService.h"
 #include "tests/phase11/unit/RepositoryContract.h"
 
 #if defined(WEBSERVER_HAS_SODIUM)
-#include "server/phase11/business/AuthService/AuthService.h"
-#include "server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
-#include "server/phase11/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
+#include "backend/application/business/AuthService/AuthService.h"
+#include "backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
+#include "backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
 #endif
 
 #include <libpq-fe.h>
@@ -41,6 +41,12 @@ void clearTestDatabase(const std::string &connectionString)
         throw std::runtime_error("test database connection failed: " + error);
     }
 
+    // 不能仅相信变量名：真正连接成功后仍检查数据库名，防止误清正式库。
+    if (!std::string(PQdb(connection)).ends_with("_test"))
+    {
+        PQfinish(connection);
+        throw std::runtime_error("refusing cleanup outside an explicitly named _test database");
+    }
     PGresult *result = PQexec(
         connection,
         "TRUNCATE TABLE users, model_nodes, dataset_versions, "
@@ -121,6 +127,10 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
                 member->lastReadSequence == 1,
             "member cursors were not persisted");
     const auto messages = store.messagesAfter(direct->id, 0, 10);
+    const auto projected = store.listConversationSummaries(alice->id);
+    require(projected.size()==1 && projected.front().displayTitle==bob->displayName &&
+            !projected.front().lastMessagePreview.empty() && projected.front().lastMessageAt!=TimePoint{},
+            "batch conversation projection lost title/preview/time");
     require(messages.size() == 1 &&
                 store.findMessage(messages.front().id).has_value() &&
                 store.searchMessages(direct->id, "ell", 10).size() == 1,

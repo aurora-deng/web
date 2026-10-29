@@ -1,0 +1,5 @@
+2026-10-24 18:52:08.762 [--E--] [  78079] Unknown metric address scheme /home/pikachu/phase11-deps/rocketmq-cpp/5.1.1/rocketmq-clients/cpp/source/rocketmq/ClientImpl.cpp:238
+Attempt to register measure with already-registered name: name: "publish_latency"; units: "ms"; description: "Publish latency in milliseconds"; type: int64
+2026-10-24 18:52:08.783 [--E--] [  78079] Unknown metric address scheme /home/pikachu/phase11-deps/rocketmq-cpp/5.1.1/rocketmq-clients/cpp/source/rocketmq/ClientImpl.cpp:238
+2026-10-24 18:52:08.859 [--E--] [  78079] Unknown metric address scheme /home/pikachu/phase11-deps/rocketmq-cpp/5.1.1/rocketmq-clients/cpp/source/rocketmq/ClientImpl.cpp:238
+Real RocketMQ FIFO order (3), NORMAL task and negative-ack redelivery passed

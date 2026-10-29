@@ -1,5 +1,7 @@
 # 架构说明
 
+当前三端拆分的完整新图见 [Windows客户端、Linux共享业务与AI端到端架构](business/phase36-41-end-to-end.md)，物理目录见 [目录与构建边界](project-layout.md)。本文继续作为通信内核基线保留。
+
 > 当前实现以本文为网络内核结构基线；阶段演进从 [`phase4_upgrade.md`](communication/phase4_upgrade.md) 延伸到
 > [Phase 26 长连接容量、AI 并发与混合负载证据](business/phase26.md) 与 [Phase 27 聊天交互可靠性](business/phase27.md)。
 > 本地 SSE 接入见 [`phase5.md`](communication/phase5.md)；GitHub `test6.3` 仍是接入前基线。
@@ -497,3 +499,9 @@ flowchart TB
 3. **训练制品不能直接上线**：授权、不可变数据集、血缘、评测、人工确认、运行时试装和审计缺一不可。
 
 图中的 gRPC Learning Server 是独立 API，并未统一接入 Phase 11 聊天路由；ONNX Worker 是模型 Provider 的跨进程推理路径。普通 HTTP/WS Worker 提交数据库任务后会等待结果，Reactor 不参与等待。Outbox 发布不等于每个客户端已送达，中间 AI token 也不逐个持久化。接线细节与六课学习路线见 [业务接入教学讲义](business/server-business-integration-tutorial.md)。
+
+## Function3 模块扩展
+
+新增 Tree、Ranking、Announcement、Moderation、Admin、Messaging 与 Speech 模块，沿用原网络核心、账号、聊天、文件和模型服务。Phase35再增加独立Cache端口与Redis适配器，只缓存可重建的公共查询，不承担身份或消息持久化。
+
+从 socket、协议路由、业务事务、可选MQ/本地持久投递、排名到 TTS，以及授权训练和模型切换的完整大图，见 [Function3 端到端架构](business/function3-end-to-end.md)。历史验证与性能限制见 [Phase34](business/phase34.md)，当前原库、语音、Redis与界面改进见[Phase35](business/phase35.md)。

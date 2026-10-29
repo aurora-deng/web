@@ -1,4 +1,29 @@
-# web-test 2.0 · Function2.1（Phase 12–27）
+# web-test 2.0 · Function3 本地开发版（Phase 28–42）
+
+> 正在实施 Phase36–41：已完成聊天布局与目录边界、统一动态/个人主页等阶段验证；Windows本地私人助手、三形态AI、个人语音设置已完成主要链路联调，功能及规定测试已执行；ACK尾延迟门槛仍有未达标项，真实云语音缺Key未验收。参见 [Phase36](docs/architecture/business/phase36.md)、[Phase37](docs/architecture/business/phase37.md) 和 [实施台账](docs/architecture/business/function3-progress.md)。这批变更尚未替换18090运行服务，也未推送远程。
+
+
+当前本地分支为 `feature/function3-tree`，在 Function2.1 上增加模块化社区神树、站点管理、RocketMQ 事件管道、七日榜与本地男女公告语音，并优化业务派发、历史列表和重连保护。
+
+Phase42保持该架构方向，优化普通TLS请求复用、神树批量查询与绘制，继续细化树的外观；三轮同配置结果与运行资源隔离说明见[Phase42](docs/architecture/business/phase42.md)。旧阶段的性能失败与真实云语音未验收记录继续保留。
+
+- [Function3 进度与使用入口](docs/architecture/business/function3-progress.md)
+- [当前启动：原账号库、18090、公告语音与 Redis](docs/ops/function3-runtime.md)
+- [Phase35：语音修复、原库复用、Redis 与界面改进](docs/architecture/business/phase35.md)
+- [当前三端与AI完整架构图](docs/architecture/business/phase36-41-end-to-end.md)
+- [Windows本机入口与私人资料](docs/architecture/business/phase38.md)
+- [三形态AI、迁移与确认操作](docs/architecture/business/phase39.md)
+- [语音设置与云适配](docs/architecture/business/phase40.md)
+- [本轮完整验收与未达标项](docs/architecture/business/phase41.md)
+- [Phase42：响应优化与神树细化，保持现有架构](docs/architecture/business/phase42.md)
+- [Windows和隔离Linux预览说明](docs/ops/phase36-41-local-preview.md)
+- [Phase28–35历史架构图](docs/architecture/business/function3-end-to-end.md)
+- [实际验收结果和限制](docs/architecture/business/phase34.md)
+- [组件文件索引](docs/architecture/business/function3-code-index.md)
+- [新增数据库表](docs/database/function3-tables.md)
+- [已有 Linux 环境复用](docs/ops/function3-dependencies.md)
+
+本轮保存在本地，未推送 GitHub。按本轮要求，日常 Linux 实例使用原 `phase11` 账号库与18090端口；升级前备份，68个原账号密码散列校验不变。测试仍使用已有隔离库。以下是 Function2.1 的历史说明。
 
 > `Function2.1` 基于 `Function2` 提交 `f4743a5`，收录 Phase 27 聊天可靠性补齐、通信/业务文档分类、
 > 端到端架构图和业务接入讲义。版本差异、已有验证和后续建议见

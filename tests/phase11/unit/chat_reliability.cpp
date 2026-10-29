@@ -1,5 +1,5 @@
-#include "server/phase11/business/ChatService/ChatService.h"
-#include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
+#include "backend/application/business/ChatService/ChatService.h"
+#include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 #include "tests/phase11/unit/RepositoryContract.h"
 
 #include <iostream>

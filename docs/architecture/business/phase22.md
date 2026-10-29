@@ -182,15 +182,15 @@ SHA-256，导致正确文件被误判为 Git Blob 摘要不匹配。现已按摘
 
 | 职责 | 文件 |
 |---|---|
-| 领域对象 | [Domain.h](../../../server/phase11/domain/Domain/Domain.h) |
-| 业务接口 | [BusinessInterfaces.h](../../../server/phase11/business/BusinessInterfaces/BusinessInterfaces.h) |
-| Repository 端口 | [Ports.h](../../../server/phase11/ports/Ports/Ports.h) |
-| 授权、审核、状态机与事务导出 | [TrainingDataService.cpp](../../../server/phase11/training/TrainingDataService/TrainingDataService.cpp) |
-| 内容寻址 JSONL | [JsonlTrainingDataExporter.cpp](../../../server/phase11/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp) |
-| 用户 HTTP 接口 | [Phase11TrainingHttp.cpp](../../../server/phase11/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp) |
-| PostgreSQL 实现 | [PostgresStore.cpp](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
-| 数据集元数据迁移 | [010_training_dataset_artifacts.sql](../../../server/phase11/storage/postgres/migrations/010_training_dataset_artifacts.sql) |
-| 授权去重迁移 | [011_training_candidate_deduplication.sql](../../../server/phase11/storage/postgres/migrations/011_training_candidate_deduplication.sql) |
+| 领域对象 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
+| 业务接口 | [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
+| Repository 端口 | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
+| 授权、审核、状态机与事务导出 | [TrainingDataService.cpp](../../../backend/ai/training/TrainingDataService/TrainingDataService.cpp) |
+| 内容寻址 JSONL | [JsonlTrainingDataExporter.cpp](../../../backend/ai/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp) |
+| 用户 HTTP 接口 | [Phase11TrainingHttp.cpp](../../../backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp) |
+| PostgreSQL 实现 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
+| 数据集元数据迁移 | [010_training_dataset_artifacts.sql](../../../backend/application/storage/postgres/migrations/010_training_dataset_artifacts.sql) |
+| 授权去重迁移 | [011_training_candidate_deduplication.sql](../../../backend/application/storage/postgres/migrations/011_training_candidate_deduplication.sql) |
 | 本地审核/导出工具 | [phase11_training_admin.cpp](../../../tools/phase11_training_admin.cpp) |
 | 真实 LoRA 训练 | [train-qwen-lora.py](../../../scripts/phase11/train-qwen-lora.py) |
 | OGA Adapter 导出 | [export-trained-lora-onnx.py](../../../scripts/phase11/export-trained-lora-onnx.py) |

@@ -160,13 +160,13 @@ Sanitizer 和 Debug 断言额外发现并修复了两个所有权问题：gRPC A
 
 | 文件 | 作用 |
 |---|---|
-| [`Router.h`](../../server/Route/Router.h)、[`Router.cpp`](../../server/Route/Router.cpp) | `ExecutionPolicy`、`resolve()`、`freeze()` 和低分配中间件链 |
-| [`HttpSession.cpp`](../../server/http/HttpSession/HttpSession.cpp) | ReactorSafe/Worker 分流和统一 handler 收尾 |
-| [`ObjectPool.h`](../../server/ObjectPool/ObjectPool.h)、[`BufferPoll.cpp`](../../server/buffer_pool/BufferPoll.cpp) | 64 分片复用池 |
-| [`StripedCounter.h`](../../server/ops/StripedCounter.h)、[`OperationalMetrics.h`](../../server/ops/OperationalMetrics.h) | 分片指标和快照 |
-| [`http.cpp`](../../server/http/http.cpp) | 响应头直接编码到 Buffer |
-| [`GrpcServer.cpp`](../../server/grpc/GrpcServer.cpp) | gRPC 准入、deadline Alarm 和 Reactor 生命周期 |
-| [`GrpcMain.cpp`](../../server/grpc/GrpcMain.cpp) | 独立 gRPC 进程入口 |
+| [`Router.h`](../../backend/server/Route/Router.h)、[`Router.cpp`](../../backend/server/Route/Router.cpp) | `ExecutionPolicy`、`resolve()`、`freeze()` 和低分配中间件链 |
+| [`HttpSession.cpp`](../../backend/server/http/HttpSession/HttpSession.cpp) | ReactorSafe/Worker 分流和统一 handler 收尾 |
+| [`ObjectPool.h`](../../backend/server/ObjectPool/ObjectPool.h)、[`BufferPoll.cpp`](../../backend/server/buffer_pool/BufferPoll.cpp) | 64 分片复用池 |
+| [`StripedCounter.h`](../../backend/server/ops/StripedCounter.h)、[`OperationalMetrics.h`](../../backend/server/ops/OperationalMetrics.h) | 分片指标和快照 |
+| [`http.cpp`](../../backend/server/http/http.cpp) | 响应头直接编码到 Buffer |
+| [`GrpcServer.cpp`](../../backend/server/grpc/GrpcServer.cpp) | gRPC 准入、deadline Alarm 和 Reactor 生命周期 |
+| [`GrpcMain.cpp`](../../backend/server/grpc/GrpcMain.cpp) | 独立 gRPC 进程入口 |
 | [`grpc_benchmark.cpp`](../../benchmarks/grpc_benchmark.cpp) | 四种 RPC 基准客户端 |
 | [`benchmark_phase10.sh`](../../scripts/benchmark_phase10.sh) | HTTP/gRPC 五轮基准和错误汇总 |
 | [`compare_phase10_results.py`](../../scripts/compare_phase10_results.py) | 自动验收 QPS、错误数与 P99 |

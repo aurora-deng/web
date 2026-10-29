@@ -1,0 +1,27 @@
+{
+  "phase": 36,
+  "moves": [
+    [
+      "server/phase11/ai",
+      "backend/ai/models"
+    ],
+    [
+      "server/phase11/training",
+      "backend/ai/training"
+    ],
+    [
+      "server/phase11/modules/speech",
+      "backend/ai/speech"
+    ],
+    [
+      "server/phase11",
+      "backend/application"
+    ],
+    [
+      "server",
+      "backend/server"
+    ]
+  ],
+  "updatedTextFiles": 320,
+  "historicalEvidenceRewritten": false
+}

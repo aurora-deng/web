@@ -1,0 +1,53 @@
+{
+  "settingsBefore": {
+    "track_io_timing": "off",
+    "track_wal_io_timing": "off"
+  },
+  "runs": {
+    "baseline": {
+      "ackP99Ms": 45.046,
+      "errors": 0,
+      "walDelta": {
+        "writes": 702,
+        "write_bytes": 6823936,
+        "write_time": 55.822,
+        "fsyncs": 702,
+        "fsync_time": 493.679
+      },
+      "brokerIoDelta": {
+        "rchar": 4590839,
+        "wchar": 2894114,
+        "syscr": 7749,
+        "syscw": 965,
+        "read_bytes": 8417280,
+        "write_bytes": 3022848,
+        "cancelled_write_bytes": 16384
+      }
+    },
+    "current": {
+      "ackP99Ms": 44.21,
+      "errors": 0,
+      "walDelta": {
+        "writes": 1308,
+        "write_bytes": 12369920,
+        "write_time": 106.551,
+        "fsyncs": 1308,
+        "fsync_time": 906.328
+      },
+      "brokerIoDelta": {
+        "rchar": 1032665,
+        "wchar": 537390,
+        "syscr": 3148,
+        "syscw": 3788,
+        "read_bytes": 348160,
+        "write_bytes": 2306048,
+        "cancelled_write_bytes": 40960
+      }
+    }
+  },
+  "recoveredFrom": "wal-diagnostic.log after cleanup probe race",
+  "settingsRestored": {
+    "track_io_timing": "off",
+    "track_wal_io_timing": "off"
+  }
+}

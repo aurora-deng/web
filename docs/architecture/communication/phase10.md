@@ -249,16 +249,16 @@ python3 scripts/compare_phase10_results.py \
 
 | 文件 | 变更目的 |
 |---|---|
-| [`Router.h`](../../../server/Route/Router.h)、[`Router.cpp`](../../../server/Route/Router.cpp) | ExecutionPolicy、只读 resolve、freeze、无分配 MiddlewareNext、静态路由双层索引 |
-| [`HttpCodec`](../../../server/http/HttpCodec/HttpCodec.h) | 暴露只解析执行策略的接口 |
-| [`HttpSession`](../../../server/http/HttpSession/HttpSession.cpp) | ReactorSafe 直达与 Worker 默认路径、统一异常/超时收口、响应对象本地借还 |
-| [`ServerRuntime`](../../../server/Runtime/ServerRuntime.h) | 冻结路由、HTTP/WS Worker 独立配置 |
-| [`ObjectPool`](../../../server/ObjectPool/ObjectPool.h)、[`BufferPoll`](../../../server/buffer_pool/BufferPoll.h) | 64 分片池与跨分片窃取，移除全局热锁 |
-| [`StripedCounter`](../../../server/ops/StripedCounter.h)、[`OperationalMetrics`](../../../server/ops/OperationalMetrics.h) | 分片指标与一致快照接口 |
-| [`http.cpp`](../../../server/http/http.cpp) | 响应头直接写 Buffer、`to_chars`、`string_view` 响应体入口 |
-| [`AuthToken.cpp`](../../../server/security/AuthToken.cpp)、[`AuthToken.h`](../../../server/security/AuthToken.h) | 固定数组拆令牌；Bearer/Cookie 返回拥有型字符串，避免临时输入造成悬空视图 |
-| [`GrpcServer.cpp`](../../../server/grpc/GrpcServer.cpp) | metadata/准入热路径、服务端总时限 Alarm、Reactor 安全销毁 |
-| [`GrpcMain.cpp`](../../../server/grpc/GrpcMain.cpp) | 独立 gRPC 进程与信号驱动优雅停机 |
+| [`Router.h`](../../../backend/server/Route/Router.h)、[`Router.cpp`](../../../backend/server/Route/Router.cpp) | ExecutionPolicy、只读 resolve、freeze、无分配 MiddlewareNext、静态路由双层索引 |
+| [`HttpCodec`](../../../backend/server/http/HttpCodec/HttpCodec.h) | 暴露只解析执行策略的接口 |
+| [`HttpSession`](../../../backend/server/http/HttpSession/HttpSession.cpp) | ReactorSafe 直达与 Worker 默认路径、统一异常/超时收口、响应对象本地借还 |
+| [`ServerRuntime`](../../../backend/server/Runtime/ServerRuntime.h) | 冻结路由、HTTP/WS Worker 独立配置 |
+| [`ObjectPool`](../../../backend/server/ObjectPool/ObjectPool.h)、[`BufferPoll`](../../../backend/server/buffer_pool/BufferPoll.h) | 64 分片池与跨分片窃取，移除全局热锁 |
+| [`StripedCounter`](../../../backend/server/ops/StripedCounter.h)、[`OperationalMetrics`](../../../backend/server/ops/OperationalMetrics.h) | 分片指标与一致快照接口 |
+| [`http.cpp`](../../../backend/server/http/http.cpp) | 响应头直接写 Buffer、`to_chars`、`string_view` 响应体入口 |
+| [`AuthToken.cpp`](../../../backend/server/security/AuthToken.cpp)、[`AuthToken.h`](../../../backend/server/security/AuthToken.h) | 固定数组拆令牌；Bearer/Cookie 返回拥有型字符串，避免临时输入造成悬空视图 |
+| [`GrpcServer.cpp`](../../../backend/server/grpc/GrpcServer.cpp) | metadata/准入热路径、服务端总时限 Alarm、Reactor 安全销毁 |
+| [`GrpcMain.cpp`](../../../backend/server/grpc/GrpcMain.cpp) | 独立 gRPC 进程与信号驱动优雅停机 |
 | [`grpc_benchmark.cpp`](../../../benchmarks/grpc_benchmark.cpp) | 四类 RPC 的仓库内并发吞吐/P50/P95/P99 客户端 |
 | [`benchmark_phase10.sh`](../../../scripts/benchmark_phase10.sh) | 五轮 HTTP/gRPC 基准、原始结果与中位数汇总 |
 | [`compare_phase10_results.py`](../../../scripts/compare_phase10_results.py) | 自动检查吞吐、错误和 P99 验收门槛 |

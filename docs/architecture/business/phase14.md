@@ -188,17 +188,17 @@ WebSocket 和 SSE 收到好友或 Presence 事件后刷新相同状态。页面�
 
 | 层 | 文件 |
 |---|---|
-| 领域对象 | [Domain.h](../../../server/phase11/domain/Domain/Domain.h) |
-| Repository 端口 | [Ports.h](../../../server/phase11/ports/Ports/Ports.h) |
-| 业务接口 | [BusinessInterfaces.h](../../../server/phase11/business/BusinessInterfaces/BusinessInterfaces.h) |
-| 联系人业务规则 | [SocialService.cpp](../../../server/phase11/business/SocialService/SocialService.cpp) |
-| 私聊权限复查 | [ChatService.cpp](../../../server/phase11/business/ChatService/ChatService.cpp) |
-| 内存参考实现 | [InMemoryStore.cpp](../../../server/phase11/storage/InMemoryStore/InMemoryStore.cpp) |
-| PostgreSQL 实现 | [PostgresStore.cpp](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
-| 第 4 号迁移 | [004_contacts_presence.sql](../../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql) |
-| HTTP 接口 | [Phase11SocialChatHttp.cpp](../../../server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
-| Presence 与 Outbox | [Phase11Realtime.cpp](../../../server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) |
-| 多设备会话目录 | [WebSocketSessionManager.cpp](../../../server/websocket/WebSocketSessionManager/WebSocketSessionManager.cpp) |
+| 领域对象 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
+| Repository 端口 | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
+| 业务接口 | [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
+| 联系人业务规则 | [SocialService.cpp](../../../backend/application/business/SocialService/SocialService.cpp) |
+| 私聊权限复查 | [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) |
+| 内存参考实现 | [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
+| PostgreSQL 实现 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
+| 第 4 号迁移 | [004_contacts_presence.sql](../../../backend/application/storage/postgres/migrations/004_contacts_presence.sql) |
+| HTTP 接口 | [Phase11SocialChatHttp.cpp](../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
+| Presence 与 Outbox | [Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) |
+| 多设备会话目录 | [WebSocketSessionManager.cpp](../../../backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.cpp) |
 | 前端业务 | [app.js](../../../frontend/phase11/app.js) |
 | 页面与样式 | [index.html](../../../frontend/phase11/index.html)、[styles.css](../../../frontend/phase11/styles.css) |
 | Repository 契约 | [RepositoryContract.h](../../../tests/phase11/unit/RepositoryContract.h) |

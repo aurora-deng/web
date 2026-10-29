@@ -153,11 +153,11 @@ Sanitizer 未报告内存、泄漏或未定义行为问题。`normalized-exact-v
 | 文件 | 作用 |
 |---|---|
 | `tools/phase11_model_admin.cpp` | Candidate 登记、真实评测和人工激活命令入口 |
-| `server/phase11/ai/DeterministicExactScorer/` | 可复现的确定性精确评分器 |
-| `server/phase11/ai/ModelEvaluationService/` | Run 生命周期、逐题结果、汇总和质量门禁 |
-| `server/phase11/ai/ModelRegistryService/` | Runtime 校验、原子激活/回滚与审计 |
-| `server/phase11/ai/InProcessOnnxModelProvider/` | 真实 ONNX 加载与逐 Token 生成 |
-| `server/phase11/storage/postgres/PostgresStore/` | 评测、策略、模型版本和审计持久化 |
+| `backend/ai/models/DeterministicExactScorer/` | 可复现的确定性精确评分器 |
+| `backend/ai/models/ModelEvaluationService/` | Run 生命周期、逐题结果、汇总和质量门禁 |
+| `backend/ai/models/ModelRegistryService/` | Runtime 校验、原子激活/回滚与审计 |
+| `backend/ai/models/InProcessOnnxModelProvider/` | 真实 ONNX 加载与逐 Token 生成 |
+| `backend/application/storage/postgres/PostgresStore/` | 评测、策略、模型版本和审计持久化 |
 | `scripts/phase11/phase16-soak.py` | 固定 PID 的长稳与资源证据采集 |
 | `tests/phase11/unit/core.cpp` | 评分规则与既有业务回归 |
 

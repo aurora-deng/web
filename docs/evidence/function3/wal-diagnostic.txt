@@ -1,0 +1,21 @@
+Started loopback-only user network namespace 84858
+Started isolated baseline PID 84953 HTTP 18094 / HTTPS 18443
+baseline {"ackP99Ms": 45.046, "errors": 0, "walDelta": {"writes": 702, "write_bytes": 6823936, "write_time": 55.822, "fsyncs": 702, "fsync_time": 493.679}, "brokerIoDelta": {"rchar": 4590839, "wchar": 2894114, "syscr": 7749, "syscw": 965, "read_bytes": 8417280, "write_bytes": 3022848, "cancelled_write_bytes": 16384}}
+Started isolated current PID 85160 HTTP 18094 / HTTPS 18443
+current {"ackP99Ms": 44.21, "errors": 0, "walDelta": {"writes": 1308, "write_bytes": 12369920, "write_time": 106.551, "fsyncs": 1308, "fsync_time": 906.328}, "brokerIoDelta": {"rchar": 1032665, "wchar": 537390, "syscr": 3148, "syscw": 3788, "read_bytes": 348160, "write_bytes": 2306048, "cancelled_write_bytes": 40960}}
+Traceback (most recent call last):
+  File "/home/pikachu/function3-src/scripts/function3/dependencies/isolated_rocketmq.py", line 43, in <module>
+    if not any(owned_pid(name) for name in ('broker','namesrv','namespace')):break
+  File "/home/pikachu/function3-src/scripts/function3/dependencies/isolated_rocketmq.py", line 43, in <genexpr>
+    if not any(owned_pid(name) for name in ('broker','namesrv','namespace')):break
+  File "/home/pikachu/function3-src/scripts/function3/dependencies/isolated_rocketmq.py", line 35, in owned_pid
+    if str(root) not in text:raise RuntimeError('PID was reused; refusing to control it')
+RuntimeError: PID was reused; refusing to control it
+Traceback (most recent call last):
+  File "/home/pikachu/function3-src/scripts/function3/validation/wal_diagnostic.py", line 48, in <module>
+    run(['python3',source/'scripts/function3/dependencies/isolated_rocketmq.py','stop'])
+  File "/home/pikachu/function3-src/scripts/function3/validation/wal_diagnostic.py", line 21, in run
+    def run(args,**kwargs):return subprocess.run([str(x) for x in args],check=True,cwd=source,**kwargs)
+  File "/usr/lib64/python3.9/subprocess.py", line 528, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['python3', '/home/pikachu/function3-src/scripts/function3/dependencies/isolated_rocketmq.py', 'stop']' returned non-zero exit status 1.

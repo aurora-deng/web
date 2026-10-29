@@ -1,0 +1,62 @@
+{
+  "configuration": {
+    "workers": 4,
+    "operations": 1200,
+    "httpListPercent": 50,
+    "historyPercent": 20,
+    "chatPercent": 30,
+    "residentSse": 4
+  },
+  "mixed": {
+    "name": "mixed-http-ws-sse",
+    "operations": 1192,
+    "units": 1192,
+    "elapsedSeconds": 63.906913,
+    "operationsPerSecond": 18.652,
+    "unitsPerSecond": 18.652,
+    "latencyMs": {
+      "average": 38.845,
+      "p50": 10.811,
+      "p95": 40.729,
+      "p99": 57.109,
+      "maximum": 7135.094
+    },
+    "errors": 8,
+    "errorSamples": [
+      "AssertionError: worker=2 index=9 stage=websocket.delivery:f3mixed-491227949-2-9: timed out",
+      "AssertionError: worker=1 index=8 stage=websocket.delivery:f3mixed-491227949-1-8: timed out",
+      "AssertionError: worker=3 index=7 stage=websocket.delivery:f3mixed-491227949-3-7: timed out",
+      "AssertionError: worker=0 index=17 stage=websocket.delivery:f3mixed-491227949-0-17: timed out",
+      "AssertionError: worker=1 index=19 stage=websocket.delivery:f3mixed-491227949-1-19: timed out",
+      "AssertionError: worker=2 index=18 stage=websocket.delivery:f3mixed-491227949-2-18: timed out",
+      "AssertionError: worker=0 index=27 stage=websocket.delivery:f3mixed-491227949-0-27: timed out",
+      "AssertionError: worker=3 index=28 stage=websocket.delivery:f3mixed-491227949-3-28: timed out"
+    ]
+  },
+  "durableChatAckMs": {
+    "p50": 10.778,
+    "p95": 20.476,
+    "p99": 28.982
+  },
+  "durableChatAckSamples": 360,
+  "resources": {
+    "available": true,
+    "samples": 307,
+    "rssKiB": {
+      "average": 47698.1,
+      "peak": 48340
+    },
+    "fileDescriptors": {
+      "average": 56.2,
+      "peak": 59
+    },
+    "threads": {
+      "average": 60.6,
+      "peak": 61
+    },
+    "cpuPercent": {
+      "average": 5.37,
+      "peak": 73.72
+    }
+  }
+}

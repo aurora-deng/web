@@ -1,0 +1,15 @@
+# Legacy services may still run with their build directory as cwd. A verified
+# PID marker preserves their assets while new binaries are built separately.
+if(UNIX AND EXISTS "${RUN_DIRECTORY}/.frontend-live.pid")
+    file(READ "${RUN_DIRECTORY}/.frontend-live.pid" live_pid)
+    string(STRIP "${live_pid}" live_pid)
+    if(live_pid MATCHES "^[0-9]+$" AND EXISTS "/proc/${live_pid}/cwd")
+        file(READ_SYMLINK "/proc/${live_pid}/cwd" live_directory)
+        if(live_directory STREQUAL RUN_DIRECTORY)
+            message(STATUS "Preserving frontend assets used by active legacy runtime ${live_pid}; preview uses its own working directory")
+            return()
+        endif()
+    endif()
+endif()
+file(MAKE_DIRECTORY "${DESTINATION}")
+file(COPY "${SOURCE}/" DESTINATION "${DESTINATION}")

@@ -83,6 +83,14 @@ vcpkg_installed/
 /runtime-data/
 /models/
 /docs/database/*.local.md
+/client-data/
+/client/*.local.json
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
 *.onnx
 *.onnx_adapter
 *.gguf

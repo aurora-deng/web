@@ -1,0 +1,387 @@
+#include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
+
+#include <algorithm>
+#include <filesystem>
+#include <limits>
+#include <set>
+
+namespace webserver::phase11
+{
+
+ModelNode ModelRegistryService::createNode(std::string name,
+                                           ModelNodeKind kind,
+                                           TimePoint now)
+{
+    if (name.empty() || name.size() > 80)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "invalid model node name");
+    return models_.createModelNode({0, std::move(name), kind, {}, now});
+}
+
+ModelVersion ModelRegistryService::registerVersion(
+    ModelNodeId node, std::string runtime, std::string modelArtifact,
+    std::string adapterArtifact, std::string checksum, TimePoint now)
+{
+    if (!models_.findModelNode(node))
+        throw ApplicationError(ErrorCode::NotFound, "model node not found");
+    if (runtime != "ollama" && runtime != "onnx-inprocess" &&
+        runtime != "onnx-grpc")
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "unsupported model runtime");
+    if (modelArtifact.empty() || checksum.empty())
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "model artifact and checksum are required");
+    if (!adapterArtifact.empty())
+    {
+        if (runtime != "onnx-inprocess" && runtime != "onnx-grpc")
+            throw ApplicationError(
+                ErrorCode::InvalidArgument,
+                "adapter artifacts are only supported by ONNX runtimes");
+        const std::filesystem::path adapterPath(adapterArtifact);
+        if (adapterPath.is_absolute() || adapterPath.has_root_path() ||
+            adapterPath.extension() != ".onnx_adapter")
+            throw ApplicationError(
+                ErrorCode::InvalidArgument,
+                "ONNX adapter must be a relative .onnx_adapter artifact");
+    }
+    return models_.createModelVersion(
+        {0, node, std::move(runtime), std::move(modelArtifact),
+         std::move(adapterArtifact), std::move(checksum),
+         ModelVersionState::Candidate, now});
+}
+
+ModelVersion ModelRegistryService::registerTrainedVersion(
+    ModelNodeId node, std::string runtime, std::string modelArtifact,
+    std::string adapterArtifact, std::string checksum,
+    ModelTrainingLineage lineage, TimePoint now)
+{
+    const auto validSha256 = [](std::string_view value)
+    {
+        return value.size() == 64 &&
+               std::all_of(value.begin(), value.end(), [](unsigned char byte)
+               {
+                   // 部署脚本、CLI 与 PostgreSQL 血缘约束统一使用小写
+                   // SHA-256，避免 InMemory 接受而正式数据库拒绝。
+                   return (byte >= '0' && byte <= '9') ||
+                          (byte >= 'a' && byte <= 'f');
+               });
+    };
+    if (!models_.findModelNode(node))
+        throw ApplicationError(ErrorCode::NotFound, "model node not found");
+    if (runtime != "onnx-inprocess" && runtime != "onnx-grpc")
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "trained versions require an ONNX runtime");
+    if (modelArtifact.empty() || checksum.empty() || adapterArtifact.empty())
+        throw ApplicationError(
+            ErrorCode::InvalidArgument,
+            "trained model artifact, adapter and checksum are required");
+    const std::filesystem::path adapterPath(adapterArtifact);
+    if (adapterPath.is_absolute() || adapterPath.has_root_path() ||
+        adapterPath.extension() != ".onnx_adapter")
+        throw ApplicationError(
+            ErrorCode::InvalidArgument,
+            "ONNX adapter must be a relative .onnx_adapter artifact");
+    const bool databaseVerified =
+        lineage.authorizationMode == TrainingAuthorizationMode::DatabaseVerified;
+    if (databaseVerified != lineage.datasetVersionId.has_value())
+        throw ApplicationError(
+            ErrorCode::InvalidArgument,
+            "database-verified lineage must reference exactly one dataset version");
+    if (lineage.modelVersionId != 0 || lineage.datasetRecords == 0 ||
+        lineage.datasetRecords >
+            static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()) ||
+        lineage.actor.empty() || lineage.actor.size() > 128 ||
+        lineage.baseRepository.empty() || lineage.baseRepository.size() > 240 ||
+        lineage.baseRevision.empty() || lineage.baseRevision.size() > 160)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "model training lineage is incomplete");
+    for (const auto *digest : {
+             &lineage.datasetSha256, &lineage.baseWeightsSha256,
+             &lineage.trainingManifestSha256, &lineage.trainingConfigSha256,
+             &lineage.peftWeightsSha256, &lineage.onnxAdapterSha256,
+             &lineage.onnxModelSha256})
+        if (!validSha256(*digest))
+            throw ApplicationError(ErrorCode::InvalidArgument,
+                                   "model training lineage has an invalid SHA-256");
+    lineage.createdAt = now;
+    auto [version, storedLineage] = models_.createTrainedModelVersion(
+        {0, node, std::move(runtime), std::move(modelArtifact),
+         std::move(adapterArtifact), std::move(checksum),
+         ModelVersionState::Candidate, now},
+        std::move(lineage));
+    (void)storedLineage;
+    return version;
+}
+
+bool ModelRegistryService::createsParentCycle(ModelNodeId from,
+                                              ModelNodeId to) const
+{
+    // 新边 from -> to。若从 to 沿现有父子边能够回到 from，就会形成环。
+    std::set<ModelNodeId> frontier{to};
+    std::set<ModelNodeId> visited;
+    const auto edges = models_.modelEdges();
+    while (!frontier.empty())
+    {
+        const auto current = *frontier.begin();
+        frontier.erase(frontier.begin());
+        if (current == from)
+            return true;
+        if (!visited.insert(current).second)
+            continue;
+        for (const auto &edge : edges)
+            if (edge.kind == ModelEdgeKind::ParentControlsChild &&
+                edge.from == current)
+                frontier.insert(edge.to);
+    }
+    return false;
+}
+
+ModelEdge ModelRegistryService::connect(ModelNodeId from, ModelNodeId to,
+                                        ModelEdgeKind kind)
+{
+    if (!models_.findModelNode(from) || !models_.findModelNode(to))
+        throw ApplicationError(ErrorCode::NotFound, "model node not found");
+    if (from == to)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "model cannot connect to itself");
+    for (const auto &edge : models_.modelEdges())
+        if (edge.from == from && edge.to == to && edge.kind == kind)
+            throw ApplicationError(ErrorCode::Conflict,
+                                   "model edge already exists");
+    if (kind == ModelEdgeKind::ParentControlsChild &&
+        createsParentCycle(from, to))
+        throw ApplicationError(ErrorCode::Conflict,
+                               "parent relation would create a cycle");
+    return models_.createModelEdge({0, from, to, kind});
+}
+
+void ModelRegistryService::bindAiAccount(UserId aiUser, ModelNodeId node)
+{
+    if (!models_.bindAiAccount({aiUser, node}))
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "AI account or model node is invalid");
+}
+
+void ModelRegistryService::registerValidator(
+    std::shared_ptr<IModelArtifactValidator> validator)
+{
+    if (!validator || validator->supportedRuntime().empty())
+        throw std::invalid_argument("model artifact validator is required");
+    const auto runtime = validator->supportedRuntime();
+    std::lock_guard lock(validatorsMutex_);
+    validators_.insert_or_assign(runtime, std::move(validator));
+}
+
+void ModelRegistryService::activate(ModelNodeId node, ModelVersionId version,
+                                    std::string actor,std::function<void()> beforeCommit)
+{
+    validateAndActivate(node, version, false, std::move(actor),std::move(beforeCommit));
+}
+
+void ModelRegistryService::rollback(ModelNodeId node,
+                                    ModelVersionId retiredVersion,
+                                    std::string actor,std::function<void()> beforeCommit)
+{
+    validateAndActivate(node, retiredVersion, true, std::move(actor),std::move(beforeCommit));
+}
+
+void ModelRegistryService::validateAndActivate(ModelNodeId node,
+                                               ModelVersionId version,
+                                               bool rollbackOnly,
+                                               std::string actor,std::function<void()> beforeCommit)
+{
+    if (actor.empty() || actor.size() > 128)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "invalid model activation actor");
+    const auto modelNode = models_.findModelNode(node);
+    const auto candidate = models_.findModelVersion(version);
+    if (!modelNode || !candidate || candidate->nodeId != node)
+        throw ApplicationError(ErrorCode::NotFound,
+                               "model node or version not found");
+    const auto action = rollbackOnly ? ModelActivationAction::Rollback
+                                     : ModelActivationAction::Activate;
+    const auto auditFailure = [&](std::string detail)
+    {
+        if (detail.size() > 512)
+            detail.resize(512);
+        (void)models_.appendModelActivationAudit(
+            {0, node, modelNode->activeVersionId, version, action,
+             ModelActivationOutcome::Failed, actor, std::move(detail),
+             std::chrono::system_clock::now()});
+    };
+    if (candidate->state == ModelVersionState::Rejected)
+    {
+        auditFailure("rejected model version cannot be activated");
+        throw ApplicationError(ErrorCode::Conflict,
+                               "rejected model version cannot be activated");
+    }
+    if (rollbackOnly && candidate->state != ModelVersionState::Retired)
+    {
+        auditFailure("rollback target must be a retired version");
+        throw ApplicationError(ErrorCode::Conflict,
+                               "rollback target must be a retired version");
+    }
+
+    // 质量门禁只拦截新版本上岗。紧急 rollback 仍会做制品兼容性校验，但不会因
+    // 历史评测过期而失去恢复最后稳定版本的通道。
+    std::optional<ModelQualityGateDecision> qualityDecision;
+    const auto checkQualityGate = [&]
+    {
+        if (rollbackOnly || !qualityGate_)
+            return;
+        auto decision = qualityGate_->assess(
+            node, version, std::chrono::system_clock::now());
+        if (!decision.allowed)
+        {
+            auto message = std::string("model quality gate rejected activation: ") +
+                           decision.detail;
+            auditFailure(message);
+            throw ApplicationError(ErrorCode::Conflict, std::move(message));
+        }
+        qualityDecision = std::move(decision);
+    };
+    checkQualityGate();
+
+    std::shared_ptr<IModelArtifactValidator> validator;
+    {
+        std::lock_guard lock(validatorsMutex_);
+        const auto found = validators_.find(candidate->runtime);
+        if (found != validators_.end())
+            validator = found->second;
+    }
+    if (!validator)
+    {
+        auditFailure("model runtime validator is not registered");
+        throw ApplicationError(ErrorCode::Unavailable,
+                               "model runtime validator is not registered");
+    }
+
+    // 这里先试装，Repository 只有在全部检查成功后才会移动 Active 指针；
+    // 因此校验异常或 Adapter 不兼容时，旧模型仍保持 Active。
+    ModelArtifactValidation validation;
+    try
+    {
+        validation = validator->validateVersion(*candidate);
+    }
+    catch (const std::exception &failure)
+    {
+        auditFailure(failure.what());
+        throw;
+    }
+    catch (...)
+    {
+        auditFailure("model artifact validation threw an unknown error");
+        throw;
+    }
+    if (!validation.valid)
+    {
+        auto message = validation.error.empty()
+                           ? std::string("model artifact validation failed")
+                           : validation.error;
+        if (message.size() > 512)
+            message.resize(512);
+        auditFailure(message);
+        throw ApplicationError(
+            ErrorCode::Conflict, std::move(message));
+    }
+    // Runtime 试装可能耗时较长；在真正移动 Active 指针前重新读取策略和最新成绩，
+    // 避免试装期间策略收紧或成绩过期后仍沿用旧决定。
+    checkQualityGate();
+    std::string successDetail = rollbackOnly
+                                    ? "model version rolled back"
+                                    : "model version activated";
+    if (qualityDecision && qualityDecision->runId)
+        successDetail += "; evaluation run " +
+                         std::to_string(*qualityDecision->runId);
+    // 权限复核失败时 auditFailure 仍需要完整 actor，不能提前 move 到成功记录。
+    if(beforeCommit)try{beforeCommit();}catch(...){auditFailure("administrator authorization changed during validation");throw;}
+    ModelActivationAudit audit{
+        0, node, modelNode->activeVersionId, version, action,
+        ModelActivationOutcome::Succeeded, std::move(actor),
+        std::move(successDetail),
+        std::chrono::system_clock::now()};
+    if (!models_.activateModelVersion(node, version, std::move(audit)))
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "model version cannot be activated");
+}
+
+void ModelRouter::registerProvider(std::shared_ptr<IModelProvider> provider)
+{
+    if (!provider || provider->name().empty())
+        throw std::invalid_argument("model provider and name are required");
+    std::lock_guard lock(mutex_);
+    providers_.insert_or_assign(provider->name(), std::move(provider));
+}
+
+bool ModelRouter::modelReady(UserId aiUser) const
+{
+    const auto binding = models_.findModelBinding(aiUser);
+    if (!binding)
+        return false;
+    const auto node = models_.findModelNode(binding->nodeId);
+    if (!node || !node->activeVersionId)
+        return false;
+    const auto version = models_.findModelVersion(*node->activeVersionId);
+    if (!version)
+        return false;
+    std::lock_guard lock(mutex_);
+    const auto provider = providers_.find(version->runtime);
+    return provider != providers_.end() && provider->second->ready();
+}
+
+GenerationHandle ModelRouter::generate(UserId aiUser,
+                                       GenerationRequest request,
+                                       TokenSink onToken,
+                                       CompletionSink onComplete,
+                                       CancellationToken cancellation,
+                                       SelectionSink onSelected)
+{
+    const auto binding = models_.findModelBinding(aiUser);
+    if (!binding)
+        throw ApplicationError(ErrorCode::NotFound,
+                               "AI account has no model binding");
+    const auto node = models_.findModelNode(binding->nodeId);
+    if (!node || !node->activeVersionId)
+        throw ApplicationError(ErrorCode::Unavailable,
+                               "AI model has no active version");
+    const auto version = models_.findModelVersion(*node->activeVersionId);
+    if (!version)
+        throw ApplicationError(ErrorCode::Unavailable,
+                               "active model version is missing");
+
+    std::shared_ptr<IModelProvider> provider;
+    {
+        std::lock_guard lock(mutex_);
+        const auto found = providers_.find(version->runtime);
+        if (found != providers_.end())
+            provider = found->second;
+    }
+    if (!provider || !provider->ready())
+        throw ApplicationError(ErrorCode::Unavailable,
+                               "selected model provider is not ready");
+    if (request.requestId.empty() || request.messages.empty() ||
+        request.maxOutputTokens == 0 || request.maxOutputTokens > 4096)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "invalid generation request");
+
+    request.modelNode = node->id;
+    request.modelArtifact = version->modelArtifact;
+    request.adapterArtifact = version->adapterArtifact;
+    request.modelChecksum = version->checksum;
+    if (onSelected)
+        onSelected({node->id, version->id, version->runtime,
+                    version->modelArtifact, version->adapterArtifact,
+                    version->checksum});
+    const MessageModelTrace trace{
+        node->id, version->id, version->adapterArtifact};
+    return provider->generate(
+        request, std::move(onToken),
+        [trace, completion = std::move(onComplete)](
+            GenerationCompletion result) mutable {
+            result.trace = trace;
+            completion(std::move(result));
+        },
+        std::move(cancellation));
+}
+
+} // namespace webserver::phase11

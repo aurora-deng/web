@@ -1,0 +1,26 @@
+[
+  {
+    "label": "baseline",
+    "path": "/home/pikachu/function3-baseline-src/build-release/webserver",
+    "copy": "/home/pikachu/phase11-data/function3/validation/verified-binaries/baseline-webserver",
+    "sha256": "9b35a41b9d2d56b7db2911a29f289951f5fe145afcf6db96fe9a8fe9dd7e25ac"
+  },
+  {
+    "label": "current",
+    "path": "/home/pikachu/function3-src/build-release/webserver",
+    "copy": "/home/pikachu/phase11-data/function3/validation/verified-binaries/current-webserver",
+    "sha256": "c7110f94a34af2087fae35bd9165fb185816b0cfbbadc3431b5bfa6520dcfe0a"
+  },
+  {
+    "label": "current",
+    "path": "/home/pikachu/function3-src/build-release/server/phase11/modules/function3_rocketmq_roundtrip",
+    "copy": "/home/pikachu/phase11-data/function3/validation/verified-binaries/current-function3_rocketmq_roundtrip",
+    "sha256": "10615509f5c5565069328b2ad7cc1444beb8d2ea8ab4baff20f0c25055b4bc38"
+  },
+  {
+    "label": "current",
+    "path": "/home/pikachu/function3-src/build-release/server/phase11/modules/function3-tts-worker",
+    "copy": "/home/pikachu/phase11-data/function3/validation/verified-binaries/current-function3-tts-worker",
+    "sha256": "bebfc6b500838ada318c626313c3dc03f82342588ad540aa57cd6fdf51b00f41"
+  }
+]

@@ -168,14 +168,14 @@ database=phase11 expected=8 applied=8 latest=8
 
 | 职责 | 文件 |
 |---|---|
-| 评测、Run、结果与策略领域对象 | [Domain.h](../../../server/phase11/domain/Domain/Domain.h) |
-| Repository 与质量门接口 | [Ports.h](../../../server/phase11/ports/Ports/Ports.h) |
-| 校验、计分、终态和门禁判断 | [ModelEvaluationService.cpp](../../../server/phase11/ai/ModelEvaluationService/ModelEvaluationService.cpp) |
-| 激活前接入质量门 | [ModelRegistryService.cpp](../../../server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp) |
-| 无依赖参考实现 | [InMemoryStore.cpp](../../../server/phase11/storage/InMemoryStore/InMemoryStore.cpp) |
-| PostgreSQL 事务与查询实现 | [PostgresStore.cpp](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
-| 第 7 号迁移 | [007_model_evaluation.sql](../../../server/phase11/storage/postgres/migrations/007_model_evaluation.sql) |
-| 评测集版本与摘要迁移 | [008_evaluation_suite_versioning.sql](../../../server/phase11/storage/postgres/migrations/008_evaluation_suite_versioning.sql) |
+| 评测、Run、结果与策略领域对象 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
+| Repository 与质量门接口 | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
+| 校验、计分、终态和门禁判断 | [ModelEvaluationService.cpp](../../../backend/ai/models/ModelEvaluationService/ModelEvaluationService.cpp) |
+| 激活前接入质量门 | [ModelRegistryService.cpp](../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) |
+| 无依赖参考实现 | [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
+| PostgreSQL 事务与查询实现 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
+| 第 7 号迁移 | [007_model_evaluation.sql](../../../backend/application/storage/postgres/migrations/007_model_evaluation.sql) |
+| 评测集版本与摘要迁移 | [008_evaluation_suite_versioning.sql](../../../backend/application/storage/postgres/migrations/008_evaluation_suite_versioning.sql) |
 | 内存业务与门禁测试 | [core.cpp](../../../tests/phase11/unit/core.cpp) |
 | PostgreSQL 持久化契约 | [postgres_contract.cpp](../../../tests/phase11/unit/postgres_contract.cpp) |
 

@@ -1,0 +1,83 @@
+{
+  "scope": "GET /api/tree/categories only, 4 workers x 8 seconds per round; same binary; AI/TTS disabled equally during measurement; AB/BA/AB order",
+  "rounds": [
+    {
+      "round": 1,
+      "redis": false,
+      "requests": 10032,
+      "errors": 0,
+      "seconds": 8.007,
+      "qps": 1252.928,
+      "p50Ms": 2.417,
+      "p95Ms": 4.66,
+      "databaseCommitDelta": 38336,
+      "databaseCommitsPerRequest": 3.821
+    },
+    {
+      "round": 1,
+      "redis": true,
+      "requests": 12687,
+      "errors": 0,
+      "seconds": 8.007,
+      "qps": 1584.561,
+      "p50Ms": 1.929,
+      "p95Ms": 3.814,
+      "databaseCommitDelta": 27907,
+      "databaseCommitsPerRequest": 2.2
+    },
+    {
+      "round": 2,
+      "redis": true,
+      "requests": 11970,
+      "errors": 0,
+      "seconds": 8.01,
+      "qps": 1494.421,
+      "p50Ms": 1.899,
+      "p95Ms": 4.013,
+      "databaseCommitDelta": 22341,
+      "databaseCommitsPerRequest": 1.866
+    },
+    {
+      "round": 2,
+      "redis": false,
+      "requests": 8935,
+      "errors": 0,
+      "seconds": 8.096,
+      "qps": 1103.565,
+      "p50Ms": 2.431,
+      "p95Ms": 4.662,
+      "databaseCommitDelta": 35420,
+      "databaseCommitsPerRequest": 3.964
+    },
+    {
+      "round": 3,
+      "redis": false,
+      "requests": 9802,
+      "errors": 0,
+      "seconds": 8.004,
+      "qps": 1224.639,
+      "p50Ms": 2.366,
+      "p95Ms": 4.751,
+      "databaseCommitDelta": 36258,
+      "databaseCommitsPerRequest": 3.699
+    },
+    {
+      "round": 3,
+      "redis": true,
+      "requests": 12859,
+      "errors": 0,
+      "seconds": 8.005,
+      "qps": 1606.31,
+      "p50Ms": 1.897,
+      "p95Ms": 3.7,
+      "databaseCommitDelta": 24220,
+      "databaseCommitsPerRequest": 1.884
+    }
+  ],
+  "unavailableEndpoint": {
+    "requests": 818,
+    "errors": 0,
+    "p95Ms": 2.974,
+    "sharedRedisStopped": false
+  }
+}

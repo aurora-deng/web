@@ -1,5 +1,19 @@
+import { mountNavigation } from './shared/AppNavigation/AppNavigation.js';
+mountNavigation('chat');
+import { BusinessApi } from './shared/BusinessApi/BusinessApi.js';
+import { AnnouncementPlayer } from './shared/AnnouncementPlayer/AnnouncementPlayer.js';
 import { ChatHistory, canRecallMessage } from './chat/ChatHistory.js?v=20261012';
 import { ReliableSender } from './chat/ReliableSender.js?v=20261012';
+
+import { VirtualMessageList } from './chat/VirtualMessageList/VirtualMessageList.js';
+import { RecoveryBudget, ReconnectBackoff } from './shared/RecoveryBudget/RecoveryBudget.js';
+// 新增：全站唯一时间格式化（会话列表 / 消息流 / 搜索结果共用同一实现）
+import { formatChatTime, formatDayKey, formatDateDivider } from './shared/TimeFormat/TimeFormat.js';
+
+const pageBudget = new RecoveryBudget();
+const wsBackoff = new ReconnectBackoff();
+const sseBackoff = new ReconnectBackoff();
+let sseTimer = null;
 
 const $ = selector => document.querySelector(selector);
 
@@ -57,11 +71,23 @@ const state = {
   recovery: null,
   recoverRequested: false,
   transientMessages: new Map(),
+  searchHit: null,
+  unreadPending: new Map(),   // 服务端基线请求发出之后、返回之前到达的本地未读增量
+  bumped: null,               // 最近一次有新消息的会话，用于一次性上浮动效
+  aiModels: null,             // null = 还没读过；[] = 读过但为空或失败
+  aiModelError: '',           // 模型列表读取失败的原因（用于下拉里的兜底选项文案）
+  conversationAiMember: 0,    // 当前会话自动识别到的 AI 成员 userId，0 = 没有
+  aiTargetManual: false,      // 用户是否手选过模型：手选优先级高于自动识别，且不跨会话保留
 };
 
-const history = new ChatHistory((conversationId, query) => api(
-  `/api/conversations/${conversationId}/messages?${new URLSearchParams(query)}`,
-), () => renderCurrentMessages());
+// 跳转定位期间要连续翻十几页历史，逐页重绘会让列表抖动；
+// 只在这一段屏蔽重绘，定位结束后统一渲染一次。
+let suppressMessageRender = false;
+
+const messageView = new VirtualMessageList(elements.messageList, createMessageElement);
+const history = new ChatHistory((conversationId, query, signal) => pageBudget.run(() => api(
+  `/api/conversations/${conversationId}/messages?${new URLSearchParams(query)}`, { signal },
+), signal), () => renderCurrentMessages());
 
 function savePendingMessages() {
   if (!state.me) return;
@@ -216,9 +242,35 @@ function advanceConversationSequence(conversationId, sequence) {
 }
 
 function conversationTitle(conversation) {
-  return conversation.title || (conversation.kind === 'group'
+  return conversation.displayTitle || conversation.title || (conversation.kind === 'group'
     ? `群聊 #${conversation.id}`
     : `私聊 #${conversation.id}`);
+}
+
+/**
+ * 会话列表的全序：未读优先 → 最后消息时间倒序 → id 倒序。
+ * 末位用 id 兜底是为了让「同一毫秒到达的两条消息」也有确定顺序，
+ * 否则每次重绘都可能交换位置，用户会看到列表闪。
+ */
+function conversationOrder(left, right) {
+  const leftUnread = state.unread.get(Number(left.id)) || 0;
+  const rightUnread = state.unread.get(Number(right.id)) || 0;
+  if (Boolean(leftUnread) !== Boolean(rightUnread)) return leftUnread ? -1 : 1;
+  const leftAt = Number(left.lastMessageAt) || 0;
+  const rightAt = Number(right.lastMessageAt) || 0;
+  if (leftAt !== rightAt) return rightAt - leftAt;
+  return Number(right.id) - Number(left.id);
+}
+
+/**
+ * 记一条本地未读增量。同时写进 state.unread（立刻可见）和 state.unreadPending
+ * （供 loadConversations 在服务端基线之上叠加），避免请求期间的增量被 clear() 吃掉。
+ */
+function bumpUnread(conversationId) {
+  const id = Number(conversationId);
+  state.unread.set(id, (state.unread.get(id) || 0) + 1);
+  state.unreadPending.set(id, (state.unreadPending.get(id) || 0) + 1);
+  state.bumped = { id, at: Date.now() };
 }
 
 function myMembership() {
@@ -228,14 +280,17 @@ function myMembership() {
 function clearConversationView() {
   state.viewVersion += 1;
   history.reset();
+  messageView.clear();
   state.conversation = null;
   state.members = [];
   $('#conversation-title').textContent = '请选择会话';
   $('#conversation-subtitle').textContent = '选择左侧会话，开始交流';
-  $('#conversation-avatar').textContent = '✦';
+  // 走同一个 paintAvatar，才能把上一段会话留下的背景图一起清掉。
+  paintAvatar($('#conversation-avatar'), null, '✦');
   $('#detail-title').textContent = '尚未选择会话';
   $('#detail-kind').textContent = '选择会话后显示详情';
-  $('#detail-avatar').textContent = '✦';
+  paintAvatar($('#detail-avatar'), null, '✦');
+  $('#composer-destination').textContent = '当前会话';
   $('#search-messages').disabled = true;
   $('#add-member').classList.add('hidden');
   $('#group-governance').classList.add('hidden');
@@ -344,6 +399,25 @@ function formatBytes(value) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
+/**
+ * 把消息序列映射成「带日期分隔标记的行」。
+ * 不改 VirtualMessageList：日期标记作为行对象的附加字段随行一起渲染，
+ * 因此 heights / prefix / range 的下标语义完全不变。
+ * 只有需要分隔的行才创建新对象，其余行保持原引用，
+ * 这样 VirtualMessageList 的 `JSON.stringify(message)` 签名缓存不会被无谓击穿。
+ */
+function withDateDividers(rows) {
+  const result = [];
+  let previousDay = '';
+  rows.forEach((message, index) => {
+    const day = formatDayKey(message.createdAt);
+    const needsDivider = day && (index === 0 || day !== previousDay);
+    if (day) previousDay = day;
+    result.push(needsDivider ? { ...message, dateBreak: day } : message);
+  });
+  return result;
+}
+
 function paintAvatar(element, user, fallback) {
   if (!element) return;
   const url = user?.avatarUrl;
@@ -390,8 +464,12 @@ function setRealtimeState(kind, status) {
 }
 
 async function showChat(me) {
+  // 只有在「确实换了账号」时才清视图：同一个账号重新进入时不能把用户正在看的会话清掉。
+  const switched = state.me && String(state.me.id) !== String(me?.id);
+  window.dispatchEvent(new CustomEvent('nebula:user',{detail:me}));
   state.me = me;
   state.leaving = false;
+  if (switched) clearConversationView();
   sender.clear();
   try { sender.restore(JSON.parse(sessionStorage.getItem(`phase11:pending:${me.id}`) || '[]')); }
   catch { /* 不信任损坏的缓存；恢复方法还会逐项验证载荷。 */ }
@@ -399,14 +477,20 @@ async function showChat(me) {
   elements.authPanel.classList.add('hidden');
   elements.chatPanel.classList.remove('hidden');
   connectRealtime();
+  startAnnouncements();
   await Promise.allSettled([loadConversations(), loadFriendsPreview(), refreshPendingBadge()]);
 }
 
 function showLoggedOut() {
+  window.dispatchEvent(new CustomEvent('nebula:user',{detail:null}));
+  announcementPlayer?.dispose();
   savePendingMessages();
   sender.clear();
-  state.viewVersion += 1;
-  history.reset();
+  // 会话区立刻回到「未选择会话」态：showLoggedOut 只隐藏面板不清 DOM，
+  // 下一个账号登录时【state.me 已经是 null，账号比对条件不会成立】，
+  // 头部就会一直显示上一个账号的对端标题与头像，直到他点开任意会话。
+  // 退出是会话真正的终点（不是重连），在这里清最准确。
+  clearConversationView();
   state.transientMessages.clear();
   state.me = null;
   state.csrf = '';
@@ -416,11 +500,18 @@ function showLoggedOut() {
   state.blocked = [];
   state.members = [];
   state.unread.clear();
+  state.unreadPending.clear();
+  state.bumped = null;
+  state.aiModels = null;            // 切号后不能沿用上一个账号的模型列表
+  state.aiModelError = '';
+  state.conversationAiMember = 0;
+  state.aiTargetManual = false;
   state.seenMessageIds.clear();
   state.pendingRecalls.forEach(item => clearTimeout(item.timer));
   state.pendingRecalls.clear();
   clearTimeout(state.catchupTimer);
   clearTimeout(state.reconnectTimer);
+  clearTimeout(sseTimer);
   state.socket?.close();
   state.events?.close();
   elements.chatPanel.classList.add('hidden');
@@ -434,9 +525,12 @@ function renderConversations() {
     if (state.conversationFilter !== 'all' && state.conversationFilter !== 'ai'
         && conversation.kind !== state.conversationFilter) return false;
     if (state.conversationFilter === 'ai'
-        && !state.aiConversations.has(Number(conversation.id))) return false;
+        && !conversation.containsAi && !state.aiConversations.has(Number(conversation.id))) return false;
     return !query || conversationTitle(conversation).toLocaleLowerCase().includes(query);
   });
+  // 排序必须发生在渲染入口：state.conversations 的顺序只代表「上次服务端返回的顺序」，
+  // 本地收到新消息后只更新了字段，没有重排。
+  visible.sort(conversationOrder);
   const totalUnread = [...state.unread.values()].reduce((sum, value) => sum + value, 0);
   $('#total-unread').textContent = totalUnread > 99 ? '99+' : String(totalUnread);
   $('#total-unread').classList.toggle('hidden', totalUnread === 0);
@@ -447,20 +541,37 @@ function renderConversations() {
     button.type = 'button';
     button.className = 'conversation-item';
     button.classList.toggle('active', Number(conversation.id) === Number(state.conversation?.id));
+    if (state.bumped && state.bumped.id === Number(conversation.id)
+        && Date.now() - state.bumped.at < 600) button.classList.add('is-bumped');
 
     const avatar = document.createElement('span');
     avatar.className = 'avatar';
-    avatar.textContent = conversation.kind === 'group' ? '群' : initials(conversationTitle(conversation), '聊');
+    paintAvatar(avatar, conversation, conversation.kind === 'group' ? '群' : initials(conversationTitle(conversation), '聊'));
     const copy = document.createElement('span');
     copy.className = 'conversation-copy';
     const title = document.createElement('strong');
     title.textContent = conversationTitle(conversation);
     const detail = document.createElement('small');
-    detail.textContent = conversation.kind === 'group'
-      ? `群组 · 消息序号 ${Math.max(0, Number(conversation.nextSequence) - 1)}`
-      : `私聊 · 消息序号 ${Math.max(0, Number(conversation.nextSequence) - 1)}`;
+    detail.textContent = conversation.lastMessagePreview || '暂无消息，开始交流吧';
     copy.append(title, detail);
     button.append(avatar, copy);
+    if (Number(conversation.lastMessageAt)) {
+      const time = document.createElement('time');
+      time.dateTime = new Date(Number(conversation.lastMessageAt)).toISOString();
+      time.textContent = formatChatTime(conversation.lastMessageAt);
+      button.append(time);
+    }
+    // notificationsMuted 对私聊来自 contact_preferences（真实值），对群聊恒为 false
+    // （PostgresStore.cpp:1318 无对端联系人）。会话级免打扰又没有写接口
+    // （PATCH /api/conversations/:id 只收 title + announcement），
+    // 所以群聊里宁可不画，也不给用户一个「看起来能设」的假象。
+    if (conversation.kind !== 'group' && conversation.notificationsMuted) {
+      const muted = document.createElement('span');
+      muted.className = 'muted-mark';
+      muted.textContent = '♩';
+      muted.title = '已免打扰';
+      button.append(muted);
+    }
 
     const unread = state.unread.get(Number(conversation.id)) || 0;
     if (unread) {
@@ -478,24 +589,32 @@ function renderConversations() {
 async function loadConversations() {
   const userId = state.me?.id;
   const version = ++state.listVersion;
+  // 从发起请求这一刻开始记账：请求返回之前到达的未读，服务端基线里可能还没有。
+  state.unreadPending.clear();
   elements.conversationLoading.classList.remove('hidden');
   try {
     const conversations = await api('/api/conversations');
     if (state.me?.id !== userId || state.listVersion !== version) return false;
     state.conversations = conversations;
-    state.unread.clear();
-    state.conversations.forEach(conversation => {
-      const unread = Math.max(0, Number(conversation.unreadCount) || 0);
-      if (unread) {
-        state.unread.set(Number(conversation.id), unread);
-      }
+    const unread = new Map();
+    conversations.forEach(conversation => {
+      const server = Math.max(0, Number(conversation.unreadCount) || 0);
+      const pending = state.unreadPending.get(Number(conversation.id)) || 0;
+      // 取较大值：服务端可能已经把这条算进基线了（pending 重复），也可能还没有（pending 是唯一来源）。
+      // 宁可多一个红点，也不能让到达过的消息静默消失。
+      const total = Math.max(server, pending);
+      if (total) unread.set(Number(conversation.id), total);
     });
+    state.unread = unread;
+    state.unreadPending.clear();
     if (state.conversation) {
       const current = state.conversations.find(
         item => Number(item.id) === Number(state.conversation.id),
       );
-      if (current) state.conversation = current;
-      else clearConversationView();
+      if (current) {
+        state.conversation = current;
+        paintConversationChrome(current);   // 备注/标题/头像变了要立刻反映到头部与详情栏
+      } else clearConversationView();
     }
     renderConversations();
     setStatus(elements.chatStatus);
@@ -508,22 +627,33 @@ async function loadConversations() {
   }
 }
 
+/**
+ * 会话头部与详情栏的身份区。会话列表、头部、详情栏、输入区目的地四处必须同源，
+ * 都走 conversationTitle() 与 paintAvatar()，否则备注/头像会在某一处漏掉。
+ */
+function paintConversationChrome(conversation) {
+  if (!conversation) return;
+  const title = conversationTitle(conversation);
+  const group = conversation.kind === 'group';
+  const owner = { avatarUrl: conversation.avatarUrl, displayName: title };
+  $('#conversation-title').textContent = title;
+  $('#conversation-subtitle').textContent = group
+    ? `群组会话 · ID ${conversation.id}`
+    : `点对点会话 · ID ${conversation.id}`;
+  paintAvatar($('#conversation-avatar'), owner, group ? '群' : '聊');
+  $('#composer-destination').textContent = title;
+  $('#detail-title').textContent = title;
+  $('#detail-kind').textContent = group
+    ? `群聊 · 会话 ID ${conversation.id}` : `私聊 · 会话 ID ${conversation.id}`;
+  paintAvatar($('#detail-avatar'), owner, group ? '群' : '聊');
+}
+
 async function openConversation(conversation) {
   const version = ++state.viewVersion;
   state.conversation = conversation;
   renderConversations();
 
-  const title = conversationTitle(conversation);
-  $('#conversation-title').textContent = title;
-  $('#conversation-subtitle').textContent = conversation.kind === 'group'
-    ? `群组会话 · ID ${conversation.id}`
-    : `点对点会话 · ID ${conversation.id}`;
-  $('#conversation-avatar').textContent = conversation.kind === 'group' ? '群' : initials(title, '聊');
-  $('#composer-destination').textContent = title;
-  $('#detail-title').textContent = title;
-  $('#detail-kind').textContent = conversation.kind === 'group'
-    ? `群聊 · 会话 ID ${conversation.id}` : `私聊 · 会话 ID ${conversation.id}`;
-  $('#detail-avatar').textContent = conversation.kind === 'group' ? '群' : initials(title, '聊');
+  paintConversationChrome(conversation);
   $('#search-messages').disabled = false;
   $('#add-member').classList.add('hidden');
   $('#group-governance').classList.toggle('hidden', conversation.kind !== 'group');
@@ -547,11 +677,13 @@ async function openConversation(conversation) {
     state.members = members;
     const aiMember = members.find(member => member.aiAccount &&
       Number(member.userId) !== Number(state.me?.id));
-    const aiInput = elements.messageForm.elements.aiUserId;
-    aiInput.value = aiMember ? String(aiMember.userId) : '';
-    aiInput.placeholder = aiMember
-      ? `${aiMember.displayName || aiMember.username}（已自动识别）`
-      : '群聊中可填写 AI 成员 ID';
+    delete elements.messageForm.dataset.aiReply;
+    state.conversationAiMember = aiMember ? Number(aiMember.userId) : 0;
+    // 换会话是「自动识别优先」的新上下文：上一次的手选不该跨会话留着。
+    state.aiTargetManual = false;
+    // 只在已经读过模型列表时重建；否则等 loadAiModels() 回来时用
+    // state.conversationAiMember 作为优先项，自动选中不会丢。
+    if (state.aiModels) applyAiModels(state.aiModels);
     if (aiMember || messages.some(message => message.clientMessageId?.startsWith('ai:'))) {
       state.aiConversations.add(Number(conversation.id));
     }
@@ -687,12 +819,6 @@ async function removeMember(member) {
   } catch (error) { toast(error.message, 'error'); }
 }
 
-function formatMessageTime(value) {
-  const date = Number(value) > 0 ? new Date(Number(value)) : null;
-  if (!date || Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-}
-
 function deliveryLabel(message) {
   if (message.state === 'recalled') return '已撤回';
   if (message.deliveryState === 'sending') return '发送中…';
@@ -756,6 +882,14 @@ function createMessageElement(message, options = {}) {
   if (message.clientMessageId) item.dataset.clientMessageId = message.clientMessageId;
   if (generationId) item.dataset.generationId = generationId;
   if (message.sequence !== undefined) item.dataset.sequence = String(message.sequence);
+  if (message.dateBreak) {
+    // 绝对定位的块级子元素：不参与 .message 的 flex 布局，行高由 margin 承担并被 measure() 计入。
+    const divider = document.createElement('div');
+    divider.className = 'date-divider';
+    divider.textContent = formatDateDivider(message.createdAt);
+    item.classList.add('has-date-break');
+    item.append(divider);
+  }
 
   const avatar = document.createElement('span');
   avatar.className = 'avatar';
@@ -767,9 +901,9 @@ function createMessageElement(message, options = {}) {
   content.className = 'message-content';
   const meta = document.createElement('p');
   meta.className = 'message-author';
-  const time = formatMessageTime(message.createdAt);
+  const time = formatChatTime(message.createdAt);
   meta.textContent = options.streaming ? 'AI 正在生成'
-    : `${aiMessage ? 'AI 账号' : mine ? '我' : `用户 ${message.senderId}`} · #${message.sequence || '…'}${time ? ` · ${time}` : ''}`;
+    : `${aiMessage ? (messageSender?.displayName || 'AI 账号') : mine ? '我' : (messageSender?.displayName || messageSender?.username || `用户 ${message.senderId}`)}${time ? ` · ${time}` : ''}`;
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble';
   bubble.classList.toggle('typing-caret', Boolean(options.streaming));
@@ -821,6 +955,23 @@ function createMessageElement(message, options = {}) {
     footer.append(retry);
   }
   if (aiMessage && generationId && !options.streaming && message.state !== 'recalled') {
+    const reply=document.createElement('button');reply.type='button';reply.className='message-citations';reply.textContent='回复助手';
+    // 顺序很关键：selectAiTarget 必须是最后一个写入者。
+    // loadAiModels() 在第一个 await 之前会同步 replaceChildren('正在读取可用模型…')，
+    // 若先选中再读模型，刚选中的 option 会被清掉、value 变成空串，接口回来后
+    // applyAiModels 只能落到第一个模型——用户以为在回复 42，实际发给 7。
+    // aiTargetManual 也必须在 await 之后才置 true，否则 applyAiModels 会读到被清空的 value。
+    reply.onclick=async()=>{
+      elements.messageForm.dataset.aiReply=String(message.id);
+      $('#toggle-ai').setAttribute('aria-pressed','true');
+      $('#ai-target-wrap').classList.remove('hidden');
+      elements.messageForm.elements.message.placeholder='回复这条助手消息…';
+      elements.messageForm.elements.message.focus();
+      if(!state.aiModels)await loadAiModels();   // 内部已 catch，不会抛
+      state.aiTargetManual=true;
+      selectAiTarget(message.senderId);
+    };
+    footer.append(reply);
     const sources = document.createElement('button');
     sources.type = 'button';
     sources.className = 'message-citations';
@@ -855,22 +1006,11 @@ function createMessageElement(message, options = {}) {
   return item;
 }
 
-function renderMessages(messages) {
-  messages.forEach(message => {
-    rememberMessageId(message.id);
-  });
-  elements.messageList.replaceChildren(...messages.map(message => createMessageElement(message)));
-  if (!messages.length) {
-    const empty = document.createElement('li');
-    empty.className = 'list-empty';
-    empty.textContent = '这里还没有消息，发送第一句话吧。';
-    elements.messageList.append(empty);
-  }
-}
-
 /** 统一重排历史、待确认命令和 AI 流式气泡；保留阅读锚点，加载旧页不跳回底部。 */
 function renderCurrentMessages(mode = 'preserve') {
   if (!state.conversation || history.conversationId !== Number(state.conversation.id)) return;
+  // 跳转定位期间连翻十几页历史，逐页重绘会让列表抖动并打断高亮，这里只屏蔽中间过程。
+  if (suppressMessageRender) return;
   const list = elements.messageList;
   const top = list.scrollTop;
   const nearBottom = list.scrollHeight - top - list.clientHeight < 80;
@@ -886,13 +1026,6 @@ function renderCurrentMessages(mode = 'preserve') {
       state: 'active', deliveryState: entry.status }));
   const files = [...state.transientMessages.values()].filter(message =>
     Number(message.conversationId) === Number(state.conversation.id));
-  renderMessages([...history.messages, ...pending, ...files]);
-  streams.forEach(stream => {
-    if (!history.messages.some(message => message.clientMessageId === `ai:${stream.dataset.generationId}`)) {
-      list.querySelector('.list-empty')?.remove();
-      list.append(stream);
-    }
-  });
   const pager = document.createElement('li');
   pager.className = 'history-pager';
   const button = document.createElement('button');
@@ -915,7 +1048,19 @@ function renderCurrentMessages(mode = 'preserve') {
   sync.textContent = '同步消息';
   sync.addEventListener('click', () => recoverRealtime());
   pager.append(sync);
-  list.prepend(pager);
+  if (history.hasNewer) {
+    const newer = document.createElement('button');
+    newer.type = 'button'; newer.className = 'history-newer-button';
+    newer.disabled = history.loadingNewer;
+    newer.textContent = history.loadingNewer ? '正在加载…' : '加载较新消息';
+    newer.addEventListener('click', () => history.newer().then(settleHistoryPending)
+      .catch(error => setStatus(elements.chatStatus, error.message, 'error')));
+    pager.append(newer);
+  }
+  const rows = withDateDividers([...history.messages, ...pending, ...files]);
+  rows.forEach(message => rememberMessageId(message.id));
+  messageView.setMessages(rows, JSON.stringify([state.me?.id, state.members]),
+    { before: [pager], after: streams });
   const version = state.viewVersion;
   requestAnimationFrame(() => {
     if (version !== state.viewVersion) return;
@@ -990,8 +1135,10 @@ async function openTrainingConsent(message = null) {
   await loadTrainingCandidates();
 }
 
+// 审核发生在服务器命令行工具里（tools/phase11_training_admin.cpp:141-144），
+// 网页只负责提交与撤销。文案必须让用户知道「不是我这里出了问题」。
 const trainingStateLabels = {
-  submitted: '待审核',
+  submitted: '已提交 · 等待管理员在管理工具中离线审核',
   approved: '已通过审核',
   rejected: '未通过审核',
   exported: '已进入数据集',
@@ -1047,6 +1194,92 @@ async function loadTrainingCandidates() {
 
 function existingMessage(messageId) {
   return [...elements.messageList.children].find(item => item.dataset.messageId === String(messageId));
+}
+
+/** 清除上一次的搜索高亮（含未到期的定时器），避免连续跳转留下多个高亮行。 */
+function clearSearchHit() {
+  if (state.searchHit?.timer) clearTimeout(state.searchHit.timer);
+  state.searchHit = null;
+  elements.messageList.querySelectorAll('.search-hit')
+    .forEach(node => node.classList.remove('search-hit'));
+}
+
+/**
+ * 把目标序号拉进当前历史窗口。
+ * ChatHistory 只有「从 cursor 往后补」和「从 oldest 往前翻」两条路，
+ * 目标在窗口之外时只能反复 older()；每轮 100 条，受 pageBudget 并发闸门约束。
+ */
+async function ensureSequenceLoaded(sequence) {
+  const target = Number(sequence) || 0;
+  if (!target) return false;
+  if (!history.loaded && history.ready) await history.ready;
+  let rounds = 0;
+  while (history.loaded && target < history.oldest && history.hasOlder && rounds < 30) {
+    const previousOldest = history.oldest;
+    setStatus($('#search-status'), `正在定位…（已加载 ${history.records.size} 条）`);
+    await history.older();
+    ++rounds;
+    if (history.oldest >= previousOldest) break;   // 没有前进就停，绝不死循环
+  }
+  return history.loaded && target >= history.oldest && target <= history.latest;
+}
+
+/**
+ * 让目标行进入视口并高亮 2000ms。
+ * .message-list 有 scroll-behavior:smooth，平滑滚动会让「先设位置再测量」全部失效，
+ * 所以定位期间临时改成 auto，定位完成后恢复原值。
+ */
+function revealMessageRow(messageId) {
+  const key = String(messageId);
+  const list = elements.messageList;
+  const previousBehavior = list.style.scrollBehavior;
+  clearSearchHit();
+  list.style.scrollBehavior = 'auto';
+  // 第一帧：让 renderCurrentMessages 的锚点恢复先跑完；第二帧：定位置、取节点。
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const node = messageView.scrollToKey(key) || existingMessage(key);
+    if (!node) {
+      list.style.scrollBehavior = previousBehavior;
+      // 兜底：实在取不到行也不要把用户丢在原地，至少回到最新消息。
+      list.scrollTop = list.scrollHeight;
+      setStatus(elements.chatStatus, '已在会话中定位，但该消息暂不可见；可用“同步消息”重试。', 'error');
+      return;
+    }
+    node.classList.add('search-hit');
+    // scrollIntoView 必须在 scroll-behavior 还是 auto 的时候调用，
+    // 否则 CSS 的 smooth 会让它开始一段动画，定位结束时位置还没到，测量就白做了。
+    node.scrollIntoView({ block: 'center', behavior: 'auto' });
+    list.style.scrollBehavior = previousBehavior;
+    state.searchHit = { key, timer: window.setTimeout(() => {
+      node.classList.remove('search-hit');
+      state.searchHit = null;
+    }, 2000) };
+  }));
+}
+
+/** 搜索结果 → 定位 → 关闭弹窗 → 高亮。失败时把原因留在搜索弹窗里，不清空结果。 */
+async function jumpToMessage(message) {
+  const conversation = state.conversation;
+  if (!conversation || !message) return;
+  if (Number(message.conversationId) !== Number(conversation.id)) {
+    throw new Error('这条结果属于其它会话，请重新打开该会话后再搜索');
+  }
+  let found = false;
+  suppressMessageRender = true;
+  try {
+    found = await ensureSequenceLoaded(message.sequence);
+  } finally {
+    suppressMessageRender = false;
+  }
+  if (history.conversationId !== Number(conversation.id)) return;   // 期间切了会话，放弃
+  if (!found) {
+    // 定位失败也要把刚拉进来的历史画出来，否则列表会停留在跳转前的旧窗口。
+    renderCurrentMessages();
+    throw new Error(`未能定位到第 ${message.sequence} 条消息，请点“同步消息”后重试`);
+  }
+  elements.searchDialog.close();
+  renderCurrentMessages();
+  revealMessageRow(message.id);
 }
 
 function messageByClientId(clientMessageId) {
@@ -1136,6 +1369,78 @@ function acknowledge(message) {
   sendSocket({ ...base, id: createClientId(), type: 'chat.read' });
 }
 
+/**
+ * 把 AI 目标选中到指定账号；options 里没有就先补一个，避免 select.value 静默变空。
+ * `<select>` 的 .value 赋一个不在 options 里的值不会报错，只会静默变成空串，
+ * 症状是「AI 模式发不出消息」且提示文案对不上原因——所以必须显式补 option。
+ */
+function selectAiTarget(userId) {
+  const select = elements.messageForm.elements.aiUserId;
+  const value = String(userId || '');
+  if (!value) { select.value = select.options[0]?.value || ''; return; }
+  if (![...select.options].some(option => option.value === value)) {
+    select.append(new Option(`会话 AI 成员 #${value}`, value));
+  }
+  select.value = value;
+}
+
+/**
+ * 用模型列表重建 options，并优先保住当前该有的选中项。
+ * 优先级：用户手选 > 会话自动识别 > 第一个可用模型。
+ * 不能拿「上一次会话遗留的 select.value」当默认值，否则会把上个会话的
+ * `会话 AI 成员 #N` 带进一个没有 AI 成员的会话里，用户看到的是错的。
+ * 也绝不在「有明确目标」时静默换成第一个模型。
+ */
+function applyAiModels(models) {
+  const select = elements.messageForm.elements.aiUserId;
+  const member = String(state.conversationAiMember || '');
+  const current = String(select.value || '');
+  const preferred = state.aiTargetManual ? current : member;
+  select.replaceChildren();
+  if (!models.length) {
+    select.append(new Option(state.aiModelError
+      ? '模型列表读取失败，可展开「高级」填写账号 ID'
+      : '本站暂无已配置模型', ''));
+    // 没有模型列表不等于要丢掉目标：会话里有 AI 成员是活的事实，保留它并显式标注出来。
+    if (preferred) selectAiTarget(preferred); else select.value = '';
+    return;
+  }
+  models.forEach(model => {
+    select.append(new Option(
+      `${model.name || `模型 #${model.accountId}`} · ${model.runtime || 'unknown'}`,
+      String(model.accountId),
+    ));
+  });
+  if (preferred) selectAiTarget(preferred);
+  else select.value = select.options[0].value;
+}
+
+/** 只在第一次打开 AI 模式时打一次接口；失败不阻塞手填兜底。 */
+async function loadAiModels() {
+  const select = elements.messageForm.elements.aiUserId;
+  if (state.aiModels) { applyAiModels(state.aiModels); return; }
+  select.replaceChildren(new Option('正在读取可用模型…', ''));
+  select.disabled = true;
+  try {
+    const models = await api('/api/ai/web/models');
+    state.aiModels = Array.isArray(models) ? models : [];
+    state.aiModelError = '';
+  } catch (error) {
+    state.aiModels = [];
+    state.aiModelError = error.message;
+  } finally {
+    select.disabled = false;
+  }
+  applyAiModels(state.aiModels);
+}
+
+/** 手填的「高级」输入优先；否则用下拉值。 */
+function readAiTarget() {
+  const manual = $('#ai-user-manual')?.value.trim() || '';
+  if (/^\d+$/.test(manual)) return manual;
+  return String(elements.messageForm.elements.aiUserId.value || '').trim();
+}
+
 function refreshCancelButton() {
   const active = [...state.activeGenerations.values()]
     .find(item => Number(item.conversationId) === Number(state.conversation?.id));
@@ -1149,23 +1454,31 @@ function onRealtimeMessage(message) {
     if (Number(message.senderId) === Number(state.me?.id)) sender.confirmMessage(message);
     const duplicate = rememberMessageId(message.id);
     advanceConversationSequence(message.conversationId, message.sequence);
+    const summary = state.conversations.find(item => Number(item.id) === Number(message.conversationId));
+    if (summary && Number(message.sequence) >= Number(summary.nextSequence) - 1) {
+      summary.lastMessagePreview = message.body || (message.attachments?.length ? '[附件]' : '');
+      summary.lastMessageAt = message.createdAt;
+      state.bumped = { id: Number(message.conversationId), at: Date.now() };
+      renderConversations();
+    }
     const isCurrent = Number(message.conversationId) === Number(state.conversation?.id);
     if (isCurrent) {
       appendMessage(message);
       acknowledge(message);
       if (Number(message.sequence) > history.cursor) scheduleCatchup();
     } else if (!duplicate) {
-      const id = Number(message.conversationId);
       // 同一账号的另一浏览器标签页可能收到自己刚发送的广播；发送者游标已经在
       // 服务端推进，因此这里只给真正来自其他成员的消息增加本地未读数。
-      if (Number(message.senderId) !== Number(state.me?.id)) {
-        state.unread.set(id, (state.unread.get(id) || 0) + 1);
-      }
+      if (Number(message.senderId) !== Number(state.me?.id)) bumpUnread(message.conversationId);
       renderConversations();
     }
     return;
   }
   if (message.type === 'chat.message-recalled') {
+    const summary = state.conversations.find(item => Number(item.id) === Number(message.conversationId));
+    if (summary && Number(message.sequence) === Number(summary.nextSequence) - 1) {
+      summary.lastMessagePreview = '这条消息已被撤回';renderConversations();
+    }
     if (Number(message.conversationId) === Number(state.conversation?.id)) {
       applyRecall(message);
       setStatus(elements.chatStatus, '消息已撤回。', 'success');
@@ -1192,6 +1505,8 @@ function onRealtimeMessage(message) {
       const remaining = Math.max(0, latest - Number(message.sequence));
       if (remaining) state.unread.set(Number(message.conversationId), remaining);
       else state.unread.delete(Number(message.conversationId));
+      // 自己已读之后，该会话的本地增量必须作废，否则下一次 loadConversations 的 max() 会把它算回来。
+      state.unreadPending.delete(Number(message.conversationId));
       renderConversations();
     }
     return;
@@ -1278,7 +1593,9 @@ function onRealtimeMessage(message) {
   }
 }
 
-function connectRealtime() {
+function connectRealtime() { connectSocket(); connectEvents(); }
+
+function connectSocket() {
   clearTimeout(state.reconnectTimer);
   state.socket?.close();
   setRealtimeState('ws', 'error');
@@ -1288,13 +1605,14 @@ function connectRealtime() {
   socket.addEventListener('open', () => {
     if (state.socket !== socket || !state.me || state.leaving) return;
     setRealtimeState('ws', 'online');
+    wsBackoff.reset();
     recoverRealtime();
   });
   socket.addEventListener('close', () => {
     if (state.socket !== socket) return;
     sender.disconnected();
     setRealtimeState('ws', state.me && !state.leaving ? 'error' : 'offline');
-    if (state.me && !state.leaving) state.reconnectTimer = setTimeout(connectRealtime, 1600);
+    if (state.me && !state.leaving) state.reconnectTimer = setTimeout(connectSocket, wsBackoff.next());
   });
   socket.addEventListener('error', () => {
     if (state.socket === socket && state.me) setRealtimeState('ws', 'error');
@@ -1305,17 +1623,26 @@ function connectRealtime() {
     catch { setStatus(elements.chatStatus, '收到无法解析的实时消息', 'error'); }
   });
 
+}
+
+function connectEvents() {
+  clearTimeout(sseTimer);
   state.events?.close();
   setRealtimeState('sse', 'error');
   const events = new EventSource('/events');
   state.events = events;
+  for (const name of ['announcement.created','announcement.audio.ready']) events.addEventListener(name,()=>window.dispatchEvent(new Event('nebula:announcement')));
   events.addEventListener('open', () => {
     if (state.events !== events || !state.me || state.leaving) return;
     setRealtimeState('sse', 'online');
+    sseBackoff.reset();
     recoverRealtime();
   });
   events.addEventListener('error', () => {
-    if (state.events === events) setRealtimeState('sse', state.me ? 'error' : 'offline');
+    if (state.events !== events) return;
+    setRealtimeState('sse', state.me ? 'error' : 'offline');
+    events.close();
+    if (state.me && !state.leaving) sseTimer = setTimeout(connectEvents, sseBackoff.next());
   });
   // 回放窗口过期时，数据库历史是最终恢复来源。
   events.addEventListener('replay-reset', () => scheduleCatchup());
@@ -1426,6 +1753,9 @@ async function saveContact(user, changes) {
     }),
   });
   await loadContacts();
+  // 备注会改变会话摘要里的 displayTitle（SQL: PostgresStore.cpp:1288），
+  // 免打扰会改变 notificationsMuted。不重拉会话列表，列表和会话头就会一直显示旧值。
+  await loadConversations();
 }
 
 function contactRow(user) {
@@ -1675,6 +2005,7 @@ $('#login-form').addEventListener('submit', async event => {
     state.csrf = result.csrfToken;
     setStatus(elements.authStatus);
     await showChat(result.user);
+    if(new URL(location.href).searchParams.get('editProfile')==='1') $('#show-profile').click();
   } catch (error) {
     setStatus(elements.authStatus, error.message, 'error');
   } finally { setButtonBusy(button, false); }
@@ -1732,15 +2063,22 @@ elements.messageForm.addEventListener('submit', async event => {
   const content = input.value.trim();
   const selectedFile = state.selectedFile;
   if (!content && !selectedFile) return;
-  const aiMode = $('#toggle-ai').getAttribute('aria-pressed') === 'true';
-  const aiUserId = form.elements.aiUserId.value.trim();
+  let aiMode = $('#toggle-ai').getAttribute('aria-pressed') === 'true';
+  let aiUserId = readAiTarget();
+  const mentioned=state.members.find(member=>member.aiAccount&&[member.username,member.displayName].filter(Boolean).some(name=>content.includes('@'+name)));
+  if(mentioned){aiMode=true;aiUserId=String(mentioned.userId);}
   if (selectedFile && aiMode) {
     setStatus(elements.chatStatus, 'AI 模式暂只接收文字提示词；请先关闭 AI 模式再发送文件。', 'error');
     return;
   }
   if (aiMode && !aiUserId) {
-    setStatus(elements.chatStatus, 'AI 模式需要填写目标 AI 账号 ID。', 'error');
-    form.elements.aiUserId.focus();
+    setStatus(elements.chatStatus, state.aiModels?.length
+      ? '请选择一个 AI 模型后再发送。'
+      : 'AI 模式暂无可用模型：展开「高级」填写 AI 账号 ID，或关闭 AI 模式改成普通消息。', 'error');
+    // 手填框在折叠的「高级」里，先展开再聚焦，否则 focus() 落在不可见元素上等于没反应。
+    const manual = $('#ai-user-manual');
+    if (manual && manual.offsetParent === null) manual.closest('details')?.setAttribute('open', '');
+    (manual || form.elements.aiUserId).focus();
     return;
   }
   const messageId = createClientId();
@@ -1790,7 +2128,7 @@ elements.messageForm.addEventListener('submit', async event => {
     type: aiMode ? 'ai.generate' : 'chat.send',
     conversationId,
     id: messageId,
-    ...(aiMode ? { to: Number(aiUserId) } : {}),
+    ...(aiMode ? { to: Number(aiUserId),aiTrigger:form.dataset.aiReply?'reply':mentioned?'mention':'explicit',...(form.dataset.aiReply?{replyTo:form.dataset.aiReply}:{}) } : {}),
     content,
   };
   if (aiMode) {
@@ -1808,6 +2146,7 @@ elements.messageForm.addEventListener('submit', async event => {
   }
   input.value = '';
   input.style.height = '';
+  delete form.dataset.aiReply;
 });
 
 elements.messageForm.elements.message.addEventListener('keydown', event => {
@@ -1828,6 +2167,13 @@ $('#toggle-ai').addEventListener('click', event => {
   elements.messageForm.elements.message.placeholder = active
     ? '输入给 AI 的提示词，Enter 发送'
     : '输入消息，Enter 发送，Shift + Enter 换行';
+  // 只在打开时读一次；失败不抛，交给提交时的空值分支给出可操作提示。
+  if (active) loadAiModels();
+});
+
+// 只有真实用户操作才会触发 change（脚本赋值不会），用它区分「手选」与「自动识别」。
+elements.messageForm.elements.aiUserId.addEventListener('change', () => {
+  state.aiTargetManual = true;
 });
 
 $('#cancel-generation').addEventListener('click', event => {
@@ -1984,7 +2330,7 @@ $('#training-form').addEventListener('submit', async event => {
     });
     form.reset();
     $('#training-source-hint').textContent =
-      '样本已进入待审核队列；继续授权时请从对应 AI 回复发起。';
+      '样本已提交；审核由管理员在服务器命令行工具执行，网页不提供审核入口。';
     setStatus($('#training-status'), '训练样本已提交，等待离线审核。', 'success');
     toast('训练授权已记录', 'success');
     await loadTrainingCandidates();
@@ -2145,17 +2491,44 @@ $('#search-form').addEventListener('submit', async event => {
   const button = form.querySelector('[type="submit"]');
   setButtonBusy(button, true, '搜索中…');
   try {
+    // 记住发起搜索的会话：结果行可能在用户切换到其它会话之后才被点击。
+    const searchedConversationId = Number(state.conversation.id);
     const messages = await api(`/api/search/messages?conversationId=${encodeURIComponent(state.conversation.id)}&query=${encodeURIComponent(query)}&limit=50`);
+    const senderLabel = senderId => {
+      if (Number(senderId) === Number(state.me?.id)) return '我';
+      const member = state.members.find(item => Number(item.userId) === Number(senderId));
+      return member?.displayName || member?.username || `用户 ${senderId}`;
+    };
     $('#search-results').replaceChildren(...messages.map(message => {
       const item = document.createElement('li');
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'search-result';
       const body = document.createElement('p');
-      body.textContent = message.body;
+      body.textContent = message.body || '（这条消息没有正文）';
       const meta = document.createElement('small');
-      meta.textContent = `用户 ${message.senderId} · 消息序号 ${message.sequence}`;
-      item.append(body, meta);
+      // 不再展示“消息序号”这类内部术语，改为用户能定位的「谁 · 什么时候」。
+      meta.textContent = `${senderLabel(message.senderId)} · ${formatChatTime(message.createdAt)}`;
+      row.append(body, meta);
+      row.addEventListener('click', async () => {
+        // 搜索结果只在本会话内有权限语义：切走之后点旧结果必须拒绝，而不是跳到别的会话。
+        if (Number(state.conversation?.id) !== searchedConversationId) {
+          setStatus($('#search-status'), '会话已切换，请重新搜索后再定位。', 'error');
+          return;
+        }
+        row.disabled = true;
+        setStatus($('#search-status'), '正在定位…');
+        try { await jumpToMessage(message); }
+        catch (error) { setStatus($('#search-status'), error.message, 'error'); }
+        finally { row.disabled = false; }
+      });
+      item.append(row);
       return item;
     }));
-    setStatus($('#search-status'), messages.length ? `找到 ${messages.length} 条结果` : '没有匹配消息。', messages.length ? 'success' : '');
+    // 服务端只返回「最早 50 条匹配」（PostgresStore.cpp:1542 无 offset），不能说“找到 N 条”。
+    setStatus($('#search-status'), messages.length
+      ? `显示最早 ${messages.length} 条匹配${messages.length >= 50 ? '（结果已达上限，请换更精确的关键词）' : ''}`
+      : '没有匹配消息，换一个关键词试试。', messages.length ? 'success' : '');
   } catch (error) { setStatus($('#search-status'), error.message, 'error'); }
   finally { setButtonBusy(button, false); }
 });
@@ -2268,3 +2641,15 @@ document.querySelectorAll('dialog').forEach(dialog => {
     if (error.status && error.status !== 401) setStatus(elements.authStatus, error.message, 'error');
   }
 }());
+
+// 公告播放器按账号建立，退出时销毁，不沿用另一个账号的通知设置。
+let announcementPlayer;
+async function startAnnouncements() {
+  announcementPlayer?.dispose();
+  try {
+    const a = new BusinessApi(); await a.restore();
+    let box = document.querySelector('.announcements');
+    if (!box) { box = document.createElement('div'); box.className = 'announcements'; document.body.append(box); }
+    box.replaceChildren(); announcementPlayer = new AnnouncementPlayer(a, box); await announcementPlayer.start();
+  } catch {}
+}

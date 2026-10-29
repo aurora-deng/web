@@ -62,7 +62,7 @@ epoll → wakeReadCoroutine → HttpSession::run()
 
 ### 2.1 Executor — 业务执行器
 
-**文件**: [server/Executor/Executor.h](file:///e:/虚拟机高级web开发/web/server/Executor/Executor.h)
+**文件**: [backend/server/Executor/Executor.h](file:///e:/虚拟机高级web开发/web/backend/server/Executor/Executor.h)
 
 封装 `ThreadPool`，将 handler 执行从 Reactor 线程移到 Worker 线程。
 
@@ -73,8 +73,8 @@ epoll → wakeReadCoroutine → HttpSession::run()
 
 ### 2.2 ExecuteAwaiter — 执行等待器
 
-**文件**: [server/CoroutineScheduler/AWaiter.h](file:///e:/虚拟机高级web开发/web/server/CoroutineScheduler/AWaiter.h#L45-L56)  
-**实现**: [server/CoroutineScheduler/AWaiter.cpp](file:///e:/虚拟机高级web开发/web/server/CoroutineScheduler/AWaiter.cpp#L73-L101)
+**文件**: [backend/server/CoroutineScheduler/AWaiter.h](file:///e:/虚拟机高级web开发/web/backend/server/CoroutineScheduler/AWaiter.h#L45-L56) <br>
+**实现**: [backend/server/CoroutineScheduler/AWaiter.cpp](file:///e:/虚拟机高级web开发/web/backend/server/CoroutineScheduler/AWaiter.cpp#L73-L101)
 
 协程挂起等待 Executor 完成 handler 执行。与 `ReadAwaiter`/`WriteAwaiter` 不同，不注册 epoll 事件。
 
@@ -86,8 +86,8 @@ epoll → wakeReadCoroutine → HttpSession::run()
 
 ### 2.3 ServerRuntime — 服务器运行时
 
-**文件**: [server/Runtime/ServerRuntime.h](file:///e:/虚拟机高级web开发/web/server/Runtime/ServerRuntime.h)  
-**实现**: [server/Runtime/ServerRuntime.cpp](file:///e:/虚拟机高级web开发/web/server/Runtime/ServerRuntime.cpp)
+**文件**: [backend/server/Runtime/ServerRuntime.h](file:///e:/虚拟机高级web开发/web/backend/server/Runtime/ServerRuntime.h) <br>
+**实现**: [backend/server/Runtime/ServerRuntime.cpp](file:///e:/虚拟机高级web开发/web/backend/server/Runtime/ServerRuntime.cpp)
 
 封装所有基础设施生命周期，简化 `main.cpp`。
 
@@ -103,10 +103,10 @@ epoll → wakeReadCoroutine → HttpSession::run()
 
 ### 2.4 Parser 子对象化
 
-**ParserUtils**: [server/http/HttpParser/ParserUtils.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/ParserUtils.h)  
+**ParserUtils**: [backend/server/http/HttpParser/ParserUtils.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/ParserUtils.h) <br>
 工具函数 `toLower`/`trim` 和大小上限常量 `kMaxRequestLineBytes`/`kMaxHeaderBytes`/`kMaxBodyBytes`。
 
-**RequestLineParser**: [server/http/HttpParser/RequestLineParser.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/RequestLineParser.h)  
+**RequestLineParser**: [backend/server/http/HttpParser/RequestLineParser.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/RequestLineParser.h) <br>
 解析请求行和 query 参数。`parseQuery` 从 static 函数变为私有成员函数。
 
 | 方法 | 作用 |
@@ -115,7 +115,7 @@ epoll → wakeReadCoroutine → HttpSession::run()
 | `reset()` | 重置状态 |
 | `keepAlive()` | 返回HTTP版本决定的keep-alive默认值 |
 
-**HeaderParser**: [server/http/HttpParser/HeaderParser.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/HeaderParser.h)  
+**HeaderParser**: [backend/server/http/HttpParser/HeaderParser.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/HeaderParser.h) <br>
 解析首部和 Range。`parseRange` 从 static 函数变为私有成员函数。
 
 | 方法 | 作用 |
@@ -124,7 +124,7 @@ epoll → wakeReadCoroutine → HttpSession::run()
 | `setKeepAlive(bool)` | 由HttpParser传入版本默认值 |
 | `contentLength()` / `chunked()` / `range()` | 返回framing状态 |
 
-**BodyParser**: [server/http/HttpParser/BodyParser.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/BodyParser.h)  
+**BodyParser**: [backend/server/http/HttpParser/BodyParser.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/BodyParser.h) <br>
 解析固定长度正文和 chunked 分块正文。
 
 | 方法 | 作用 |
@@ -141,7 +141,7 @@ epoll → wakeReadCoroutine → HttpSession::run()
 
 ### 3.1 CoroutineScheduler
 
-**文件**: [server/CoroutineScheduler/CoroutineScheduler.h](file:///e:/虚拟机高级web开发/web/server/CoroutineScheduler/CoroutineScheduler.h#L12-L19)
+**文件**: [backend/server/CoroutineScheduler/CoroutineScheduler.h](file:///e:/虚拟机高级web开发/web/backend/server/CoroutineScheduler/CoroutineScheduler.h#L12-L19)
 
 `AwaitType` 枚举新增 `EXECUTE` 状态：
 
@@ -149,13 +149,13 @@ epoll → wakeReadCoroutine → HttpSession::run()
 enum class AwaitType { NONE, READ, WRITE, EXECUTE, TIMER };
 ```
 
-**文件**: [server/CoroutineScheduler/CoroutineScheduler.cpp](file:///e:/虚拟机高级web开发/web/server/CoroutineScheduler/CoroutineScheduler.cpp)
+**文件**: [backend/server/CoroutineScheduler/CoroutineScheduler.cpp](file:///e:/虚拟机高级web开发/web/backend/server/CoroutineScheduler/CoroutineScheduler.cpp)
 
 `runReady()` 在 resume 后检查 `h.done()` 并调用 `reap()` 回收协程帧。
 
 ### 3.2 SubReactor
 
-**文件**: [server/SubReactor/SubReactor.h](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h)
+**文件**: [backend/server/SubReactor/SubReactor.h](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h)
 
 新增成员：
 
@@ -173,32 +173,32 @@ enum class AwaitType { NONE, READ, WRITE, EXECUTE, TIMER };
 | `notifyExecuteComplete(fd, connId)` | Worker线程投递完成通知（线程安全） |
 | `processComplete()` | Reactor线程批量消费完成队列 |
 
-**文件**: [server/SubReactor/SubReactor.cpp](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp)
+**文件**: [backend/server/SubReactor/SubReactor.cpp](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp)
 
 关键改动：
 
-1. **`fd_close`** — [行147](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L147)
+1. **`fd_close`** — [行147](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L147)
    - 参数 `reason` 改为 `std::string_view` 避免拷贝
    - 新增 `wasExecuting` 分支：协程在Executor中执行时，将handle存入`zombieWakes`
    - 修复僵尸协程泄漏
 
-2. **`processComplete`** — [行116](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L116)
+2. **`processComplete`** — [行116](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L116)
    - 批量交换队列减少锁竞争
    - 处理僵尸唤醒：连接已删除时通过`zombieWakes`查找handle并调度
 
-3. **`processPendingFds`** — [行404](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L404)
+3. **`processPendingFds`** — [行404](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L404)
    - 批量交换队列减少锁竞争
 
-4. **`loop`** — [行313](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L313)
+4. **`loop`** — [行313](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L313)
    - eventfd分支后增加 `processComplete()` 调用
 
 5. 移除未使用的 `toLower` 函数
 
 ### 3.3 HttpSession
 
-**文件**: [server/http/HttpSession/HttpSession.cpp](file:///e:/虚拟机高级web开发/web/server/http/HttpSession/HttpSession.cpp)
+**文件**: [backend/server/http/HttpSession/HttpSession.cpp](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpSession/HttpSession.cpp)
 
-关键改动 — [行119-143](file:///e:/虚拟机高级web开发/web/server/http/HttpSession/HttpSession.cpp#L119-L143):
+关键改动 — [行119-143](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpSession/HttpSession.cpp#L119-L143):
 
 1. **dispatch 改为异步**:
    - 提交到 `reactor->executor.submit(lambda)`
@@ -213,8 +213,8 @@ enum class AwaitType { NONE, READ, WRITE, EXECUTE, TIMER };
 
 ### 3.4 HttpParser
 
-**文件**: [server/http/HttpParser/HttpParser.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/HttpParser.h)  
-**文件**: [server/http/HttpParser/HttpParser.cpp](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/HttpParser.cpp)
+**文件**: [backend/server/http/HttpParser/HttpParser.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/HttpParser.h) <br>
+**文件**: [backend/server/http/HttpParser/HttpParser.cpp](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/HttpParser.cpp)
 
 - 持有三个栈上子解析器: `requestLineParser_`, `headerParser_`, `bodyParser_`
 - `parse()` 只做状态机协调和子解析器间状态传递
@@ -230,7 +230,7 @@ enum class AwaitType { NONE, READ, WRITE, EXECUTE, TIMER };
 
 **文件**: [CMakeLists.txt](file:///e:/虚拟机高级web开发/web/CMakeLists.txt)
 
-添加 `server/Runtime/ServerRuntime.cpp` 到 `webserver_core` 库。
+添加 `backend/server/Runtime/ServerRuntime.cpp` 到 `webserver_core` 库。
 
 ### 3.7 验收测试
 
@@ -255,10 +255,10 @@ enum class AwaitType { NONE, READ, WRITE, EXECUTE, TIMER };
 3. `processComplete` 中，连接已删除时检查 `zombieWakes`，找到则直接调度 handle
 
 **涉及文件**:
-- [SubReactor.h](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h#L174-L176) — 新增 `zombieWakes` 成员
-- [SubReactor.cpp fd_close](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L170-L176) — 存入 zombieWakes
-- [SubReactor.cpp processComplete](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L134-L142) — 检查 zombieWakes
-- [HttpSession.cpp](file:///e:/虚拟机高级web开发/web/server/http/HttpSession/HttpSession.cpp#L139-L142) — 始终通知
+- [SubReactor.h](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h#L174-L176) — 新增 `zombieWakes` 成员
+- [SubReactor.cpp fd_close](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L170-L176) — 存入 zombieWakes
+- [SubReactor.cpp processComplete](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L134-L142) — 检查 zombieWakes
+- [HttpSession.cpp](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpSession/HttpSession.cpp#L139-L142) — 始终通知
 
 ### 4.2 conn 指针悬空
 
@@ -266,7 +266,7 @@ enum class AwaitType { NONE, READ, WRITE, EXECUTE, TIMER };
 
 **修复**: 在使用 `conn->id` 前重新调用 `getConn()` 检查。
 
-**涉及文件**: [HttpSession.cpp 行122-127](file:///e:/虚拟机高级web开发/web/server/http/HttpSession/HttpSession.cpp#L122-L127)
+**涉及文件**: [HttpSession.cpp 行122-127](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpSession/HttpSession.cpp#L122-L127)
 
 ### 4.3 Worker 不通知导致协程泄漏
 
@@ -274,7 +274,7 @@ enum class AwaitType { NONE, READ, WRITE, EXECUTE, TIMER };
 
 **修复**: Worker lambda 中**始终**调用 `notifyExecuteComplete`，让 `processComplete` 通过 `zombieWakes` 处理。
 
-**涉及文件**: [HttpSession.cpp 行139-142](file:///e:/虚拟机高级web开发/web/server/http/HttpSession/HttpSession.cpp#L139-L142)
+**涉及文件**: [HttpSession.cpp 行139-142](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpSession/HttpSession.cpp#L139-L142)
 
 ---
 
@@ -284,19 +284,19 @@ enum class AwaitType { NONE, READ, WRITE, EXECUTE, TIMER };
 
 **优化**: `std::string` → `std::string_view`，避免每次关闭连接时的字符串拷贝。
 
-**涉及文件**: [SubReactor.h 行219](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h#L219), [SubReactor.cpp 行147](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L147)
+**涉及文件**: [SubReactor.h 行219](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h#L219), [SubReactor.cpp 行147](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L147)
 
 ### 5.2 processComplete 批量交换
 
 **优化**: 从逐条加锁解锁改为一次 `swap` 整个队列，N个完成通知只需1次锁。
 
-**涉及文件**: [SubReactor.cpp 行116-122](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L116-L122)
+**涉及文件**: [SubReactor.cpp 行116-122](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L116-L122)
 
 ### 5.3 processPendingFds 批量交换
 
 **优化**: 同上，从逐条加锁改为一次 `swap`。
 
-**涉及文件**: [SubReactor.cpp 行404-410](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L404-L410)
+**涉及文件**: [SubReactor.cpp 行404-410](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L404-L410)
 
 ### 5.4 移除死代码
 
@@ -414,31 +414,31 @@ curl http://127.0.0.1:8080/fast
 
 ```
 main.cpp
-  └── ServerRuntime                          server/Runtime/ServerRuntime.h
-        ├── Router                           server/Route/Router.h
-        ├── ReactorGroup                     server/Reactor/ReactorGroup.h
-        │     └── SubReactor[]               server/SubReactor/SubReactor.h
+  └── ServerRuntime                          backend/server/Runtime/ServerRuntime.h
+        ├── Router                           backend/server/Route/Router.h
+        ├── ReactorGroup                     backend/server/Reactor/ReactorGroup.h
+        │     └── SubReactor[]               backend/server/SubReactor/SubReactor.h
         │     ├── Connection (分层)
         │     │     ├── ConnTransport        传输层: fd, readBuffer, state
         │     │     └── ConnTimer            定时器层: expireSlot
-        │     ├── HttpSession                server/http/HttpSession/HttpSession.h
-        │     │     ├── HttpCodec            server/http/HttpCodec/HttpCodec.h
-        │     │     │     ├── HttpParser     server/http/HttpParser/HttpParser.h
+        │     ├── HttpSession                backend/server/http/HttpSession/HttpSession.h
+        │     │     ├── HttpCodec            backend/server/http/HttpCodec/HttpCodec.h
+        │     │     │     ├── HttpParser     backend/server/http/HttpParser/HttpParser.h
         │     │     │     │     ├── RequestLineParser
         │     │     │     │     ├── HeaderParser
         │     │     │     │     └── BodyParser
         │     │     │     └── dispatch → Executor
         │     │     ├── 旧版 HTTP 发送器     (第四阶段已删除，由 OutboundTask+OutboundQueue+TransportWriter 取代)
-        │     │     └── CoroutineScheduler   server/CoroutineScheduler/CoroutineScheduler.h
-        │     │           ├── Task           server/CoroutineScheduler/Task.h
-        │     │           ├── ReadAwaiter    server/CoroutineScheduler/AWaiter.h
+        │     │     └── CoroutineScheduler   backend/server/CoroutineScheduler/CoroutineScheduler.h
+        │     │           ├── Task           backend/server/CoroutineScheduler/Task.h
+        │     │           ├── ReadAwaiter    backend/server/CoroutineScheduler/AWaiter.h
         │     │           ├── WriteAwaiter
         │     │           └── ExecuteAwaiter
-        ├── Executor（所有 Reactor 共享）     server/Executor/Executor.h
-        │     └── ThreadPool                 server/thread_pool/thread_pool.h
-        │     ├── TimerWheel                 server/timer/TimeWheel.h
-        │     ├── SegmentPool                server/SegmentPool/SegmentPool.h
-        │     ├── ObjectPool                 server/ObjectPool/ObjectPool.h
-        │     └── Buffer                     server/Buffer/Buffer.h
+        ├── Executor（所有 Reactor 共享）     backend/server/Executor/Executor.h
+        │     └── ThreadPool                 backend/server/thread_pool/thread_pool.h
+        │     ├── TimerWheel                 backend/server/timer/TimeWheel.h
+        │     ├── SegmentPool                backend/server/SegmentPool/SegmentPool.h
+        │     ├── ObjectPool                 backend/server/ObjectPool/ObjectPool.h
+        │     └── Buffer                     backend/server/Buffer/Buffer.h
         └── acceptLoop (MainReactor)
 ```

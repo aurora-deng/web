@@ -1,25 +1,26 @@
-#include "server/Route/Router.h"
-#include "server/http/RequestContext/RequestContext.h"
-#include "server/phase11/business/AuthService/AuthService.h"
-#include "server/phase11/business/ChatService/ChatService.h"
-#include "server/phase11/business/FileService/FileService.h"
-#include "server/phase11/business/SocialService/SocialService.h"
-#include "server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
-#include "server/phase11/ai/RagService/RagService.h"
-#include "server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
-#include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
-#include "server/phase11/storage/files/LocalFileStorage/LocalFileStorage.h"
-#include "server/phase11/training/TrainingDataService/TrainingDataService.h"
-#include "server/phase11/transport/FlatJson/FlatJson.h"
-#include "server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
-#include "server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.h"
-#include "server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h"
-#include "server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
-#include "server/phase11/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.h"
-#include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
-#include "server/response/StringBody.h"
-#include "server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
-#include "server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
+#include "backend/server/Route/Router.h"
+#include "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.h"
+#include "backend/server/http/RequestContext/RequestContext.h"
+#include "backend/application/business/AuthService/AuthService.h"
+#include "backend/application/business/ChatService/ChatService.h"
+#include "backend/application/business/FileService/FileService.h"
+#include "backend/application/business/SocialService/SocialService.h"
+#include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "backend/ai/models/RagService/RagService.h"
+#include "backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
+#include "backend/application/storage/InMemoryStore/InMemoryStore.h"
+#include "backend/application/storage/files/LocalFileStorage/LocalFileStorage.h"
+#include "backend/ai/training/TrainingDataService/TrainingDataService.h"
+#include "backend/application/transport/FlatJson/FlatJson.h"
+#include "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.h"
+#include "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h"
+#include "backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h"
+#include "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.h"
+#include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
+#include "backend/server/response/StringBody.h"
+#include "backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
+#include "backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
 
 #include <cstdlib>
 #include <condition_variable>
@@ -139,11 +140,12 @@ struct Reply
 Reply request(Router &router, std::string method, std::string path,
               std::string body = {}, std::string cookie = {},
               std::string csrf = {},
-              std::unordered_map<std::string, std::string> headers = {})
+              std::unordered_map<std::string, std::string> headers = {}, bool secure=false)
 {
     RequestContext context;
     HttpResponse response;
     context.response = &response;
+    context.transportSecure=secure;
     context.request.method = std::move(method);
     context.request.path = std::move(path);
     context.request.bodyData = std::move(body);
@@ -203,6 +205,12 @@ void verifyFlatJsonBoundary()
     CHECK(rejected);
 }
 
+class PrivateTestModel final:public IPrivateInference {
+public:
+    GenerationHandle generate(UserId,GenerationRequest request,TokenSink token,CompletionSink complete,CancellationToken cancel)override {
+        token("private-answer");complete({true,false,"",{}});return{request.requestId,cancel};
+    }
+};
 void verifyHttpFlow()
 {
     InMemoryStore store;
@@ -232,7 +240,10 @@ void verifyHttpFlow()
     Phase11KnowledgeHttp knowledgeHttp(
         adapter, rag, knowledgeExecutor, {512U * 1024U});
     Phase11TrainingHttp trainingHttp(adapter, training, databaseExecutor);
+    PrivateTestModel privateModel;PrivateGenerationService privateService(privateModel);
+    PrivateGenerationHttp privateHttp(adapter,databaseExecutor,privateService);
     Router router;
+    privateHttp.registerRoutes(router);
     adapter.registerRoutes(router);
     socialChat.registerRoutes(router);
     fileHttp.registerRoutes(router);
@@ -276,6 +287,12 @@ void verifyHttpFlow()
     const auto restored = request(router, "GET", "/api/me", {}, cookie);
     CHECK(restored.status == 200);
     CHECK(jsonStringField(restored.body, "csrfToken") == csrf);
+    const std::string privateBody=R"({"requestId":"private-http-1","aiUserId":"9","messageCount":"1","role0":"user","content0":"private-input"})";
+    CHECK(request(router,"POST","/api/ai/private/generations",privateBody,cookie,csrf,
+                  {{"x-forwarded-proto","https"}}).status==403);
+    CHECK(request(router,"POST","/api/ai/private/generations",privateBody,cookie,"wrong",{},true).status==403);
+    CHECK(request(router,"POST","/api/ai/private/generations",privateBody,cookie,csrf,{},true).status==202);
+    CHECK(store.listConversations(jsonUnsignedField(restored.body,"id")).empty());
 
     const auto rejectedPatch = request(
         router, "PATCH", "/api/me", R"({"biography":"hello"})",

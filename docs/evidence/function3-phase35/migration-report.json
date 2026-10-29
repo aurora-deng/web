@@ -1,0 +1,16 @@
+{
+  "database": "phase11",
+  "users": 68,
+  "accountsUnchanged": true,
+  "accountFingerprint": "ae1e15080baaf7e45ef4eb03ea75d40b1d877e061591d261673ce9b2dde34f5b",
+  "applied": [
+    "012_model_training_lineage.sql",
+    "013_function3_tree.sql",
+    "014_function3_media_audio.sql",
+    "015_function3_speech_jobs.sql",
+    "016_function3_queue_indexes.sql",
+    "017_function3_delivery_failures.sql",
+    "018_tree_reply_links.sql"
+  ],
+  "backup": "/home/pikachu/phase11-data/function3/runtime/backups/phase11-before-20261024T205154-6d2ff6.dump"
+}

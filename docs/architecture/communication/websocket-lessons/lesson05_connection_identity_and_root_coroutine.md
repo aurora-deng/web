@@ -174,13 +174,13 @@ responsePool.release()
 
 ## 7. 本阶段涉及的代码
 
-- `server/transport/ConnectionKey.h`：稳定连接身份。
-- `server/transport/Connection.h`：通过 `key()` 导出身份。
-- `server/CoroutineScheduler/AWaiter.*`：所有等待器恢复前校验完整身份。
-- `server/http/HttpSession/HttpSession.*`：唯一根协程、响应清理、身份贯穿。
-- `server/session/SessionFactory.h` 与 `server/websocket/WebSocketSessionFactory.*`：升级时传递 key。
-- `server/websocket/WebSocketSession/*`：WS 生命周期绑定完整 key。
-- `server/websocket/WebSocketSessionManager/*`：注册和注销都保存、比较完整 key。
+- `backend/server/transport/ConnectionKey.h`：稳定连接身份。
+- `backend/server/transport/Connection.h`：通过 `key()` 导出身份。
+- `backend/server/CoroutineScheduler/AWaiter.*`：所有等待器恢复前校验完整身份。
+- `backend/server/http/HttpSession/HttpSession.*`：唯一根协程、响应清理、身份贯穿。
+- `backend/server/session/SessionFactory.h` 与 `backend/server/websocket/WebSocketSessionFactory.*`：升级时传递 key。
+- `backend/server/websocket/WebSocketSession/*`：WS 生命周期绑定完整 key。
+- `backend/server/websocket/WebSocketSessionManager/*`：注册和注销都保存、比较完整 key。
 - `tests/unit_tests.cpp`：覆盖旧连接不能注销同 uid 新连接的契约。
 
 ## 8. 自检题

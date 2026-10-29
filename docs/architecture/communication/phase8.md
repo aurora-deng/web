@@ -1,6 +1,6 @@
 # Phase 8：在现有 Web 服务器旁接入 gRPC C++
 
-> 本阶段基线是 [Phase 7：TLS/ALPN](phase7.md)。gRPC 最初按阶段要求只保留在工作区，现已随 Phase 9 纳入 `test9.0`。本页记录最初的同步 Service API 接入；当前 Callback API 版本见 [Phase 9](phase9.md)。生产 gRPC 路径使用官方 gRPC C++ 与 Protobuf；`server/grpc/learn` 另放一套只用于理解 5 字节消息封装的教学代码。
+> 本阶段基线是 [Phase 7：TLS/ALPN](phase7.md)。gRPC 最初按阶段要求只保留在工作区，现已随 Phase 9 纳入 `test9.0`。本页记录最初的同步 Service API 接入；当前 Callback API 版本见 [Phase 9](phase9.md)。生产 gRPC 路径使用官方 gRPC C++ 与 Protobuf；`backend/server/grpc/learn` 另放一套只用于理解 5 字节消息封装的教学代码。
 
 ## 1. 当前状态是否适合继续接入
 
@@ -72,11 +72,11 @@ flowchart TD
 
 | 文件 | 职责 |
 |---|---|
-| [`web_learning.proto`](../../../server/grpc/proto/web_learning.proto) | 定义 `LearningService`、`Echo`、`Count` 及消息字段，是跨语言契约 |
-| [`GrpcServer.h`](../../../server/grpc/GrpcServer.h) | gRPC 服务生命周期与配置的稳定接口；PImpl 隔离第三方头文件 |
-| [`GrpcServer.cpp`](../../../server/grpc/GrpcServer.cpp) | 注册生成的 Service，实现 unary/server streaming、TLS credentials、大小限制、健康检查和有期限停止 |
-| [`GrpcMessageCodec.h`](../../../server/grpc/learn/GrpcMessageCodec.h) / [`cpp`](../../../server/grpc/learn/GrpcMessageCodec.cpp) | 手写 5 字节信封、增量拆包、粘包/拆包和长度保护 |
-| [`learn/main.cpp`](../../../server/grpc/learn/main.cpp) | 逐字节投喂两条消息，直观看到消息边界不等于网络边界 |
+| [`web_learning.proto`](../../../backend/server/grpc/proto/web_learning.proto) | 定义 `LearningService`、`Echo`、`Count` 及消息字段，是跨语言契约 |
+| [`GrpcServer.h`](../../../backend/server/grpc/GrpcServer.h) | gRPC 服务生命周期与配置的稳定接口；PImpl 隔离第三方头文件 |
+| [`GrpcServer.cpp`](../../../backend/server/grpc/GrpcServer.cpp) | 注册生成的 Service，实现 unary/server streaming、TLS credentials、大小限制、健康检查和有期限停止 |
+| [`GrpcMessageCodec.h`](../../../backend/server/grpc/learn/GrpcMessageCodec.h) / [`cpp`](../../../backend/server/grpc/learn/GrpcMessageCodec.cpp) | 手写 5 字节信封、增量拆包、粘包/拆包和长度保护 |
+| [`learn/main.cpp`](../../../backend/server/grpc/learn/main.cpp) | 逐字节投喂两条消息，直观看到消息边界不等于网络边界 |
 | [`grpc_message_codec.cpp`](../../../tests/grpc_message_codec.cpp) | 教学 codec 的拆包、粘包、压缩标志、错误态和上限测试 |
 | [`grpc_integration.cpp`](../../../tests/grpc_integration.cpp) | 启动真实 gRPC Server/Client，验证 unary、server streaming；提供证书时再验证 TLS + ALPN |
 | 根 [`CMakeLists.txt`](../../../CMakeLists.txt) | 可选查找 gRPC/Protobuf，调用 `protoc`/`grpc_cpp_plugin`，生成并链接代码 |
@@ -137,14 +137,14 @@ cmake --build build -j
 
 ```bash
 grpcurl -plaintext \
-  -import-path server/grpc/proto \
+  -import-path backend/server/grpc/proto \
   -proto web_learning.proto \
   -d '{"message":"hello grpc"}' \
   127.0.0.1:50051 \
   webtest.rpc.v1.LearningService/Echo
 
 grpcurl -plaintext \
-  -import-path server/grpc/proto \
+  -import-path backend/server/grpc/proto \
   -proto web_learning.proto \
   -d '{"limit":3,"intervalMs":100}' \
   127.0.0.1:50051 \
@@ -200,7 +200,7 @@ ctest --test-dir build-tests -R 'grpc_' --output-on-failure
 
 ## 10. 建议的学习顺序
 
-1. 先运行 [`server/grpc/learn`](../../../server/grpc/learn/README.md)，亲手观察 5 字节信封跨分片恢复两条消息。
+1. 先运行 [`backend/server/grpc/learn`](../../../backend/server/grpc/learn/README.md)，亲手观察 5 字节信封跨分片恢复两条消息。
 2. 阅读 `.proto`，再对照 build 目录生成的 `web_learning.pb.h` 和 `web_learning.grpc.pb.h`，分清“消息类型”和“远程接口”。
 3. 单步跟 `GrpcServer::start()`：credentials → listening port → RegisterService → BuildAndStart。
 4. 分别调用 `Echo` 与 `Count`，观察 unary 与 server streaming 的生命周期差异。

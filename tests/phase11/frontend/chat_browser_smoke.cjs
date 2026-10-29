@@ -101,6 +101,31 @@ const server = http.createServer((req, res) => {
       return { context, page };
     }
     const { context, page } = await open(2);
+    // 回归截图中的根因：隐藏状态行后，列表仍占剩余高度，输入框仍贴底。
+    for (const viewport of [{width:1440,height:900},{width:1920,height:1080},{width:390,height:844}]) {
+      await page.setViewportSize(viewport);
+      for (const expanded of [false,true]) {
+        await page.locator('#message-form textarea').fill(expanded ? '多行输入\n'.repeat(12) : '');
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        const boxes=await page.evaluate(() => {
+          const box=id=>{const r=document.querySelector(id).getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height};};
+          return {pane:box('.conversation-pane'),messages:box('#message-list'),composer:box('#message-form'),width:document.documentElement.scrollWidth};
+        });
+        assert.ok(Math.abs(boxes.composer.bottom-boxes.pane.bottom)<2,JSON.stringify(boxes));
+        assert.ok(boxes.messages.height>200,JSON.stringify(boxes));
+        assert.ok(boxes.messages.bottom<=boxes.composer.top+1,JSON.stringify(boxes));
+        assert.ok(boxes.width<=viewport.width,JSON.stringify(boxes));
+      }
+      await page.locator('#message-form textarea').fill('');
+      await page.screenshot({path:path.join(root,`build-phase27/chat-layout-${viewport.width}.png`)});
+    }
+    await page.setViewportSize({width:1440,height:900});
+    await page.getByRole('button',{name:'切换浅色主题'}).click();
+    assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
+    await page.reload();await page.locator('#conversation-list button').first().click();
+    assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
+    await page.getByRole('button',{name:'切换深色主题'}).click();
+    console.log('PASS chat layout at three viewports, growing input and persisted theme');
     await page.locator('.history-load-button').click();
     await page.waitForFunction(() => document.querySelectorAll('#message-list .message[data-message-id]').length === 200);
     await page.locator('.history-load-button').click();

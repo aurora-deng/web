@@ -1,0 +1,315 @@
+#pragma once
+
+#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
+
+#include <map>
+#include <mutex>
+#include <set>
+#include <tuple>
+#include <unordered_map>
+
+namespace webserver::phase11
+{
+
+/**
+ * 无外部依赖的参考仓库。
+ *
+ * 它有两个用途：
+ *  1. PostgreSQL 尚未安装时，先验证业务规则和 Repository 契约；
+ *  2. PostgreSQL 实现完成后，让两种实现跑同一套测试，防止数据库细节改变业务语义。
+ *
+ * 事务通过“进入事务时复制一份状态，回滚时恢复”实现。这适合测试与学习，不适合生产
+ * 大数据量；生产版会把相同 ITransaction 契约映射到 PostgreSQL BEGIN/COMMIT/ROLLBACK。
+ */
+class InMemoryStore final : public IDatabase,
+                            public IProfileOperations,
+                            public IUserRepository,
+                            public ISessionRepository,
+                            public ISocialRepository,
+                            public IConversationRepository,
+                            public IMessageRepository,
+                            public IFileRepository,
+                            public IOutboxRepository,
+                            public IModelRepository,
+                            public IAiGenerationAuditRepository,
+                            public IModelEvaluationRepository,
+                            public IKnowledgeRepository,
+                            public ITrainingRepository
+{
+public:
+    InMemoryStore() = default;
+    ~InMemoryStore() override = default;
+
+    InMemoryStore(const InMemoryStore &) = delete;
+    InMemoryStore &operator=(const InMemoryStore &) = delete;
+
+    std::unique_ptr<ITransaction> beginTransaction() override;
+    bool healthy() const noexcept override { return true; }
+
+    User create(User user) override;
+    std::optional<User> findUser(UserId id) const override;
+    std::optional<User> findUserByName(std::string_view username) const override;
+    bool updateProfile(UserId id, std::string displayName,
+                       std::string biography) override;
+    ProfileWriteResult writeProfileOnce(UserId user,std::string operation,std::string displayName,std::string biography)override;
+    bool updateAvatar(UserId id, std::optional<FileId> avatar) override;
+
+    Session createSession(Session session) override;
+    std::optional<Session> findSessionByTokenHash(
+        std::string_view tokenHash) const override;
+    bool revokeSession(std::string_view sessionId, TimePoint now) override;
+
+    FriendRequest createFriendRequest(FriendRequest request) override;
+    std::optional<FriendRequest> findFriendRequest(FriendRequestId id) const override;
+    bool decideFriendRequest(FriendRequestId id, UserId receiver,
+                             FriendRequestState decision, TimePoint now) override;
+    bool areFriends(UserId first, UserId second) const override;
+    std::vector<UserId> listFriendIds(UserId user) const override;
+    std::vector<FriendRequest> pendingRequests(UserId receiver) const override;
+    bool removeFriendship(UserId first, UserId second) override;
+    ContactSettings contactSettings(UserId owner,
+                                    UserId contact) const override;
+    bool updateContactSettings(UserId owner, UserId contact,
+                               std::string remark,
+                               bool notificationsMuted) override;
+    bool blockUser(UserId blocker, UserId blocked, TimePoint now) override;
+    bool unblockUser(UserId blocker, UserId blocked) override;
+    bool isBlocked(UserId blocker, UserId blocked) const override;
+    bool blockedEitherDirection(UserId first, UserId second) const override;
+    std::vector<UserId> listBlockedIds(UserId blocker) const override;
+    bool updateLastActive(UserId user, TimePoint now) override;
+    std::optional<TimePoint> lastActive(UserId user) const override;
+
+    Conversation createConversation(
+        Conversation conversation,
+        std::vector<ConversationMember> members) override;
+    std::optional<Conversation> findConversation(ConversationId id) const override;
+    std::optional<ConversationMember> findMember(
+        ConversationId conversation, UserId user) const override;
+    std::optional<Conversation> findDirectConversation(
+        UserId first, UserId second) const override;
+    std::vector<Conversation> listConversations(UserId user) const override;
+    std::vector<ConversationSummary> listConversationSummaries(
+        UserId user) const override;
+    std::vector<ConversationMember> listMembers(
+        ConversationId conversation) const override;
+    bool addMember(ConversationMember member) override;
+    bool updateConversationProfile(ConversationId conversation,
+                                   std::string title,
+                                   std::string announcement) override;
+    bool dissolveConversation(ConversationId conversation, UserId actor,
+                              TimePoint now) override;
+    bool updateMemberRole(ConversationId conversation, UserId user,
+                          MemberRole role) override;
+    bool updateMemberMute(ConversationId conversation, UserId user,
+                          std::optional<TimePoint> mutedUntil) override;
+    bool removeMember(ConversationId conversation, UserId user) override;
+    bool updateDelivered(ConversationId conversation, UserId user,
+                         std::uint64_t sequence) override;
+    bool updateRead(ConversationId conversation, UserId user,
+                    std::uint64_t sequence) override;
+
+    AppendMessageResult appendMessage(Message message) override;
+    std::vector<Message> messagesAfter(ConversationId conversation,
+                                       std::uint64_t sequence,
+                                       std::size_t limit) const override;
+    std::vector<Message> messagesBefore(ConversationId conversation,
+                                        std::uint64_t before,
+                                        std::size_t limit) const override;
+    std::optional<Message> findOwnMessage(ConversationId conversation,
+                                          UserId sender,
+                                          std::string_view clientMessageId) const override;
+    std::vector<Message> searchMessages(ConversationId conversation,
+                                        std::string_view query,
+                                        std::size_t limit) const override;
+    std::optional<Message> findMessage(MessageId id) const override;
+    RecallMessageResult recallMessage(MessageId id, UserId actor,
+                                      TimePoint now) override;
+
+    FileObject createFile(FileObject file) override;
+    std::optional<FileObject> findFile(FileId id) const override;
+    bool updateFileProgress(FileId id, UserId owner,
+                            std::uint64_t expectedOffset,
+                            std::uint64_t uploadedSize) override;
+    bool completeFile(FileId id, UserId owner, std::string sha256,
+                      TimePoint now) override;
+    bool failFile(FileId id, UserId owner) override;
+    bool attachFile(MessageId message, FileId file) override;
+    std::vector<MessageAttachment> attachmentsForMessage(
+        MessageId message) const override;
+    bool canAccessFile(UserId user, FileId file) const override;
+
+    OutboxEvent appendOutbox(OutboxEvent event) override;
+    std::vector<OutboxEvent> pendingOutbox(std::size_t limit) const override;
+    bool markPublished(OutboxEventId id, TimePoint now) override;
+
+    ModelNode createModelNode(ModelNode node) override;
+    ModelVersion createModelVersion(ModelVersion version) override;
+    std::pair<ModelVersion, ModelTrainingLineage> createTrainedModelVersion(
+        ModelVersion version, ModelTrainingLineage lineage) override;
+    ModelEdge createModelEdge(ModelEdge edge) override;
+    bool bindAiAccount(ModelBinding binding) override;
+    std::optional<ModelNode> findModelNode(ModelNodeId id) const override;
+    std::vector<ModelNode> modelNodes(ModelNodeId after,std::size_t limit) const override;
+    std::vector<ModelVersion> modelVersions(ModelNodeId node,ModelVersionId after,std::size_t limit) const override;
+    std::optional<ModelVersion> findModelVersion(ModelVersionId id) const override;
+    std::optional<ModelTrainingLineage> findModelTrainingLineage(
+        ModelVersionId version) const override;
+    std::optional<ModelBinding> findModelBinding(UserId aiUser) const override;
+    std::vector<ModelEdge> modelEdges() const override;
+    bool activateModelVersion(ModelNodeId node, ModelVersionId version,
+                              ModelActivationAudit audit) override;
+    ModelActivationAudit appendModelActivationAudit(
+        ModelActivationAudit audit) override;
+    std::vector<ModelActivationAudit> modelActivationAudits(
+        ModelNodeId node, std::size_t limit) const override;
+    bool upsertGenerationAudit(AiGenerationAudit audit) override;
+    std::optional<AiGenerationAudit> findGenerationAudit(
+        std::string_view generationId) const override;
+
+    ModelEvaluationSuite createEvaluationSuite(
+        ModelEvaluationSuite suite,
+        std::vector<ModelEvaluationCase> cases) override;
+    std::optional<ModelEvaluationSuite> findEvaluationSuite(
+        ModelEvaluationSuiteId id) const override;
+    std::vector<ModelEvaluationCase> evaluationCases(
+        ModelEvaluationSuiteId suite) const override;
+    ModelEvaluationRun createEvaluationRun(ModelEvaluationRun run) override;
+    std::optional<ModelEvaluationRun> findEvaluationRun(
+        ModelEvaluationRunId id) const override;
+    bool appendEvaluationCaseResult(
+        ModelEvaluationCaseResult result) override;
+    std::vector<ModelEvaluationCaseResult> evaluationCaseResults(
+        ModelEvaluationRunId run) const override;
+    bool finishEvaluationRun(ModelEvaluationRun run) override;
+    bool upsertActivationPolicy(ModelActivationPolicy policy) override;
+    std::optional<ModelActivationPolicy> findActivationPolicy(
+        ModelNodeId node) const override;
+    std::optional<ModelEvaluationRun> latestCompletedEvaluationRun(
+        ModelVersionId version, ModelEvaluationSuiteId suite) const override;
+
+    KnowledgeDocument createKnowledgeDocument(
+        KnowledgeDocument document,
+        std::vector<KnowledgeChunk> chunks) override;
+    bool updateKnowledgeDocumentState(
+        KnowledgeDocumentId document, KnowledgeDocumentState expected,
+        KnowledgeDocumentState next, std::string failureDetail,
+        std::optional<TimePoint> indexedAt) override;
+    std::optional<KnowledgeDocument> findKnowledgeDocument(
+        KnowledgeDocumentId id) const override;
+    std::optional<KnowledgeChunk> findKnowledgeChunk(
+        KnowledgeChunkId id) const override;
+    std::vector<KnowledgeChunk> knowledgeChunks(
+        KnowledgeDocumentId document) const override;
+    std::vector<KnowledgeDocument> privateKnowledgeDocuments(
+        UserId owner) const override;
+    std::vector<KnowledgeDocument> conversationKnowledgeDocuments(
+        ConversationId conversation) const override;
+    std::vector<KnowledgeChunk> allReadyKnowledgeChunks() const override;
+    bool saveRagRetrieval(RagRetrieval retrieval,
+                          std::vector<RagCitation> citations) override;
+    std::optional<RagRetrieval> findRagRetrieval(
+        std::string_view generationId) const override;
+    std::vector<RagCitation> ragCitations(
+        std::string_view generationId) const override;
+
+    TrainingCandidate createTrainingCandidate(TrainingCandidate candidate) override;
+    std::optional<TrainingCandidate> findTrainingCandidate(
+        TrainingCandidateId id) const override;
+    std::optional<TrainingCandidate> findActiveTrainingCandidate(
+        UserId owner, MessageId sourceMessage) const override;
+    std::vector<TrainingCandidate> trainingCandidatesForOwner(
+        UserId owner) const override;
+    std::vector<TrainingCandidate> trainingCandidatesByState(
+        TrainingCandidateState state) const override;
+    bool updateTrainingCandidate(TrainingCandidate candidate) override;
+    bool transitionTrainingCandidate(
+        TrainingCandidateId id, TrainingCandidateState expected,
+        TrainingCandidateState next,
+        std::optional<DatasetVersionId> dataset = std::nullopt) override;
+    DatasetVersion createDatasetVersion(DatasetVersion version) override;
+    std::optional<DatasetVersion> findDatasetVersion(
+        DatasetVersionId id) const override;
+
+private:
+    using UserPair = std::pair<UserId, UserId>;
+    using MemberKey = std::pair<ConversationId, UserId>;
+    using IdempotencyKey = std::tuple<ConversationId, UserId, std::string>;
+
+    struct State
+    {
+        UserId nextUserId = 1;
+        FriendRequestId nextFriendRequestId = 1;
+        ConversationId nextConversationId = 1;
+        MessageId nextMessageId = 1;
+        FileId nextFileId = 1;
+        OutboxEventId nextOutboxEventId = 1;
+        ModelNodeId nextModelNodeId = 1;
+        ModelVersionId nextModelVersionId = 1;
+        ModelEdgeId nextModelEdgeId = 1;
+        ModelActivationAuditId nextModelActivationAuditId = 1;
+        ModelEvaluationSuiteId nextEvaluationSuiteId = 1;
+        ModelEvaluationCaseId nextEvaluationCaseId = 1;
+        ModelEvaluationRunId nextEvaluationRunId = 1;
+        KnowledgeDocumentId nextKnowledgeDocumentId = 1;
+        KnowledgeChunkId nextKnowledgeChunkId = 1;
+        TrainingCandidateId nextTrainingCandidateId = 1;
+        DatasetVersionId nextDatasetVersionId = 1;
+
+        std::unordered_map<UserId, User> users;
+        std::map<std::pair<UserId,std::string>,std::pair<std::string,std::string>>profileOperations;
+        std::unordered_map<std::string, UserId> usernames;
+        std::unordered_map<std::string, Session> sessionsById;
+        std::unordered_map<std::string, std::string> sessionIdByTokenHash;
+        std::unordered_map<FriendRequestId, FriendRequest> friendRequests;
+        std::set<UserPair> friendships;
+        std::map<UserPair, ContactSettings> contactSettings;
+        std::set<UserPair> blocks;
+        std::unordered_map<UserId, TimePoint> lastActive;
+        std::unordered_map<ConversationId, Conversation> conversations;
+        std::map<MemberKey, ConversationMember> members;
+        std::unordered_map<MessageId, Message> messages;
+        std::unordered_map<ConversationId, std::vector<MessageId>> messageIds;
+        std::map<IdempotencyKey, MessageId> idempotency;
+        std::unordered_map<FileId, FileObject> files;
+        std::unordered_map<MessageId, std::vector<FileId>> attachments;
+        std::unordered_map<OutboxEventId, OutboxEvent> outbox;
+        std::unordered_map<ModelNodeId, ModelNode> modelNodes;
+        std::unordered_map<ModelVersionId, ModelVersion> modelVersions;
+        std::unordered_map<ModelVersionId, ModelTrainingLineage>
+            modelTrainingLineages;
+        std::unordered_map<ModelEdgeId, ModelEdge> modelEdges;
+        std::unordered_map<UserId, ModelBinding> modelBindings;
+        std::unordered_map<ModelActivationAuditId, ModelActivationAudit>
+            modelActivationAudits;
+        std::unordered_map<std::string, AiGenerationAudit> generationAudits;
+        std::unordered_map<ModelEvaluationSuiteId, ModelEvaluationSuite>
+            evaluationSuites;
+        std::unordered_map<ModelEvaluationCaseId, ModelEvaluationCase>
+            evaluationCases;
+        std::unordered_map<ModelEvaluationRunId, ModelEvaluationRun>
+            evaluationRuns;
+        std::map<std::pair<ModelEvaluationRunId, ModelEvaluationCaseId>,
+                 ModelEvaluationCaseResult> evaluationResults;
+        std::unordered_map<ModelNodeId, ModelActivationPolicy>
+            activationPolicies;
+        std::unordered_map<KnowledgeDocumentId, KnowledgeDocument>
+            knowledgeDocuments;
+        std::unordered_map<KnowledgeChunkId, KnowledgeChunk> knowledgeChunks;
+        std::unordered_map<std::string, RagRetrieval> ragRetrievals;
+        std::unordered_map<std::string, std::vector<RagCitation>> ragCitations;
+        std::unordered_map<TrainingCandidateId, TrainingCandidate> trainingCandidates;
+        std::unordered_map<DatasetVersionId, DatasetVersion> datasets;
+    };
+
+    class Transaction;
+
+    static UserPair orderedUsers(UserId first, UserId second);
+    Message hydrateMessageLocked(Message message) const;
+
+    mutable std::recursive_mutex mutex_;
+    State state_;
+};
+
+} // namespace webserver::phase11

@@ -7,6 +7,11 @@
 | 主题 | 入口 |
 |---|---|
 | 当前系统和版本对比 | [项目 README](../README.md) |
+| 当前三端与AI完整总图 | [Phase36–41端到端](architecture/business/phase36-41-end-to-end.md) |
+| 当前组件文件索引 | [Phase36–41代码索引](architecture/business/phase36-41-code-index.md) |
+| 本轮回归、性能与限制 | [Phase41](architecture/business/phase41.md) |
+| 保持架构的响应优化与神树美化 | [Phase42](architecture/business/phase42.md) |
+| Windows本机与Linux隔离预览 | [启动与停止](ops/phase36-41-local-preview.md) |
 | 架构总览 | [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) |
 | 底层通信架构总入口 | [architecture/communication/README.md](architecture/communication/README.md) |
 | 各协议逻辑与调用关系图 | [architecture/communication/protocol-call-flows.md](architecture/communication/protocol-call-flows.md) |
@@ -57,3 +62,18 @@
 
 学习顺序建议：先读总架构末尾的大图，再沿“底层通信架构 → 协议调用流程 → 业务架构 → 业务调用流程”
 建立当前全貌；需要了解演进原因时，再进入对应 Phase 文档和 WebSocket/Reactor 课程。
+
+## Function3 本地开发
+
+- [Phase 28：执行器、长会话与重连](architecture/business/phase28.md)
+- [Phase 29：RocketMQ 与持久投递](architecture/business/phase29.md)
+- [Phase 30：站点后台与权限](architecture/business/phase30.md)
+- [Phase 31：树内容与媒体](architecture/business/phase31.md)
+- [Phase 32：3D 与分区](architecture/business/phase32.md)
+- [Phase 33：排名、公告与本地 TTS](architecture/business/phase33.md)
+- [Phase 34：验收证据与限制](architecture/business/phase34.md)
+- [Phase 35：原库、语音、Redis、统一导航与树页面](architecture/business/phase35.md)
+- [当前日常启动与停止：原账号库和18090](ops/function3-runtime.md)
+- [端到端架构大图](architecture/business/function3-end-to-end.md)
+- [代码组件索引](architecture/business/function3-code-index.md)
+- [Function3 数据表](database/function3-tables.md)

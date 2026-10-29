@@ -1,0 +1,7 @@
+Function3 stopped. Shared PostgreSQL and all data preserved.
+Started isolated current PID 98091 HTTP 18094 / HTTPS 18443
+Verified certificate, ALPN=h2, two authenticated business streams and sibling RST_STREAM passed
+{"passed": true, "post": "19", "rankVersion": "496", "announcement": "17", "delivery": "local", "coverage": ["auth/CSRF", "real PNG/WAV decode", "malformed/long audio rejection", "media ownership", "persistent idempotency", "likes/replies", "rank/announcement", "durable delivery/TTS both voices", "playback claim dedup", "report/hide/old media URL", "session revocation"]}
+Phase 11 PostgreSQL is already running.
+/home/pikachu/phase11-data/postgresql/run:5432 - accepting connections
+{"pid": 98256, "http": 18090, "database": "phase11", "speech": true, "redis": true, "delivery": "local", "log": "/home/pikachu/phase11-data/function3/runtime/webserver.log"}

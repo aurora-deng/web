@@ -1,0 +1,20 @@
+{
+  "baseline": [
+    {
+      "round": 1,
+      "pid": 59673,
+      "fastQps": 54184.79,
+      "ackP99Ms": 21.281,
+      "mixedErrors": 0
+    }
+  ],
+  "current": [
+    {
+      "round": 1,
+      "pid": 59739,
+      "fastQps": 55125.78,
+      "ackP99Ms": 35.524,
+      "mixedErrors": 0
+    }
+  ]
+}

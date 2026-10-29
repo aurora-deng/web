@@ -202,15 +202,15 @@ expected=9 applied=9 latest=9
 
 | 职责 | 文件 |
 |---|---|
-| 文档、Chunk、Retrieval、Citation 领域对象 | [Domain.h](../../../server/phase11/domain/Domain/Domain.h) |
-| Repository、Index、RAG Context 端口 | [Ports.h](../../../server/phase11/ports/Ports/Ports.h) |
-| 前后端知识业务接口 | [BusinessInterfaces.h](../../../server/phase11/business/BusinessInterfaces/BusinessInterfaces.h) |
-| 授权、切片、状态机、检索与 Prompt 组装 | [RagService.cpp](../../../server/phase11/ai/RagService/RagService.cpp) |
-| 无依赖确定性索引 | [DeterministicKnowledgeIndex.cpp](../../../server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp) |
-| AI 生成接入 RAG Context | [AiChatService.cpp](../../../server/phase11/business/AiChatService/AiChatService.cpp) |
-| HTTP 登记、列表与引用查询 | [Phase11KnowledgeHttp.cpp](../../../server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp) |
-| PostgreSQL 实现 | [PostgresStore.cpp](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
-| 第 9 号迁移 | [009_rag_knowledge_and_citations.sql](../../../server/phase11/storage/postgres/migrations/009_rag_knowledge_and_citations.sql) |
+| 文档、Chunk、Retrieval、Citation 领域对象 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
+| Repository、Index、RAG Context 端口 | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
+| 前后端知识业务接口 | [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
+| 授权、切片、状态机、检索与 Prompt 组装 | [RagService.cpp](../../../backend/ai/models/RagService/RagService.cpp) |
+| 无依赖确定性索引 | [DeterministicKnowledgeIndex.cpp](../../../backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp) |
+| AI 生成接入 RAG Context | [AiChatService.cpp](../../../backend/application/business/AiChatService/AiChatService.cpp) |
+| HTTP 登记、列表与引用查询 | [Phase11KnowledgeHttp.cpp](../../../backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp) |
+| PostgreSQL 实现 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
+| 第 9 号迁移 | [009_rag_knowledge_and_citations.sql](../../../backend/application/storage/postgres/migrations/009_rag_knowledge_and_citations.sql) |
 | 知识库与 Citation 页面 | [app.js](../../../frontend/phase11/app.js) |
 | RAG 业务测试 | [rag.cpp](../../../tests/phase11/unit/rag.cpp) |
 | HTTP 入口测试 | [http_auth.cpp](../../../tests/phase11/unit/http_auth.cpp) |

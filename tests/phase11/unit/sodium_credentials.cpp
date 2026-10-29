@@ -1,7 +1,7 @@
-#include "server/phase11/business/AuthService/AuthService.h"
-#include "server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
-#include "server/phase11/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
-#include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
+#include "backend/application/business/AuthService/AuthService.h"
+#include "backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
+#include "backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
+#include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 
 #include <chrono>
 #include <cstdlib>

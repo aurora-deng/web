@@ -23,7 +23,7 @@ HTTP/2 不只是“HTTP/1.1 长连接”。它还规定连接前言、二进制�
 |---|---|---|---|
 | 生产入口与协议 | `HttpSession` 识别前言；`Http2Session` 和 nghttp2 处理连接、帧、HPACK、stream、窗口 | 保持原样 | 教学代码没有替换生产版 nghttp2 |
 | 业务与出站 | 每个 stream 建 Job，复用 Router/Executor、`OutboundTask` 和唯一 writer | 保持原样 | 线程归属与出站背压边界未改变 |
-| 协议学习 | 可从生产接线理解 nghttp2 回调，但内部细节较黑盒 | 新增独立的 [`learn` 教学版](../../../server/http2/learn/README.md)，逐字节演示前言、帧、HPACK、stream 和窗口 | 只供学习，不承担生产互操作 |
+| 协议学习 | 可从生产接线理解 nghttp2 回调，但内部细节较黑盒 | 新增独立的 [`learn` 教学版](../../../backend/server/http2/learn/README.md)，逐字节演示前言、帧、HPACK、stream 和窗口 | 只供学习，不承担生产互操作 |
 | 全流程演示 | 独立 codec 往返覆盖拆包、HPACK、多 stream、POST DATA 和 RST | 教学双端程序还演示 SETTINGS/ACK、PING、GOAWAY、DATA 分帧与逆序响应 | 演示覆盖增加，不代表吞吐或延迟提升 |
 | 验证 | 本机 codec 往返通过；Linux 完整服务待验收 | 教学版 C++20 直接编译运行通过 | 真实 Linux h2c/SSE 共存和性能仍待验证 |
 
@@ -54,9 +54,9 @@ flowchart LR
 
 ## 5. 生产代码逐步走读
 
-1. **识别与交接**：`server/http/HttpSession/HttpSession.cpp` 在 HTTP/1 parser 之前比对前言。只收到前几个字节时保留在 `readBuffer`，等待下一次读取；完整匹配后经 `SessionFactory::createHttp2Session()` 创建会话，替换 `Connection::session`，把新根协程交给调度器。缓冲字节不提前取走，由 nghttp2 自己消费前言。
-2. **收帧与拼请求**：`server/http2/Http2Codec.cpp` 为每个连接创建一个 nghttp2 server session。回调按 stream ID 收集 `:method`、`:path`、普通首部和 DATA；收到 END_STREAM 才把一个完整请求交给业务。HPACK 解码、帧顺序和流量控制由 nghttp2 判断。超过请求首部或请求体上限的 stream 被重置。
-3. **并发业务与流协程**：`Http2Session::dispatchReady()` 为每个完整 stream 建一个 Job、独立 `RequestContext`、取消源和截止时间，并创建 `Task<bool>` 流协程。[`Http2StreamCoroutine.h`](../../../server/http2/Http2StreamCoroutine.h) 是协程“叫号牌”的所有权状态机，明确记录 `Ready → Suspended → Succeeded/Failed` 或 `Cancelled`。首次 `resume()` 进入 `runStream()`，把 handler 交给现有 HTTP Executor 后在 `co_await std::suspend_always{}` 停住。连接根协程继续读别的帧；stream 3 可以先于 stream 1 完成。Executor 排队满则流协程直接提交 503。
+1. **识别与交接**：`backend/server/http/HttpSession/HttpSession.cpp` 在 HTTP/1 parser 之前比对前言。只收到前几个字节时保留在 `readBuffer`，等待下一次读取；完整匹配后经 `SessionFactory::createHttp2Session()` 创建会话，替换 `Connection::session`，把新根协程交给调度器。缓冲字节不提前取走，由 nghttp2 自己消费前言。
+2. **收帧与拼请求**：`backend/server/http2/Http2Codec.cpp` 为每个连接创建一个 nghttp2 server session。回调按 stream ID 收集 `:method`、`:path`、普通首部和 DATA；收到 END_STREAM 才把一个完整请求交给业务。HPACK 解码、帧顺序和流量控制由 nghttp2 判断。超过请求首部或请求体上限的 stream 被重置。
+3. **并发业务与流协程**：`Http2Session::dispatchReady()` 为每个完整 stream 建一个 Job、独立 `RequestContext`、取消源和截止时间，并创建 `Task<bool>` 流协程。[`Http2StreamCoroutine.h`](../../../backend/server/http2/Http2StreamCoroutine.h) 是协程“叫号牌”的所有权状态机，明确记录 `Ready → Suspended → Succeeded/Failed` 或 `Cancelled`。首次 `resume()` 进入 `runStream()`，把 handler 交给现有 HTTP Executor 后在 `co_await std::suspend_always{}` 停住。连接根协程继续读别的帧；stream 3 可以先于 stream 1 完成。Executor 排队满则流协程直接提交 503。
 4. **完成通知与恢复**：Worker 把 Job 放进会话的完成队列，再调用 `notifyExecuteComplete(fd, connId)`。`SubReactor::processComplete()` 用 `connId` 防 fd 复用，并唤醒连接根协程。根协程在 `finishCompleted()` 找到对应 Job，**只在所属 Reactor 线程**恢复这条流协程；Worker 不碰 nghttp2。若客户端提前 RST_STREAM，取消源亮起，`cancel()` 当场销毁挂起的协程帧，迟到的业务结果因 jobs 映射中已没有该 stream 而被丢弃。连接关闭走相同取消逻辑。
 5. **响应与写入**：恢复的流协程把 `HttpResponse` 转为 `:status`、小写首部及 DATA。连接级首部（如 `Connection`、`Transfer-Encoding`）不能出现在 HTTP/2 中，所以过滤。`nghttp2_session_mem_send()` 产出的临时内存立即复制为 `OutboundTask::encoded`，复用原有唯一 writerLoop；所有 stream 共享同一发送顺序和连接窗口。
 6. **关闭清理**：连接关闭时 `requestHandlerStop()` 向仍在运行的各 stream Job 发协作取消信号，并立即取消挂起的流协程；`Job` 析构把池化响应归还。停止信号不是强制终止 Worker，业务 handler 仍需在耗时循环里主动检查 `stopRequested()`。
@@ -71,13 +71,13 @@ flowchart LR
 
 | 线上步骤 | nghttp2 的职责或接口 | 本项目生产接线 | 手写教学版的对应实现 |
 |---|---|---|---|
-| 1. 前言 | server session 由 `nghttp2_session_mem_recv()` 消费客户端前言 | [`Http2Preface.h`](../../../server/http2/Http2Preface.h)、[`HttpSession.cpp`](../../../server/http/HttpSession/HttpSession.cpp) 先识别并交接 | [`Connection.cpp::start/receive`](../../../server/http2/learn/Connection.cpp) 生成、逐字节校验固定 24 字节 |
-| 2. 会话与 SETTINGS | 创建 callbacks 和 `nghttp2_session_server_new`，调用 `nghttp2_submit_settings` | [`Http2Codec.cpp`](../../../server/http2/Http2Codec.cpp) 每连接建一个协议会话 | [`Connection.h`](../../../server/http2/learn/Connection.h) 中每端一个对象，`start()` 交换 SETTINGS/ACK |
-| 3. TCP 字节到帧 | `nghttp2_session_mem_recv` 增量拆帧和检查协议顺序 | `Http2Session::run()` 把读缓冲交给 `Http2Codec::receive()` | [`Frame.cpp::FrameParser::feed`](../../../server/http2/learn/Frame.cpp) 等齐 9 字节帧头和 payload |
-| 4. HEADERS 到字段 | HPACK 解码后触发 `on_begin_headers` / `on_header` 回调 | `Http2Codec` 映射 `:method`、`:path` 等为请求字段 | [`Hpack.cpp::decode`](../../../server/http2/learn/Hpack.cpp) 解前缀整数、字符串及静态/动态表索引 |
-| 5. DATA 到请求 | `on_data_chunk_recv` 和 `on_frame_recv`；END_STREAM 才结束消息 | `Http2Codec::finishRequest()` 交给 `Http2Session::dispatchReady()` | [`Connection.cpp::handle/finish_remote`](../../../server/http2/learn/Connection.cpp) 按 stream ID 拼 HEADERS 和 DATA |
+| 1. 前言 | server session 由 `nghttp2_session_mem_recv()` 消费客户端前言 | [`Http2Preface.h`](../../../backend/server/http2/Http2Preface.h)、[`HttpSession.cpp`](../../../backend/server/http/HttpSession/HttpSession.cpp) 先识别并交接 | [`Connection.cpp::start/receive`](../../../backend/server/http2/learn/Connection.cpp) 生成、逐字节校验固定 24 字节 |
+| 2. 会话与 SETTINGS | 创建 callbacks 和 `nghttp2_session_server_new`，调用 `nghttp2_submit_settings` | [`Http2Codec.cpp`](../../../backend/server/http2/Http2Codec.cpp) 每连接建一个协议会话 | [`Connection.h`](../../../backend/server/http2/learn/Connection.h) 中每端一个对象，`start()` 交换 SETTINGS/ACK |
+| 3. TCP 字节到帧 | `nghttp2_session_mem_recv` 增量拆帧和检查协议顺序 | `Http2Session::run()` 把读缓冲交给 `Http2Codec::receive()` | [`Frame.cpp::FrameParser::feed`](../../../backend/server/http2/learn/Frame.cpp) 等齐 9 字节帧头和 payload |
+| 4. HEADERS 到字段 | HPACK 解码后触发 `on_begin_headers` / `on_header` 回调 | `Http2Codec` 映射 `:method`、`:path` 等为请求字段 | [`Hpack.cpp::decode`](../../../backend/server/http2/learn/Hpack.cpp) 解前缀整数、字符串及静态/动态表索引 |
+| 5. DATA 到请求 | `on_data_chunk_recv` 和 `on_frame_recv`；END_STREAM 才结束消息 | `Http2Codec::finishRequest()` 交给 `Http2Session::dispatchReady()` | [`Connection.cpp::handle/finish_remote`](../../../backend/server/http2/learn/Connection.cpp) 按 stream ID 拼 HEADERS 和 DATA |
 | 6. 流量控制 | 维护连接和 stream 两级窗口，调度 DATA | 项目还要管理自己的 `OutboundQueue` 背压；它不是 HTTP/2 窗口 | `Connection.cpp::handle` 扣额度、发 WINDOW_UPDATE；`send_message` 检查额度 |
-| 7. 响应与发送 | `nghttp2_submit_response` 和 body 回调；`nghttp2_session_mem_send` 产出帧字节 | `Http2Session::finishCompleted/flushOutput()` 复制成 `OutboundTask`，交唯一 writer | `Hpack.cpp::encode`、`Connection.cpp::send_message`、[`Frame.cpp::encode_frame`](../../../server/http2/learn/Frame.cpp) |
+| 7. 响应与发送 | `nghttp2_submit_response` 和 body 回调；`nghttp2_session_mem_send` 产出帧字节 | `Http2Session::finishCompleted/flushOutput()` 复制成 `OutboundTask`，交唯一 writer | `Hpack.cpp::encode`、`Connection.cpp::send_message`、[`Frame.cpp::encode_frame`](../../../backend/server/http2/learn/Frame.cpp) |
 | 8. 取消与关闭 | 处理 RST/GOAWAY 等协议状态 | `Http2Codec::onClose`、`Http2Session::reapClosed` 清理相关 Job | `Connection.cpp::reset/send_goaway` 演示单 stream 取消与无活跃 stream 时结束连接 |
 
 注意三个容易混淆的编号：`connId` 标识项目中的一代 TCP 连接，防止 fd 复用后投错结果；`streamId` 标识这条连接中的一个请求；HPACK 表索引标识一个首部条目，和 stream 编号无关。
@@ -98,7 +98,7 @@ flowchart TD
     J --> K[Connection.cpp: PING / RST_STREAM / GOAWAY]
 ```
 
-教学入口是 [`main.cpp`](../../../server/http2/learn/main.cpp)；状态、帧和首部分别看 [`Connection.h`](../../../server/http2/learn/Connection.h)/[`Connection.cpp`](../../../server/http2/learn/Connection.cpp)、[`Frame.h`](../../../server/http2/learn/Frame.h)/[`Frame.cpp`](../../../server/http2/learn/Frame.cpp)、[`Hpack.h`](../../../server/http2/learn/Hpack.h)/[`Hpack.cpp`](../../../server/http2/learn/Hpack.cpp)。教学版保留 RFC 的 61 项静态首部表，但省略 Huffman、CONTINUATION、完整流状态机、TLS/ALPN 和复杂窗口等待，因此不能替换 nghttp2 或直接用作通用网络服务器。
+教学入口是 [`main.cpp`](../../../backend/server/http2/learn/main.cpp)；状态、帧和首部分别看 [`Connection.h`](../../../backend/server/http2/learn/Connection.h)/[`Connection.cpp`](../../../backend/server/http2/learn/Connection.cpp)、[`Frame.h`](../../../backend/server/http2/learn/Frame.h)/[`Frame.cpp`](../../../backend/server/http2/learn/Frame.cpp)、[`Hpack.h`](../../../backend/server/http2/learn/Hpack.h)/[`Hpack.cpp`](../../../backend/server/http2/learn/Hpack.cpp)。教学版保留 RFC 的 61 项静态首部表，但省略 Huffman、CONTINUATION、完整流状态机、TLS/ALPN 和复杂窗口等待，因此不能替换 nghttp2 或直接用作通用网络服务器。
 
 ## 7. 为什么要保留这些边界
 
@@ -117,11 +117,11 @@ HTTP/2 的多路复用解决的是 **应用层请求队头等待**；多个 stre
 
 | 来源 | 入口头文件 | 当前代码位置 | 生产构建中使用 |
 |---|---|---|---|
-| nghttp2 协议库 | `<nghttp2/nghttp2.h>` | [`Http2Codec.h`](../../../server/http2/Http2Codec.h)、根 [`CMakeLists.txt`](../../../CMakeLists.txt) 查找并链接 `libnghttp2` | **是** |
-| 手写 HTTP/2 教学模块 | [`Frame.h`](../../../server/http2/learn/Frame.h)、[`Hpack.h`](../../../server/http2/learn/Hpack.h)、[`Connection.h`](../../../server/http2/learn/Connection.h) | 各自对应 `.cpp`，由 `learn/CMakeLists.txt` 构建教学程序 | **否，独立实验** |
-| 既有手写协议模块 | [`HttpParser.h`](../../../server/http/HttpParser/HttpParser.h)、[`WebSocketCodec.h`](../../../server/websocket/WebSocketCodec/WebSocketCodec.h)、[`SseCodec.h`](../../../server/sse/SseCodec.h) 等 | HTTP/1、WebSocket、SSE 生产模块 | **是，但不是手写 HTTP/2** |
+| nghttp2 协议库 | `<nghttp2/nghttp2.h>` | [`Http2Codec.h`](../../../backend/server/http2/Http2Codec.h)、根 [`CMakeLists.txt`](../../../CMakeLists.txt) 查找并链接 `libnghttp2` | **是** |
+| 手写 HTTP/2 教学模块 | [`Frame.h`](../../../backend/server/http2/learn/Frame.h)、[`Hpack.h`](../../../backend/server/http2/learn/Hpack.h)、[`Connection.h`](../../../backend/server/http2/learn/Connection.h) | 各自对应 `.cpp`，由 `learn/CMakeLists.txt` 构建教学程序 | **否，独立实验** |
+| 既有手写协议模块 | [`HttpParser.h`](../../../backend/server/http/HttpParser/HttpParser.h)、[`WebSocketCodec.h`](../../../backend/server/websocket/WebSocketCodec/WebSocketCodec.h)、[`SseCodec.h`](../../../backend/server/sse/SseCodec.h) 等 | HTTP/1、WebSocket、SSE 生产模块 | **是，但不是手写 HTTP/2** |
 
-其他可供今后评估的成熟库入口包括 [llhttp](https://github.com/nodejs/llhttp) 的 `<llhttp.h>`（HTTP/1 解析）、[Boost.Beast](https://www.boost.org/doc/libs/latest/libs/beast/doc/html/index.html) 的 `<boost/beast/http.hpp>`/`<boost/beast/websocket.hpp>`、[libwebsockets](https://github.com/warmcat/libwebsockets) 的 `<libwebsockets.h>`、[Libevent](https://libevent.org/doc/) 的 `<event2/event.h>`（事件循环）、[zlib](https://www.zlib.net/manual.html) 的 `<zlib.h>`（内容压缩）和 [spdlog](https://github.com/gabime/spdlog) 的 `<spdlog/spdlog.h>`（日志）。这些候选库**均未接入本项目**；OpenSSL 已在 Phase 7 接入。尤其事件循环/网络框架可能与现有 Reactor 设计重叠，不是包含头文件就能完成升级。更细的适配范围见 [`server/http2/README.md` 的依赖清单](../../../server/http2/README.md#5-项目依赖封装清单实际使用与可选项分开看)。
+其他可供今后评估的成熟库入口包括 [llhttp](https://github.com/nodejs/llhttp) 的 `<llhttp.h>`（HTTP/1 解析）、[Boost.Beast](https://www.boost.org/doc/libs/latest/libs/beast/doc/html/index.html) 的 `<boost/beast/http.hpp>`/`<boost/beast/websocket.hpp>`、[libwebsockets](https://github.com/warmcat/libwebsockets) 的 `<libwebsockets.h>`、[Libevent](https://libevent.org/doc/) 的 `<event2/event.h>`（事件循环）、[zlib](https://www.zlib.net/manual.html) 的 `<zlib.h>`（内容压缩）和 [spdlog](https://github.com/gabime/spdlog) 的 `<spdlog/spdlog.h>`（日志）。这些候选库**均未接入本项目**；OpenSSL 已在 Phase 7 接入。尤其事件循环/网络框架可能与现有 Reactor 设计重叠，不是包含头文件就能完成升级。更细的适配范围见 [`backend/server/http2/README.md` 的依赖清单](../../../backend/server/http2/README.md#5-项目依赖封装清单实际使用与可选项分开看)。
 
 ## 9. 构建、验证与学习顺序
 
@@ -141,7 +141,7 @@ curl --http2-prior-knowledge -i http://127.0.0.1:8080/
 
 核心网络层使用 Linux epoll，当前 Windows 工作区无法直接启动完整服务，因此尚未完成“真实 SubReactor + 本地 socket + curl”的端到端验证。目标 Linux 环境中应运行上面的命令，同时验证 HTTP/1.1 `/events-status`、SSE `/events` 与 WebSocket 原路径继续工作，并检查连接断开后的资源清理。未做性能基准；不能据此宣称吞吐或延迟改善。
 
-建议的学习顺序：先运行 [`learn/main.cpp`](../../../server/http2/learn/main.cpp) 的内存双端演示，依次看 `Frame.cpp` 的帧边界、`Hpack.cpp` 的首部索引、`Connection.cpp` 的 stream 与窗口；再回到 `Http2Codec.cpp`，把手写的各步骤对应到 nghttp2 API 和回调；最后按本节命令在 Linux 验证生产连接。之后可继续研究 Huffman、CONTINUATION 和 HTTP/2 上的 SSE；TLS/ALPN 进入 [Phase 7](phase7.md)。
+建议的学习顺序：先运行 [`learn/main.cpp`](../../../backend/server/http2/learn/main.cpp) 的内存双端演示，依次看 `Frame.cpp` 的帧边界、`Hpack.cpp` 的首部索引、`Connection.cpp` 的 stream 与窗口；再回到 `Http2Codec.cpp`，把手写的各步骤对应到 nghttp2 API 和回调；最后按本节命令在 Linux 验证生产连接。之后可继续研究 Huffman、CONTINUATION 和 HTTP/2 上的 SSE；TLS/ALPN 进入 [Phase 7](phase7.md)。
 
 ## 10. 对照完整 HTTP/2 流程：哪些在项目中，哪些在库里
 

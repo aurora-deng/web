@@ -38,28 +38,28 @@ SubReactor (上帝类)
 
 ```
 main.cpp (~110行，仅路由注册)
-  └── ServerRuntime                          server/Runtime/ServerRuntime.h
+  └── ServerRuntime                          backend/server/Runtime/ServerRuntime.h
         ├── Router (owned)
         ├── Executor (owned，共享给所有 SubReactor)
-        ├── WebSocketDispatcher (owned)      server/websocket/WebSocketDispatcher/
-        ├── WebSocketSessionManager (owned)  server/websocket/WebSocketSessionManager/
-        ├── WebSocketSessionFactory (owned)  server/websocket/WebSocketSessionFactory.h
-        └── ReactorGroup                     server/Reactor/ReactorGroup.h
+        ├── WebSocketDispatcher (owned)      backend/server/websocket/WebSocketDispatcher/
+        ├── WebSocketSessionManager (owned)  backend/server/websocket/WebSocketSessionManager/
+        ├── WebSocketSessionFactory (owned)  backend/server/websocket/WebSocketSessionFactory.h
+        └── ReactorGroup                     backend/server/Reactor/ReactorGroup.h
               │   构造: ReactorGroup(Router&, Executor&, SessionFactory&)
-              └── SubReactor[]               server/SubReactor/SubReactor.h
+              └── SubReactor[]               backend/server/SubReactor/SubReactor.h
                     ├── Connection (分层)
                     │     ├── ConnTransport   传输层: fd, readBuffer, state
                     │     ├── ConnTimer       定时器层: expireSlot
                     │     └── shared_ptr<Session>  协议生命周期所有者
-                    ├── Session 基类          server/session/Session/Session.h
+                    ├── Session 基类          backend/server/session/Session/Session.h
                     │     └── run() 纯虚 + onTimeout()/onClose() 钩子（无 protocol()）
-                    ├── HttpSession : Session  server/http/HttpSession/HttpSession.h
+                    ├── HttpSession : Session  backend/server/http/HttpSession/HttpSession.h
                     │     ├── HttpCodec codec_ (owned，自带编解码器)
                     │     └── 出站走 OutboundTask + enqueueOutbound（无 sender_ 成员）
-                    ├── WebSocketSession : Session  server/websocket/WebSocketSession/
+                    ├── WebSocketSession : Session  backend/server/websocket/WebSocketSession/
                     │     └── WebSocketCodec + WebSocketParser（自带）
-                    ├── OutboundQueue outbound_       server/transport/OutboundQueue.h
-                    ├── TransportWriter transportWriter server/transport/TransportWriter.h
+                    ├── OutboundQueue outbound_       backend/server/transport/OutboundQueue.h
+                    ├── TransportWriter transportWriter backend/server/transport/TransportWriter.h
                     ├── writerLoop 协程（每连接一个，串行化出站 I/O）
                     ├── SessionFactory* sessionFactory_  (依赖倒置，由 ReactorGroup 注入)
                     ├── CoroutineScheduler
@@ -96,8 +96,8 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.2 SubReactor
 
-**文件**: [server/SubReactor/SubReactor.h](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h)  
-**实现**: [server/SubReactor/SubReactor.cpp](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp)
+**文件**: [backend/server/SubReactor/SubReactor.h](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h) <br>
+**实现**: [backend/server/SubReactor/SubReactor.cpp](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp)
 
 #### 2.2.1 构造函数
 
@@ -111,23 +111,23 @@ main.cpp (~110行，仅路由注册)
 
 | 成员 | 位置 | 作用 |
 |------|------|------|
-| `Executor &executor` | [SubReactor.h 行153](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h#L153) | 借用共享的 Worker 线程池 |
-| `HttpCodec &codec` | [SubReactor.h 行152](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h#L152) | 借用共享的编解码器 |
-| `completeMtx` / `completeQueue` | [SubReactor.h 行156-157](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h#L156-L157) | Worker 完成通知队列 |
-| `zombieWakes` | [SubReactor.h 行160](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h#L160) | 僵尸协程唤醒表 |
+| `Executor &executor` | [SubReactor.h 行153](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h#L153) | 借用共享的 Worker 线程池 |
+| `HttpCodec &codec` | [SubReactor.h 行152](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h#L152) | 借用共享的编解码器 |
+| `completeMtx` / `completeQueue` | [SubReactor.h 行156-157](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h#L156-L157) | Worker 完成通知队列 |
+| `zombieWakes` | [SubReactor.h 行160](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h#L160) | 僵尸协程唤醒表 |
 
 #### 2.2.3 新增方法
 
 | 方法 | 位置 | 作用 |
 |------|------|------|
-| `wakeExecuteCoroutine(fd)` | [SubReactor.cpp 行100](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L100) | 唤醒执行完成的协程 |
-| `notifyExecuteComplete(fd, connId)` | [SubReactor.cpp 行116](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L116) | Worker 线程投递完成通知（线程安全） |
-| `processComplete()` | [SubReactor.cpp 行131](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L131) | Reactor 线程批量消费完成队列 |
-| `stop()` / `join()` | [SubReactor.h 行215-216](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h#L215-L216) | 优雅停止 |
+| `wakeExecuteCoroutine(fd)` | [SubReactor.cpp 行100](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L100) | 唤醒执行完成的协程 |
+| `notifyExecuteComplete(fd, connId)` | [SubReactor.cpp 行116](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L116) | Worker 线程投递完成通知（线程安全） |
+| `processComplete()` | [SubReactor.cpp 行131](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L131) | Reactor 线程批量消费完成队列 |
+| `stop()` / `join()` | [SubReactor.h 行215-216](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h#L215-L216) | 优雅停止 |
 
 #### 2.2.4 fd_close 修改
 
-**文件**: [SubReactor.cpp fd_close](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L147)
+**文件**: [SubReactor.cpp fd_close](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L147)
 
 | 原型 | 最新版本 | 差异 |
 |------|----------|------|
@@ -140,7 +140,7 @@ main.cpp (~110行，仅路由注册)
 
 #### 2.2.5 processPendingFds 修改
 
-**文件**: [SubReactor.cpp processPendingFds](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L404)
+**文件**: [SubReactor.cpp processPendingFds](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L404)
 
 | 原型 | 最新版本 | 差异 |
 |------|----------|------|
@@ -150,7 +150,7 @@ main.cpp (~110行，仅路由注册)
 
 #### 2.2.6 loop 修改
 
-**文件**: [SubReactor.cpp loop](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.cpp#L313)
+**文件**: [SubReactor.cpp loop](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.cpp#L313)
 
 | 原型 | 最新版本 | 差异 |
 |------|----------|------|
@@ -166,8 +166,8 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.3 HttpSession
 
-**文件**: [server/http/HttpSession/HttpSession.h](file:///e:/虚拟机高级web开发/web/server/http/HttpSession/HttpSession.h)  
-**实现**: [server/http/HttpSession/HttpSession.cpp](file:///e:/虚拟机高级web开发/web/server/http/HttpSession/HttpSession.cpp)
+**文件**: [backend/server/http/HttpSession/HttpSession.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpSession/HttpSession.h) <br>
+**实现**: [backend/server/http/HttpSession/HttpSession.cpp](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpSession/HttpSession.cpp)
 
 #### 2.3.1 状态机
 
@@ -179,7 +179,7 @@ main.cpp (~110行，仅路由注册)
 
 #### 2.3.2 dispatch 异步化
 
-**文件**: [HttpSession.cpp 行154-203](file:///e:/虚拟机高级web开发/web/server/http/HttpSession/HttpSession.cpp#L154-L203)
+**文件**: [HttpSession.cpp 行154-203](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpSession/HttpSession.cpp#L154-L203)
 
 | 原型 | 最新版本 | 差异 |
 |------|----------|------|
@@ -203,7 +203,7 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.4 Executor（新增）
 
-**文件**: [server/Executor/Executor.h](file:///e:/虚拟机高级web开发/web/server/Executor/Executor.h)
+**文件**: [backend/server/Executor/Executor.h](file:///e:/虚拟机高级web开发/web/backend/server/Executor/Executor.h)
 
 | 原型 | 最新版本 |
 |------|----------|
@@ -215,8 +215,8 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.5 ExecuteAwaiter（新增）
 
-**文件**: [server/CoroutineScheduler/AWaiter.h](file:///e:/虚拟机高级web开发/web/server/CoroutineScheduler/AWaiter.h#L45-L56)  
-**实现**: [server/CoroutineScheduler/AWaiter.cpp](file:///e:/虚拟机高级web开发/web/server/CoroutineScheduler/AWaiter.cpp#L73-L101)
+**文件**: [backend/server/CoroutineScheduler/AWaiter.h](file:///e:/虚拟机高级web开发/web/backend/server/CoroutineScheduler/AWaiter.h#L45-L56) <br>
+**实现**: [backend/server/CoroutineScheduler/AWaiter.cpp](file:///e:/虚拟机高级web开发/web/backend/server/CoroutineScheduler/AWaiter.cpp#L73-L101)
 
 | 原型 | 最新版本 |
 |------|----------|
@@ -234,7 +234,7 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.6 AwaitType 枚举
 
-**文件**: [server/CoroutineScheduler/CoroutineScheduler.h](file:///e:/虚拟机高级web开发/web/server/CoroutineScheduler/CoroutineScheduler.h#L12-L19)
+**文件**: [backend/server/CoroutineScheduler/CoroutineScheduler.h](file:///e:/虚拟机高级web开发/web/backend/server/CoroutineScheduler/CoroutineScheduler.h#L12-L19)
 
 | 原型 | 最新版本 |
 |------|----------|
@@ -246,7 +246,7 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.7 HttpParser 子对象化
 
-**文件**: [server/http/HttpParser/HttpParser.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/HttpParser.h)
+**文件**: [backend/server/http/HttpParser/HttpParser.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/HttpParser.h)
 
 | 原型 | 最新版本 |
 |------|----------|
@@ -255,10 +255,10 @@ main.cpp (~110行，仅路由注册)
 | 单体解析器 | 持有 `RequestLineParser` + `HeaderParser` + `BodyParser` 三个子对象 |
 
 **新增文件**:
-- [ParserUtils.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/ParserUtils.h) — 工具函数和常量
-- [RequestLineParser.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/RequestLineParser.h) — 请求行解析
-- [HeaderParser.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/HeaderParser.h) — 首部解析
-- [BodyParser.h](file:///e:/虚拟机高级web开发/web/server/http/HttpParser/BodyParser.h) — 正文解析
+- [ParserUtils.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/ParserUtils.h) — 工具函数和常量
+- [RequestLineParser.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/RequestLineParser.h) — 请求行解析
+- [HeaderParser.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/HeaderParser.h) — 首部解析
+- [BodyParser.h](file:///e:/虚拟机高级web开发/web/backend/server/http/HttpParser/BodyParser.h) — 正文解析
 
 **为什么**：原型中 `parseQuery` 和 `parseRange` 是文件级 static 函数，不符合"完全对象化"目标。拆分为子对象后，每个解析器管理自己的状态（contentLength、chunked、range 等），HttpParser 只做状态机协调。对外接口 `parse()`/`reset()` 不变，不影响调用方。
 
@@ -266,8 +266,8 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.8 ServerRuntime（新增）
 
-**文件**: [server/Runtime/ServerRuntime.h](file:///e:/虚拟机高级web开发/web/server/Runtime/ServerRuntime.h)  
-**实现**: [server/Runtime/ServerRuntime.cpp](file:///e:/虚拟机高级web开发/web/server/Runtime/ServerRuntime.cpp)
+**文件**: [backend/server/Runtime/ServerRuntime.h](file:///e:/虚拟机高级web开发/web/backend/server/Runtime/ServerRuntime.h) <br>
+**实现**: [backend/server/Runtime/ServerRuntime.cpp](file:///e:/虚拟机高级web开发/web/backend/server/Runtime/ServerRuntime.cpp)
 
 | 原型 | 最新版本 |
 |------|----------|
@@ -289,8 +289,8 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.9 ReactorGroup（新增）
 
-**文件**: [server/Reactor/ReactorGroup.h](file:///e:/虚拟机高级web开发/web/server/Reactor/ReactorGroup.h)  
-**实现**: [server/Reactor/ReactorGroup.cpp](file:///e:/虚拟机高级web开发/web/server/Reactor/ReactorGroup.cpp)
+**文件**: [backend/server/Reactor/ReactorGroup.h](file:///e:/虚拟机高级web开发/web/backend/server/Reactor/ReactorGroup.h) <br>
+**实现**: [backend/server/Reactor/ReactorGroup.cpp](file:///e:/虚拟机高级web开发/web/backend/server/Reactor/ReactorGroup.cpp)
 
 | 原型 | 最新版本 |
 |------|----------|
@@ -308,7 +308,7 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.10 HttpCodec 下沉到 Session（第四阶段重构）
 
-**文件**: [server/http/HttpCodec/HttpCodec.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/http/HttpCodec/HttpCodec.h)
+**文件**: [backend/server/http/HttpCodec/HttpCodec.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/backend/server/http/HttpCodec/HttpCodec.h)
 
 | 原型 | 2.0（第四阶段） |
 |------|----------|
@@ -323,7 +323,7 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.11 出站任务体系取代旧版 HTTP 发送器（第四阶段）
 
-**文件**: [server/transport/OutboundTask.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/transport/OutboundTask.h) · [OutboundQueue.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/transport/OutboundQueue.h) · [TransportWriter.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/transport/TransportWriter.h)
+**文件**: [backend/server/transport/OutboundTask.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/backend/server/transport/OutboundTask.h) · [OutboundQueue.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/backend/server/transport/OutboundQueue.h) · [TransportWriter.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/backend/server/transport/TransportWriter.h)
 
 | 原型 | 2.0（第四阶段） |
 |------|----------|
@@ -338,7 +338,7 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.12 Connection 分层
 
-**文件**: [server/SubReactor/SubReactor.h](file:///e:/虚拟机高级web开发/web/server/SubReactor/SubReactor.h#L78-L118)
+**文件**: [backend/server/SubReactor/SubReactor.h](file:///e:/虚拟机高级web开发/web/backend/server/SubReactor/SubReactor.h#L78-L118)
 
 | 原型 | 最新版本 |
 |------|----------|
@@ -353,7 +353,7 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.13 CoroutineScheduler
 
-**文件**: [server/CoroutineScheduler/CoroutineScheduler.h](file:///e:/虚拟机高级web开发/web/server/CoroutineScheduler/CoroutineScheduler.h)
+**文件**: [backend/server/CoroutineScheduler/CoroutineScheduler.h](file:///e:/虚拟机高级web开发/web/backend/server/CoroutineScheduler/CoroutineScheduler.h)
 
 | 原型 | 最新版本 |
 |------|----------|
@@ -367,7 +367,7 @@ main.cpp (~110行，仅路由注册)
 
 ### 2.14 Session 基类 + SessionFactory 依赖倒置（第四阶段新增）
 
-**文件**: [server/session/Session/Session.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/session/Session/Session.h) · [server/session/SessionFactory.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/session/SessionFactory.h) · [server/websocket/WebSocketSessionFactory.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/server/websocket/WebSocketSessionFactory.h)
+**文件**: [backend/server/session/Session/Session.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/backend/server/session/Session/Session.h) · [backend/server/session/SessionFactory.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/backend/server/session/SessionFactory.h) · [backend/server/websocket/WebSocketSessionFactory.h](file:///e:/虚拟机高级web开发/web-test/web-test6.1/backend/server/websocket/WebSocketSessionFactory.h)
 
 | 原型 | 2.0（第四阶段） |
 |------|----------|

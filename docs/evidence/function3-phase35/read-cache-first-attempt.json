@@ -1,0 +1,71 @@
+{
+  "scope": "GET /api/tree/categories only, 4 workers x 120 requests per round; same binary; AI/TTS disabled equally during measurement",
+  "rounds": [
+    {
+      "round": 1,
+      "redis": false,
+      "requests": 480,
+      "errors": 0,
+      "qps": 804.521,
+      "p50Ms": 2.659,
+      "p95Ms": 5.46,
+      "databaseCommitDelta": 501
+    },
+    {
+      "round": 1,
+      "redis": true,
+      "requests": 480,
+      "errors": 0,
+      "qps": 579.591,
+      "p50Ms": 2.588,
+      "p95Ms": 6.178,
+      "databaseCommitDelta": 291
+    },
+    {
+      "round": 2,
+      "redis": true,
+      "requests": 480,
+      "errors": 0,
+      "qps": 807.777,
+      "p50Ms": 2.587,
+      "p95Ms": 5.324,
+      "databaseCommitDelta": 442
+    },
+    {
+      "round": 2,
+      "redis": false,
+      "requests": 480,
+      "errors": 0,
+      "qps": 1038.316,
+      "p50Ms": 2.909,
+      "p95Ms": 6.083,
+      "databaseCommitDelta": 525
+    },
+    {
+      "round": 3,
+      "redis": false,
+      "requests": 480,
+      "errors": 0,
+      "qps": 831.588,
+      "p50Ms": 2.775,
+      "p95Ms": 10.405,
+      "databaseCommitDelta": 583
+    },
+    {
+      "round": 3,
+      "redis": true,
+      "requests": 480,
+      "errors": 0,
+      "qps": 615.234,
+      "p50Ms": 2.911,
+      "p95Ms": 20.117,
+      "databaseCommitDelta": 247
+    }
+  ],
+  "unavailableEndpoint": {
+    "requests": 120,
+    "errors": 0,
+    "p95Ms": 13.903,
+    "sharedRedisStopped": false
+  }
+}

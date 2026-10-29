@@ -1,7 +1,7 @@
-#include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
-#include "server/phase11/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.h"
-#include "server/phase11/training/TrainingDataService/TrainingDataService.h"
-#include "server/phase11/transport/FlatJson/FlatJson.h"
+#include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
+#include "backend/ai/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.h"
+#include "backend/ai/training/TrainingDataService/TrainingDataService.h"
+#include "backend/application/transport/FlatJson/FlatJson.h"
 
 #include <openssl/evp.h>
 

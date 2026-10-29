@@ -1,8 +1,8 @@
-#include "server/phase11/business/ApplicationError/ApplicationError.h"
-#include "server/phase11/business/ChatService/ChatService.h"
-#include "server/phase11/business/FileService/FileService.h"
-#include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
-#include "server/phase11/storage/files/LocalFileStorage/LocalFileStorage.h"
+#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/business/ChatService/ChatService.h"
+#include "backend/application/business/FileService/FileService.h"
+#include "backend/application/storage/InMemoryStore/InMemoryStore.h"
+#include "backend/application/storage/files/LocalFileStorage/LocalFileStorage.h"
 
 #include <chrono>
 #include <cstdlib>

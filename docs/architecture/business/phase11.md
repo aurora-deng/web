@@ -217,17 +217,17 @@ flowchart TB
 | 想学习的部分 | 先读文件 |
 |---|---|
 | 总装配与对象生命周期 | [main.cpp](../../../main.cpp) |
-| 领域对象与抽象端口 | [Domain.h](../../../server/phase11/domain/Domain/Domain.h)、[Ports.h](../../../server/phase11/ports/Ports/Ports.h) |
-| 账号与权限 | [AuthService.cpp](../../../server/phase11/business/AuthService/AuthService.cpp)、[Phase11AuthHttp.cpp](../../../server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp) |
-| 好友、群聊与消息事务 | [SocialService.cpp](../../../server/phase11/business/SocialService/SocialService.cpp)、[ChatService.cpp](../../../server/phase11/business/ChatService/ChatService.cpp) |
-| WebSocket/SSE/Outbox | [Phase11Realtime.cpp](../../../server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)、[OutboxDispatcher.cpp](../../../server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp) |
-| PostgreSQL 与连接池 | [PostgresStore.cpp](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp)、[PostgresConnectionPool.cpp](../../../server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
-| AI 编排和模型选择 | [AiChatService.cpp](../../../server/phase11/business/AiChatService/AiChatService.cpp)、[ModelRegistryService.cpp](../../../server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp) |
-| Ollama 流式 HTTP | [OllamaModelProvider.cpp](../../../server/phase11/ai/OllamaModelProvider/OllamaModelProvider.cpp)、[OllamaStreamDecoder.cpp](../../../server/phase11/ai/OllamaStreamDecoder/OllamaStreamDecoder.cpp) |
-| 进程内 ONNX | [InProcessOnnxModelProvider.cpp](../../../server/phase11/ai/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp) |
-| 独立 ONNX Worker | [GrpcOnnxModelProvider.cpp](../../../server/phase11/ai/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp)、[GrpcOnnxWorkerService.cpp](../../../server/phase11/ai/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp)、[GrpcOnnxWorkerMain.cpp](../../../server/phase11/ai/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp) |
-| 训练数据授权与导出 | [TrainingDataService.cpp](../../../server/phase11/training/TrainingDataService/TrainingDataService.cpp) |
-| 数据库 Schema | [001_phase11.sql](../../../server/phase11/storage/postgres/migrations/001_phase11.sql)；[16 张表的关系与业务写入流程](../../database/README.md) |
+| 领域对象与抽象端口 | [Domain.h](../../../backend/application/domain/Domain/Domain.h)、[Ports.h](../../../backend/application/ports/Ports/Ports.h) |
+| 账号与权限 | [AuthService.cpp](../../../backend/application/business/AuthService/AuthService.cpp)、[Phase11AuthHttp.cpp](../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp) |
+| 好友、群聊与消息事务 | [SocialService.cpp](../../../backend/application/business/SocialService/SocialService.cpp)、[ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) |
+| WebSocket/SSE/Outbox | [Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)、[OutboxDispatcher.cpp](../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp) |
+| PostgreSQL 与连接池 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp)、[PostgresConnectionPool.cpp](../../../backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
+| AI 编排和模型选择 | [AiChatService.cpp](../../../backend/application/business/AiChatService/AiChatService.cpp)、[ModelRegistryService.cpp](../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) |
+| Ollama 流式 HTTP | [OllamaModelProvider.cpp](../../../backend/ai/models/OllamaModelProvider/OllamaModelProvider.cpp)、[OllamaStreamDecoder.cpp](../../../backend/ai/models/OllamaStreamDecoder/OllamaStreamDecoder.cpp) |
+| 进程内 ONNX | [InProcessOnnxModelProvider.cpp](../../../backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp) |
+| 独立 ONNX Worker | [GrpcOnnxModelProvider.cpp](../../../backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp)、[GrpcOnnxWorkerService.cpp](../../../backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp)、[GrpcOnnxWorkerMain.cpp](../../../backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp) |
+| 训练数据授权与导出 | [TrainingDataService.cpp](../../../backend/ai/training/TrainingDataService/TrainingDataService.cpp) |
+| 数据库 Schema | [001_phase11.sql](../../../backend/application/storage/postgres/migrations/001_phase11.sql)；[16 张表的关系与业务写入流程](../../database/README.md) |
 | 前端入口 | [index.html](../../../frontend/phase11/index.html)、[app.js](../../../frontend/phase11/app.js) |
 
 当前最适合作为**单机学习、局域网演示和继续工程化的基线**。它已经验证关键功能和故障隔离，仍缺少
@@ -257,17 +257,17 @@ MySQL。这里使用虚函数完成运行时多态；模板只适合在数据库
 
 代码入口：
 
-- [Domain.h](../../../server/phase11/domain/Domain/Domain.h)：领域对象；
-- [Ports.h](../../../server/phase11/ports/Ports/Ports.h)：数据库、Repository 与密码学端口；
-- [InMemoryStore.h](../../../server/phase11/storage/InMemoryStore/InMemoryStore.h)：无外部依赖的参考实现；
-- [PostgresConnectionPool.h](../../../server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.h)：
+- [Domain.h](../../../backend/application/domain/Domain/Domain.h)：领域对象；
+- [Ports.h](../../../backend/application/ports/Ports/Ports.h)：数据库、Repository 与密码学端口；
+- [InMemoryStore.h](../../../backend/application/storage/InMemoryStore/InMemoryStore.h)：无外部依赖的参考实现；
+- [PostgresConnectionPool.h](../../../backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.h)：
   有界等待、独占 `PGconn` 的 libpq 连接池；
-- [PostgresStore.h](../../../server/phase11/storage/postgres/PostgresStore/PostgresStore.h)：全部 Repository 的
+- [PostgresStore.h](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.h)：全部 Repository 的
   PostgreSQL 适配器；
 - [RepositoryContract.h](../../../tests/phase11/unit/RepositoryContract.h)：所有数据库驱动共用的契约测试；
 - [phase11_postgres_contract.cpp](../../../tests/phase11/unit/postgres_contract.cpp)：真实 PostgreSQL
   扩展契约与连接池并发检查；
-- [001_phase11.sql](../../../server/phase11/storage/postgres/migrations/001_phase11.sql)：PostgreSQL Schema。
+- [001_phase11.sql](../../../backend/application/storage/postgres/migrations/001_phase11.sql)：PostgreSQL Schema。
 
 ### 2.1 Repository 契约测试
 
@@ -313,7 +313,7 @@ rollback → 用快照恢复
 
 ## 4. 账号与 Session
 
-[AuthService.cpp](../../../server/phase11/business/AuthService/AuthService.cpp) 已实现：
+[AuthService.cpp](../../../backend/application/business/AuthService/AuthService.cpp) 已实现：
 
 1. 用户名统一转小写并校验字符；
 2. 密码交给 `ICredentialCodec`，业务层不接触 Argon2id 细节；
@@ -321,7 +321,7 @@ rollback → 用快照恢复
 4. Repository 只保存两个 Token 的 Hash；
 5. Session 过期、吊销或用户禁用后，认证立即失败；
 6. 不存在的账号也执行一次虚拟密码校验，减少账号枚举的明显时间差。
-7. [InMemoryLoginRateLimiter.cpp](../../../server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp)
+7. [InMemoryLoginRateLimiter.cpp](../../../backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp)
    同时记录账号和来源地址失败次数；到达阈值后返回 `RateLimited`，协议层以后映射为 429。
 8. Session Token 只允许进入 Secure/HttpOnly/SameSite Cookie；JSON 响应使用不含
    `passwordHash` 的 `PublicUser`，只把 CSRF Token 交给同源页面。
@@ -330,11 +330,11 @@ rollback → 用快照恢复
 成功登录只清除账号桶，不清除来源桶，避免攻击者用一个已知账号穿插成功请求来洗掉来源记录。
 当前实现只在单进程内共享；多实例部署时需要用共享数据库或 Redis 实现同一个端口。
 
-真实实现位于 [SodiumCredentialCodec.cpp](../../../server/phase11/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)：
+真实实现位于 [SodiumCredentialCodec.cpp](../../../backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)：
 密码使用 Argon2id 字符串格式，Session Token 由安全随机数生成，数据库只保存带服务端密钥的
 Token Hash。libsodium 初始化或密钥文件权限不符合要求时，服务器会在监听端口前失败关闭。
 
-HTTP 入口位于 [Phase11AuthHttp.cpp](../../../server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp)：
+HTTP 入口位于 [Phase11AuthHttp.cpp](../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp)：
 
 ```text
 POST /api/auth/register   POST /api/auth/login
@@ -373,7 +373,7 @@ commit
 Outbox 解决的是双写问题：数据库消息和“待推送事件”在同一事务内写入。即使 WebSocket
 暂时发送失败，Dispatcher 以后仍能读取未发布 Outbox，用户重连也能从消息表恢复。
 
-[OutboxDispatcher.cpp](../../../server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp) 已实现顺序搬运：
+[OutboxDispatcher.cpp](../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp) 已实现顺序搬运：
 
 ```text
 读取 pending Outbox（按 id 排序）
@@ -386,7 +386,7 @@ Outbox 解决的是双写问题：数据库消息和“待推送事件”在同�
 如果“推送已成功、数据库标记失败”，该事件下次会再次推送。这是至少一次投递，接收方必须用
 `OutboxEvent.id` 去重。它不会谎称网络和数据库能组成一个跨系统原子事务。
 
-[Phase11Realtime.cpp](../../../server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) 把这套语义接入
+[Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) 把这套语义接入
 真实连接：`chat.send` 先通过数据库执行器提交 Message 与 Outbox，后台 Pump 再把已提交事件
 翻译成 WebSocket `chat.message` 和 SSE `message.notification`。Pump 像仓库传送带，每 250 ms
 检查一次待发件；失败不盖“已发送”章，下一轮重试。零在线连接不算业务失败，因为消息已经
@@ -394,18 +394,18 @@ Outbox 解决的是双写问题：数据库消息和“待推送事件”在同�
 
 代码入口：
 
-- [ChatService.cpp](../../../server/phase11/business/ChatService/ChatService.cpp)：会话、权限、幂等和 Outbox；
-- [OutboxDispatcher.cpp](../../../server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp)：推送、确认和失败重试；
-- [SocialService.cpp](../../../server/phase11/business/SocialService/SocialService.cpp)：好友申请；
-- [Phase11SocialChatHttp.cpp](../../../server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)：
+- [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp)：会话、权限、幂等和 Outbox；
+- [OutboxDispatcher.cpp](../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp)：推送、确认和失败重试；
+- [SocialService.cpp](../../../backend/application/business/SocialService/SocialService.cpp)：好友申请；
+- [Phase11SocialChatHttp.cpp](../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)：
   好友、会话、历史和搜索 HTTP 入口；
-- [Phase11Realtime.cpp](../../../server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)：
+- [Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)：
   WebSocket 命令、Outbox 到 WS/SSE 的翻译和后台 Pump；
 - [phase11_core.cpp](../../../tests/phase11/unit/core.cpp)：完整业务流程测试。
 
 ### 5.1 为什么数据库有独立执行器
 
-[BoundedExecutor.cpp](../../../server/phase11/runtime/BoundedExecutor/BoundedExecutor.cpp) 是 Phase 11 的数据库后厨：
+[BoundedExecutor.cpp](../../../backend/application/runtime/BoundedExecutor/BoundedExecutor.cpp) 是 Phase 11 的数据库后厨：
 
 ```text
 Reactor 收到请求
@@ -437,10 +437,10 @@ WebSocket ai.generate
 ollama   onnx-inprocess      onnx-grpc
 ```
 
-[ModelProvider.h](../../../server/phase11/ai/ModelProvider/ModelProvider.h) 定义统一的生成请求、token 回调、
+[ModelProvider.h](../../../backend/ai/models/ModelProvider/ModelProvider.h) 定义统一的生成请求、token 回调、
 完成回调和取消令牌。依赖未安装时使用 `UnavailableModelProvider` 明确返回不可用，不伪造回答。
 
-[ModelRegistryService.cpp](../../../server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp) 管理：
+[ModelRegistryService.cpp](../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) 管理：
 
 - Root/Specialist 模型节点；
 - Candidate/Active/Retired/Rejected 模型版本；
@@ -496,12 +496,12 @@ SseSessionManager            Outbox + ai.completed
 照看其他连接，不会让每个生成请求永久占住一个 Reactor 或一条线程。`generate()` 只完成参数
 校验和有界入队；DNS、连接、HTTP 传输和 NDJSON 解析都在专用 Worker 上进行。
 
-[OllamaStreamDecoder.cpp](../../../server/phase11/ai/OllamaStreamDecoder/OllamaStreamDecoder.cpp) 处理一个常被忽略的边界：
+[OllamaStreamDecoder.cpp](../../../backend/ai/models/OllamaStreamDecoder/OllamaStreamDecoder.cpp) 处理一个常被忽略的边界：
 TCP/libcurl 回调的分块不等于 JSON 行边界。一行可能分三次到达，三行也可能一次到达。Decoder
 先恢复换行分隔的完整对象，再提取 `message.content`、`done`、`error`，并支持 JSON 转义和
 Unicode surrogate pair。单行和请求体都有大小上限，终止事件后继续发数据会被拒绝。
 
-[OllamaModelProvider.cpp](../../../server/phase11/ai/OllamaModelProvider/OllamaModelProvider.cpp) 还实现了：
+[OllamaModelProvider.cpp](../../../backend/ai/models/OllamaModelProvider/OllamaModelProvider.cpp) 还实现了：
 
 - `maxConcurrent + maxQueued` 总接纳边界，满载时立即失败，避免模型积压耗尽内存；
 - connect timeout、总请求 timeout、HTTP/HTTPS 协议白名单和禁止重定向；
@@ -530,12 +530,12 @@ Linux 没有安装 Ollama。真实协议黑盒使用固定响应的伪服务验�
 
 代码与验证入口：
 
-- [OllamaModelProvider.h](../../../server/phase11/ai/OllamaModelProvider/OllamaModelProvider.h)：容量、超时与 URL 配置；
-- [OllamaModelProvider.cpp](../../../server/phase11/ai/OllamaModelProvider/OllamaModelProvider.cpp)：libcurl multi 生命周期；
-- [OllamaStreamDecoder.h](../../../server/phase11/ai/OllamaStreamDecoder/OllamaStreamDecoder.h)：增量事件接口；
+- [OllamaModelProvider.h](../../../backend/ai/models/OllamaModelProvider/OllamaModelProvider.h)：容量、超时与 URL 配置；
+- [OllamaModelProvider.cpp](../../../backend/ai/models/OllamaModelProvider/OllamaModelProvider.cpp)：libcurl multi 生命周期；
+- [OllamaStreamDecoder.h](../../../backend/ai/models/OllamaStreamDecoder/OllamaStreamDecoder.h)：增量事件接口；
 - [phase11_ollama_provider.cpp](../../../tests/phase11/unit/ollama_provider.cpp)：本地伪服务端到端测试。
-- [AiChatService.cpp](../../../server/phase11/business/AiChatService/AiChatService.cpp)：权限、上下文、取消和落库编排；
-- [Phase11Realtime.cpp](../../../server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)：WS 命令和 SSE 事件适配；
+- [AiChatService.cpp](../../../backend/application/business/AiChatService/AiChatService.cpp)：权限、上下文、取消和落库编排；
+- [Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)：WS 命令和 SSE 事件适配；
 - [phase11_ai_chat.cpp](../../../tests/phase11/unit/ai_chat.cpp)：完整业务链路、失败和取消测试；
 - [phase11_runtime_blackbox.py](../../../tests/phase11/integration/runtime_blackbox.py)：真实 socket 纵向黑盒。
 
@@ -601,8 +601,8 @@ Token 路径。这证明当前固定版本组合可用，仍不代表任意 ONNX
 
 代码与验证入口：
 
-- [InProcessOnnxModelProvider.h](../../../server/phase11/ai/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h)：容量和模型根配置；
-- [InProcessOnnxModelProvider.cpp](../../../server/phase11/ai/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp)：
+- [InProcessOnnxModelProvider.h](../../../backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h)：容量和模型根配置；
+- [InProcessOnnxModelProvider.cpp](../../../backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp)：
   路径、摘要、缓存、Tokenizer、Adapter、生成循环和关闭顺序；
 - [model_checksum.py](../../../scripts/phase11/model_checksum.py)：部署前模型树摘要工具；
 - [phase11_onnx_provider.cpp](../../../tests/phase11/unit/onnx_provider.cpp)：动态库、摘要、取消、路径逃逸、
@@ -655,12 +655,12 @@ Token 流 → gRPC/HTTP2 背压 → SSE ai.token
 
 代码与验证入口：
 
-- [web_learning.proto](../../../server/grpc/proto/web_learning.proto)：远程生成、Token/终态和版本校验消息；
-- [GrpcOnnxModelProvider.cpp](../../../server/phase11/ai/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp)：聊天进程客户端、
+- [web_learning.proto](../../../backend/server/grpc/proto/web_learning.proto)：远程生成、Token/终态和版本校验消息；
+- [GrpcOnnxModelProvider.cpp](../../../backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp)：聊天进程客户端、
   有界排队、deadline、取消和错误脱敏；
-- [GrpcOnnxWorkerService.cpp](../../../server/phase11/ai/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp)：认证、请求转换、
+- [GrpcOnnxWorkerService.cpp](../../../backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp)：认证、请求转换、
   有界 Token 队列和 server-streaming；
-- [GrpcOnnxWorkerMain.cpp](../../../server/phase11/ai/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp)：独立进程启动、TLS、信号和
+- [GrpcOnnxWorkerMain.cpp](../../../backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp)：独立进程启动、TLS、信号和
   限制项；
 - [phase11_grpc_onnx_provider.cpp](../../../tests/phase11/unit/grpc_onnx_provider.cpp)：真实 gRPC socket 上的
   Token 顺序、Validate、错误 Token 和取消测试。
@@ -715,9 +715,9 @@ Prompt 下，零 Adapter 与非零教学 Adapter 的 151,936 个下一 Token log
 
 代码索引：
 
-- [ModelProvider.h](../../../server/phase11/ai/ModelProvider/ModelProvider.h)：`IModelArtifactValidator` 与校验结果；
-- [ModelRegistryService.cpp](../../../server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp)：注册约束、先校验后切换、回滚；
-- [InProcessOnnxModelProvider.cpp](../../../server/phase11/ai/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp)：真实 OGA 试装；
+- [ModelProvider.h](../../../backend/ai/models/ModelProvider/ModelProvider.h)：`IModelArtifactValidator` 与校验结果；
+- [ModelRegistryService.cpp](../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp)：注册约束、先校验后切换、回滚；
+- [InProcessOnnxModelProvider.cpp](../../../backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp)：真实 OGA 试装；
 - [phase11_core.cpp](../../../tests/phase11/unit/core.cpp)：不兼容版本不替换旧版本、成功切换与回滚；
 - [phase11_onnx_provider.cpp](../../../tests/phase11/unit/onnx_provider.cpp)：损坏模型试装失败且不泄露根路径。
 
@@ -754,7 +754,7 @@ Exporter
 已经导出的数据集保持不可变；用户撤销授权时记录 `Revoked`，后续训练通过新数据集版本排除，
 而不是偷偷修改旧数据集，确保数据血缘可以审计。
 
-代码入口：[TrainingDataService.cpp](../../../server/phase11/training/TrainingDataService/TrainingDataService.cpp)。
+代码入口：[TrainingDataService.cpp](../../../backend/ai/training/TrainingDataService/TrainingDataService.cpp)。
 
 ## 8. 前端应用与协议闭环
 
@@ -800,11 +800,11 @@ CSS/JavaScript。Phase 11 的 HTML、CSS 和 JavaScript 路由显式使用 `Cach
 业务路由。入口脚本还带版本参数，避免已打开的旧页面继续运行修复前的 ES Module。
 仓库完整分类与文件移动说明见 [project-layout.md](../project-layout.md)。
 
-[Contracts.h](../../../server/phase11/transport/Contracts/Contracts.h) 固定了 `chat.send`、`chat.ack`、
+[Contracts.h](../../../backend/application/transport/Contracts/Contracts.h) 固定了 `chat.send`、`chat.ack`、
 `chat.read`、Presence 与六种 SSE 通知的 DTO/事件名。它不负责解析 JSON：未来协议适配器只做
 “HTTP/WS/SSE 包裹 ↔ DTO”的转换，业务服务不会直接依赖 `HttpRequest` 或 WebSocket 帧。
 
-[BusinessInterfaces.h](../../../server/phase11/business/BusinessInterfaces/BusinessInterfaces.h) 是新增的业务门面边界。
+[BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) 是新增的业务门面边界。
 `Phase11AuthHttp`、`Phase11SocialChatHttp` 和 `Phase11Realtime` 只依赖 `IAuthBusiness`、
 `ISocialBusiness`、`IChatBusiness`、`IAiChatBusiness`；当前实现位于 `business/<Service>/` 下的
 四个 Service。可以把它理解成“前台只认统一业务窗口，窗口后面才决定由哪个部门办理”，因此传输协议不会
@@ -1161,10 +1161,10 @@ Phase 11 原来按层分目录，但一个目录中平铺了较多 `.h/.cpp`。�
 已有的组织规则：**一个可独立理解的组件使用一个同名目录**。例如：
 
 ```text
-server/http/HttpParser/HttpParser.{h,cpp}
-server/websocket/WebSocketSession/WebSocketSession.{h,cpp}
-server/phase11/business/ChatService/ChatService.{h,cpp}
-server/phase11/ai/OllamaModelProvider/OllamaModelProvider.{h,cpp}
+backend/server/http/HttpParser/HttpParser.{h,cpp}
+backend/server/websocket/WebSocketSession/WebSocketSession.{h,cpp}
+backend/application/business/ChatService/ChatService.{h,cpp}
+backend/ai/models/OllamaModelProvider/OllamaModelProvider.{h,cpp}
 ```
 
 业务层也完成了物理归并：原 `application/` 中的账号、社交、聊天、AI 编排和 Outbox 实现移动到
@@ -1193,13 +1193,13 @@ Ports → Storage / Security / Model Provider
 同时删除了 7 个确认无文件、无构建引用的占位目录：
 
 ```text
-server/http/ResponseSender/
-server/protocol/
-server/protocol/ProtocolCodec/
-server/protocol/Sender/
-server/websocket/WebSocketAwaiter/
-server/websocket/WebSocketSender/
-server/phase11/application/
+backend/server/http/ResponseSender/
+backend/server/protocol/
+backend/server/protocol/ProtocolCodec/
+backend/server/protocol/Sender/
+backend/server/websocket/WebSocketAwaiter/
+backend/server/websocket/WebSocketSender/
+backend/application/application/
 ```
 
 CMake 源文件列表、全部 `#include`、测试和本文档代码链接已同步到新路径。目录调整不改变命名空间、

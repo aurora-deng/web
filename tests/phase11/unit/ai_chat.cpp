@@ -1,12 +1,13 @@
-#include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
-#include "server/phase11/business/AiChatService/AiChatService.h"
-#include "server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
-#include "server/phase11/ai/RagService/RagService.h"
-#include "server/phase11/business/ChatService/ChatService.h"
-#include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
-#include "server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.h"
-#include "server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
-#include "server/websocket/WebSocketDispatcher/WsMessageContext.h"
+#include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
+#include "backend/application/business/AiChatService/AiChatService.h"
+#include "backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.h"
+#include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "backend/ai/models/RagService/RagService.h"
+#include "backend/application/business/ChatService/ChatService.h"
+#include "backend/application/storage/InMemoryStore/InMemoryStore.h"
+#include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
+#include "backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
+#include "backend/server/websocket/WebSocketDispatcher/WsMessageContext.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -191,6 +192,11 @@ AiGenerationAudit waitForAudit(InMemoryStore &store, const std::string &id,
 
 int main()
 {
+    User target;target.username="nebula_ai";target.displayName="星云助手";
+    AiTriggerPolicy::validate("explicit","普通问题",target,false);
+    AiTriggerPolicy::validate("mention","@星云助手 帮忙总结",target,false);
+    AiTriggerPolicy::validate("reply","继续",target,true);
+    for(const auto&trigger:{"mention","reply","automatic"}){bool refused=false;try{AiTriggerPolicy::validate(trigger,"没有指向该AI的上下文",target,false);}catch(const ApplicationError&){refused=true;}CHECK(refused);}
     const auto now = TimePoint{std::chrono::seconds{10'000}};
     InMemoryStore store;
     ChatService chat(store, store, store, store, store, store, store);

@@ -461,7 +461,7 @@ class BusinessBenchmark:
             connection.close()
         values: dict[str, float] = {}
         for line in body.splitlines():
-            if not line.startswith("webserver_phase11_"):
+            if not line.startswith(("webserver_phase11_", "webserver_function3_")):
                 continue
             fields = line.split()
             if len(fields) == 2:

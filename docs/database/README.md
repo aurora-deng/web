@@ -1,19 +1,26 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
-这份文档对应当前十二份数据库迁移：建库基线
-[001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) 和消息生命周期增量
-[002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql)，以及群聊治理增量
-[003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql)，以及联系人增量
-[004_contacts_presence.sql](../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql)，以及文件增量
-[005_files.sql](../../server/phase11/storage/postgres/migrations/005_files.sql)、AI 治理增量
-[006_ai_governance.sql](../../server/phase11/storage/postgres/migrations/006_ai_governance.sql)、模型评测增量
-[007_model_evaluation.sql](../../server/phase11/storage/postgres/migrations/007_model_evaluation.sql)、评测集版本约束增量
-[008_evaluation_suite_versioning.sql](../../server/phase11/storage/postgres/migrations/008_evaluation_suite_versioning.sql)，以及 RAG 增量
-[009_rag_knowledge_and_citations.sql](../../server/phase11/storage/postgres/migrations/009_rag_knowledge_and_citations.sql)，以及训练数据制品和去重增量
-[010_training_dataset_artifacts.sql](../../server/phase11/storage/postgres/migrations/010_training_dataset_artifacts.sql)、
-[011_training_candidate_deduplication.sql](../../server/phase11/storage/postgres/migrations/011_training_candidate_deduplication.sql)，以及训练到模型版本血缘增量
-[012_model_training_lineage.sql](../../server/phase11/storage/postgres/migrations/012_model_training_lineage.sql)。
-它解释当前真实代码中的 33 张表（1 张迁移登记表和 32 张业务表），不把规划中的功能写成已经实现。
+开发版追加迁移019：统一动态沿用原 `tree_posts` 正文和ID，增加树/主页频道、可见范围；新增 `activity_favorites`（幂等收藏）与 `profile_display_settings`（公开资料展示开关）。正文、媒体、点赞和评论没有复制。详见 [Phase37](../architecture/business/phase37.md)。019目前仅验证于已有隔离测试库；原业务库升级须与新服务的可见性校验一起部署，不能让旧版本服务读取新产生的私有动态。
+
+Windows 私人存储独立于服务器：`local_documents/local_chunks/local_terms` 保存授权资料和词法索引，`private_threads/private_messages` 保存两个助手入口各自历史，`private_memories` 保存已确认记忆。凭据使用DPAPI；正文是受NTFS访问权限保护的本地SQLite数据，未宣称整库加密。
+
+
+当前Function3增量表见[数据表与事务边界](function3-tables.md)，包含Phase35的 `tree_reply_links`。日常服务复用原 `phase11 / 5432`，不因开启新功能另建账号库；[启动说明](../ops/function3-runtime.md)包含备份与账号保留校验。
+
+这份文档前文对应前十二份数据库迁移：建库基线
+[001_phase11.sql](../../backend/application/storage/postgres/migrations/001_phase11.sql) 和消息生命周期增量
+[002_message_lifecycle.sql](../../backend/application/storage/postgres/migrations/002_message_lifecycle.sql)，以及群聊治理增量
+[003_group_governance.sql](../../backend/application/storage/postgres/migrations/003_group_governance.sql)，以及联系人增量
+[004_contacts_presence.sql](../../backend/application/storage/postgres/migrations/004_contacts_presence.sql)，以及文件增量
+[005_files.sql](../../backend/application/storage/postgres/migrations/005_files.sql)、AI 治理增量
+[006_ai_governance.sql](../../backend/application/storage/postgres/migrations/006_ai_governance.sql)、模型评测增量
+[007_model_evaluation.sql](../../backend/application/storage/postgres/migrations/007_model_evaluation.sql)、评测集版本约束增量
+[008_evaluation_suite_versioning.sql](../../backend/application/storage/postgres/migrations/008_evaluation_suite_versioning.sql)，以及 RAG 增量
+[009_rag_knowledge_and_citations.sql](../../backend/application/storage/postgres/migrations/009_rag_knowledge_and_citations.sql)，以及训练数据制品和去重增量
+[010_training_dataset_artifacts.sql](../../backend/application/storage/postgres/migrations/010_training_dataset_artifacts.sql)、
+[011_training_candidate_deduplication.sql](../../backend/application/storage/postgres/migrations/011_training_candidate_deduplication.sql)，以及训练到模型版本血缘增量
+[012_model_training_lineage.sql](../../backend/application/storage/postgres/migrations/012_model_training_lineage.sql)。
+前文解释该基线真实代码中的 33 张表（1 张迁移登记表和 32 张业务表），不把规划中的功能写成已经实现。
 
 当前虚拟机的实际行数、AI 绑定和本地测试账号统一记录在同目录的
 `phase11-app-data.local.md`。该文件包含测试密码并被 `.gitignore` 排除，只保留在本地与虚拟机，
@@ -537,21 +544,43 @@ ORDER BY r.created_at DESC, c.rank;
 
 | 内容 | 文件 |
 |---|---|
-| 基础表、约束和索引 | [001_phase11.sql](../../server/phase11/storage/postgres/migrations/001_phase11.sql) |
-| 消息状态与撤回约束 | [002_message_lifecycle.sql](../../server/phase11/storage/postgres/migrations/002_message_lifecycle.sql) |
-| 群角色、公告、禁言与软解散约束 | [003_group_governance.sql](../../server/phase11/storage/postgres/migrations/003_group_governance.sql) |
-| 联系人、黑名单与最后活跃 | [004_contacts_presence.sql](../../server/phase11/storage/postgres/migrations/004_contacts_presence.sql) |
-| 文件元数据、附件与头像 | [005_files.sql](../../server/phase11/storage/postgres/migrations/005_files.sql) |
-| 模型激活与生成生命周期审计 | [006_ai_governance.sql](../../server/phase11/storage/postgres/migrations/006_ai_governance.sql) |
-| 模型评测集、执行结果与激活策略 | [007_model_evaluation.sql](../../server/phase11/storage/postgres/migrations/007_model_evaluation.sql) |
-| 评测集不可变版本约束 | [008_evaluation_suite_versioning.sql](../../server/phase11/storage/postgres/migrations/008_evaluation_suite_versioning.sql) |
-| RAG 资料、切片、检索与引用 | [009_rag_knowledge_and_citations.sql](../../server/phase11/storage/postgres/migrations/009_rag_knowledge_and_citations.sql) |
-| 训练数据集文件路径、记录数与 SHA-256 约束 | [010_training_dataset_artifacts.sql](../../server/phase11/storage/postgres/migrations/010_training_dataset_artifacts.sql) |
-| 未撤销训练授权来源去重 | [011_training_candidate_deduplication.sql](../../server/phase11/storage/postgres/migrations/011_training_candidate_deduplication.sql) |
-| RAG 编排与权限校验 | [RagService.cpp](../../server/phase11/ai/RagService/RagService.cpp) |
-| 可替换的确定性学习索引 | [DeterministicKnowledgeIndex.cpp](../../server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp) |
-| PostgreSQL Repository | [PostgresStore.cpp](../../server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp) |
-| 连接池 | [PostgresConnectionPool.cpp](../../server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
-| Repository 业务接口 | [Ports.h](../../server/phase11/ports/Ports/Ports.h) |
+| 基础表、约束和索引 | [001_phase11.sql](../../backend/application/storage/postgres/migrations/001_phase11.sql) |
+| 消息状态与撤回约束 | [002_message_lifecycle.sql](../../backend/application/storage/postgres/migrations/002_message_lifecycle.sql) |
+| 群角色、公告、禁言与软解散约束 | [003_group_governance.sql](../../backend/application/storage/postgres/migrations/003_group_governance.sql) |
+| 联系人、黑名单与最后活跃 | [004_contacts_presence.sql](../../backend/application/storage/postgres/migrations/004_contacts_presence.sql) |
+| 文件元数据、附件与头像 | [005_files.sql](../../backend/application/storage/postgres/migrations/005_files.sql) |
+| 模型激活与生成生命周期审计 | [006_ai_governance.sql](../../backend/application/storage/postgres/migrations/006_ai_governance.sql) |
+| 模型评测集、执行结果与激活策略 | [007_model_evaluation.sql](../../backend/application/storage/postgres/migrations/007_model_evaluation.sql) |
+| 评测集不可变版本约束 | [008_evaluation_suite_versioning.sql](../../backend/application/storage/postgres/migrations/008_evaluation_suite_versioning.sql) |
+| RAG 资料、切片、检索与引用 | [009_rag_knowledge_and_citations.sql](../../backend/application/storage/postgres/migrations/009_rag_knowledge_and_citations.sql) |
+| 训练数据集文件路径、记录数与 SHA-256 约束 | [010_training_dataset_artifacts.sql](../../backend/application/storage/postgres/migrations/010_training_dataset_artifacts.sql) |
+| 未撤销训练授权来源去重 | [011_training_candidate_deduplication.sql](../../backend/application/storage/postgres/migrations/011_training_candidate_deduplication.sql) |
+| RAG 编排与权限校验 | [RagService.cpp](../../backend/ai/models/RagService/RagService.cpp) |
+| 可替换的确定性学习索引 | [DeterministicKnowledgeIndex.cpp](../../backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp) |
+| PostgreSQL Repository | [PostgresStore.cpp](../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
+| 连接池 | [PostgresConnectionPool.cpp](../../backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
+| Repository 业务接口 | [Ports.h](../../backend/application/ports/Ports/Ports.h) |
 | 数据库契约测试 | [postgres_contract.cpp](../../tests/phase11/unit/postgres_contract.cpp) |
 | 迁移脚本 | [postgres-migrate.sh](../../scripts/phase11/postgres-migrate.sh) |
+
+## Function3 增量表
+
+本页前文保留 Phase11–27 的表说明。Function3 新增 013–016 迁移与 18 张表，职责、关系图和原子提交边界见 [Function3 数据表](function3-tables.md)。应用不自动修改正式数据库。
+
+
+## Phase36–40：动态、私人迁移与语音
+
+| 迁移/位置 | 表或变化 | 作用和边界 |
+|---|---|---|
+| 019_unified_activities.sql | tree_posts频道/可见范围、activity_favorites、个人展示设置 | 保留原果实ID，一套正文和互动，树/主页按频道与ACL展示；好友/私有动态不进全站榜单 |
+| 020_profile_operations.sql | 资料写操作回执 | 确认式Agent重试幂等，旧确认不能覆盖后来的正常资料修改 |
+| 021_private_archive_receipts.sql | 私人归档清除回执 | owner+资源+分页+校验和；复制并核验后才能显式清除，含附件分页保留原副本 |
+| 022_speech_profiles_and_budget.sql | speech_profiles、speech_usage | 音色与UTC应用预算；Key不入表，配置与site_audit同事务 |
+| Windows每账号 private.sqlite3 | private_threads / private_messages / private_memories | 好友式与侧栏历史分离，记忆共享，只有本机私人资料库 |
+| Windows同库 | local_documents / local_chunks及词法索引 | 完整文本与检索索引留本机；只有获准命中的必要片段发送Linux私人推理 |
+| Windows同库 | local_generations、action_proposals、迁移回执 | 本机任务终态、具体载荷确认、去重与恢复；不是服务器公共聊天表 |
+| Windows同库 | personal_speech、personal_speech_usage | 普通偏好、DPAPI Key密文、持久应用预算；浏览器只看到Key是否配置 |
+
+这里的“私人推理不落正文”指新增限时 `/api/ai/private/generations` 链路，不代表旧服务器AI历史已经自动清除，也不代表数据库备份自动删除。迁移范围和明确清除步骤见[Phase39](../architecture/business/phase39.md)。新迁移目前只应用到既有隔离测试库；正式原库和68个原账号未切换。应用不自动执行迁移。
+
+Phase42没有新增表和迁移：神树分页改为正文、标签、媒体三次批量查询，仍使用现有表、索引及可见范围判断；批量ID读取不会绕过隐藏/删除状态。详见[Phase42](../architecture/business/phase42.md)。

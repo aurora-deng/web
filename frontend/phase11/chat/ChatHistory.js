@@ -1,13 +1,16 @@
 /** 单个可见会话的历史窗口。实时最高序号不是补发游标：收到 #105 不能跳过 #101–104。 */
 export class ChatHistory {
-  constructor(fetchPage, changed = () => {}, pageSize = 100) {
+  constructor(fetchPage, changed = () => {}, pageSize = 100, maximumRecords = 1000) {
     this.fetchPage = fetchPage;
     this.changed = changed;
     this.pageSize = pageSize;
+    this.maximumRecords = Math.max(pageSize, maximumRecords);
     this.reset();
   }
 
   reset(conversationId = 0) {
+    this.controller?.abort();
+    this.controller = new AbortController();
     this.epoch = (this.epoch || 0) + 1;
     this.conversationId = Number(conversationId);
     this.records = new Map();
@@ -19,11 +22,24 @@ export class ChatHistory {
     this.refreshRequested = false;
     this.syncPromise = null;
     this.ready = null;
+    this.ordered = null;
+    this.lookingBack = false;
+    this.loadingNewer = false;
   }
 
-  get messages() { return [...this.records.values()].sort((a, b) => a.sequence - b.sequence); }
+  get messages() { return this.ordered ||= [...this.records.values()].sort((a, b) => a.sequence - b.sequence); }
   get oldest() { return this.messages[0]?.sequence || 0; }
   get latest() { return this.messages.at(-1)?.sequence || 0; }
+  get hasNewer() { return this.loaded && this.latest < Math.max(this.cursor, this.target); }
+
+  trim(keepOld = false) {
+    const rows = this.messages;
+    if (rows.length <= this.maximumRecords) return;
+    const removed = keepOld ? rows.slice(this.maximumRecords) : rows.slice(0, -this.maximumRecords);
+    removed.forEach(message => this.records.delete(String(message.id)));
+    this.ordered = null;
+    this.hasOlder = this.oldest > 1;
+  }
 
   merge(message) {
     if (!message?.id || Number(message.conversationId) !== this.conversationId) return;
@@ -32,14 +48,23 @@ export class ChatHistory {
     // 撤回是终态。较早发出的 HTTP 响应即使晚到，也不能让已撤回的正文重新出现。
     if (previous?.state === 'recalled' && message.state !== 'recalled') return;
     this.records.set(key, { ...previous, ...message });
+    this.ordered = null;
   }
 
   ingest(message) {
+    if (Number(message.conversationId) !== this.conversationId) return;
+    // 翻旧页时不让新消息把阅读窗口挤走；保留目标水位，用户可向后翻页。
+    if (this.lookingBack && this.loaded && this.records.size && message.sequence > this.latest) {
+      this.target = Math.max(this.target, Number(message.sequence) || 0);
+      this.changed();
+      return;
+    }
     // 旧页尚未载入时，不因某条旧撤回事件凭空扩展整个历史窗口。
     if (message.state === 'recalled' && this.loaded && message.sequence < this.oldest &&
         !this.records.has(String(message.id))) return;
     this.merge(message);
     if (this.loaded && Number(message.sequence) === this.cursor + 1) this.cursor += 1;
+    this.trim();
     this.changed();
   }
 
@@ -47,7 +72,7 @@ export class ChatHistory {
     this.reset(conversationId);
     const epoch = this.epoch;
     this.ready = (async () => {
-      const page = await this.fetchPage(this.conversationId, { before: 0, limit: this.pageSize });
+      const page = await this.fetchPage(this.conversationId, { before: 0, limit: this.pageSize }, this.controller.signal);
       if (epoch !== this.epoch) return;
       page.forEach(message => this.merge(message));
       this.cursor = Number(page.at(-1)?.sequence || 0);
@@ -64,14 +89,34 @@ export class ChatHistory {
     const conversation = this.conversationId;
     const before = this.oldest;
     this.loadingOlder = true;
+    this.lookingBack = true;
     this.changed();
     try {
-      const page = await this.fetchPage(conversation, { before, limit: this.pageSize });
+      const page = await this.fetchPage(conversation, { before, limit: this.pageSize }, this.controller.signal);
       if (epoch !== this.epoch) return;
       page.forEach(message => this.merge(message));
+      this.trim(true);
       this.hasOlder = page.length > 0 && Number(page[0].sequence) > 1;
     } finally {
       if (epoch === this.epoch) { this.loadingOlder = false; this.changed(); }
+    }
+  }
+
+  async newer() {
+    if (!this.hasNewer || this.loadingNewer) return;
+    const epoch = this.epoch;
+    this.loadingNewer = true;
+    this.changed();
+    try {
+      const page = await this.fetchPage(this.conversationId,
+        { after: this.latest, limit: this.pageSize }, this.controller.signal);
+      if (epoch !== this.epoch) return;
+      if (!page.length) throw new Error('较新历史未完成，请重试同步');
+      page.forEach(message => this.merge(message));
+      this.trim();
+      if (!this.hasNewer) this.lookingBack = false;
+    } finally {
+      if (epoch === this.epoch) { this.loadingNewer = false; this.changed(); }
     }
   }
 
@@ -90,11 +135,12 @@ export class ChatHistory {
         this.refreshRequested = false;
         const ceiling = this.target;
         while (after < ceiling && epoch === this.epoch) {
-          const page = await this.fetchPage(conversation, { after, limit: this.pageSize });
+          const page = await this.fetchPage(conversation, { after, limit: this.pageSize }, this.controller.signal);
           if (epoch !== this.epoch) return;
           const last = Number(page.at(-1)?.sequence || 0);
           if (!page.length || last <= after) throw new Error('历史补发未完成，请重试同步');
           page.forEach(message => this.merge(message));
+          this.trim(this.lookingBack);
           after = last;
           this.cursor = Math.max(this.cursor, last);
           this.changed();

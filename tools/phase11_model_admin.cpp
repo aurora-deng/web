@@ -1,9 +1,9 @@
-#include "server/phase11/ai/DeterministicExactScorer/DeterministicExactScorer.h"
-#include "server/phase11/ai/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
-#include "server/phase11/ai/ModelEvaluationService/ModelEvaluationService.h"
-#include "server/phase11/ai/ModelRegistryService/ModelRegistryService.h"
-#include "server/phase11/storage/postgres/PostgresStore/PostgresStore.h"
-#include "server/phase11/transport/FlatJson/FlatJson.h"
+#include "backend/ai/models/DeterministicExactScorer/DeterministicExactScorer.h"
+#include "backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
+#include "backend/ai/models/ModelEvaluationService/ModelEvaluationService.h"
+#include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
+#include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
+#include "backend/application/transport/FlatJson/FlatJson.h"
 
 #include <openssl/evp.h>
 

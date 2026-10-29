@@ -1,6 +1,6 @@
-#include "server/security/AuthToken.h"
-#include "server/security/FixedWindowRateLimiter.h"
-#include "server/sse/SseReplayBuffer.h"
+#include "backend/server/security/AuthToken.h"
+#include "backend/server/security/FixedWindowRateLimiter.h"
+#include "backend/server/sse/SseReplayBuffer.h"
 
 #include <chrono>
 #include <stdexcept>

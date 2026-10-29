@@ -1,0 +1,140 @@
+#include "backend/server/sse/SseSession.h"
+
+#include <utility>
+
+#include "backend/server/CoroutineScheduler/AWaiter.h"
+#include "backend/server/SubReactor/SubReactor.h"
+#include "backend/server/sse/SseCodec.h"
+#include "backend/server/sse/SseSessionManager.h"
+
+SseSession::SseSession(ConnectionKey key,
+                       SubReactor *reactor,
+                       SseClientId clientId,
+                       SseSessionManager *manager,
+                       std::string lastEventId)
+    : key_(key), reactor_(reactor), clientId_(clientId), manager_(manager),
+      lastEventId_(std::move(lastEventId))
+{
+}
+
+Connection *SseSession::getConn()
+{
+    return reactor_ ? reactor_->findConnection(key_.fd, key_.connId) : nullptr;
+}
+
+EnqueueResult SseSession::enqueuePayload(std::string payload)
+{
+    if (payload.empty() || !getConn())
+        return EnqueueResult::Closed;
+    return reactor_->enqueueOutbound(
+        key_.fd,
+        OutboundTask::encoded(SseCodec::encodeChunk(payload)));
+}
+
+EnqueueResult SseSession::enqueueEvent(const SseEvent &event)
+{
+    return enqueuePayload(SseCodec::encodeEvent(event));
+}
+
+void SseSession::unregisterIfNeeded()
+{
+    if (!registered_ || !manager_)
+        return;
+    manager_->unregister(clientId_, key_);
+    registered_ = false;
+}
+
+void SseSession::onClose()
+{
+    unregisterIfNeeded();
+}
+
+void SseSession::beginDrain() noexcept
+{
+    try
+    {
+        SseEvent shutdown;
+        shutdown.eventName = "server-shutdown";
+        shutdown.data = "reconnect";
+        auto bytes = SseCodec::encodeChunk(SseCodec::encodeEvent(shutdown));
+        // 事件先到达客户端，再由统一 writer 的完成动作关闭连接。浏览器随后会按
+        // ready 事件中的 retry 提示重连，并携带 Last-Event-ID 补发业务事件。
+        (void)reactor_->enqueueOutbound(
+            key_.fd,
+            OutboundTask::encoded(
+                std::move(bytes), 0, OutboundCompletion::CloseConnection));
+    }
+    catch (...)
+    {
+        // 硬停阶段稍后仍会释放连接；停机钩子绝不能因分配失败终止进程。
+    }
+}
+
+bool SseSession::onTimeout()
+{
+    if (!getConn())
+        return true;
+    if (enqueuePayload(SseCodec::encodeComment("heartbeat")) != EnqueueResult::Ok)
+        return true;
+    reactor_->refreshIdleTimer(key_.fd);
+    return false;
+}
+
+Task<void> SseSession::run()
+{
+    auto *conn = getConn();
+    if (!conn)
+        co_return;
+
+    if (manager_)
+    {
+        registered_ = manager_->registerSession(
+            clientId_, shared_from_this(), reactor_->reactorIndex(), key_);
+    }
+    if (!registered_)
+    {
+        reactor_->fd_close(key_.fd, "sse registration failed", CoroutineRole::Main);
+        co_return;
+    }
+
+    SseEvent ready;
+    ready.eventName = "ready";
+    ready.data = "connected";
+    ready.retryMilliseconds = 3000;
+    if (enqueueEvent(ready) != EnqueueResult::Ok)
+    {
+        reactor_->fd_close(key_.fd, "sse ready event rejected", CoroutineRole::Main);
+        co_return;
+    }
+
+    // ready 先告诉浏览器连接已经接管，再按 Last-Event-ID 补发断线窗口。
+    // 重放同样走跨 Reactor 有界出站队列，不能绕过背压直接 write。
+    if (!lastEventId_.empty())
+        manager_->replayTo(clientId_, key_, lastEventId_);
+
+    while (true)
+    {
+        conn = getConn();
+        if (!conn || conn->state.closed)
+            co_return;
+
+        const auto readState = reactor_->recvSocket(key_.fd);
+        conn = getConn();
+        if (!conn || conn->state.closed)
+            co_return;
+        if (readState == RecvState::CLOSED || conn->state.peerClosed)
+        {
+            reactor_->fd_close(key_.fd, "sse peer closed", CoroutineRole::Main);
+            co_return;
+        }
+
+        // SSE 是单向流；客户端意外写入的数据不参与下一轮 HTTP 解析，及时丢弃防止积压。
+        if (conn->readBuffer.readableBytes() != 0)
+        {
+            conn->readBuffer.clear();
+            conn->pendingBytes = 0;
+            conn->state.pauseByMemory = false;
+        }
+        co_await ReadAwaiter(reactor_, key_);
+    }
+}

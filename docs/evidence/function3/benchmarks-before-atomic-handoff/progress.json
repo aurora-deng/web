@@ -1,0 +1,48 @@
+{
+  "baseline": [
+    {
+      "round": 1,
+      "pid": 72784,
+      "fastQps": 52313.06,
+      "ackP99Ms": 26.356,
+      "mixedErrors": 0
+    },
+    {
+      "round": 2,
+      "pid": 73170,
+      "fastQps": 54264.12,
+      "ackP99Ms": 19.973,
+      "mixedErrors": 0
+    },
+    {
+      "round": 3,
+      "pid": 73242,
+      "fastQps": 54016.13,
+      "ackP99Ms": 18.108,
+      "mixedErrors": 0
+    }
+  ],
+  "current": [
+    {
+      "round": 1,
+      "pid": 72855,
+      "fastQps": 54202.73,
+      "ackP99Ms": 42.729,
+      "mixedErrors": 0
+    },
+    {
+      "round": 2,
+      "pid": 72975,
+      "fastQps": 51425.6,
+      "ackP99Ms": 36.584,
+      "mixedErrors": 0
+    },
+    {
+      "round": 3,
+      "pid": 73308,
+      "fastQps": 53134.05,
+      "ackP99Ms": 35.118,
+      "mixedErrors": 0
+    }
+  ]
+}

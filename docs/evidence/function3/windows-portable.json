@@ -1,0 +1,17 @@
+{
+  "sourceSha256": "0fb112248bf41ee085432efedc5b95784b31b36711d494960d041049d67dd858",
+  "scope": "Windows portable business contracts only; not the Linux epoll server",
+  "compiler": "g++.exe (MinGW-W64 x86_64-msvcrt-posix-seh, built by Brecht Sanders, r1) 15.2.0",
+  "tests": [
+    {
+      "name": "tree contract",
+      "executableSha256": "593720a88789050e0d0ba38a7b464e81c043eca8101f90cee0c10f5c937c7add",
+      "passed": true
+    },
+    {
+      "name": "per-user recovery budget",
+      "executableSha256": "c9579fa67ae7791930ab655109149e92248a2a19528f25b9d7f1f56f740bc721",
+      "passed": true
+    }
+  ]
+}

@@ -237,10 +237,10 @@ WebSocket 帧、协议升级、会话目录、跨 Reactor 邮箱和统一 Writer
 
 ## 11. 本课代码阅读顺序
 
-1. [`WebSocketMessage.h`](../../../../server/websocket/WebSocketMessage/WebSocketMessage.h)：先看业务信封字段。
-2. [`WebSocketCodec.cpp`](../../../../server/websocket/WebSocketCodec/WebSocketCodec.cpp)：看扁平 JSON 的完整验证、提取与序列化。
-3. [`WebSocketDeliveryTracker.h`](../../../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h)：只看公开状态和动作。
-4. [`WebSocketDeliveryTracker.cpp`](../../../../server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp)：沿 `begin → acknowledge → collectDue → pruneTerminals` 阅读。
+1. [`WebSocketMessage.h`](../../../../backend/server/websocket/WebSocketMessage/WebSocketMessage.h)：先看业务信封字段。
+2. [`WebSocketCodec.cpp`](../../../../backend/server/websocket/WebSocketCodec/WebSocketCodec.cpp)：看扁平 JSON 的完整验证、提取与序列化。
+3. [`WebSocketDeliveryTracker.h`](../../../../backend/server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.h)：只看公开状态和动作。
+4. [`WebSocketDeliveryTracker.cpp`](../../../../backend/server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp)：沿 `begin → acknowledge → collectDue → pruneTerminals` 阅读。
 5. [`main.cpp`](../../../../main.cpp)：看 chat/ack handler 如何把 Codec、Tracker 和 SessionManager 串起来。
 6. [`unit_tests.cpp`](../../../../tests/unit_tests.cpp)：用边界测试反推契约。
 7. [`websocket_blackbox.py`](../../../../tests/integration/websocket_blackbox.py)：看两个真实客户端怎样完成投递、ACK 和重复请求。

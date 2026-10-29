@@ -39,11 +39,11 @@ Session/Parser → Executor/Runtime → 取消/背压/优雅退出/测试
 
 | 文件 | 动作 | 为何改 |
 |------|------|--------|
-| `server/Runtime/ServerRuntime.h` | 修改 | 增加 `requestStop` / `releaseListener` / `maxConnections_` / `wakeFd_` / `running_` |
-| `server/Runtime/ServerRuntime.cpp` | 修改 | NODELAY、信号、wake、限流、早关 listen、可退出 accept |
-| `server/SubReactor/SubReactor.h` | 修改 | `activeConns_` 与 `activeConnections()` |
-| `server/SubReactor/SubReactor.cpp` | 修改 | loop 看 `running`；建连/关连计数；停机丢弃 pending |
-| `server/Reactor/ReactorGroup.h/.cpp` | 修改 | `activeConnections()` 汇总全组 |
+| `backend/server/Runtime/ServerRuntime.h` | 修改 | 增加 `requestStop` / `releaseListener` / `maxConnections_` / `wakeFd_` / `running_` |
+| `backend/server/Runtime/ServerRuntime.cpp` | 修改 | NODELAY、信号、wake、限流、早关 listen、可退出 accept |
+| `backend/server/SubReactor/SubReactor.h` | 修改 | `activeConns_` 与 `activeConnections()` |
+| `backend/server/SubReactor/SubReactor.cpp` | 修改 | loop 看 `running`；建连/关连计数；停机丢弃 pending |
+| `backend/server/Reactor/ReactorGroup.h/.cpp` | 修改 | `activeConnections()` 汇总全组 |
 | `main.cpp` | 修改 | try/catch，启动失败不核心转储，并提示 Ctrl+Z |
 | `docs/CLOSEOUT.md` | 新增 | 收口总清单 + VM 压测快照 |
 | `README.md` / `docs/BENCHMARK.md` | 修改 | 去掉过时描述，指向快照与停扩 |

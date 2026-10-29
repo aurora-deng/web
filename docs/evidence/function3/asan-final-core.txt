@@ -1,0 +1,229 @@
+Running main() from /home/pikachu/grpc/third_party/googletest/googletest/src/gtest_main.cc
+[==========] Running 74 tests from 25 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from BufferTest
+[ RUN      ] BufferTest.AppendsCompactsAndFindsDelimiters
+[       OK ] BufferTest.AppendsCompactsAndFindsDelimiters (0 ms)
+[----------] 1 test from BufferTest (0 ms total)
+
+[----------] 8 tests from HttpParserTest
+[ RUN      ] HttpParserTest.WaitsForHalfPacketAndContentLengthBody
+[       OK ] HttpParserTest.WaitsForHalfPacketAndContentLengthBody (0 ms)
+[ RUN      ] HttpParserTest.LeavesPipelinedRequestInBuffer
+[       OK ] HttpParserTest.LeavesPipelinedRequestInBuffer (0 ms)
+[ RUN      ] HttpParserTest.DecodesChunkedBodyAcrossPackets
+[       OK ] HttpParserTest.DecodesChunkedBodyAcrossPackets (0 ms)
+[ RUN      ] HttpParserTest.ParsesByteRangesAndRejectsConflictingLengths
+[       OK ] HttpParserTest.ParsesByteRangesAndRejectsConflictingLengths (0 ms)
+[ RUN      ] HttpParserTest.EnforcesRequestLineHeaderAndContentLengthLimits
+[       OK ] HttpParserTest.EnforcesRequestLineHeaderAndContentLengthLimits (2 ms)
+[ RUN      ] HttpParserTest.RejectsIncrementalChunkedBodyOverLimit
+[       OK ] HttpParserTest.RejectsIncrementalChunkedBodyOverLimit (8 ms)
+[ RUN      ] HttpParserTest.RejectsAmbiguousRequestFramingAndMissingHost
+[       OK ] HttpParserTest.RejectsAmbiguousRequestFramingAndMissingHost (0 ms)
+[ RUN      ] HttpParserTest.RequiresResetAfterDeliveryAndParsesConnectionTokens
+[       OK ] HttpParserTest.RequiresResetAfterDeliveryAndParsesConnectionTokens (0 ms)
+[----------] 8 tests from HttpParserTest (12 ms total)
+
+[----------] 2 tests from HttpRangeTest
+[ RUN      ] HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser
+[       OK ] HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser (0 ms)
+[ RUN      ] HttpRangeTest.PreservesContentRangeForMemoryAndFileBodies
+[       OK ] HttpRangeTest.PreservesContentRangeForMemoryAndFileBodies (0 ms)
+[----------] 2 tests from HttpRangeTest (1 ms total)
+
+[----------] 1 test from HttpResponseTest
+[ RUN      ] HttpResponseTest.SendfilePreservesRouteCachePolicy
+[       OK ] HttpResponseTest.SendfilePreservesRouteCachePolicy (1 ms)
+[----------] 1 test from HttpResponseTest (1 ms total)
+
+[----------] 5 tests from RouterTest
+[ RUN      ] RouterTest.MatchesDynamicRouteAndExtractsParameter
+[       OK ] RouterTest.MatchesDynamicRouteAndExtractsParameter (0 ms)
+[ RUN      ] RouterTest.MiddlewareCanShortCircuitRoute
+[       OK ] RouterTest.MiddlewareCanShortCircuitRoute (0 ms)
+[ RUN      ] RouterTest.ResolvesExecutionPolicyBeforeDispatch
+[       OK ] RouterTest.ResolvesExecutionPolicyBeforeDispatch (0 ms)
+[ RUN      ] RouterTest.FrozenRouterRejectsMutation
+[       OK ] RouterTest.FrozenRouterRejectsMutation (0 ms)
+[ RUN      ] RouterTest.ProducesNotFoundResponse
+[       OK ] RouterTest.ProducesNotFoundResponse (0 ms)
+[----------] 5 tests from RouterTest (0 ms total)
+
+[----------] 1 test from OperationalMetricsTest
+[ RUN      ] OperationalMetricsTest.ConcurrentStripedCountersPreserveTotal
+[       OK ] OperationalMetricsTest.ConcurrentStripedCountersPreserveTotal (6 ms)
+[----------] 1 test from OperationalMetricsTest (6 ms total)
+
+[----------] 1 test from ObjectPoolTest
+[ RUN      ] ObjectPoolTest.ConcurrentAcquireReleaseKeepsObjectsReset
+[       OK ] ObjectPoolTest.ConcurrentAcquireReleaseKeepsObjectsReset (39 ms)
+[----------] 1 test from ObjectPoolTest (39 ms total)
+
+[----------] 2 tests from WebSocketHandshakeTest
+[ RUN      ] WebSocketHandshakeTest.AcceptKeyMatchesRfc6455Example
+[       OK ] WebSocketHandshakeTest.AcceptKeyMatchesRfc6455Example (0 ms)
+[ RUN      ] WebSocketHandshakeTest.ValidateRequiresVersion13
+[       OK ] WebSocketHandshakeTest.ValidateRequiresVersion13 (0 ms)
+[----------] 2 tests from WebSocketHandshakeTest (0 ms total)
+
+[----------] 4 tests from WebSocketCodecTest
+[ RUN      ] WebSocketCodecTest.EncodeDecodeTextRoundTrip
+[       OK ] WebSocketCodecTest.EncodeDecodeTextRoundTrip (0 ms)
+[ RUN      ] WebSocketCodecTest.RejectUnmaskedClientFrame
+[       OK ] WebSocketCodecTest.RejectUnmaskedClientFrame (0 ms)
+[ RUN      ] WebSocketCodecTest.RejectsInvalidOutboundTextAndControlFrames
+[       OK ] WebSocketCodecTest.RejectsInvalidOutboundTextAndControlFrames (0 ms)
+[ RUN      ] WebSocketCodecTest.ApplicationEnvelopeRoundTripsEscapedFields
+[       OK ] WebSocketCodecTest.ApplicationEnvelopeRoundTripsEscapedFields (0 ms)
+[----------] 4 tests from WebSocketCodecTest (0 ms total)
+
+[----------] 3 tests from WebSocketParserTest
+[ RUN      ] WebSocketParserTest.NeedMoreThenComplete
+[       OK ] WebSocketParserTest.NeedMoreThenComplete (0 ms)
+[ RUN      ] WebSocketParserTest.RejectsReservedOpcodeAndFragmentedControl
+[       OK ] WebSocketParserTest.RejectsReservedOpcodeAndFragmentedControl (0 ms)
+[ RUN      ] WebSocketParserTest.RejectsNonCanonicalExtendedLengths
+[       OK ] WebSocketParserTest.RejectsNonCanonicalExtendedLengths (0 ms)
+[----------] 3 tests from WebSocketParserTest (0 ms total)
+
+[----------] 2 tests from WebSocketMessageAssemblerTest
+[ RUN      ] WebSocketMessageAssemblerTest.EmptyFirstFragmentIsStillActive
+[       OK ] WebSocketMessageAssemblerTest.EmptyFirstFragmentIsStillActive (0 ms)
+[ RUN      ] WebSocketMessageAssemblerTest.RejectsInterleavingAndCapsWholeMessage
+[       OK ] WebSocketMessageAssemblerTest.RejectsInterleavingAndCapsWholeMessage (0 ms)
+[----------] 2 tests from WebSocketMessageAssemblerTest (0 ms total)
+
+[----------] 3 tests from WebSocketValidationTest
+[ RUN      ] WebSocketValidationTest.ValidatesCompleteUtf8IncludingSplitCodePoint
+[       OK ] WebSocketValidationTest.ValidatesCompleteUtf8IncludingSplitCodePoint (0 ms)
+[ RUN      ] WebSocketValidationTest.ParsesClosePayloadByFailureKind
+[       OK ] WebSocketValidationTest.ParsesClosePayloadByFailureKind (0 ms)
+[ RUN      ] WebSocketValidationTest.AcceptsOnlyWireCloseCodeRanges
+[       OK ] WebSocketValidationTest.AcceptsOnlyWireCloseCodeRanges (0 ms)
+[----------] 3 tests from WebSocketValidationTest (0 ms total)
+
+[----------] 6 tests from WebSocketDeliveryTrackerTest
+[ RUN      ] WebSocketDeliveryTrackerTest.DeduplicatesAndValidatesAckOwner
+[       OK ] WebSocketDeliveryTrackerTest.DeduplicatesAndValidatesAckOwner (0 ms)
+[ RUN      ] WebSocketDeliveryTrackerTest.NamespacesMessageIdsByServerInstance
+[       OK ] WebSocketDeliveryTrackerTest.NamespacesMessageIdsByServerInstance (0 ms)
+[ RUN      ] WebSocketDeliveryTrackerTest.BoundsWindowAndPrunesTerminalRecords
+[       OK ] WebSocketDeliveryTrackerTest.BoundsWindowAndPrunesTerminalRecords (0 ms)
+[ RUN      ] WebSocketDeliveryTrackerTest.KeepsClientAndServerIdLimitsIndependent
+[       OK ] WebSocketDeliveryTrackerTest.KeepsClientAndServerIdLimitsIndependent (0 ms)
+[ RUN      ] WebSocketDeliveryTrackerTest.EmitsBoundedRetryDecisionsThenFails
+[       OK ] WebSocketDeliveryTrackerTest.EmitsBoundedRetryDecisionsThenFails (0 ms)
+[ RUN      ] WebSocketDeliveryTrackerTest.BoundsDeterministicRetryJitter
+[       OK ] WebSocketDeliveryTrackerTest.BoundsDeterministicRetryJitter (0 ms)
+[----------] 6 tests from WebSocketDeliveryTrackerTest (1 ms total)
+
+[----------] 6 tests from WebSocketDeliveryServiceTest
+[ RUN      ] WebSocketDeliveryServiceTest.ObservesWriteThenAcceptsApplicationAck
+[       OK ] WebSocketDeliveryServiceTest.ObservesWriteThenAcceptsApplicationAck (0 ms)
+[ RUN      ] WebSocketDeliveryServiceTest.IgnoresLateReceiptAndRetriesWithSameId
+[       OK ] WebSocketDeliveryServiceTest.IgnoresLateReceiptAndRetriesWithSameId (0 ms)
+[ RUN      ] WebSocketDeliveryServiceTest.StopsWorkerAndRejectsNewSubmissions
+[       OK ] WebSocketDeliveryServiceTest.StopsWorkerAndRejectsNewSubmissions (1 ms)
+[ RUN      ] WebSocketDeliveryServiceTest.BackgroundWorkerHonorsRetrySchedule
+[       OK ] WebSocketDeliveryServiceTest.BackgroundWorkerHonorsRetrySchedule (7 ms)
+[ RUN      ] WebSocketDeliveryServiceTest.RetriesOfflineTargetThenNotifiesFailure
+[       OK ] WebSocketDeliveryServiceTest.RetriesOfflineTargetThenNotifiesFailure (1 ms)
+[ RUN      ] WebSocketDeliveryServiceTest.ExposesRetryAndAckMetrics
+[       OK ] WebSocketDeliveryServiceTest.ExposesRetryAndAckMetrics (0 ms)
+[----------] 6 tests from WebSocketDeliveryServiceTest (11 ms total)
+
+[----------] 2 tests from WebSocketDispatcherTest
+[ RUN      ] WebSocketDispatcherTest.RoutesByTypeAndEchoDefault
+[       OK ] WebSocketDispatcherTest.RoutesByTypeAndEchoDefault (0 ms)
+[ RUN      ] WebSocketDispatcherTest.SupportsConcurrentDispatchAndRegistration
+[       OK ] WebSocketDispatcherTest.SupportsConcurrentDispatchAndRegistration (14 ms)
+[----------] 2 tests from WebSocketDispatcherTest (15 ms total)
+
+[----------] 2 tests from RequestContextTest
+[ RUN      ] RequestContextTest.AcceptWebSocketFlag
+[       OK ] RequestContextTest.AcceptWebSocketFlag (0 ms)
+[ RUN      ] RequestContextTest.LongProtocolAcceptFlagsAreMutuallyExclusive
+[       OK ] RequestContextTest.LongProtocolAcceptFlagsAreMutuallyExclusive (0 ms)
+[----------] 2 tests from RequestContextTest (0 ms total)
+
+[----------] 3 tests from WebSocketSessionManagerTest
+[ RUN      ] WebSocketSessionManagerTest.MultiDeviceUnregisterKeepsOtherConnection
+[       OK ] WebSocketSessionManagerTest.MultiDeviceUnregisterKeepsOtherConnection (0 ms)
+[ RUN      ] WebSocketSessionManagerTest.RevocationRemovesRoutesEvenWhenCloseCannotBeQueued
+[       OK ] WebSocketSessionManagerTest.RevocationRemovesRoutesEvenWhenCloseCannotBeQueued (0 ms)
+[ RUN      ] WebSocketSessionManagerTest.PreservesOutboundRejectionReason
+[       OK ] WebSocketSessionManagerTest.PreservesOutboundRejectionReason (0 ms)
+[----------] 3 tests from WebSocketSessionManagerTest (1 ms total)
+
+[----------] 2 tests from ExecutorTest
+[ RUN      ] ExecutorTest.ShutdownDrainsAcceptedTasksAndRejectsNewTasks
+[       OK ] ExecutorTest.ShutdownDrainsAcceptedTasksAndRejectsNewTasks (0 ms)
+[ RUN      ] ExecutorTest.SeparateHttpAndWebSocketLanesDoNotStarveEachOther
+[       OK ] ExecutorTest.SeparateHttpAndWebSocketLanesDoNotStarveEachOther (0 ms)
+[----------] 2 tests from ExecutorTest (1 ms total)
+
+[----------] 2 tests from HandlerCancellationTest
+[ RUN      ] HandlerCancellationTest.DistinguishesCancellationFromDeadline
+[       OK ] HandlerCancellationTest.DistinguishesCancellationFromDeadline (0 ms)
+[ RUN      ] HandlerCancellationTest.CooperativeLoopObservesExecutorDeadline
+[       OK ] HandlerCancellationTest.CooperativeLoopObservesExecutorDeadline (20 ms)
+[----------] 2 tests from HandlerCancellationTest (20 ms total)
+
+[----------] 3 tests from SseCodecTest
+[ RUN      ] SseCodecTest.EncodesFieldsMultilineDataAndRetry
+[       OK ] SseCodecTest.EncodesFieldsMultilineDataAndRetry (0 ms)
+[ RUN      ] SseCodecTest.PreventsFieldInjection
+[       OK ] SseCodecTest.PreventsFieldInjection (0 ms)
+[ RUN      ] SseCodecTest.WrapsEventTextAsOneHttpChunk
+[       OK ] SseCodecTest.WrapsEventTextAsOneHttpChunk (0 ms)
+[----------] 3 tests from SseCodecTest (0 ms total)
+
+[----------] 1 test from SseHandshakeTest
+[ RUN      ] SseHandshakeTest.UsesHeaderOnlyChunkedResponse
+[       OK ] SseHandshakeTest.UsesHeaderOnlyChunkedResponse (0 ms)
+[----------] 1 test from SseHandshakeTest (0 ms total)
+
+[----------] 9 tests from TransportWriterTest
+[ RUN      ] TransportWriterTest.PreservesEncodedTaskFifo
+[       OK ] TransportWriterTest.PreservesEncodedTaskFifo (0 ms)
+[ RUN      ] TransportWriterTest.YieldsAfterPerConnectionWriteBudget
+[       OK ] TransportWriterTest.YieldsAfterPerConnectionWriteBudget (0 ms)
+[ RUN      ] TransportWriterTest.ReturnsPooledHttpResponseExactlyOnce
+[       OK ] TransportWriterTest.ReturnsPooledHttpResponseExactlyOnce (0 ms)
+[ RUN      ] TransportWriterTest.AppliesWriteBudgetToHttpHeaderAndBody
+[       OK ] TransportWriterTest.AppliesWriteBudgetToHttpHeaderAndBody (0 ms)
+[ RUN      ] TransportWriterTest.AppliesHighWatermarkBackpressure
+[       OK ] TransportWriterTest.AppliesHighWatermarkBackpressure (8 ms)
+[ RUN      ] TransportWriterTest.ReceiptRecordsBackpressureAndCancellationOnce
+[       OK ] TransportWriterTest.ReceiptRecordsBackpressureAndCancellationOnce (4 ms)
+[ RUN      ] TransportWriterTest.CloseTaskIsWriteBarrierForLaterTasks
+[       OK ] TransportWriterTest.CloseTaskIsWriteBarrierForLaterTasks (0 ms)
+[ RUN      ] TransportWriterTest.RejectsOversizedFirstTaskWithoutOverflow
+[       OK ] TransportWriterTest.RejectsOversizedFirstTaskWithoutOverflow (3 ms)
+[ RUN      ] TransportWriterTest.SharesImmutableBroadcastBuffer
+[       OK ] TransportWriterTest.SharesImmutableBroadcastBuffer (1 ms)
+[----------] 9 tests from TransportWriterTest (20 ms total)
+
+[----------] 1 test from ChunkedBodyTest
+[ RUN      ] ChunkedBodyTest.BorrowsStableSegmentsWithinRequestedBudget
+[       OK ] ChunkedBodyTest.BorrowsStableSegmentsWithinRequestedBudget (0 ms)
+[----------] 1 test from ChunkedBodyTest (0 ms total)
+
+[----------] 2 tests from OutboundQueueTest
+[ RUN      ] OutboundQueueTest.BoundsMailboxGloballyAndPerConnection
+[       OK ] OutboundQueueTest.BoundsMailboxGloballyAndPerConnection (0 ms)
+[ RUN      ] OutboundQueueTest.DropsStaleGenerationDuringDrain
+[       OK ] OutboundQueueTest.DropsStaleGenerationDuringDrain (0 ms)
+[----------] 2 tests from OutboundQueueTest (0 ms total)
+
+[----------] 2 tests from CoroutineSchedulerTest
+[ RUN      ] CoroutineSchedulerTest.ReapsEveryConnectionRole
+[       OK ] CoroutineSchedulerTest.ReapsEveryConnectionRole (0 ms)
+[ RUN      ] CoroutineSchedulerTest.KeepsFdReuseIdentityInCompletion
+[       OK ] CoroutineSchedulerTest.KeepsFdReuseIdentityInCompletion (0 ms)
+[----------] 2 tests from CoroutineSchedulerTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 74 tests from 25 test suites ran. (139 ms total)
+[  PASSED  ] 74 tests.

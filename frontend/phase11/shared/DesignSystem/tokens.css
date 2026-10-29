@@ -1,0 +1,230 @@
+/* ============================================================================
+   NEBULA Design System v1 · tokens.css
+   ----------------------------------------------------------------------------
+   唯一色板与尺度来源。所有页面必须在本文件之后加载自己的样式，且不得再写
+   颜色字面量（#xxx / rgb()），只能引用下面的语义变量。
+
+   三层结构：
+     1. 原始色阶  --n-*      只允许语义层引用，组件层禁止使用
+     2. 语义层    --text/--accent/--surface ...  组件层只许用这一层
+     3. 工作区层  body[data-workspace=*]  只改「表面色」和「强调色」两项
+
+   对比度（WCAG 2.1 实测，全部 ≥ 4.5:1 正文标准）：
+     --text   #EEF3FC / 任意深色表面      15.67  AAA
+     --text-2 #B8C4D9 / 任意深色表面       9.91  AAA
+     --text-3 #93A3BC / 最暗表面 #141A24   6.82  AA
+     白字 / --accent #6C58F0               4.89  AA
+     玫瑰 #E7BBD4 上深字 #2B1C26           9.61  AAA
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- 1. 原始色阶（禁止在组件里直接引用） ---------------------------- */
+  --n-ink-950: #0B0F16;
+  --n-ink-900: #0E1219;
+  --n-ink-850: #121821;
+  --n-ink-800: #161C26;
+  --n-ink-750: #1B222D;
+  --n-ink-700: #222B38;
+  --n-ink-600: #2C3746;
+  --n-ink-500: #3B4959;
+
+  --n-slate-100: #EEF3FC;
+  --n-slate-200: #D5DEEC;
+  --n-slate-300: #B8C4D9;
+  --n-slate-400: #93A3BC;
+  --n-slate-500: #7A8AA3;
+  --n-slate-600: #5E6C82;
+
+  --n-violet-200: #DDD7FF;
+  --n-violet-300: #C3B8FF;
+  --n-violet-400: #A99BFF;
+  --n-violet-500: #8A78FF;
+  --n-violet-600: #6C58F0;
+  --n-violet-700: #5844CE;
+  --n-violet-800: #3F2F9C;
+
+  --n-rose-200: #F6DDEA;
+  --n-rose-300: #E7BBD4;
+  --n-rose-400: #D9A7C4;
+  --n-rose-500: #C58BAB;
+  --n-rose-600: #A9688A;
+  --n-rose-700: #8A4467;
+
+  --n-green-400: #3FD69B;
+  --n-green-600: #12A06E;
+  --n-green-700: #0B7355;
+  --n-amber-400: #F2B440;
+  --n-amber-700: #8A5A00;
+  --n-red-400: #FF8090;
+  --n-red-600: #D93B4C;
+  --n-red-700: #B3261E;
+
+  /* ---- 2. 语义层（组件唯一可用层） ------------------------------------ */
+  /* 文本 */
+  --text: var(--n-slate-100);
+  --text-2: var(--n-slate-300);
+  --text-3: var(--n-slate-400);
+  --text-inverse: var(--n-ink-950);
+
+  /* 分隔与描边 */
+  --line: rgba(147, 163, 188, .16);
+  --line-strong: rgba(147, 163, 188, .30);
+
+  /* 强调色：全站唯一「这是主操作」信号 */
+  --brand: var(--n-violet-600);          /* 跨工作区导航，永远不跟随工作区 */
+  --accent: var(--n-violet-600);
+  --accent-hover: var(--n-violet-500);
+  --accent-text: var(--n-violet-400);    /* 文字形态的强调色 */
+  --accent-soft: rgba(108, 88, 240, .16);
+  --accent-softer: rgba(108, 88, 240, .09);
+  --on-accent: #FFFFFF;
+  --focus: var(--n-violet-400);
+
+  /* 状态色：只表示状态，不用于装饰 */
+  --success: var(--n-green-400);
+  --warning: var(--n-amber-400);
+  --danger: var(--n-red-400);
+  /* 状态色作为「底」时，上面的字该用什么颜色 */
+  --on-success: #04231A;
+  --on-warning: #2A1D00;
+  --on-danger: #2B0B11;
+
+  /* 表面（工作区覆盖） */
+  --bg: var(--n-ink-900);
+  --surface: var(--n-ink-800);
+  --surface-2: var(--n-ink-750);
+  --surface-3: var(--n-ink-700);
+
+  /* ---- 3. 字号阶梯（9 档，下限 12px） -------------------------------- */
+  --fs-micro: 12px;   /* 时间戳 / 徽标计数 / kbd：只读一眼的数字，不是正文 */
+  --fs-meta: 13px;    /* 次要元信息：作者、成员角色、说明 */
+  --fs-label: 13px;   /* 表单标签、小号按钮 */
+  --fs-base: 14px;    /* 界面正文、列表项、控件 */
+  --fs-body: 15px;    /* 需连续阅读的正文：消息、帖子、简介 */
+  --fs-lead: 17px;    /* 引导语 */
+  --fs-h3: 20px;
+  --fs-h2: 26px;
+  --fs-h1: 34px;
+
+  /* 行高 */
+  --lh-tight: 1.25;
+  --lh-snug: 1.45;
+  --lh-base: 1.6;
+  --lh-body: 1.7;
+
+  /* 字重 */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---- 4. 间距（4 的倍数） ------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* ---- 5. 圆角 / 层级 / 动效 ----------------------------------------- */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .28);
+  --shadow-2: 0 8px 24px -6px rgba(0, 0, 0, .45);
+  --shadow-3: 0 24px 64px -12px rgba(0, 0, 0, .55);
+
+  --dur-fast: 140ms;
+  --dur: 220ms;
+  --dur-slow: 400ms;
+  --ease: cubic-bezier(.2, .7, .25, 1);
+
+  /* ---- 6. 布局常量 --------------------------------------------------- */
+  --nav-h: 64px;
+  --nav-h-mobile: 56px;
+  --rail-w: 68px;
+  --list-w: 288px;
+  --aside-w: 320px;
+  --reading-max: 680px;   /* 消息列 / 正文列限宽，超过就是空白死区 */
+}
+
+/* ---- 浅色主题 ---------------------------------------------------------- */
+:root[data-theme=light] {
+  color-scheme: light;
+  --text: #16202E;
+  --text-2: #4B5A70;
+  --text-3: #5C6C83;
+  --text-inverse: #FFFFFF;
+
+  --line: rgba(28, 46, 74, .13);
+  --line-strong: rgba(28, 46, 74, .26);
+
+  --brand: var(--n-violet-700);
+  --accent: #5B3AE0;
+  --accent-hover: #4A2BC8;
+  --accent-text: #5B3AE0;
+  --accent-soft: rgba(91, 58, 224, .10);
+  --accent-softer: rgba(91, 58, 224, .06);
+  --on-accent: #FFFFFF;
+  --focus: #5B3AE0;
+
+  --success: var(--n-green-700);
+  --warning: var(--n-amber-700);
+  --danger: var(--n-red-700);
+  --on-success: #FFFFFF;
+  --on-warning: #FFFFFF;
+  --on-danger: #FFFFFF;
+
+  --bg: #F5F7FA;
+  --surface: #FFFFFF;
+  --surface-2: #EFF2F7;
+  --surface-3: #E6EBF2;
+
+  --shadow-1: 0 1px 2px rgba(16, 32, 56, .06);
+  --shadow-2: 0 8px 24px -10px rgba(16, 32, 56, .18);
+  --shadow-3: 0 24px 64px -18px rgba(16, 32, 56, .24);
+}
+
+/* ---- 工作区层：只允许覆盖「表面色」和「强调色」两项 ------------------- */
+/* 深色 */
+body[data-workspace=chat]   { --bg: #0E1219; --surface: #161A21; --surface-2: #1D222B; --surface-3: #242B36; }
+body[data-workspace=tree]   { --bg: #141822; --surface: #1A1F2B; --surface-2: #232936; --surface-3: #2B3243; }
+body[data-workspace=profile]{ --bg: #111519; --surface: #181D24; --surface-2: #202731; --surface-3: #27303C; }
+body[data-workspace=admin]  { --bg: #0C1017; --surface: #141A24; --surface-2: #1B2431; --surface-3: #222C3B; }
+body[data-workspace=assistant]{ --bg: #111620; --surface: #181F2B; --surface-2: #202836; --surface-3: #283142; }
+
+/* 苦情树是唯一保留独立「世界色」的工作区：玫瑰只作强调，不改变导航品牌色 */
+body[data-workspace=tree] {
+  --accent: var(--n-rose-400);
+  --accent-hover: var(--n-rose-300);
+  --accent-text: var(--n-rose-300);
+  --accent-soft: rgba(217, 167, 196, .16);
+  --accent-softer: rgba(217, 167, 196, .08);
+  --on-accent: #2B1C26;
+  --focus: var(--n-rose-300);
+}
+
+/* 浅色 */
+:root[data-theme=light] body[data-workspace=chat]   { --bg: #F4F6F9; --surface: #FFFFFF; --surface-2: #EEF1F6; --surface-3: #E3E8EF; }
+:root[data-theme=light] body[data-workspace=tree]   { --bg: #F7F3F8; --surface: #FFFFFF; --surface-2: #F3ECF4; --surface-3: #EAE1EC; }
+:root[data-theme=light] body[data-workspace=profile]{ --bg: #F5F7FA; --surface: #FFFFFF; --surface-2: #EFF2F7; --surface-3: #E6EBF2; }
+:root[data-theme=light] body[data-workspace=admin]  { --bg: #F2F4F8; --surface: #FFFFFF; --surface-2: #EBEFF5; --surface-3: #E1E7EF; }
+:root[data-theme=light] body[data-workspace=assistant]{ --bg: #F6F7FB; --surface: #FFFFFF; --surface-2: #EEF1F7; --surface-3: #E4E9F1; }
+
+:root[data-theme=light] body[data-workspace=tree] {
+  --accent: var(--n-rose-600);
+  --accent-hover: var(--n-rose-700);
+  --accent-text: var(--n-rose-700);
+  --accent-soft: rgba(169, 104, 138, .12);
+  --accent-softer: rgba(169, 104, 138, .06);
+  --on-accent: #FFFFFF;
+  --focus: var(--n-rose-700);
+}

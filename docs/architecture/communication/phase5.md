@@ -207,12 +207,12 @@ ProtocolSessionFactory（Runtime 中的具体装配）
 
 | 文件 | 职责 |
 |---|---|
-| `server/sse/SseEvent.h` | SSE 业务事件和 clientId 类型 |
-| `server/sse/SseCodec.{h,cpp}` | 事件文本、注释和 HTTP chunk 的纯编码 |
-| `server/sse/SseSession.{h,cpp}` | 长连接登记、ready、心跳、断开和注销 |
-| `server/sse/SseSessionManager.{h,cpp}` | 多标签页订阅目录与跨 Reactor 发布 |
-| `server/session/ProtocolSessionFactory.{h,cpp}` | 统一创建 WS/SSE 会话 |
-| `server/session/SessionFactory.h` | 扩展协议会话抽象，增加 SSE 创建入口 |
+| `backend/server/sse/SseEvent.h` | SSE 业务事件和 clientId 类型 |
+| `backend/server/sse/SseCodec.{h,cpp}` | 事件文本、注释和 HTTP chunk 的纯编码 |
+| `backend/server/sse/SseSession.{h,cpp}` | 长连接登记、ready、心跳、断开和注销 |
+| `backend/server/sse/SseSessionManager.{h,cpp}` | 多标签页订阅目录与跨 Reactor 发布 |
+| `backend/server/session/ProtocolSessionFactory.{h,cpp}` | 统一创建 WS/SSE 会话 |
+| `backend/server/session/SessionFactory.h` | 扩展协议会话抽象，增加 SSE 创建入口 |
 | `RequestContext.h` | 新增互斥的 `acceptSse()` 意图 |
 | `HttpSession.{h,cpp}` | SSE 首部准备与 Session 交接 |
 | `http.{h,cpp}` | 新增只发首部的 `beginChunkedStream()` |

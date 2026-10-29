@@ -1,6 +1,6 @@
-#include "server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
-#include "server/phase11/ai/RagService/RagService.h"
-#include "server/phase11/storage/InMemoryStore/InMemoryStore.h"
+#include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "backend/ai/models/RagService/RagService.h"
+#include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 
 #include <cstdlib>
 #include <iostream>

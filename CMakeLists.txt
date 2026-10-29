@@ -141,7 +141,7 @@ endif()
 # 跨 HTTP/SSE/WebSocket/gRPC 共用的安全基础层。独立成库后，gRPC 组件测试
 # 不必为了复用令牌校验而链接 Linux epoll 网络核心。
 add_library(webserver_security
-    server/security/AuthToken.cpp)
+    backend/server/security/AuthToken.cpp)
 target_include_directories(webserver_security PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(webserver_security PUBLIC OpenSSL::Crypto webserver_sanitizers)
 
@@ -153,29 +153,42 @@ target_link_libraries(webserver_security PUBLIC OpenSSL::Crypto webserver_saniti
 # 已存在的库，绝不使用 FetchContent 或在配置时联网下载。
 # ==============================================================================
 if(WEBSERVER_ENABLE_PHASE11)
+    # 可移植任务队列与 JSON 工具不依赖 Reactor；AI Worker 和业务共享这两个小组件。
+    add_library(webserver_application_support
+        backend/application/runtime/BoundedExecutor/BoundedExecutor.cpp
+        backend/application/transport/FlatJson/FlatJson.cpp)
+    target_include_directories(webserver_application_support PUBLIC ${PROJECT_SOURCE_DIR})
+    target_link_libraries(webserver_application_support PUBLIC Threads::Threads webserver_sanitizers)
+
+    # AI 核心可独立构建；只依赖领域/Repository 契约，不链接网络核心。
+    add_library(webserver_ai
+        backend/ai/models/DeterministicExactScorer/DeterministicExactScorer.cpp
+        backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp
+        backend/ai/models/ModelEvaluationService/ModelEvaluationService.cpp
+        backend/ai/models/ModelRegistryService/ModelRegistryService.cpp
+        backend/ai/models/RagService/RagService.cpp
+        backend/ai/models/ResilientModelProvider/ResilientModelProvider.cpp
+        backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp
+        backend/ai/private/infrastructure/PrivateModelRouter/PrivateModelRouter.cpp
+        backend/ai/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp
+        backend/ai/training/TrainingDataService/TrainingDataService.cpp)
+    target_include_directories(webserver_ai PUBLIC ${PROJECT_SOURCE_DIR})
+    target_link_libraries(webserver_ai PUBLIC webserver_application_support OpenSSL::Crypto)
     add_library(webserver_phase11
-        server/phase11/storage/InMemoryStore/InMemoryStore.cpp
-        server/phase11/runtime/BoundedExecutor/BoundedExecutor.cpp
-        server/phase11/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp
-        server/phase11/business/AuthService/AuthService.cpp
-        server/phase11/business/SocialService/SocialService.cpp
-        server/phase11/business/ChatService/ChatService.cpp
-        server/phase11/business/FileService/FileService.cpp
-        server/phase11/business/AiChatService/AiChatService.cpp
-        server/phase11/business/OutboxDispatcher/OutboxDispatcher.cpp
-        server/phase11/ai/DeterministicExactScorer/DeterministicExactScorer.cpp
-        server/phase11/ai/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp
-        server/phase11/ai/ModelEvaluationService/ModelEvaluationService.cpp
-        server/phase11/ai/ModelRegistryService/ModelRegistryService.cpp
-        server/phase11/ai/RagService/RagService.cpp
-        server/phase11/ai/ResilientModelProvider/ResilientModelProvider.cpp
-        server/phase11/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp
-        server/phase11/training/TrainingDataService/TrainingDataService.cpp
-        server/phase11/transport/FlatJson/FlatJson.cpp
-        server/phase11/storage/files/LocalFileStorage/LocalFileStorage.cpp)
+        backend/application/storage/InMemoryStore/InMemoryStore.cpp
+        backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.cpp
+        backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp
+        backend/application/business/AuthService/AuthService.cpp
+        backend/application/business/SocialService/SocialService.cpp
+        backend/application/business/ChatService/ChatService.cpp
+        backend/application/business/FileService/FileService.cpp
+        backend/application/business/AiChatService/AiChatService.cpp
+        backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.cpp
+        backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp
+        backend/application/storage/files/LocalFileStorage/LocalFileStorage.cpp)
     target_include_directories(webserver_phase11 PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_phase11 PUBLIC Threads::Threads
-        webserver_sanitizers OpenSSL::Crypto)
+        webserver_sanitizers OpenSSL::Crypto webserver_ai webserver_application_support)
 
     if(WEBSERVER_ENABLE_POSTGRES)
         # 只接受用户已经安装好的 PostgreSQL。WEBSERVER_POSTGRES_ROOT 可以指向
@@ -189,8 +202,8 @@ if(WEBSERVER_ENABLE_PHASE11)
         endif()
         find_package(PostgreSQL REQUIRED)
         target_sources(webserver_phase11 PRIVATE
-            server/phase11/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp
-            server/phase11/storage/postgres/PostgresStore/PostgresStore.cpp)
+            backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp
+            backend/application/storage/postgres/PostgresStore/PostgresStore.cpp)
         target_link_libraries(webserver_phase11 PUBLIC PostgreSQL::PostgreSQL)
         target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_POSTGRES=1)
 
@@ -219,7 +232,7 @@ if(WEBSERVER_ENABLE_PHASE11)
                 "This project will not download or install it automatically.")
         endif()
         target_sources(webserver_phase11 PRIVATE
-            server/phase11/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)
+            backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)
         target_include_directories(webserver_phase11 PUBLIC ${WEBSERVER_SODIUM_INCLUDE_DIR})
         target_link_libraries(webserver_phase11 PUBLIC ${WEBSERVER_SODIUM_LIBRARY})
         target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_SODIUM=1)
@@ -235,11 +248,11 @@ if(WEBSERVER_ENABLE_PHASE11)
             set(CURL_ROOT "${WEBSERVER_CURL_ROOT}")
         endif()
         find_package(CURL 8.0 REQUIRED)
-        target_sources(webserver_phase11 PRIVATE
-            server/phase11/ai/OllamaStreamDecoder/OllamaStreamDecoder.cpp
-            server/phase11/ai/OllamaModelProvider/OllamaModelProvider.cpp)
-        target_link_libraries(webserver_phase11 PUBLIC CURL::libcurl)
-        target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_CURL_CLIENT=1)
+        target_sources(webserver_ai PRIVATE
+            backend/ai/models/OllamaStreamDecoder/OllamaStreamDecoder.cpp
+            backend/ai/models/OllamaModelProvider/OllamaModelProvider.cpp)
+        target_link_libraries(webserver_ai PUBLIC CURL::libcurl)
+        target_compile_definitions(webserver_ai PUBLIC WEBSERVER_HAS_CURL_CLIENT=1)
     endif()
 
     if(WEBSERVER_ENABLE_ONNX_GENAI)
@@ -284,16 +297,16 @@ if(WEBSERVER_ENABLE_PHASE11)
                     "found ${WEBSERVER_ONNX_RUNTIME_VERSION}.")
             endif()
         endif()
-        target_sources(webserver_phase11 PRIVATE
-            server/phase11/ai/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp)
-        target_include_directories(webserver_phase11 PUBLIC
+        target_sources(webserver_ai PRIVATE
+            backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp)
+        target_include_directories(webserver_ai PUBLIC
             ${WEBSERVER_ONNX_RUNTIME_INCLUDE_DIR}
             ${WEBSERVER_ONNX_GENAI_INCLUDE_DIR})
-        target_link_libraries(webserver_phase11 PUBLIC
+        target_link_libraries(webserver_ai PUBLIC
             ${WEBSERVER_ONNX_GENAI_LIBRARY}
             ${WEBSERVER_ONNX_RUNTIME_LIBRARY}
             OpenSSL::Crypto)
-        target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_ONNX_GENAI=1)
+        target_compile_definitions(webserver_ai PUBLIC WEBSERVER_HAS_ONNX_GENAI=1)
 
         # 候选版本登记、真实逐题生成、固定评分与人工激活入口。只有数据库和
         # ONNX Runtime 都已显式启用时才构建，不下载任何模型或依赖。
@@ -314,65 +327,65 @@ add_library(webserver_core)
 
 target_sources(webserver_core PRIVATE
     # core：调度、Reactor、内存与基础设施
-    server/ObjectPool/ObjectPool.cpp
-    server/Route/Router.cpp
-    server/Buffer/Buffer.cpp
-    server/buffer_pool/BufferPoll.cpp
-    server/thread_pool/thread_pool.cpp
-    server/observability/logger/logger.cpp
-    server/SubReactor/SubReactor.cpp
-    server/Reactor/ReactorGroup.cpp
-    server/Runtime/ServerRuntime.cpp
-    server/timer/TimeWheel.cpp
-    server/SegmentPool/SegmentPool.cpp
-    server/CoroutineScheduler/CoroutineScheduler.cpp
-    server/CoroutineScheduler/AWaiter.cpp
+    backend/server/ObjectPool/ObjectPool.cpp
+    backend/server/Route/Router.cpp
+    backend/server/Buffer/Buffer.cpp
+    backend/server/buffer_pool/BufferPoll.cpp
+    backend/server/thread_pool/thread_pool.cpp
+    backend/server/observability/logger/logger.cpp
+    backend/server/SubReactor/SubReactor.cpp
+    backend/server/Reactor/ReactorGroup.cpp
+    backend/server/Runtime/ServerRuntime.cpp
+    backend/server/timer/TimeWheel.cpp
+    backend/server/SegmentPool/SegmentPool.cpp
+    backend/server/CoroutineScheduler/CoroutineScheduler.cpp
+    backend/server/CoroutineScheduler/AWaiter.cpp
 )
 
 target_sources(webserver_core PRIVATE
     # transport：协议无关出站队列与唯一 socket 写入口
-    server/transport/OutboundTask.cpp
-    server/transport/OutboundAdmission.cpp
-    server/transport/TransportWriter.cpp
-    server/transport/OutboundQueue.cpp
+    backend/server/transport/OutboundTask.cpp
+    backend/server/transport/OutboundAdmission.cpp
+    backend/server/transport/TransportWriter.cpp
+    backend/server/transport/OutboundQueue.cpp
 )
 
 target_sources(webserver_core PRIVATE
     # http：协议、会话和响应体
-    server/http/http.cpp
-    server/http/HttpCodec/HttpCodec.cpp
-    server/http/HttpParser/HttpParser.cpp
-    server/http/HttpSession/HttpSession.cpp
-    server/http2/Http2Codec.cpp
-    server/http2/Http2Session.cpp
-    server/tls/TlsContext.cpp
-    server/tls/TlsTransport.cpp
-    server/tls/TlsSession.cpp
-    server/http/RequestContext/RequestContext.cpp
-    server/response/ChunkedBody.cpp
-    server/response/FileBody.cpp
-    server/response/StringBody.cpp
-    server/response/HeaderBody.cpp
+    backend/server/http/http.cpp
+    backend/server/http/HttpCodec/HttpCodec.cpp
+    backend/server/http/HttpParser/HttpParser.cpp
+    backend/server/http/HttpSession/HttpSession.cpp
+    backend/server/http2/Http2Codec.cpp
+    backend/server/http2/Http2Session.cpp
+    backend/server/tls/TlsContext.cpp
+    backend/server/tls/TlsTransport.cpp
+    backend/server/tls/TlsSession.cpp
+    backend/server/http/RequestContext/RequestContext.cpp
+    backend/server/response/ChunkedBody.cpp
+    backend/server/response/FileBody.cpp
+    backend/server/response/StringBody.cpp
+    backend/server/response/HeaderBody.cpp
     # sse：事件编码、长会话和跨 Reactor 订阅目录
-    server/sse/SseCodec.cpp
-    server/sse/SseReplayBuffer.cpp
-    server/sse/SseSession.cpp
-    server/sse/SseSessionManager.cpp
-    server/session/ProtocolSessionFactory.cpp
+    backend/server/sse/SseCodec.cpp
+    backend/server/sse/SseReplayBuffer.cpp
+    backend/server/sse/SseSession.cpp
+    backend/server/sse/SseSessionManager.cpp
+    backend/server/session/ProtocolSessionFactory.cpp
 )
 
 target_sources(webserver_core PRIVATE
     # websocket：握手、编解码、分发、会话、会话工厂与跨 Reactor 定位
-    server/websocket/WebSocketHandshake/WebSocketHandshake.cpp
-    server/websocket/WebSocketCodec/WebSocketCodec.cpp
-    server/websocket/WebSocketParser/WebSocketParser.cpp
-    server/websocket/WebSocketMessageAssembler/WebSocketMessageAssembler.cpp
-    server/websocket/WebSocketValidation/WebSocketValidation.cpp
-    server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp
-    server/websocket/WebSocketDelivery/WebSocketDeliveryService.cpp
-    server/websocket/WebSocketSession/WebSocketSession.cpp
-    server/websocket/WebSocketSessionManager/WebSocketSessionManager.cpp
-    server/websocket/WebSocketDispatcher/WebSocketDispatcher.cpp
+    backend/server/websocket/WebSocketHandshake/WebSocketHandshake.cpp
+    backend/server/websocket/WebSocketCodec/WebSocketCodec.cpp
+    backend/server/websocket/WebSocketParser/WebSocketParser.cpp
+    backend/server/websocket/WebSocketMessageAssembler/WebSocketMessageAssembler.cpp
+    backend/server/websocket/WebSocketValidation/WebSocketValidation.cpp
+    backend/server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp
+    backend/server/websocket/WebSocketDelivery/WebSocketDeliveryService.cpp
+    backend/server/websocket/WebSocketSession/WebSocketSession.cpp
+    backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.cpp
+    backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.cpp
 )
 
 # 设置头文件搜索路径：项目根目录对外暴露
@@ -387,36 +400,47 @@ if(WEBSERVER_ENABLE_PHASE11)
     # HTTP 适配层同时依赖协议核心与 Phase 11 业务核心，因此在两个底层库都定义后
     # 单独组装，避免让领域模型反向依赖 HttpRequest/Router。
     add_library(webserver_phase11_http
-        server/phase11/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp
-        server/phase11/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp
-        server/phase11/transport/http/Phase11FileHttp/Phase11FileHttp.cpp
-        server/phase11/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp
-        server/phase11/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp
-        server/phase11/transport/serialization/MessageJson/MessageJson.cpp
-        server/phase11/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)
+        backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp
+        backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp
+        backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp
+        backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp
+        backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp
+        backend/application/transport/serialization/MessageJson/MessageJson.cpp
+        backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)
     target_include_directories(webserver_phase11_http PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_phase11_http PUBLIC
         webserver_core webserver_phase11)
+    add_library(webserver_private_http backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.cpp)
+    target_include_directories(webserver_private_http PUBLIC ${PROJECT_SOURCE_DIR})
+    target_link_libraries(webserver_private_http PUBLIC webserver_phase11_http webserver_ai)
+    add_subdirectory(backend/application/modules)
 endif()
 
 # ==============================================================================
 # 主程序可执行文件 webserver
 # 服务入口，main.cpp，只负责初始化组件、启动Reactor
 # ==============================================================================
+add_library(function3_assets backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.cpp)
+target_link_libraries(function3_assets PUBLIC webserver_core)
 add_executable(webserver main.cpp)
 # 链接核心业务库
-target_link_libraries(webserver PRIVATE webserver_core)
+target_link_libraries(webserver PRIVATE webserver_core function3_assets)
 if(WEBSERVER_ENABLE_PHASE11)
     target_link_libraries(webserver PRIVATE webserver_phase11_http)
+    target_link_libraries(webserver PRIVATE webserver_private_http)
+    target_link_libraries(webserver PRIVATE function3_assets)
+    if(WEBSERVER_ENABLE_POSTGRES)
+        target_link_libraries(webserver PRIVATE function3_http)
+    endif()
 
     # Web 可执行文件通常从 build 目录启动。每次构建都同步前端资源，避免二进制能启动，
     # 但相对路径找不到 CSS/JavaScript，最终退化成浏览器默认样式。
     add_custom_target(phase11_frontend_assets ALL
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-                "${PROJECT_BINARY_DIR}/frontend"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${PROJECT_SOURCE_DIR}/frontend/phase11"
-                "${PROJECT_BINARY_DIR}/frontend/phase11"
+        COMMAND ${CMAKE_COMMAND}
+                "-DSOURCE=${PROJECT_SOURCE_DIR}/frontend/phase11"
+                "-DDESTINATION=${PROJECT_BINARY_DIR}/frontend/phase11"
+                "-DRUN_DIRECTORY=${PROJECT_BINARY_DIR}"
+                -P "${PROJECT_SOURCE_DIR}/scripts/project/sync_frontend.cmake"
         COMMENT "Syncing Phase 11 frontend assets"
         VERBATIM)
     add_dependencies(webserver phase11_frontend_assets)
@@ -442,7 +466,7 @@ if(WEBSERVER_ENABLE_GRPC)
     endif()
 
     set(WEBSERVER_GRPC_PROTO
-        "${PROJECT_SOURCE_DIR}/server/grpc/proto/web_learning.proto")
+        "${PROJECT_SOURCE_DIR}/backend/server/grpc/proto/web_learning.proto")
     set(WEBSERVER_GRPC_GENERATED_DIR
         "${CMAKE_CURRENT_BINARY_DIR}/generated/grpc")
     file(MAKE_DIRECTORY "${WEBSERVER_GRPC_GENERATED_DIR}")
@@ -466,7 +490,7 @@ if(WEBSERVER_ENABLE_GRPC)
         ARGS
             --grpc_out "${WEBSERVER_GRPC_GENERATED_DIR}"
             --cpp_out "${WEBSERVER_GRPC_GENERATED_DIR}"
-            -I "${PROJECT_SOURCE_DIR}/server/grpc/proto"
+            -I "${PROJECT_SOURCE_DIR}/backend/server/grpc/proto"
             "--plugin=protoc-gen-grpc=${WEBSERVER_GRPC_CPP_PLUGIN}"
             "${WEBSERVER_GRPC_PROTO}"
         DEPENDS "${WEBSERVER_GRPC_PROTO}"
@@ -474,7 +498,7 @@ if(WEBSERVER_ENABLE_GRPC)
         VERBATIM)
 
     add_library(webserver_grpc
-        server/grpc/GrpcServer.cpp
+        backend/server/grpc/GrpcServer.cpp
         ${WEBSERVER_GRPC_PROTO_SRCS}
         ${WEBSERVER_GRPC_PROTO_HDRS}
         ${WEBSERVER_GRPC_SERVICE_SRCS}
@@ -493,15 +517,15 @@ if(WEBSERVER_ENABLE_GRPC)
     target_link_libraries(webserver PRIVATE webserver_grpc)
 
     # 可独立部署/压测的 gRPC 进程。集成 webserver 仍保留，便于对比同进程资源竞争。
-    add_executable(webserver-grpc server/grpc/GrpcMain.cpp)
+    add_executable(webserver-grpc backend/server/grpc/GrpcMain.cpp)
     target_link_libraries(webserver-grpc PRIVATE webserver_grpc)
 
     if(WEBSERVER_ENABLE_PHASE11 AND WEBSERVER_ENABLE_ONNX_GENAI)
         # 独立推理进程与聊天进程的客户端适配器共用同一份生成协议。模型仍只在
         # webserver-onnx-worker 内加载，聊天主进程链接此库不会创建 OgaModel。
         add_library(webserver_phase11_grpc_onnx
-            server/phase11/ai/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp
-            server/phase11/ai/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp)
+            backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp
+            backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp)
         target_include_directories(webserver_phase11_grpc_onnx PUBLIC
             ${PROJECT_SOURCE_DIR}
             ${WEBSERVER_GRPC_GENERATED_DIR})
@@ -512,7 +536,7 @@ if(WEBSERVER_ENABLE_GRPC)
             webserver_sanitizers)
 
         add_executable(webserver-onnx-worker
-            server/phase11/ai/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp)
+            backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp)
         target_link_libraries(webserver-onnx-worker PRIVATE
             webserver_phase11_grpc_onnx)
 
@@ -548,13 +572,16 @@ if(BUILD_TESTING)
         add_executable(phase11_core_tests tests/phase11/unit/core.cpp)
         target_link_libraries(phase11_core_tests PRIVATE webserver_phase11)
         add_test(NAME phase11_core_tests COMMAND phase11_core_tests)
+        add_executable(phase39_private_generation_tests tests/function3/unit/private_generation.cpp)
+        target_link_libraries(phase39_private_generation_tests PRIVATE webserver_ai)
+        add_test(NAME phase39_private_generation_tests COMMAND phase39_private_generation_tests)
         add_executable(phase11_chat_reliability_tests tests/phase11/unit/chat_reliability.cpp)
         target_link_libraries(phase11_chat_reliability_tests PRIVATE webserver_phase11)
         add_test(NAME phase11_chat_reliability_tests COMMAND phase11_chat_reliability_tests)
 
         add_executable(phase11_http_auth_tests tests/phase11/unit/http_auth.cpp)
         target_link_libraries(phase11_http_auth_tests PRIVATE
-            webserver_phase11_http)
+            webserver_phase11_http webserver_private_http)
         add_test(NAME phase11_http_auth_tests COMMAND phase11_http_auth_tests)
         set_tests_properties(phase11_http_auth_tests PROPERTIES TIMEOUT 30)
 
@@ -654,17 +681,17 @@ if(BUILD_TESTING)
 
     add_executable(phase9_foundation_tests
         tests/phase9_foundation.cpp
-        server/sse/SseReplayBuffer.cpp)
+        backend/server/sse/SseReplayBuffer.cpp)
     target_include_directories(phase9_foundation_tests PRIVATE ${PROJECT_SOURCE_DIR})
     target_link_libraries(phase9_foundation_tests PRIVATE webserver_security)
     add_test(NAME phase9_foundation_tests COMMAND phase9_foundation_tests)
 
     add_executable(grpc_message_codec_tests
         tests/grpc_message_codec.cpp
-        server/grpc/learn/GrpcMessageCodec.cpp)
+        backend/server/grpc/learn/GrpcMessageCodec.cpp)
     target_include_directories(grpc_message_codec_tests PRIVATE
         ${PROJECT_SOURCE_DIR}
-        ${PROJECT_SOURCE_DIR}/server/grpc/learn)
+        ${PROJECT_SOURCE_DIR}/backend/server/grpc/learn)
     add_test(NAME grpc_message_codec_tests COMMAND grpc_message_codec_tests)
 
     if(WEBSERVER_ENABLE_GRPC)
@@ -691,7 +718,7 @@ if(BUILD_TESTING)
         COMMAND http2_stream_coroutine_lifecycle)
 
     add_executable(http2_codec_roundtrip
-        tests/http2_codec_roundtrip.cpp server/http2/Http2Codec.cpp)
+        tests/http2_codec_roundtrip.cpp backend/server/http2/Http2Codec.cpp)
     target_include_directories(http2_codec_roundtrip PRIVATE
         ${PROJECT_SOURCE_DIR} ${NGHTTP2_INCLUDE_DIR})
     target_link_libraries(http2_codec_roundtrip PRIVATE ${NGHTTP2_LIBRARY})

@@ -17,7 +17,7 @@ result_root="${PHASE15_RESULT_ROOT:-${project_root}/artifacts/benchmarks/phase15
 socket_dir="${data_root}/postgresql/run"
 service_script="${project_root}/scripts/phase11/webserver-user-service.sh"
 supervisor_script="${project_root}/scripts/phase11/webserver-user-supervisor.sh"
-migration_dir="${project_root}/server/phase11/storage/postgres/migrations"
+migration_dir="${project_root}/backend/application/storage/postgres/migrations"
 
 if [[ "${database}" != phase15_benchmark* ]]; then
     echo "Refusing to reset a database outside the phase15_benchmark namespace." >&2

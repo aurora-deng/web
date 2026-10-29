@@ -1,0 +1,17 @@
+{
+  "sourceFiles": 417,
+  "sourceSha256": "4cbb4dc83866975fc11dab6284aa402f48687fc44e6de26b354803db1cc06633",
+  "scope": "Phase35 daily phase11 read-only acceptance + existing isolated test DB fixtures; no remote push",
+  "evidence": {
+    "asan-ctest.txt": "286830725ac99db8a181f8347b78dbb2ec79f6fd0428bec617b1d7f063ae3bc2",
+    "asan-summary.json": "9964c1bc13d602e4bb8400e0e1a9653a28e43f3c18812d74d5daa29a2841c239",
+    "debug-ctest.txt": "4dca07e3021f8c1ce62ab9d87bcfc86343b5faa766ce3f9461ee182df7ddecf8",
+    "debug-summary.json": "de5a334a60fdcce27f00cfa9bc883abee9fc8be69062073e0f2beb34e285d7e5",
+    "local-delivery.txt": "3550c2107cc56caf63207c492a6f86b1d30fefab816460036e2e5e385468392c",
+    "migration-report.json": "4e4e1335546fce04a9dd0f9d72777e29818397df1d8a27e6fb8260091aefe3be",
+    "read-cache-benchmark.json": "62c2b4ac96aa8167d84d890fb251345aa250254145794ce1c6d3c25264a05d63",
+    "read-cache-first-attempt.json": "0b185ddc5582f1485363af176c331aa32cef639ea786fa5614b934010f31a3c6",
+    "release-ctest.txt": "57fb15a3b3e23e0a10e9a91c1cb63fe69af52eb6c2d1193e8a6fd46107c50bb8",
+    "shared-runtime.json": "1f11a1cab422412d067f859b3bb33fe546bd648b48b94f48276d0ccd39cd7940"
+  }
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "path": "cpp/CMakeLists.txt",
+    "upstreamSha256": "c282483be2e79e08ae6608080f578fde6eb70ee4f2d0396f55d76d09a9c7d18e",
+    "installedSourceSha256": "fc60dc4eebf3b2f4e7ae8cd9b004514a7f30370d55054d6498747247e190d82c"
+  },
+  {
+    "path": "cpp/source/base/CredentialsProvider.cpp",
+    "upstreamSha256": "20253b10a1289502874641f3c8fe854fded7e5917b877e05065e5bd6dbc2357d",
+    "installedSourceSha256": "b2166e1cccdbdf99dad1983923fe24a736397c1a3de9e91829ef6a1b79358f9e"
+  },
+  {
+    "path": "cpp/source/base/include/UniqueIdGenerator.h",
+    "upstreamSha256": "2cbdee769727941ca6dcc5e2702eb77fc38a5124a23a7f3e62885724d873f506",
+    "installedSourceSha256": "edd9ca3243b519d8ca64c709ee44575f097beb015c18afd4c45e4314335e62e9"
+  },
+  {
+    "path": "cpp/source/client/include/ClientManagerImpl.h",
+    "upstreamSha256": "a6924eb62010e118526a42aaaeda171797eabe6e77a5118590d647464df5fdd1",
+    "installedSourceSha256": "7509586532bfd03e4d7edea61631818deab365c713b4ec6e9db5df94f12e9694"
+  },
+  {
+    "path": "cpp/source/client/include/TelemetryBidiReactor.h",
+    "upstreamSha256": "1643ac1c0666a2fa0b56a260db044e84aae8c597a0ce755b04f9068c77c1490d",
+    "installedSourceSha256": "06e7ec6a947449f25fd498a2667d2b33c300c2edeee01b3f4cdfd3dd7c818188"
+  },
+  {
+    "path": "cpp/source/concurrent/include/CountdownLatch.h",
+    "upstreamSha256": "cc35260dd04b73d21498edfce18e190ff58cbf9573af2167525d12b0bb096a6a",
+    "installedSourceSha256": "98faa4fe030f4f9f00f806ece8c1a0fdec2a0635c792bf07f5e1081a6ec15a97"
+  },
+  {
+    "path": "cpp/source/rocketmq/FifoProducerPartition.cpp",
+    "upstreamSha256": "fd641a5604d7ce06c2d71e0f449423af4b97882e5b66fe8ab03e5c25ed8d3e73",
+    "installedSourceSha256": "3a1b31b6ccc31af5b178c7c92451caa5ad5c4dcd9861b3484b3f3ca73187f14e"
+  },
+  {
+    "path": "cpp/source/rocketmq/include/ClientImpl.h",
+    "upstreamSha256": "7667376286c59d7d47e60c914f2ce883f8363640197b9b35f6b6e6776d3ef259",
+    "installedSourceSha256": "5d4a3ba6487139dd24dcd1a348621717603f86d0cf7b88e658664e2b737ed016"
+  },
+  {
+    "path": "cpp/source/rocketmq/include/FifoProducerPartition.h",
+    "upstreamSha256": "ba155c329b130efd072b85f781f44caad8fdc2751f646a887ac9ded949f0c725",
+    "installedSourceSha256": "40aaf48738bceded166e675eef42c1c9f3031465df796a765b4d49d8323ef514"
+  },
+  {
+    "path": "cpp/source/rocketmq/include/ProducerImpl.h",
+    "upstreamSha256": "0fd7f67a5af3171b9762949fd7bf80000ca07569c3fc8173a028bd3a7fd44ee1",
+    "installedSourceSha256": "fabe224267b73980a2ce76d92f4389e9a20a9ae4173aaf21b7a54be3464f166d"
+  },
+  {
+    "path": "cpp/source/rocketmq/include/PushConsumerImpl.h",
+    "upstreamSha256": "638d55c4a92facf77bfef18442779a5f5ff2ab8ebe7d8fd85f168c3958b75f79",
+    "installedSourceSha256": "a6624a00c5f35edd225513e114d399b25ff675a2ec9aa00537c7f15ff831e89d"
+  },
+  {
+    "path": "cpp/source/rocketmq/include/SimpleConsumerImpl.h",
+    "upstreamSha256": "2629e3815c322ece54aa795c9971cba60a237936f2a8d95b3f4aceb3d78d83be",
+    "installedSourceSha256": "d7b2dfc5005d7a3b2bb05c68b239a1bb919792ef8b8ce0546fc0e06a04352e90"
+  },
+  {
+    "path": "cpp/source/rocketmq/include/TopicPublishInfo.h",
+    "upstreamSha256": "fd523e077fa06da2a785686552189bf2929e1e20123d4fce7ef004890c764646",
+    "installedSourceSha256": "14690e3adcdf316cb72f4b301674aadc30e2ed8c7b9cc92350144914622139c7"
+  },
+  {
+    "path": "cpp/source/rocketmq/include/TransactionImpl.h",
+    "upstreamSha256": "bd4533db26fb0e9a203c88b51655218eebf5f0cc362bfecdc73c61bd51113ced",
+    "installedSourceSha256": "3caec91a293c7f0436cf75baf3a130fa8ea0cad4f2612299e07de9510e40dd8e"
+  },
+  {
+    "path": "cpp/source/rocketmq/tests/FifoProducerPartitionTest.cpp",
+    "upstreamSha256": "a50bf9380f11d66c28a94d84b8cc6f2c323b220cc1bb2d66af0d58657cbc6f41",
+    "installedSourceSha256": "e4b38e7538006c02b5570113c812702b965022cbb100108c40dc069e7b87907c"
+  },
+  {
+    "path": "cpp/source/rocketmq/tests/ProducerImplTest.cpp",
+    "upstreamSha256": "23f05f34175fb78f0c24cd491a2d0bb23bf7c3cd78b397743891ff61b9133172",
+    "installedSourceSha256": "6a5d2da9a919020b52a500e1d46e971fc621c6455c54ea6b3920c9cdabdc2580"
+  },
+  {
+    "path": "cpp/source/scheduler/include/SchedulerImpl.h",
+    "upstreamSha256": "55fc409cfc2d5c6b8e252ddfa3cda1aa065edcc495539792a923830a997d7f76",
+    "installedSourceSha256": "1c0e46b10bc46a0159a26fe45da3ec2d2d78b756129fa9f615d8c2b64e756be7"
+  },
+  {
+    "path": "cpp/source/stats/include/MetricBidiReactor.h",
+    "upstreamSha256": "b0dc175f38f5a88df28b7c143be2c1fc159541a3878fc00e1754715ea7f154cc",
+    "installedSourceSha256": "75c70206feb3e06285941360db47a32359a6c91ffb1a7b89e9aba09c28b07328"
+  }
+]

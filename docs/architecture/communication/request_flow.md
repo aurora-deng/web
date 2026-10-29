@@ -77,10 +77,10 @@ SubReactor::loop() → epoll_wait() 返回
 
 | 文件 | 函数 | 行号 | 作用 |
 |------|------|------|------|
-| `server/Runtime/ServerRuntime.cpp` | `acceptLoop()` | — | 主 Reactor，accept 新连接 |
-| `server/SubReactor/SubReactor.cpp` | `addFd()` | L407-L435 | 跨线程安全投递 fd |
-| `server/SubReactor/SubReactor.cpp` | `processPendingFds()` | L438-L477 | 注册 epoll + 创建 Connection/Session/协程 |
-| `server/SubReactor/SubReactor.cpp` | `fd_unblock()` | L214-L219 | 设置 fd 非阻塞 |
+| `backend/server/Runtime/ServerRuntime.cpp` | `acceptLoop()` | — | 主 Reactor，accept 新连接 |
+| `backend/server/SubReactor/SubReactor.cpp` | `addFd()` | L407-L435 | 跨线程安全投递 fd |
+| `backend/server/SubReactor/SubReactor.cpp` | `processPendingFds()` | L438-L477 | 注册 epoll + 创建 Connection/Session/协程 |
+| `backend/server/SubReactor/SubReactor.cpp` | `fd_unblock()` | L214-L219 | 设置 fd 非阻塞 |
 
 ### 关键设计
 
@@ -142,15 +142,15 @@ HttpSession::run() 协程开始执行
 
 | 文件 | 函数 | 行号 | 作用 |
 |------|------|------|------|
-| `server/http/HttpSession/HttpSession.cpp` | `readRequest()` | L43-L100 | 读请求 + 增量解析 |
-| `server/http/HttpParser/HttpParser.cpp` | `parse()` | L6-L106 | 协调三个子解析器的状态机 |
-| `server/http/HttpParser/RequestLineParser.h` | `parse()` | — | 请求行 + query 解析 |
-| `server/http/HttpParser/HeaderParser.h` | `parse()` | — | 首部 + range 解析 |
-| `server/http/HttpParser/BodyParser.h` | `parse()` | — | 正文 + chunked 解析 |
-| `server/http/HttpCodec/HttpCodec.cpp` | `decode()` | L4-L22 | Codec 层包装 parse + reset |
-| `server/SubReactor/SubReactor.cpp` | `recvSocket()` | L247-L320 | 从内核读数据到 readBuffer |
-| `server/SubReactor/SubReactor.cpp` | `wakeReadCoroutine()` | L57-L78 | 唤醒挂起的读协程 |
-| `server/CoroutineScheduler/AWaiter.h` | `ReadAwaiter` | — | 读等待器（co_await 挂起） |
+| `backend/server/http/HttpSession/HttpSession.cpp` | `readRequest()` | L43-L100 | 读请求 + 增量解析 |
+| `backend/server/http/HttpParser/HttpParser.cpp` | `parse()` | L6-L106 | 协调三个子解析器的状态机 |
+| `backend/server/http/HttpParser/RequestLineParser.h` | `parse()` | — | 请求行 + query 解析 |
+| `backend/server/http/HttpParser/HeaderParser.h` | `parse()` | — | 首部 + range 解析 |
+| `backend/server/http/HttpParser/BodyParser.h` | `parse()` | — | 正文 + chunked 解析 |
+| `backend/server/http/HttpCodec/HttpCodec.cpp` | `decode()` | L4-L22 | Codec 层包装 parse + reset |
+| `backend/server/SubReactor/SubReactor.cpp` | `recvSocket()` | L247-L320 | 从内核读数据到 readBuffer |
+| `backend/server/SubReactor/SubReactor.cpp` | `wakeReadCoroutine()` | L57-L78 | 唤醒挂起的读协程 |
+| `backend/server/CoroutineScheduler/AWaiter.h` | `ReadAwaiter` | — | 读等待器（co_await 挂起） |
 
 ### 关键设计
 
@@ -204,14 +204,14 @@ HttpSession::run() 协程恢复
 
 | 文件 | 函数 | 行号 | 作用 |
 |------|------|------|------|
-| `server/http/HttpSession/HttpSession.cpp` | `executor.submit()` | L164 | 提交业务到 Worker 线程 |
-| `server/Executor/Executor.h` | `submit()` | — | 线程池任务提交 |
-| `server/http/HttpCodec/HttpCodec.cpp` | `dispatch()` | L24-L33 | 路由分发 + 响应对象获取 |
-| `server/Route/Router.cpp` | `handle()` | — | 中间件链 + 路由匹配 + handler |
-| `server/SubReactor/SubReactor.cpp` | `notifyExecuteComplete()` | L117-L134 | Worker→Reactor 完成通知（线程安全） |
-| `server/SubReactor/SubReactor.cpp` | `processComplete()` | L138-L166 | 消费完成通知，唤醒协程 |
-| `server/SubReactor/SubReactor.cpp` | `wakeExecuteCoroutine()` | L101-L114 | 唤醒执行完成的协程 |
-| `server/CoroutineScheduler/AWaiter.h` | `ExecuteAwaiter` | — | 执行等待器 |
+| `backend/server/http/HttpSession/HttpSession.cpp` | `executor.submit()` | L164 | 提交业务到 Worker 线程 |
+| `backend/server/Executor/Executor.h` | `submit()` | — | 线程池任务提交 |
+| `backend/server/http/HttpCodec/HttpCodec.cpp` | `dispatch()` | L24-L33 | 路由分发 + 响应对象获取 |
+| `backend/server/Route/Router.cpp` | `handle()` | — | 中间件链 + 路由匹配 + handler |
+| `backend/server/SubReactor/SubReactor.cpp` | `notifyExecuteComplete()` | L117-L134 | Worker→Reactor 完成通知（线程安全） |
+| `backend/server/SubReactor/SubReactor.cpp` | `processComplete()` | L138-L166 | 消费完成通知，唤醒协程 |
+| `backend/server/SubReactor/SubReactor.cpp` | `wakeExecuteCoroutine()` | L101-L114 | 唤醒执行完成的协程 |
+| `backend/server/CoroutineScheduler/AWaiter.h` | `ExecuteAwaiter` | — | 执行等待器 |
 
 ### 关键设计
 
@@ -267,14 +267,14 @@ HttpSession::run() 协程恢复
 
 | 文件 | 函数 | 作用 |
 |------|------|------|
-| `server/http/HttpSession/HttpSession.cpp` | `enqueueOutbound()` | 入站 OutboundTask（HTTP 响应） |
-| `server/transport/OutboundTask.h` | `OutboundTask::http()` | 封装 HTTP 响应出站任务（variant） |
-| `server/transport/OutboundQueue.h` | `enqueueOutbound()` / `reserveOutboundTicket()` | 本线程入队 + 预约顺序票据 |
-| `server/transport/TransportWriter.h` | `flush()` | writev 聚集 / sendfile 零拷贝冲刷 |
-| `server/SubReactor/SubReactor.h` | `writerLoop()` | 每连接专职发件员协程，串行化出站 I/O |
-| `server/http/HttpSession/HttpSession.cpp` | `afterSend()` | 发送完成后恢复/关闭连接 |
-| `server/SubReactor/SubReactor.cpp` | `wakeWriteCoroutine()` | 唤醒写协程（Main + Writer 两个角色） |
-| `server/CoroutineScheduler/AWaiter.h` | `TransportWriteAwaiter` / `SendCompletionAwaiter` | 写等待器 / 发送完成等待器 |
+| `backend/server/http/HttpSession/HttpSession.cpp` | `enqueueOutbound()` | 入站 OutboundTask（HTTP 响应） |
+| `backend/server/transport/OutboundTask.h` | `OutboundTask::http()` | 封装 HTTP 响应出站任务（variant） |
+| `backend/server/transport/OutboundQueue.h` | `enqueueOutbound()` / `reserveOutboundTicket()` | 本线程入队 + 预约顺序票据 |
+| `backend/server/transport/TransportWriter.h` | `flush()` | writev 聚集 / sendfile 零拷贝冲刷 |
+| `backend/server/SubReactor/SubReactor.h` | `writerLoop()` | 每连接专职发件员协程，串行化出站 I/O |
+| `backend/server/http/HttpSession/HttpSession.cpp` | `afterSend()` | 发送完成后恢复/关闭连接 |
+| `backend/server/SubReactor/SubReactor.cpp` | `wakeWriteCoroutine()` | 唤醒写协程（Main + Writer 两个角色） |
+| `backend/server/CoroutineScheduler/AWaiter.h` | `TransportWriteAwaiter` / `SendCompletionAwaiter` | 写等待器 / 发送完成等待器 |
 
 ### 关键设计
 
@@ -377,7 +377,7 @@ Reactor:                     epoll_wait 唤醒
 ### Connection
 
 ```cpp
-// server/transport/Connection.h
+// backend/server/transport/Connection.h
 struct Connection {
     ConnTransport transport;        // 传输层: fd, readBuffer, state
     ConnTimer timer;                // 定时器层: expireSlot
@@ -389,7 +389,7 @@ struct Connection {
 ### Session / HttpSession
 
 ```cpp
-// server/session/Session/Session.h —— 协议抽象基类
+// backend/server/session/Session/Session.h —— 协议抽象基类
 class Session {
   public:
     virtual Task<void> run() = 0;           // 协程入口（纯虚）
@@ -398,7 +398,7 @@ class Session {
     // 无 protocol() —— 子类自持 Codec
 };
 
-// server/http/HttpSession/HttpSession.h —— 继承 Session
+// backend/server/http/HttpSession/HttpSession.h —— 继承 Session
 class HttpSession : public Session {
     int fd_;
     SubReactor *reactor_;
@@ -413,7 +413,7 @@ class HttpSession : public Session {
 ### SubReactor
 
 ```cpp
-// server/SubReactor/SubReactor.h
+// backend/server/SubReactor/SubReactor.h
 class SubReactor {
     int epfd;
     int event_fd;
@@ -458,37 +458,37 @@ class SubReactor {
 
 | 目录 | 文件 | 职责 |
 |------|------|------|
-| `server/Runtime/` | `ServerRuntime.h/cpp` | 服务器运行时，accept loop + ReactorGroup |
-| `server/Reactor/` | `ReactorGroup.h/cpp` | 多 Reactor 管理，round-robin 分发 |
-| `server/SubReactor/` | `SubReactor.h/cpp` | 核心 Reactor，epoll 事件循环 + 协程调度 |
-| `server/Executor/` | `Executor.h` | 业务执行器，封装 ThreadPool |
-| `server/CoroutineScheduler/` | `CoroutineScheduler.h/cpp` | 协程调度器，adopt/schedule/runReady/reap |
-| `server/CoroutineScheduler/` | `AWaiter.h/cpp` | ReadAwaiter/ExecuteAwaiter/TransportWriteAwaiter/SendCompletionAwaiter |
-| `server/CoroutineScheduler/` | `Task.h` | Task 协程包装器，suspend_never |
-| `server/http/HttpSession/` | `HttpSession.h/cpp` | HTTP 会话协程，读→执行→写循环 |
-| `server/http/HttpCodec/` | `HttpCodec.h/cpp` | Codec 层，decode + dispatch 包装 |
-| `server/http/HttpParser/` | `HttpParser.h/cpp` | 解析器协调器，状态机 |
-| `server/http/HttpParser/` | `RequestLineParser.h` | 请求行解析 |
-| `server/http/HttpParser/` | `HeaderParser.h` | 首部解析 |
-| `server/http/HttpParser/` | `BodyParser.h` | 正文/chunked 解析 |
-| `server/transport/` | `OutboundTask.h` | 出站任务（variant 统一 WS 帧/HTTP 响应/广播） |
-| `server/transport/` | `OutboundQueue.h/cpp` | 出站队列（本线程入队 + 跨线程投递 + ticket） |
-| `server/transport/` | `TransportWriter.h/cpp` | writev 聚集 / sendfile 零拷贝冲刷 |
-| `server/transport/` | `Connection.h` | 连接分层（ConnTransport + ConnTimer + session） |
-| `server/session/Session/` | `Session.h` | 协议抽象基类（run() + onTimeout/onClose） |
-| `server/session/` | `SessionFactory.h` | 协议升级工厂抽象（依赖倒置） |
-| `server/websocket/` | `WebSocketSessionFactory.h/cpp` | SessionFactory 实现，创建 WebSocketSession |
-| `server/http/RequestContext/` | `RequestContext.h/cpp` | 请求上下文，请求+响应+参数 |
-| `server/Route/` | `Router.h/cpp` | 路由匹配 + 中间件链 |
-| `server/Buffer/` | `Buffer.h/cpp` | 缓冲区，append/retrieve/find |
-| `server/buffer_pool/` | `BufferPoll.h/cpp` | 缓冲区池 |
-| `server/SegmentPool/` | `SegmentPool.h/cpp` | 段池，TransportWriter 借用 |
-| `server/ObjectPool/` | `ObjectPool.h/cpp` | 对象池，HttpResponse 复用 |
-| `server/timer/` | `TimeWheel.h/cpp` | 时间轮，连接超时管理 |
-| `server/response/` | `RespBody.h` | 响应体抽象基类 |
-| `server/response/` | `StringBody.h/cpp` | 字符串正文 |
-| `server/response/` | `FileBody.h/cpp` | 文件正文（sendfile） |
-| `server/response/` | `ChunkedBody.h/cpp` | chunked 正文 |
-| `server/response/` | `HeaderBody.h/cpp` | 响应头 |
-| `server/thread_pool/` | `thread_pool.h/cpp` | 线程池（Executor 底层） |
-| `server/observability/logger/` | `logger.h/cpp` | 日志系统 |
+| `backend/server/Runtime/` | `ServerRuntime.h/cpp` | 服务器运行时，accept loop + ReactorGroup |
+| `backend/server/Reactor/` | `ReactorGroup.h/cpp` | 多 Reactor 管理，round-robin 分发 |
+| `backend/server/SubReactor/` | `SubReactor.h/cpp` | 核心 Reactor，epoll 事件循环 + 协程调度 |
+| `backend/server/Executor/` | `Executor.h` | 业务执行器，封装 ThreadPool |
+| `backend/server/CoroutineScheduler/` | `CoroutineScheduler.h/cpp` | 协程调度器，adopt/schedule/runReady/reap |
+| `backend/server/CoroutineScheduler/` | `AWaiter.h/cpp` | ReadAwaiter/ExecuteAwaiter/TransportWriteAwaiter/SendCompletionAwaiter |
+| `backend/server/CoroutineScheduler/` | `Task.h` | Task 协程包装器，suspend_never |
+| `backend/server/http/HttpSession/` | `HttpSession.h/cpp` | HTTP 会话协程，读→执行→写循环 |
+| `backend/server/http/HttpCodec/` | `HttpCodec.h/cpp` | Codec 层，decode + dispatch 包装 |
+| `backend/server/http/HttpParser/` | `HttpParser.h/cpp` | 解析器协调器，状态机 |
+| `backend/server/http/HttpParser/` | `RequestLineParser.h` | 请求行解析 |
+| `backend/server/http/HttpParser/` | `HeaderParser.h` | 首部解析 |
+| `backend/server/http/HttpParser/` | `BodyParser.h` | 正文/chunked 解析 |
+| `backend/server/transport/` | `OutboundTask.h` | 出站任务（variant 统一 WS 帧/HTTP 响应/广播） |
+| `backend/server/transport/` | `OutboundQueue.h/cpp` | 出站队列（本线程入队 + 跨线程投递 + ticket） |
+| `backend/server/transport/` | `TransportWriter.h/cpp` | writev 聚集 / sendfile 零拷贝冲刷 |
+| `backend/server/transport/` | `Connection.h` | 连接分层（ConnTransport + ConnTimer + session） |
+| `backend/server/session/Session/` | `Session.h` | 协议抽象基类（run() + onTimeout/onClose） |
+| `backend/server/session/` | `SessionFactory.h` | 协议升级工厂抽象（依赖倒置） |
+| `backend/server/websocket/` | `WebSocketSessionFactory.h/cpp` | SessionFactory 实现，创建 WebSocketSession |
+| `backend/server/http/RequestContext/` | `RequestContext.h/cpp` | 请求上下文，请求+响应+参数 |
+| `backend/server/Route/` | `Router.h/cpp` | 路由匹配 + 中间件链 |
+| `backend/server/Buffer/` | `Buffer.h/cpp` | 缓冲区，append/retrieve/find |
+| `backend/server/buffer_pool/` | `BufferPoll.h/cpp` | 缓冲区池 |
+| `backend/server/SegmentPool/` | `SegmentPool.h/cpp` | 段池，TransportWriter 借用 |
+| `backend/server/ObjectPool/` | `ObjectPool.h/cpp` | 对象池，HttpResponse 复用 |
+| `backend/server/timer/` | `TimeWheel.h/cpp` | 时间轮，连接超时管理 |
+| `backend/server/response/` | `RespBody.h` | 响应体抽象基类 |
+| `backend/server/response/` | `StringBody.h/cpp` | 字符串正文 |
+| `backend/server/response/` | `FileBody.h/cpp` | 文件正文（sendfile） |
+| `backend/server/response/` | `ChunkedBody.h/cpp` | chunked 正文 |
+| `backend/server/response/` | `HeaderBody.h/cpp` | 响应头 |
+| `backend/server/thread_pool/` | `thread_pool.h/cpp` | 线程池（Executor 底层） |
+| `backend/server/observability/logger/` | `logger.h/cpp` | 日志系统 |

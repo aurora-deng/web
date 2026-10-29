@@ -39,13 +39,13 @@ flowchart TD
 
 ## 3. 代码怎样接起来
 
-1. [`TlsContext.cpp`](../../../server/tls/TlsContext.cpp) 载入 PEM 证书链和私钥、检查配对、设置最低 TLS 1.3，并在 ALPN 回调里按长度前缀解析客户端列表，优先选 `h2`，其次 `http/1.1`；无可接受协议则拒绝握手。`SSL_CTX` 由共享对象持有，覆盖所有连接生命周期。
-2. [`ServerRuntime.cpp`](../../../server/Runtime/ServerRuntime.cpp) 根据 `WEB_TLS_CERT`/`WEB_TLS_KEY` 可选建立第二个监听 fd。acceptor 把“这是 TLS 端口”连同 fd 经 [`ReactorGroup`](../../../server/Reactor/ReactorGroup.cpp) 传到 [`SubReactor`](../../../server/SubReactor/SubReactor.cpp)，不靠猜测首包。未设置证书时只启动原有明文端口。
-3. [`Connection.h`](../../../server/transport/Connection.h) 增加可选的 `TlsTransport`。TLS fd 的初始协议会话是 [`TlsSession.cpp`](../../../server/tls/TlsSession.cpp)：`SSL_accept` 遇 `WANT_READ/WANT_WRITE` 时让根协程挂起；握手完成后读取 ALPN，创建 `Http2Session` 或 `HttpSession` 并把主协程交接给它。
-4. [`TlsTransport.cpp`](../../../server/tls/TlsTransport.cpp) 把 OpenSSL 返回值转为 `Done/WantRead/WantWrite/Closed/Error`；`SSL_write_ex` 未完成时保存**同一份字节和长度**供下次重试。这个缓冲是为满足 OpenSSL 的重试契约，不是新的无限出站队列。[OpenSSL `SSL_write` 文档](https://docs.openssl.org/3.4/man3/SSL_write/)说明了相同参数重试要求。
+1. [`TlsContext.cpp`](../../../backend/server/tls/TlsContext.cpp) 载入 PEM 证书链和私钥、检查配对、设置最低 TLS 1.3，并在 ALPN 回调里按长度前缀解析客户端列表，优先选 `h2`，其次 `http/1.1`；无可接受协议则拒绝握手。`SSL_CTX` 由共享对象持有，覆盖所有连接生命周期。
+2. [`ServerRuntime.cpp`](../../../backend/server/Runtime/ServerRuntime.cpp) 根据 `WEB_TLS_CERT`/`WEB_TLS_KEY` 可选建立第二个监听 fd。acceptor 把“这是 TLS 端口”连同 fd 经 [`ReactorGroup`](../../../backend/server/Reactor/ReactorGroup.cpp) 传到 [`SubReactor`](../../../backend/server/SubReactor/SubReactor.cpp)，不靠猜测首包。未设置证书时只启动原有明文端口。
+3. [`Connection.h`](../../../backend/server/transport/Connection.h) 增加可选的 `TlsTransport`。TLS fd 的初始协议会话是 [`TlsSession.cpp`](../../../backend/server/tls/TlsSession.cpp)：`SSL_accept` 遇 `WANT_READ/WANT_WRITE` 时让根协程挂起；握手完成后读取 ALPN，创建 `Http2Session` 或 `HttpSession` 并把主协程交接给它。
+4. [`TlsTransport.cpp`](../../../backend/server/tls/TlsTransport.cpp) 把 OpenSSL 返回值转为 `Done/WantRead/WantWrite/Closed/Error`；`SSL_write_ex` 未完成时保存**同一份字节和长度**供下次重试。这个缓冲是为满足 OpenSSL 的重试契约，不是新的无限出站队列。[OpenSSL `SSL_write` 文档](https://docs.openssl.org/3.4/man3/SSL_write/)说明了相同参数重试要求。
 5. `SubReactor::recvSocket` 对 TLS 连接调用 `SSL_read_ex`；`updateEvent` 与事件分发让“读想写”“写想读”映射到正确的 epoll 唤醒。[OpenSSL `SSL_read` 文档](https://docs.openssl.org/3.0/man3/SSL_read/)明确指出两种 WANT 都可能出现。原有 1 MiB 读缓冲水位和连接身份检查继续适用。
-6. [`TransportWriter.cpp`](../../../server/transport/TransportWriter.cpp) 是统一出站入口。明文连接保留原 `writev/sendfile`；TLS 连接每次最多取 16 KiB 明文，经 `SSL_write_ex` 成功后才推进任务游标和 ticket。文件型响应改用 `pread` 取片段；TLS 下没有明文路径的 `sendfile` 零拷贝收益。
-7. [`HttpSession.cpp`](../../../server/http/HttpSession/HttpSession.cpp) 只在明文连接识别 h2c 前言。TLS `http/1.1` 由 ALPN 已经定好，不能再通过应用字节把它偷偷切成 h2。
+6. [`TransportWriter.cpp`](../../../backend/server/transport/TransportWriter.cpp) 是统一出站入口。明文连接保留原 `writev/sendfile`；TLS 连接每次最多取 16 KiB 明文，经 `SSL_write_ex` 成功后才推进任务游标和 ticket。文件型响应改用 `pread` 取片段；TLS 下没有明文路径的 `sendfile` 零拷贝收益。
+7. [`HttpSession.cpp`](../../../backend/server/http/HttpSession/HttpSession.cpp) 只在明文连接识别 h2c 前言。TLS `http/1.1` 由 ALPN 已经定好，不能再通过应用字节把它偷偷切成 h2。
 
 ## 4. TLS 理论、适用场景与当前边界
 
@@ -87,6 +87,6 @@ Windows 上已从 [MSYS2 官方 OpenSSL 开发包](https://packages.msys2.org/pa
 
 ## 6. 独立教学版怎么学
 
-[`server/tls/learn`](../../../server/tls/learn/README.md) 有两段独立练习：`Record.h`/`record_main.cpp` 手写 TLS **外层 5 字节记录信封**的增量拆包；`main.cpp` 用一对内存 BIO 连接教学客户端和服务端，执行真实 TLS 1.3 握手，观察 ALPN 列表、`WANT_*` 重试、协商结果和加密应用字节的往返。前一段只处理合成记录，不解密；后一段的密码学和真实记录层仍由 OpenSSL 完成。它们没有 socket、epoll、Router，也不编进生产 `webserver_core`。阅读顺序是：先看记录边界，再看 `selectAlpn()` 的长度前缀和交替调用 `SSL_do_handshake()`，最后把 `SSL_write_ex/SSL_read_ex` 对到生产 `TlsTransport` 和 `TransportWriter`。两段演示都已在 Windows g++ 下实际编译运行；OpenSSL 内存双端分别验证了 ALPN `h2` 和 `http/1.1`。
+[`backend/server/tls/learn`](../../../backend/server/tls/learn/README.md) 有两段独立练习：`Record.h`/`record_main.cpp` 手写 TLS **外层 5 字节记录信封**的增量拆包；`main.cpp` 用一对内存 BIO 连接教学客户端和服务端，执行真实 TLS 1.3 握手，观察 ALPN 列表、`WANT_*` 重试、协商结果和加密应用字节的往返。前一段只处理合成记录，不解密；后一段的密码学和真实记录层仍由 OpenSSL 完成。它们没有 socket、epoll、Router，也不编进生产 `webserver_core`。阅读顺序是：先看记录边界，再看 `selectAlpn()` 的长度前缀和交替调用 `SSL_do_handshake()`，最后把 `SSL_write_ex/SSL_read_ex` 对到生产 `TlsTransport` 和 `TransportWriter`。两段演示都已在 Windows g++ 下实际编译运行；OpenSSL 内存双端分别验证了 ALPN `h2` 和 `http/1.1`。
 
 **阶段结论**：Phase 6 的 h2 帧/stream/HPACK 没有重写；Phase 7 在它外面加了独立 TLS 入口、ALPN 会话选择和全链路加密读写。下一步应先完成 Linux 真实网络验收，再评估证书轮换、SNI、多证书、TLS 关闭通知和 HTTP/2 大响应公平调度。

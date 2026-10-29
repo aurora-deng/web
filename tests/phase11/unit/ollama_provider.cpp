@@ -1,5 +1,5 @@
-#include "server/phase11/ai/OllamaModelProvider/OllamaModelProvider.h"
-#include "server/phase11/ai/OllamaStreamDecoder/OllamaStreamDecoder.h"
+#include "backend/ai/models/OllamaModelProvider/OllamaModelProvider.h"
+#include "backend/ai/models/OllamaStreamDecoder/OllamaStreamDecoder.h"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>

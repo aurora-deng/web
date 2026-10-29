@@ -9,7 +9,7 @@ postgres_root="${PHASE11_POSTGRES_ROOT:-${phase11_home}/phase11-deps/postgresql/
 database="${1:-phase11}"
 pgpass_file="${2:-${phase11_home}/phase11-data/secrets/phase11.pgpass}"
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-migration_dir="${project_root}/server/phase11/storage/postgres/migrations"
+migration_dir="${project_root}/backend/application/storage/postgres/migrations"
 psql_bin="${postgres_root}/bin/psql"
 
 [[ -x "${psql_bin}" ]] || { echo "psql is missing below ${postgres_root}." >&2; exit 1; }

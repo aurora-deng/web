@@ -1,0 +1,59 @@
+{
+  "baseline": {
+    "runs": [
+      {
+        "round": 1,
+        "pid": 60522,
+        "fastQps": 56267.73,
+        "ackP99Ms": 18.923,
+        "mixedErrors": 0
+      },
+      {
+        "round": 2,
+        "pid": 60887,
+        "fastQps": 54655.42,
+        "ackP99Ms": 17.623,
+        "mixedErrors": 0
+      },
+      {
+        "round": 3,
+        "pid": 60956,
+        "fastQps": 56067.27,
+        "ackP99Ms": 20.565,
+        "mixedErrors": 0
+      }
+    ],
+    "medianFastQps": 56067.27,
+    "medianAckP99Ms": 18.923
+  },
+  "current": {
+    "runs": [
+      {
+        "round": 1,
+        "pid": 60591,
+        "fastQps": 28947.87,
+        "ackP99Ms": 35.83,
+        "mixedErrors": 0
+      },
+      {
+        "round": 2,
+        "pid": 60705,
+        "fastQps": 51330.73,
+        "ackP99Ms": 28.863,
+        "mixedErrors": 0
+      },
+      {
+        "round": 3,
+        "pid": 61025,
+        "fastQps": 55303.26,
+        "ackP99Ms": 30.816,
+        "mixedErrors": 0
+      }
+    ],
+    "medianFastQps": 51330.73,
+    "medianAckP99Ms": 30.816
+  },
+  "fastRegressionPercent": 8.447959032069862,
+  "ackP99IncreasePercent": 62.849442477408445,
+  "gatesPassed": false
+}
