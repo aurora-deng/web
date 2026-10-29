@@ -1,0 +1,31 @@
+{
+  "configuration": "debug",
+  "checks": [
+    "DPAPI cookie restored and revalidated by Linux after client restart",
+    "loopback bootstrap, real TLS register/login, server cookie kept out of browser",
+    "separate histories, shared confirmed memories, consent-gated CJK retrieval, real DOCX parser",
+    "legacy private knowledge copied, C++ OpenSSL/BCrypt digest agreement, local consent default off, explicit and duplicate purge",
+    "actual Agent message/profile writes, payload substitution rejected, repeated confirmation dedup, server replay preserves later profile edit",
+    "account switch rejects stale actor and isolates documents, memories and threads",
+    "real Edge: upstream WebSocket ACK, SSE, viewport layout, private sidebar"
+  ],
+  "certificateTrust": "process-local, confirmed fingerprint",
+  "target": "existing isolated TLS 18444",
+  "idleWorkingSetMiB": 13.004,
+  "httpPool": {
+    "connected": 6,
+    "reused": 28,
+    "discarded": 3,
+    "readRetries": 0,
+    "failures": 0,
+    "active": 0,
+    "idle": 3
+  },
+  "passed": true,
+  "resources": {
+    "samples": 32,
+    "peakWorkingSetMiB": 16.418,
+    "scope": "native companion process only; browser excluded"
+  },
+  "gracefulShutdown": true
+}

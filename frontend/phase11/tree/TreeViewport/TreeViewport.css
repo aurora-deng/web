@@ -1,0 +1,15 @@
+/* Copy and scene have separate hit-test/layout regions; no GPU readback or extra postprocessing. */
+@media(min-width:761px) {
+  .tree-stage { display:grid; grid-template-columns:minmax(190px,28%) minmax(0,1fr); }
+  .tree-stage #scene { position:absolute; left:28%; right:0; width:72%; height:100%; }
+  /* The old overlay's 44% max-width must not shrink the new grid column again. */
+  body[data-workspace=tree] .tree-stage .scene-heading { position:relative; inset:auto; align-self:center; margin:0; padding:24px; width:100%; max-width:none; z-index:2; pointer-events:none; }
+  body[data-workspace=tree] .tree-stage .scene-heading h2 { font-size:clamp(25px,2.2vw,40px); letter-spacing:.08em; }
+  body[data-workspace=tree] .tree-stage .scene-heading p { max-width:240px; line-height:1.9; }
+  .tree-stage .scene-badge { white-space:normal; line-height:1.8; }
+  .tree-stage .scene-vignette { pointer-events:none; }
+}
+@media(max-width:760px) {
+  .tree-stage #scene { inset:0; width:100%; height:100%; }
+  .tree-stage .scene-heading { display:none; }
+}

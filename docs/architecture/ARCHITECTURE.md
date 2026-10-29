@@ -505,3 +505,5 @@ flowchart TB
 新增 Tree、Ranking、Announcement、Moderation、Admin、Messaging 与 Speech 模块，沿用原网络核心、账号、聊天、文件和模型服务。Phase35再增加独立Cache端口与Redis适配器，只缓存可重建的公共查询，不承担身份或消息持久化。
 
 从 socket、协议路由、业务事务、可选MQ/本地持久投递、排名到 TTS，以及授权训练和模型切换的完整大图，见 [Function3 端到端架构](business/function3-end-to-end.md)。历史验证与性能限制见 [Phase34](business/phase34.md)，当前原库、语音、Redis与界面改进见[Phase35](business/phase35.md)。
+
+Phase43–47保持本通信核心不变，业务工作区与三端总图见[最新端到端图](business/phase43-47-end-to-end.md)。

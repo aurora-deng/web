@@ -17,6 +17,7 @@ public:
         phase11::BoundedExecutor &executor,SseSessionManager &sse,phase11::IFileBusiness &files,phase11::ISocialBusiness&social,WebSocketSessionManager &websockets,
         phase11::IModelRepository&models,phase11::ModelRegistryService&registry,phase11::ModelEvaluationService&evaluation,std::function<void(std::uint64_t)>invalidatePrivateKnowledge={});
     ~Function3Runtime();
+    void stop() noexcept;
     Function3Runtime(const Function3Runtime&)=delete;
     Function3Runtime&operator=(const Function3Runtime&)=delete;
     void registerRoutes(Router &router);

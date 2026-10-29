@@ -6,9 +6,12 @@
 
 | 主题 | 入口 |
 |---|---|
+| 本轮交付与性能未通过记录 | [Phase47](architecture/business/phase47.md) |
+| 本轮完整架构与代码索引 | [总图](architecture/business/phase43-47-end-to-end.md)、[索引](architecture/business/phase43-47-code-index.md) |
+| 本轮业务接入教学 | [从用户操作到事务和Outbox](architecture/business/phase43-47-teaching.md) |
 | 当前系统和版本对比 | [项目 README](../README.md) |
-| 当前三端与AI完整总图 | [Phase36–41端到端](architecture/business/phase36-41-end-to-end.md) |
-| 当前组件文件索引 | [Phase36–41代码索引](architecture/business/phase36-41-code-index.md) |
+| Phase36–41三端基线图 | [Phase36–41端到端](architecture/business/phase36-41-end-to-end.md) |
+| Phase36–41组件索引 | [Phase36–41代码索引](architecture/business/phase36-41-code-index.md) |
 | 本轮回归、性能与限制 | [Phase41](architecture/business/phase41.md) |
 | 保持架构的响应优化与神树美化 | [Phase42](architecture/business/phase42.md) |
 | Windows本机与Linux隔离预览 | [启动与停止](ops/phase36-41-local-preview.md) |
@@ -77,3 +80,5 @@
 - [端到端架构大图](architecture/business/function3-end-to-end.md)
 - [代码组件索引](architecture/business/function3-code-index.md)
 - [Function3 数据表](database/function3-tables.md)
+
+本轮：[Phase43–47实施台账](architecture/business/phase43-47-progress.md)、[验收](architecture/business/phase47.md)、[业务接入教学](architecture/business/phase43-47-teaching.md)、[完整端到端图](architecture/business/phase43-47-end-to-end.md)。

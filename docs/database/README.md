@@ -584,3 +584,5 @@ ORDER BY r.created_at DESC, c.rank;
 这里的“私人推理不落正文”指新增限时 `/api/ai/private/generations` 链路，不代表旧服务器AI历史已经自动清除，也不代表数据库备份自动删除。迁移范围和明确清除步骤见[Phase39](../architecture/business/phase39.md)。新迁移目前只应用到既有隔离测试库；正式原库和68个原账号未切换。应用不自动执行迁移。
 
 Phase42没有新增表和迁移：神树分页改为正文、标签、媒体三次批量查询，仍使用现有表、索引及可见范围判断；批量ID读取不会绕过隐藏/删除状态。详见[Phase42](../architecture/business/phase42.md)。
+
+迁移024：[会话偏好与读取索引](phase43-47-chat-workspace.md)，仅在已有隔离库验证，原业务库未自动升级。

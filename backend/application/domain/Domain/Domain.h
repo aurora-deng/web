@@ -155,6 +155,8 @@ struct ConversationSummary
     TimePoint lastMessageAt{};
     bool notificationsMuted = false;
     bool containsAi = false;
+    std::optional<UserId> peerUserId;
+    std::uint64_t preferencesRevision = 0;
 };
 
 struct MessageModelTrace

@@ -1,0 +1,70 @@
+{
+  "passed": true,
+  "policy": "both paths use verified pooled TLS; each round excludes warmup",
+  "rounds": [
+    {
+      "round": 1,
+      "direct": {
+        "samples": 30,
+        "connectionPolicy": "verified pooled TLS, warmup excluded",
+        "p50Ms": 15.6854,
+        "p95Ms": 62.3356
+      },
+      "proxy": {
+        "samples": 30,
+        "p50Ms": 61.747,
+        "p95Ms": 93.236
+      },
+      "p50AddedMs": 46.062,
+      "errors": 0
+    },
+    {
+      "round": 2,
+      "proxy": {
+        "samples": 30,
+        "p50Ms": 39.314,
+        "p95Ms": 92.954
+      },
+      "direct": {
+        "samples": 30,
+        "connectionPolicy": "verified pooled TLS, warmup excluded",
+        "p50Ms": 30.7858,
+        "p95Ms": 59.8167
+      },
+      "p50AddedMs": 8.528,
+      "errors": 0
+    },
+    {
+      "round": 3,
+      "direct": {
+        "samples": 30,
+        "connectionPolicy": "verified pooled TLS, warmup excluded",
+        "p50Ms": 0.8096,
+        "p95Ms": 1.1605
+      },
+      "proxy": {
+        "samples": 30,
+        "p50Ms": 61.405,
+        "p95Ms": 92.626
+      },
+      "p50AddedMs": 60.595,
+      "errors": 0
+    }
+  ],
+  "pool": {
+    "connected": 2,
+    "reused": 92,
+    "discarded": 1,
+    "readRetries": 1,
+    "failures": 1,
+    "active": 0,
+    "idle": 1
+  },
+  "recoveredReadAttempts": 1,
+  "resources": {
+    "samples": 28,
+    "peakWorkingSetMiB": 13.156,
+    "scope": "native companion process only; browser excluded"
+  },
+  "gracefulShutdown": true
+}

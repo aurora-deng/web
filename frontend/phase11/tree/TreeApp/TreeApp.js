@@ -1,11 +1,11 @@
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js';
-import { openTreeAuthor } from '../../shared/TreeAuthorCard/TreeAuthorCard.js';
-import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js';
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=4ec58ab3c1e38adb';
+import { openTreeAuthor } from '../../shared/TreeAuthorCard/TreeAuthorCard.js?v=4ec58ab3c1e38adb';
+import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=4ec58ab3c1e38adb';
 mountNavigation('tree');
-import { VoiceRecorder } from '../VoiceRecorder/VoiceRecorder.js';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js';
-import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js';
-import { formatShortDateTime, formatChatTime } from '../../shared/TimeFormat/TimeFormat.js';
+import { VoiceRecorder } from '../VoiceRecorder/VoiceRecorder.js?v=4ec58ab3c1e38adb';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=4ec58ab3c1e38adb';
+import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=4ec58ab3c1e38adb';
+import { formatShortDateTime, formatChatTime } from '../../shared/TimeFormat/TimeFormat.js?v=4ec58ab3c1e38adb';
 
 const randomId = () => globalThis.crypto?.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2,'0')).join('');
 const $ = selector => document.querySelector(selector);
@@ -144,7 +144,7 @@ async function start(){
     for(const category of state.categories){for(const selector of ['#category-filter','#publish-category']){const option=el('option',category.name);option.value=category.id;$(selector).append(option);}}
     switchView(location.hash.slice(1)||'tree');
     // 网络读取与3D模块加载并行，树形无需等待榜单的全部数据才能出现。
-    const sceneReady=import('../TreeScene/TreeScene.js').then(({TreeScene})=>{scene=new TreeScene($('#scene'),openPost);scene.setVisible(document.body.dataset.treeView==='tree');updateScene();}).catch(()=>{document.body.classList.add('list-mode');$('#view-toggle').disabled=true;$('#status').textContent='此设备无法使用三维场景，已切换完整列表模式。';});
+    const sceneReady=import('../TreeScene/TreeScene.js?v=4ec58ab3c1e38adb').then(({TreeScene})=>{scene=new TreeScene($('#scene'),openPost);scene.setVisible(document.body.dataset.treeView==='tree');updateScene();}).catch(()=>{document.body.classList.add('list-mode');$('#view-toggle').disabled=true;$('#status').textContent='此设备无法使用三维场景，已切换完整列表模式。';});
     await Promise.all([load(),ranking(),sceneReady]);
     const selectedPost=new URL(location.href).searchParams.get('post');if(selectedPost)openPost(selectedPost);
     new AnnouncementPlayer(api,$('#announcements'),{connectEvents:true}).start();

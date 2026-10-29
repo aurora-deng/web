@@ -1,6 +1,8 @@
-# web-test 2.0 · Function3 本地开发版（Phase 28–42）
+# web-test 2.0 · Function3 本地开发版（Phase 28–47）
 
-> 正在实施 Phase36–41：已完成聊天布局与目录边界、统一动态/个人主页等阶段验证；Windows本地私人助手、三形态AI、个人语音设置已完成主要链路联调，功能及规定测试已执行；ACK尾延迟门槛仍有未达标项，真实云语音缺Key未验收。参见 [Phase36](docs/architecture/business/phase36.md)、[Phase37](docs/architecture/business/phase37.md) 和 [实施台账](docs/architecture/business/function3-progress.md)。这批变更尚未替换18090运行服务，也未推送远程。
+> 本轮Phase43–47：[进度与验收](docs/architecture/business/phase43-47-progress.md)、[接入教学](docs/architecture/business/phase43-47-teaching.md)、[端到端图](docs/architecture/business/phase43-47-end-to-end.md)。通信核心冻结，新增聊天搜索/上下文/会话免打扰，前端按水位与版本收敛。功能回归通过；第2轮ACK P99超过门槛，详见[Phase47](docs/architecture/business/phase47.md)。源码更新不代表日常服务已部署。
+
+> 已保留的 Phase36–41 历史成果：已完成聊天布局与目录边界、统一动态/个人主页等阶段验证；Windows本地私人助手、三形态AI、个人语音设置已完成主要链路联调，功能及规定测试已执行；ACK尾延迟门槛仍有未达标项，真实云语音缺Key未验收。参见 [Phase36](docs/architecture/business/phase36.md)、[Phase37](docs/architecture/business/phase37.md) 和 [实施台账](docs/architecture/business/function3-progress.md)。这批变更尚未替换18090运行服务，也未推送远程。
 
 
 当前本地分支为 `feature/function3-tree`，在 Function2.1 上增加模块化社区神树、站点管理、RocketMQ 事件管道、七日榜与本地男女公告语音，并优化业务派发、历史列表和重连保护。

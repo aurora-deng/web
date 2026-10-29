@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "runtimeVersion": {
+    "sourceFingerprint": "191de9047728fe83df8b715a6a1cb21595446e6c1e16a5dbf436d89c15a5f35a",
+    "revision": "source-snapshot",
+    "requiredMigration": 24,
+    "testResults": "see phase43-47 evidence; not a runtime health assertion",
+    "schemaVerifiedAtStartup": true
+  },
+  "assets": {
+    "version": "4ec58ab3c1e38adb",
+    "nativeFiles": 72,
+    "vendor": "three-r186 (unchanged)",
+    "includesDynamicReferences": true
+  },
+  "finalBinarySha256": "916671401541cf1e62d4229b25ee53e8170ce0933e99cea14a800b862efa2598",
+  "checks": [
+    "source fingerprint matches latest public frontend and C++",
+    "schema 24 verified at startup",
+    "served asset graph matches source",
+    "public status page records failed performance gate"
+  ],
+  "notDeployedToDailyService": true
+}

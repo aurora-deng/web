@@ -1,0 +1,332 @@
+[  1%] Building CXX object CMakeFiles/webserver_application_support.dir/backend/application/runtime/BoundedExecutor/BoundedExecutor.cpp.o
+[  1%] Built target webserver_security
+[  1%] Building CXX object CMakeFiles/webserver_chat_workspace.dir/backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.cpp.o
+[  1%] Linking CXX static library libwebserver_application_support.a
+[  2%] Built target webserver_application_support
+[  3%] Linking CXX static library libwebserver_chat_workspace.a
+[ 19%] Built target webserver_core
+[ 19%] Building CXX object CMakeFiles/webserver_runtime_config.dir/backend/application/config/RuntimeConfig/RuntimeConfig.cpp.o
+[ 19%] Built target webserver_chat_workspace
+[ 20%] Building CXX object backend/application/modules/CMakeFiles/function3_tree.dir/tree/application/TreeService/TreeService.cpp.o
+[ 20%] Linking CXX static library libwebserver_runtime_config.a
+[ 20%] Built target webserver_runtime_config
+[ 20%] Stamping public source fingerprint (no runtime secrets)
+[ 20%] Built target project_build_stamp
+[ 21%] Syncing Phase 11 frontend assets
+[ 21%] Built target phase11_frontend_assets
+[ 23%] Built target webserver_grpc
+[ 23%] Building CXX object backend/application/modules/CMakeFiles/function3_activities.dir/activities/application/ActivityService/ActivityService.cpp.o
+[ 23%] Linking CXX static library libfunction3_tree.a
+[ 23%] Built target function3_tree
+[ 24%] Built target function3_private_archive
+[ 25%] Built target function3_ranking
+[ 26%] Built target function3_admin
+[ 26%] Building CXX object backend/application/modules/CMakeFiles/function3_moderation.dir/moderation/application/ModerationService/ModerationService.cpp.o
+[ 27%] Linking CXX static library libfunction3_activities.a
+[ 27%] Built target function3_activities
+[ 28%] Built target function3_messaging
+[ 29%] Built target nebula_speech_core
+[ 30%] Built target function3_cache
+[ 30%] Building CXX object CMakeFiles/function3_runtime_config.dir/tests/function3/unit/runtime_config.cpp.o
+[ 30%] Linking CXX static library libfunction3_moderation.a
+[ 30%] Built target function3_moderation
+[ 31%] Building CXX object CMakeFiles/function3_business_shutdown.dir/tests/function3/unit/business_shutdown.cpp.o
+[ 32%] Linking CXX executable function3_runtime_config
+[ 32%] Built target function3_runtime_config
+[ 32%] Built target webserver-grpc
+[ 33%] Built target phase9_foundation_tests
+[ 34%] Built target grpc_message_codec_tests
+[ 35%] Built target grpc_integration
+[ 36%] Built target http2_stream_coroutine_lifecycle
+[ 37%] Built target http2_codec_roundtrip
+[ 39%] Built target webserver_unit_tests
+[ 39%] Building CXX object backend/application/modules/CMakeFiles/function3_tree_memory.dir/tree/infrastructure/InMemoryTreeRepository/InMemoryTreeRepository.cpp.o
+[ 39%] Linking CXX executable function3_business_shutdown
+[ 39%] Built target function3_business_shutdown
+[ 39%] Built target function3_speech_policy
+[ 40%] Built target function3-tts-worker
+[ 40%] Built target function3_redis_contract
+[ 41%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp.o
+[ 41%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/models/ModelEvaluationService/ModelEvaluationService.cpp.o
+[ 41%] Linking CXX static library libfunction3_tree_memory.a
+[ 41%] Built target function3_tree_memory
+[ 41%] Building CXX object CMakeFiles/function3_assets.dir/backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.cpp.o
+[ 41%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/models/ModelRegistryService/ModelRegistryService.cpp.o
+[ 41%] Linking CXX static library libfunction3_assets.a
+[ 41%] Built target function3_assets
+[ 42%] Built target function3_rocketmq
+[ 42%] Built target function3_announcement
+[ 43%] Built target function3_speech
+[ 44%] Linking CXX executable function3_rocketmq_roundtrip
+[ 44%] Built target function3_rocketmq_roundtrip
+[ 45%] Building CXX object backend/application/modules/CMakeFiles/function3_tree_contract.dir/__/__/__/tests/function3/unit/tree_contract.cpp.o
+[ 46%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/models/RagService/RagService.cpp.o
+[ 46%] Linking CXX executable function3_tree_contract
+[ 46%] Built target function3_tree_contract
+[ 46%] Building CXX object backend/application/modules/CMakeFiles/function3_activities_contract.dir/__/__/__/tests/function3/unit/activities_contract.cpp.o
+[ 46%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/models/ResilientModelProvider/ResilientModelProvider.cpp.o
+[ 46%] Linking CXX executable function3_activities_contract
+[ 46%] Built target function3_activities_contract
+[ 46%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp.o
+[ 47%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/private/infrastructure/PrivateModelRouter/PrivateModelRouter.cpp.o
+[ 47%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp.o
+[ 48%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/training/TrainingDataService/TrainingDataService.cpp.o
+[ 48%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/models/OllamaModelProvider/OllamaModelProvider.cpp.o
+[ 49%] Building CXX object CMakeFiles/webserver_ai.dir/backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp.o
+[ 49%] Linking CXX static library libwebserver_ai.a
+[ 49%] Built target webserver_ai
+[ 49%] Building CXX object CMakeFiles/phase39_private_generation_tests.dir/tests/function3/unit/private_generation.cpp.o
+[ 49%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/storage/InMemoryStore/InMemoryStore.cpp.o
+[ 50%] Linking CXX executable phase39_private_generation_tests
+[ 50%] Built target phase39_private_generation_tests
+[ 51%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.cpp.o
+[ 51%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp.o
+[ 51%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/business/AuthService/AuthService.cpp.o
+[ 52%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/business/SocialService/SocialService.cpp.o
+[ 52%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/business/ChatService/ChatService.cpp.o
+[ 52%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/business/FileService/FileService.cpp.o
+[ 53%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/business/AiChatService/AiChatService.cpp.o
+[ 53%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.cpp.o
+[ 53%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp.o
+[ 54%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/storage/files/LocalFileStorage/LocalFileStorage.cpp.o
+[ 54%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/storage/postgres/PostgresStore/PostgresStore.cpp.o
+[ 55%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.cpp.o
+[ 55%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/storage/postgres/PostgresWorkspaceRepository/PostgresWorkspaceRepository.cpp.o
+[ 55%] Building CXX object CMakeFiles/webserver_phase11.dir/backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp.o
+[ 56%] Linking CXX static library libwebserver_phase11.a
+[ 56%] Built target webserver_phase11
+[ 56%] Building CXX object CMakeFiles/phase11-training-admin.dir/tools/phase11_training_admin.cpp.o
+[ 57%] Building CXX object CMakeFiles/phase11-model-admin.dir/tools/phase11_model_admin.cpp.o
+[ 58%] Linking CXX executable phase11-training-admin
+[ 58%] Built target phase11-training-admin
+[ 58%] Building CXX object CMakeFiles/webserver_phase11_http.dir/backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp.o
+[ 58%] Linking CXX executable phase11-model-admin
+[ 58%] Built target phase11-model-admin
+[ 59%] Building CXX object CMakeFiles/webserver_phase11_http.dir/backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp.o
+[ 59%] Building CXX object CMakeFiles/webserver_phase11_http.dir/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp.o
+/home/pikachu/function3-src/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp: 在 lambda 函数中:
+/home/pikachu/function3-src/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp:60:44: 警告：ignoring return value of ‘webserver::phase11::RestoredSession webserver::phase11::transport::Phase11AuthHttp::authorizeRequest(const RequestContext&, bool)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   60 |                 auth_.authorizeRequest(ctx);using F=phase11::FileService;using P=webserver::function3::TreeContentPolicy;
+      |                                            ^
+In file included from /home/pikachu/function3-src/backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h:3,
+                 from /home/pikachu/function3-src/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.h:3,
+                 from /home/pikachu/function3-src/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp:2:
+/home/pikachu/function3-src/backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h:50:35: 附注：在此声明
+   50 |     [[nodiscard]] RestoredSession authorizeRequest(
+      |                                   ^~~~~~~~~~~~~~~~
+[ 59%] Building CXX object CMakeFiles/webserver_phase11_http.dir/backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp.o
+[ 60%] Building CXX object CMakeFiles/webserver_phase11_http.dir/backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp.o
+[ 60%] Building CXX object CMakeFiles/webserver_phase11_grpc_onnx.dir/backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp.o
+[ 60%] Building CXX object CMakeFiles/webserver_phase11_http.dir/backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp.o
+[ 60%] Building CXX object CMakeFiles/webserver_phase11_http.dir/backend/application/transport/serialization/MessageJson/MessageJson.cpp.o
+[ 61%] Building CXX object CMakeFiles/webserver_phase11_http.dir/backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp.o
+[ 61%] Linking CXX static library libwebserver_phase11_http.a
+[ 61%] Built target webserver_phase11_http
+[ 62%] Building CXX object backend/application/modules/CMakeFiles/function3_media.dir/tree/application/TreeMediaService/TreeMediaService.cpp.o
+[ 63%] Building CXX object CMakeFiles/webserver_phase11_grpc_onnx.dir/backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp.o
+[ 63%] Linking CXX static library libfunction3_media.a
+[ 63%] Built target function3_media
+[ 63%] Building CXX object backend/application/modules/CMakeFiles/function3_shared_driver.dir/shared/infrastructure/SqlContext/SqlContext.cpp.o
+[ 63%] Building CXX object backend/application/modules/CMakeFiles/function3_shared_driver.dir/shared/infrastructure/Phase11Bridge/Phase11Bridge.cpp.o
+[ 63%] Linking CXX static library libfunction3_shared_driver.a
+[ 64%] Built target function3_shared_driver
+[ 64%] Building CXX object backend/application/modules/CMakeFiles/function3_activity_json.dir/activities/transport/ActivityJson/ActivityJson.cpp.o
+[ 65%] Linking CXX static library libfunction3_activity_json.a
+[ 65%] Built target function3_activity_json
+[ 65%] Building CXX object backend/application/modules/CMakeFiles/function3_speech_http.dir/__/__/ai/speech/transport/SpeechHttp/SpeechHttp.cpp.o
+[ 65%] Linking CXX static library libwebserver_phase11_grpc_onnx.a
+[ 65%] Built target webserver_phase11_grpc_onnx
+[ 66%] Building CXX object backend/application/modules/CMakeFiles/function3_messaging_http.dir/messaging/transport/MessagingHttp/MessagingHttp.cpp.o
+[ 66%] Building CXX object backend/application/modules/CMakeFiles/function3_speech_http.dir/__/__/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp.o
+[ 66%] Linking CXX static library libfunction3_messaging_http.a
+[ 66%] Built target function3_messaging_http
+[ 67%] Building CXX object backend/application/modules/CMakeFiles/function3_admin_http.dir/admin/transport/AdminHttp/AdminHttp.cpp.o
+/home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp: 在 lambda 函数中:
+/home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp:39:130: 警告：ignoring return value of ‘webserver::phase11::RestoredSession webserver::phase11::transport::Phase11AuthHttp::authorizeRequest(const RequestContext&, bool)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   39 |     router.POST("/api/me/speech/preview",[this](RequestContext&ctx){return http::guarded(ctx,[&]{auth_.authorizeRequest(ctx,true);auto body=http::body(ctx);double speed=0;auto value=http::field(body,"speed");if(!value.empty()){try{std::size_t n;speed=std::stod(value,&n);if(n!=value.size())throw std::invalid_argument("speed");}catch(...){throw BusinessError(Failure::Invalid,"invalid speech speed");}}http::reply(ctx,previewState(http::field(body,"voice"),true,true,speed));});});
+      |                                                                                                                                  ^
+In file included from /home/pikachu/function3-src/backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h:3,
+                 from /home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.h:2,
+                 from /home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp:1:
+/home/pikachu/function3-src/backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h:50:35: 附注：在此声明
+   50 |     [[nodiscard]] RestoredSession authorizeRequest(
+      |                                   ^~~~~~~~~~~~~~~~
+/home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp: 在 lambda 函数中:
+/home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp:40:131: 警告：ignoring return value of ‘webserver::phase11::RestoredSession webserver::phase11::transport::Phase11AuthHttp::authorizeRequest(const RequestContext&, bool)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   40 |     router.GET("/api/me/speech/preview/:voice",[this](RequestContext&ctx){return http::guarded(ctx,[&]{auth_.authorizeRequest(ctx);http::reply(ctx,previewState(ctx.params.at("voice"),false,true));});});
+      |                                                                                                                                   ^
+In file included from /home/pikachu/function3-src/backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h:3,
+                 from /home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.h:2,
+                 from /home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp:1:
+/home/pikachu/function3-src/backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h:50:35: 附注：在此声明
+   50 |     [[nodiscard]] RestoredSession authorizeRequest(
+      |                                   ^~~~~~~~~~~~~~~~
+/home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp: 在 lambda 函数中:
+/home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp:41:127: 警告：ignoring return value of ‘webserver::phase11::RestoredSession webserver::phase11::transport::Phase11AuthHttp::authorizeRequest(const RequestContext&, bool)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   41 |     router.GET("/api/me/speech/audio/:key",[this](RequestContext&ctx){return http::guarded(ctx,[&]{auth_.authorizeRequest(ctx);const auto key=ctx.params.at("key");bool allowed=false;{std::lock_guard lock(state_->mutex);for(const auto&[voice,p]:state_->voices)if(p.state=="ready"&&p.key==key)allowed=true;}if(!allowed)throw BusinessError(Failure::NotFound,"preview not found");ctx.response->setHeader("Content-Type","audio/wav");ctx.response->setHeader("Cache-Control","private,no-store");if(!ctx.response->sendfile(speech_.audioPath(key),ctx.request,ctx.request.range))throw BusinessError(Failure::NotFound,"preview cache expired");});});
+      |                                                                                                                               ^
+In file included from /home/pikachu/function3-src/backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h:3,
+                 from /home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.h:2,
+                 from /home/pikachu/function3-src/backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp:1:
+/home/pikachu/function3-src/backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h:50:35: 附注：在此声明
+   50 |     [[nodiscard]] RestoredSession authorizeRequest(
+      |                                   ^~~~~~~~~~~~~~~~
+[ 68%] Linking CXX static library libfunction3_speech_http.a
+[ 68%] Built target function3_speech_http
+[ 68%] Building CXX object backend/application/modules/CMakeFiles/function3_announcement_http.dir/announcement/transport/AnnouncementHttp/AnnouncementHttp.cpp.o
+[ 68%] Building CXX object backend/application/modules/CMakeFiles/function3_admin_http.dir/admin/transport/ModelAdminHttp/ModelAdminHttp.cpp.o
+/home/pikachu/function3-src/backend/application/modules/announcement/transport/AnnouncementHttp/AnnouncementHttp.cpp: 在 lambda 函数中:
+/home/pikachu/function3-src/backend/application/modules/announcement/transport/AnnouncementHttp/AnnouncementHttp.cpp:6:119: 警告：ignoring return value of ‘webserver::phase11::RestoredSession webserver::phase11::transport::Phase11AuthHttp::authorizeRequest(const RequestContext&, bool)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+    6 |     router.GET("/api/tree/ranking",[this](RequestContext&ctx){return http::guarded(ctx,[&]{auth_.authorizeRequest(ctx);auto cached=cache_?cache_->lookup("ranking"):CacheLookup{};if(cached.value){http::reply(ctx,*cached.value);return;}auto rank=rank_.latest();auto json="{\"version\":"+http::id(rank.version)+",\"settledAt\":"+std::to_string(rank.settledAt)+",\"entries\":"+http::array(rank.entries,[](const auto&e){return "{\"postId\":"+http::id(e.post)+",\"score\":"+std::to_string(e.score)+"}";})+"}";if(cache_)cache_->store("ranking",cached.generation,json,2);http::reply(ctx,std::move(json));});});
+      |                                                                                                                       ^
+In file included from /home/pikachu/function3-src/backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h:3,
+                 from /home/pikachu/function3-src/backend/application/modules/announcement/transport/AnnouncementHttp/AnnouncementHttp.h:4,
+                 from /home/pikachu/function3-src/backend/application/modules/announcement/transport/AnnouncementHttp/AnnouncementHttp.cpp:1:
+/home/pikachu/function3-src/backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h:50:35: 附注：在此声明
+   50 |     [[nodiscard]] RestoredSession authorizeRequest(
+      |                                   ^~~~~~~~~~~~~~~~
+[ 69%] Linking CXX static library libfunction3_announcement_http.a
+[ 69%] Built target function3_announcement_http
+[ 70%] Building CXX object CMakeFiles/webserver-onnx-worker.dir/backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp.o
+[ 71%] Linking CXX static library libfunction3_admin_http.a
+[ 71%] Built target function3_admin_http
+[ 71%] Building CXX object CMakeFiles/phase11_core_tests.dir/tests/phase11/unit/core.cpp.o
+[ 72%] Linking CXX executable phase11_core_tests
+[ 72%] Built target phase11_core_tests
+[ 73%] Building CXX object CMakeFiles/function3_workspace_contract.dir/tests/function3/unit/workspace.cpp.o
+[ 73%] Linking CXX executable webserver-onnx-worker
+[ 73%] Linking CXX executable function3_workspace_contract
+[ 73%] Built target function3_workspace_contract
+[ 73%] Building CXX object CMakeFiles/phase11_chat_reliability_tests.dir/tests/phase11/unit/chat_reliability.cpp.o
+[ 73%] Built target webserver-onnx-worker
+[ 73%] Building CXX object CMakeFiles/phase11_ai_chat_tests.dir/tests/phase11/unit/ai_chat.cpp.o
+[ 74%] Linking CXX executable phase11_chat_reliability_tests
+[ 74%] Built target phase11_chat_reliability_tests
+[ 75%] Building CXX object CMakeFiles/phase11_ai_resilience_tests.dir/tests/phase11/unit/ai_resilience.cpp.o
+[ 75%] Linking CXX executable phase11_ai_chat_tests
+[ 75%] Built target phase11_ai_chat_tests
+[ 75%] Building CXX object CMakeFiles/phase11_rag_tests.dir/tests/phase11/unit/rag.cpp.o
+[ 75%] Linking CXX executable phase11_ai_resilience_tests
+[ 75%] Built target phase11_ai_resilience_tests
+[ 75%] Building CXX object CMakeFiles/phase11_training_tests.dir/tests/phase11/unit/training.cpp.o
+[ 75%] Linking CXX executable phase11_rag_tests
+[ 75%] Built target phase11_rag_tests
+[ 75%] Building CXX object CMakeFiles/phase11_file_tests.dir/tests/phase11/unit/files.cpp.o
+[ 76%] Linking CXX executable phase11_training_tests
+[ 76%] Built target phase11_training_tests
+[ 76%] Building CXX object CMakeFiles/phase11_postgres_contract_tests.dir/tests/phase11/unit/postgres_contract.cpp.o
+[ 76%] Linking CXX executable phase11_file_tests
+[ 76%] Built target phase11_file_tests
+[ 77%] Building CXX object CMakeFiles/phase11_sodium_credentials_tests.dir/tests/phase11/unit/sodium_credentials.cpp.o
+[ 78%] Linking CXX executable phase11_postgres_contract_tests
+[ 78%] Built target phase11_postgres_contract_tests
+[ 78%] Building CXX object CMakeFiles/phase11_ollama_provider_tests.dir/tests/phase11/unit/ollama_provider.cpp.o
+[ 78%] Linking CXX executable phase11_sodium_credentials_tests
+[ 78%] Built target phase11_sodium_credentials_tests
+[ 79%] Building CXX object CMakeFiles/phase11_onnx_provider_tests.dir/tests/phase11/unit/onnx_provider.cpp.o
+[ 80%] Linking CXX executable phase11_ollama_provider_tests
+[ 80%] Built target phase11_ollama_provider_tests
+[ 80%] Building CXX object CMakeFiles/phase11_onnx_model_smoke.dir/tests/phase11/smoke/onnx_model_smoke.cpp.o
+[ 80%] Linking CXX executable phase11_onnx_provider_tests
+[ 80%] Built target phase11_onnx_provider_tests
+[ 80%] Building CXX object CMakeFiles/phase11_grpc_onnx_provider_tests.dir/tests/phase11/unit/grpc_onnx_provider.cpp.o
+[ 80%] Linking CXX executable phase11_onnx_model_smoke
+[ 80%] Built target phase11_onnx_model_smoke
+[ 81%] Linking CXX executable function3_process_contract
+[ 81%] Built target function3_process_contract
+[ 81%] Building CXX object backend/application/modules/CMakeFiles/function3_model_admin_contract.dir/__/__/__/tests/function3/unit/model_admin.cpp.o
+[ 82%] Linking CXX executable function3_model_admin_contract
+[ 82%] Built target function3_model_admin_contract
+[ 82%] Building CXX object backend/application/modules/CMakeFiles/function3_recovery_contract.dir/__/__/__/tests/function3/unit/recovery_budget.cpp.o
+[ 83%] Linking CXX executable function3_recovery_contract
+[ 83%] Built target function3_recovery_contract
+[ 83%] Building CXX object CMakeFiles/webserver_private_http.dir/backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.cpp.o
+[ 83%] Linking CXX executable phase11_grpc_onnx_provider_tests
+[ 84%] Linking CXX static library libwebserver_private_http.a
+[ 84%] Built target webserver_private_http
+[ 84%] Building CXX object backend/application/modules/CMakeFiles/function3_activity_views.dir/activities/infrastructure/ActivityPostgresViews/ActivityPostgresViews.cpp.o
+[ 84%] Linking CXX static library libfunction3_activity_views.a
+[ 84%] Built target function3_activity_views
+[ 84%] Building CXX object backend/application/modules/CMakeFiles/function3_messaging_driver.dir/messaging/infrastructure/ChatOutboxWriter/ChatOutboxWriter.cpp.o
+[ 84%] Built target phase11_grpc_onnx_provider_tests
+[ 84%] Building CXX object backend/application/modules/CMakeFiles/function3_tree_driver.dir/tree/infrastructure/FfmpegMediaProcessor/FfmpegMediaProcessor.cpp.o
+[ 85%] Building CXX object backend/application/modules/CMakeFiles/function3_messaging_driver.dir/messaging/infrastructure/PostgresEventPipeline/PostgresEventPipeline.cpp.o
+[ 86%] Building CXX object backend/application/modules/CMakeFiles/function3_tree_driver.dir/tree/infrastructure/TreeMediaPostgresRepository/TreeMediaPostgresRepository.cpp.o
+[ 86%] Building CXX object backend/application/modules/CMakeFiles/function3_messaging_driver.dir/messaging/infrastructure/PostgresEventWriter/PostgresEventWriter.cpp.o
+[ 86%] Building CXX object backend/application/modules/CMakeFiles/function3_tree_driver.dir/tree/infrastructure/TreePostgresRepository/TreePostgresRepository.cpp.o
+[ 86%] Linking CXX static library libfunction3_messaging_driver.a
+[ 86%] Built target function3_messaging_driver
+[ 86%] Building CXX object backend/application/modules/CMakeFiles/function3_rank_driver.dir/ranking/infrastructure/RankingPostgresRepository/RankingPostgresRepository.cpp.o
+[ 86%] Building CXX object backend/application/modules/CMakeFiles/function3_tree_driver.dir/tree/infrastructure/TreeRankingSource/TreeRankingSource.cpp.o
+[ 86%] Linking CXX static library libfunction3_rank_driver.a
+[ 86%] Built target function3_rank_driver
+[ 87%] Building CXX object backend/application/modules/CMakeFiles/function3_announcement_driver.dir/announcement/infrastructure/AnnouncementPostgresRepository/AnnouncementPostgresRepository.cpp.o
+[ 88%] Linking CXX static library libfunction3_tree_driver.a
+[ 88%] Built target function3_tree_driver
+[ 89%] Building CXX object backend/application/modules/CMakeFiles/function3_admin_driver.dir/admin/infrastructure/AdminPostgresRepository/AdminPostgresRepository.cpp.o
+[ 89%] Linking CXX static library libfunction3_announcement_driver.a
+[ 89%] Built target function3_announcement_driver
+[ 90%] Building CXX object backend/application/modules/CMakeFiles/function3_moderation_driver.dir/moderation/infrastructure/ReportPostgresRepository/ReportPostgresRepository.cpp.o
+[ 90%] Building CXX object backend/application/modules/CMakeFiles/function3_admin_driver.dir/admin/infrastructure/Phase11ModelAdministration/Phase11ModelAdministration.cpp.o
+[ 90%] Linking CXX static library libfunction3_moderation_driver.a
+[ 90%] Built target function3_moderation_driver
+[ 90%] Building CXX object backend/application/modules/CMakeFiles/function3_speech_driver.dir/__/__/ai/speech/infrastructure/SpeechPostgresTasks/SpeechPostgresTasks.cpp.o
+[ 90%] Linking CXX static library libfunction3_admin_driver.a
+[ 90%] Built target function3_admin_driver
+[ 90%] Building CXX object backend/application/modules/CMakeFiles/function3_tree_http.dir/tree/transport/TreeHttp/TreeHttp.cpp.o
+[ 91%] Building CXX object backend/application/modules/CMakeFiles/function3_speech_driver.dir/__/__/ai/speech/infrastructure/SpeechRuntime/SpeechRuntime.cpp.o
+[ 91%] Building CXX object backend/application/modules/CMakeFiles/function3_speech_driver.dir/__/__/ai/speech/infrastructure/SiteSpeechRenderer/SiteSpeechRenderer.cpp.o
+[ 91%] Building CXX object backend/application/modules/CMakeFiles/function3_tree_http.dir/tree/transport/TreeMediaHttp/TreeMediaHttp.cpp.o
+[ 92%] Linking CXX static library libfunction3_speech_driver.a
+[ 92%] Built target function3_speech_driver
+[ 93%] Building CXX object backend/application/modules/CMakeFiles/function3_activity_http.dir/activities/transport/ActivityHttp/ActivityHttp.cpp.o
+[ 94%] Linking CXX static library libfunction3_tree_http.a
+[ 94%] Built target function3_tree_http
+[ 95%] Building CXX object CMakeFiles/phase11_http_auth_tests.dir/tests/phase11/unit/http_auth.cpp.o
+[ 95%] Linking CXX static library libfunction3_activity_http.a
+[ 95%] Built target function3_activity_http
+[ 95%] Building CXX object backend/application/modules/CMakeFiles/function3-site-admin.dir/__/__/__/tools/function3/SiteAdmin/SiteAdmin.cpp.o
+[ 95%] Linking CXX executable function3-site-admin
+[ 95%] Built target function3-site-admin
+[ 95%] Building CXX object backend/application/modules/CMakeFiles/function3_postgres_contract.dir/__/__/__/tests/function3/integration/postgres_modules.cpp.o
+[ 95%] Linking CXX executable phase11_http_auth_tests
+[ 95%] Built target phase11_http_auth_tests
+[ 95%] Building CXX object backend/application/modules/CMakeFiles/function3_capacity.dir/__/__/__/tests/function3/integration/capacity.cpp.o
+[ 96%] Linking CXX executable function3_postgres_contract
+[ 96%] Built target function3_postgres_contract
+[ 96%] Building CXX object backend/application/modules/CMakeFiles/function3_private_archive_driver.dir/assistant/infrastructure/LegacyArchivePostgres/LegacyArchivePostgres.cpp.o
+[ 96%] Linking CXX executable function3_capacity
+[ 96%] Built target function3_capacity
+[ 97%] Building CXX object backend/application/modules/CMakeFiles/function3_private_archive_driver.dir/assistant/infrastructure/AssistantModelsPostgres/AssistantModelsPostgres.cpp.o
+[ 97%] Linking CXX static library libfunction3_private_archive_driver.a
+[ 97%] Built target function3_private_archive_driver
+[ 98%] Building CXX object backend/application/modules/CMakeFiles/function3_private_archive_http.dir/assistant/transport/PrivateArchiveHttp/PrivateArchiveHttp.cpp.o
+[ 98%] Building CXX object backend/application/modules/CMakeFiles/function3_private_archive_http.dir/assistant/transport/AssistantModelsHttp/AssistantModelsHttp.cpp.o
+/home/pikachu/function3-src/backend/application/modules/assistant/transport/AssistantModelsHttp/AssistantModelsHttp.cpp: 在 lambda 函数中:
+/home/pikachu/function3-src/backend/application/modules/assistant/transport/AssistantModelsHttp/AssistantModelsHttp.cpp:8:34: 警告：ignoring return value of ‘webserver::phase11::RestoredSession webserver::phase11::transport::Phase11AuthHttp::authorizeRequest(const RequestContext&, bool)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+    8 |         auth_.authorizeRequest(c);http::reply(c,http::array(models_.list(),[](const auto&m){return "{\"accountId\":"+http::id(m.account)+",\"nodeId\":"+http::id(m.node)+",\"versionId\":"+http::id(m.version)+",\"name\":"+http::quote(m.name)+",\"runtime\":"+http::quote(m.runtime)+",\"status\":\"configured\",\"automaticTools\":false}";}));
+      |                                  ^
+In file included from /home/pikachu/function3-src/backend/application/modules/assistant/transport/AssistantModelsHttp/AssistantModelsHttp.h:3,
+                 from /home/pikachu/function3-src/backend/application/modules/assistant/transport/AssistantModelsHttp/AssistantModelsHttp.cpp:1:
+/home/pikachu/function3-src/backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h:50:35: 附注：在此声明
+   50 |     [[nodiscard]] RestoredSession authorizeRequest(
+      |                                   ^~~~~~~~~~~~~~~~
+[ 98%] Linking CXX static library libfunction3_private_archive_http.a
+[ 98%] Built target function3_private_archive_http
+[ 99%] Building CXX object backend/application/modules/CMakeFiles/function3_http.dir/bootstrap/Function3Runtime/Function3Runtime.cpp.o
+/home/pikachu/function3-src/backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.cpp: 在 lambda 函数中:
+/home/pikachu/function3-src/backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.cpp:154:129: 警告：ignoring return value of ‘webserver::phase11::RestoredSession webserver::phase11::transport::Phase11AuthHttp::authorizeRequest(const RequestContext&, bool)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  154 |     router.GET("/api/me/speech/status",[this](RequestContext&ctx){return http::guarded(ctx,[&]{impl_->auth.authorizeRequest(ctx);const char*w=std::getenv("WEB_FUNCTION3_TTS_WORKER");const char*mq=std::getenv("WEB_FUNCTION3_MQ_ENDPOINT");http::reply(ctx,"{\"enabled\":"+std::string(w&&*w?"true":"false")+",\"delivery\":"+http::quote(mq&&*mq?"rocketmq":"local")+"}");});});
+      |                                                                                                                                 ^
+In file included from /home/pikachu/function3-src/backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h:3,
+                 from /home/pikachu/function3-src/backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.h:3,
+                 from /home/pikachu/function3-src/backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.cpp:2:
+/home/pikachu/function3-src/backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h:50:35: 附注：在此声明
+   50 |     [[nodiscard]] RestoredSession authorizeRequest(
+      |                                   ^~~~~~~~~~~~~~~~
+[ 99%] Linking CXX static library libfunction3_http.a
+[ 99%] Built target function3_http
+[ 99%] Building CXX object CMakeFiles/webserver.dir/main.cpp.o
+[100%] Linking CXX executable webserver
+Copying static assets next to webserver
+[100%] Built target webserver

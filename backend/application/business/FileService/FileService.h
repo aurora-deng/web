@@ -3,6 +3,7 @@
 #include "backend/application/business/ApplicationError/ApplicationError.h"
 #include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
 #include "backend/application/ports/Ports/Ports.h"
+#include <map>
 
 namespace webserver::phase11
 {
@@ -14,6 +15,8 @@ public:
     static constexpr std::uint64_t kMaximumFileBytes = 25ULL * 1024 * 1024;
     static constexpr std::uint64_t kMaximumImageBytes = 10ULL * 1024 * 1024;
     static constexpr std::size_t kMaximumChunkBytes = 256 * 1024;
+    /** The same allowlist is used by validation and capability discovery. */
+    static const std::map<std::string,std::vector<std::string>>& allowedUploadTypes();
 
     FileService(IDatabase &database, IUserRepository &users,
                 IFileRepository &files, IFileStorage &storage)

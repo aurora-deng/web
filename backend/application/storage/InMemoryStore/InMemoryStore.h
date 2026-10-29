@@ -1,4 +1,5 @@
 #pragma once
+#include "backend/application/modules/chat/ports/IWorkspaceRepository/IWorkspaceRepository.h"
 
 #include "backend/application/ports/Ports/Ports.h"
 #include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
@@ -23,6 +24,7 @@ namespace webserver::phase11
  * 大数据量；生产版会把相同 ITransaction 契约映射到 PostgreSQL BEGIN/COMMIT/ROLLBACK。
  */
 class InMemoryStore final : public IDatabase,
+                            public webserver::chat::IWorkspaceRepository,
                             public IProfileOperations,
                             public IUserRepository,
                             public ISessionRepository,
@@ -47,6 +49,10 @@ public:
     std::unique_ptr<ITransaction> beginTransaction() override;
     bool healthy() const noexcept override { return true; }
 
+    std::vector<webserver::chat::UserCard>searchUsers(UserId,std::string_view,UserId,std::size_t)const override;
+    std::vector<Message>searchVisibleMessages(UserId,ConversationId,std::string_view,MessageId,std::size_t)const override;
+    webserver::chat::ConversationPreference preference(UserId,ConversationId)const override;
+    webserver::chat::PreferenceWrite writePreference(UserId,ConversationId,bool)override;
     User create(User user) override;
     std::optional<User> findUser(UserId id) const override;
     std::optional<User> findUserByName(std::string_view username) const override;
@@ -269,6 +275,7 @@ private:
         std::unordered_map<UserId, TimePoint> lastActive;
         std::unordered_map<ConversationId, Conversation> conversations;
         std::map<MemberKey, ConversationMember> members;
+        std::map<MemberKey,webserver::chat::ConversationPreference> conversationPreferences;
         std::unordered_map<MessageId, Message> messages;
         std::unordered_map<ConversationId, std::vector<MessageId>> messageIds;
         std::map<IdempotencyKey, MessageId> idempotency;

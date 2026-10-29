@@ -1,0 +1,61 @@
+{
+  "kind": "synthetic UI/API fixtures",
+  "themes": [
+    {
+      "route": "/phase11/tree/",
+      "dark": {
+        "header": "rgba(16, 21, 33, 0.95)",
+        "body": "rgb(20, 24, 34)"
+      },
+      "light": {
+        "header": "rgba(255, 255, 255, 0.95)",
+        "body": "rgb(244, 240, 245)"
+      }
+    },
+    {
+      "route": "/phase11/admin/",
+      "dark": {
+        "header": "rgba(16, 21, 33, 0.95)",
+        "body": "rgb(12, 16, 23)"
+      },
+      "light": {
+        "header": "rgba(255, 255, 255, 0.95)",
+        "body": "rgb(242, 244, 249)"
+      }
+    },
+    {
+      "route": "/phase11/profile/",
+      "dark": {
+        "header": "rgba(16, 21, 33, 0.95)",
+        "body": "rgb(17, 21, 25)"
+      },
+      "light": {
+        "header": "rgba(255, 255, 255, 0.95)",
+        "body": "rgb(245, 247, 250)"
+      }
+    },
+    {
+      "route": "/phase11/assistant/",
+      "dark": {
+        "header": "rgba(16, 21, 33, 0.95)",
+        "body": "rgb(17, 22, 32)"
+      },
+      "light": {
+        "header": "rgba(255, 255, 255, 0.95)",
+        "body": "rgb(239, 241, 247)"
+      }
+    }
+  ],
+  "passed": true,
+  "checks": [
+    "visible light/dark and reload persistence across four pages",
+    "mobile no horizontal overflow",
+    "theme-assistant-notification order",
+    "web consent before upload",
+    "server model completion",
+    "custom API 401 and successful real HTTP fixture roundtrip",
+    "no API key in browser storage or Linux proxy",
+    "speech settings discoverability",
+    "fruit author friend request UI"
+  ]
+}

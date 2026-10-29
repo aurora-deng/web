@@ -58,11 +58,11 @@ export class VirtualMessageList {
     const prefix = this.prefix();
     const [start, end] = this.range(prefix);
     const cache = new Map();
-    const rows = this.messages.slice(start, end).map(message => {
+    const rows = this.messages.slice(start, end).map((message, offset) => {
       const key = VirtualMessageList.key(message);
-      const signature = this.version + JSON.stringify(message);
+      const signature = this.version + (offset===0 ? ":head:" : ":body:") + JSON.stringify(message);
       const old = this.nodes.get(key);
-      const entry = old?.signature === signature ? old : { signature, node: this.createRow(message) };
+      const entry = old?.signature === signature ? old : { signature, node: this.createRow(message, {windowStart:offset===0}) };
       cache.set(key, entry);
       return entry.node;
     });

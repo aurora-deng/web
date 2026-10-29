@@ -29,7 +29,7 @@ def main():
                 'WEB_PHASE11_FILE_ROOT':'/home/pikachu/phase11-data/function3/validation/phase41/schema-guard-files','WEB_FUNCTION3_ENABLE':'1',
                 'WEB_SERVER_PORT':'18095','WEB_GRPC_ADDRESS':'127.0.0.1:50065'})
     guard=subprocess.run([str(ROOT/'build-release/webserver')],cwd=ROOT/'build-release',env=env,capture_output=True,text=True,timeout=20)
-    assert guard.returncode!=0 and 'through 022' in guard.stdout+guard.stderr,'Missing migration must fail startup before background tasks'
+    assert guard.returncode!=0 and 'through 024' in guard.stdout+guard.stderr,'Missing migration must fail startup before background tasks'
     for _ in range(2):subprocess.run(['python3',str(ROOT/'scripts/function3/validation/isolated_postgres.py'),'migrate','--database','function3_phase11_test'],check=True,stdout=subprocess.DEVNULL)
     assert sql('SELECT count(*) FROM speech_profiles')=='2' and sql('SELECT count(*) FROM phase11_schema_migrations WHERE version=22')=='1'
     report={'database':'function3_phase11_test','passed':True,'forcedFailureRolledBackDDLAndHistory':True,'missingMigrationRefusedStartup':True,'reapplyAfterRollback':True,'secondMigrateSkippedAppliedVersion':True,'sourceSha256':hashlib.sha256(source.encode()).hexdigest()}

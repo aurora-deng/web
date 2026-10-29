@@ -102,6 +102,20 @@ export class ChatHistory {
     }
   }
 
+  /** Adopt a bounded search window without claiming the skipped gap was received. */
+  focusContext(messages, expectedConversation = this.conversationId) {
+    if (Number(expectedConversation) !== this.conversationId || !this.loaded) return false;
+    this.controller.abort(); this.controller = new AbortController(); ++this.epoch;
+    // cursor remains the last genuinely synchronized watermark; context is only a view.
+    const recalled = [...this.records.values()].filter(m => m.state === 'recalled');
+    this.records.clear(); this.ordered = null;
+    messages.forEach(m => this.merge(m));
+    recalled.forEach(m => { if (this.records.has(String(m.id))) this.merge(m); });
+    this.trim(true); this.hasOlder = this.oldest > 1; this.lookingBack = true;
+    this.loadingOlder = false; this.loadingNewer = false; this.syncPromise = null;
+    this.ready = Promise.resolve(); this.changed(); return true;
+  }
+
   async newer() {
     if (!this.hasNewer || this.loadingNewer) return;
     const epoch = this.epoch;

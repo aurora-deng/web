@@ -105,10 +105,11 @@ struct Function3Runtime::Impl {
         worker=std::thread([this]{std::unique_lock lock(mutex);while(!stopping){lock.unlock();try{if(ranking.settle()&&cache)cache->invalidate("ranking");}catch(const std::exception&){/* 本轮失败不丢事件，下轮由唯一 slot 约束安全重试。 */}lock.lock();wake.wait_for(lock,std::chrono::seconds(5),[&]{return stopping.load();});}});
     }
     static bool requireSchema(SqlContext&sql){
-        if(sql.query("SELECT 1 FROM phase11_schema_migrations WHERE version=23").empty())throw std::runtime_error("Function3 requires database migrations through 023; no automatic migrations performed");
+        if(sql.query("SELECT 1 WHERE (SELECT count(*) FROM phase11_schema_migrations WHERE version BETWEEN 1 AND 24)=24").empty())throw std::runtime_error("Function3 requires database migrations through 024; no automatic migrations performed");
         return true; // 在任何后台 Worker 创建之前检查，失败启动不会领取任务或结算榜单。
     }
-    ~Impl(){{std::lock_guard lock(mutex);stopping=true;}wake.notify_all();speech.stop();if(worker.joinable())worker.join();if(publisher.joinable())publisher.join();broker.reset();mediaExecutor.shutdown();modelExecutor.shutdown();previewExecutor.shutdown();}
+    void stop() noexcept {{std::lock_guard lock(mutex);if(stopping.exchange(true))return;}wake.notify_all();speech.stop();if(worker.joinable())worker.join();if(publisher.joinable())publisher.join();broker.reset();mediaExecutor.shutdown();modelExecutor.shutdown();previewExecutor.shutdown();}
+    ~Impl(){stop();}
     phase11::IOutboxEventSink &startMessaging(phase11::IOutboxEventSink &realtime,phase11::IMessageRepository &messages){
         const char *endpoint=std::getenv("WEB_FUNCTION3_MQ_ENDPOINT");const bool external=endpoint&&*endpoint;
         if(broker)throw std::logic_error("messaging already started");
@@ -144,6 +145,7 @@ Function3Runtime::Function3Runtime(std::string connection,phase11::transport::Ph
     phase11::IModelRepository&models,phase11::ModelRegistryService&registry,phase11::ModelEvaluationService&evaluation,std::function<void(Id)>invalidatePrivateKnowledge)
     :impl_(std::make_unique<Impl>(std::move(connection),auth,executor,sse,files,social,websockets,models,registry,evaluation,std::move(invalidatePrivateKnowledge))){}
 Function3Runtime::~Function3Runtime()=default;
+void Function3Runtime::stop() noexcept {impl_->stop();}
 std::function<void()>Function3Runtime::commitNotifier()const{auto signal=impl_->signal;return[signal]{{std::lock_guard lock(signal->mutex);++signal->generation;}signal->wake.notify_all();};}
 void Function3Runtime::registerRoutes(Router &router){
     impl_->privateArchiveHttp.registerRoutes(router);

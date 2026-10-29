@@ -1,4 +1,5 @@
 #pragma once
+#include "backend/application/modules/chat/ports/IWorkspaceRepository/IWorkspaceRepository.h"
 
 #include "backend/application/ports/Ports/Ports.h"
 #include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
@@ -17,6 +18,7 @@ namespace webserver::phase11
  * 直到 COMMIT/ROLLBACK 后才归还连接池。
  */
 class PostgresStore final : public IDatabase,
+                            public webserver::chat::IWorkspaceRepository,
                             public IProfileOperations,
                             public IUserRepository,
                             public ISessionRepository,
@@ -40,9 +42,15 @@ public:
 
     std::unique_ptr<ITransaction> beginTransaction() override;
     bool healthy() const noexcept override;
+    /** Read-only startup guard; migrations are never applied by the server. */
+    void requireMigrations(std::size_t through) const;
     /** 仅装配阶段配置，开始服务后冻结；业务服务仍只调用 IOutboxRepository。 */
     void setOutboxWriter(std::shared_ptr<PostgresOutboxWriter> writer){outboxWriter_=std::move(writer);}
 
+    std::vector<webserver::chat::UserCard>searchUsers(UserId,std::string_view,UserId,std::size_t)const override;
+    std::vector<Message>searchVisibleMessages(UserId,ConversationId,std::string_view,MessageId,std::size_t)const override;
+    webserver::chat::ConversationPreference preference(UserId,ConversationId)const override;
+    webserver::chat::PreferenceWrite writePreference(UserId,ConversationId,bool)override;
     User create(User user) override;
     std::optional<User> findUser(UserId id) const override;
     std::optional<User> findUserByName(std::string_view username) const override;

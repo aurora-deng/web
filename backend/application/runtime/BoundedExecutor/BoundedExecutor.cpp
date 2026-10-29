@@ -1,3 +1,4 @@
+#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
 #include "backend/application/runtime/BoundedExecutor/BoundedExecutor.h"
 
 #include <algorithm>
@@ -50,7 +51,10 @@ bool BoundedExecutor::submit(Task task)
             ++rejected_;
             return false;
         }
-        tasks_.push_back(std::move(task));
+        const auto queued=std::chrono::steady_clock::now();
+        tasks_.push_back([task=std::move(task),queued]()mutable{
+            business_metrics::observe(business_metrics::Queue,std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-queued).count());task();
+        });
         ++submitted_;
         queueHighWatermark_ = std::max(queueHighWatermark_, tasks_.size());
     }

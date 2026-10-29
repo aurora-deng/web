@@ -1,3 +1,8 @@
+#include "backend/application/modules/chat/bootstrap/ChatWorkspaceModule/ChatWorkspaceModule.h"
+#include "backend/application/runtime/BusinessShutdown/BusinessShutdown.h"
+#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
+#include "backend/application/config/RuntimeConfig/RuntimeConfig.h"
+#include "ProjectBuild.h"
 #include "backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.h"
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
 #include "backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.h"
@@ -97,33 +102,8 @@
 
 namespace
 {
-bool environmentFlag(const char *name)
-{
-    const char *raw = std::getenv(name);
-    if (!raw)
-        return false;
-    std::string value(raw);
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch)
-                   { return static_cast<char>(std::tolower(ch)); });
-    return value == "1" || value == "true" || value == "yes" || value == "on";
-}
-
-std::size_t boundedEnvironmentSize(const char *name,
-                                   std::size_t fallback,
-                                   std::size_t minimum,
-                                   std::size_t maximum)
-{
-    const char *raw = std::getenv(name);
-    if (!raw)
-        return fallback;
-    char *end = nullptr;
-    errno = 0;
-    const auto value = std::strtoull(raw, &end, 10);
-    if (errno != 0 || end == raw || *end != '\0' ||
-        value < minimum || value > maximum)
-        throw std::invalid_argument(std::string(name) + " is outside the allowed range");
-    return static_cast<std::size_t>(value);
-}
+bool environmentFlag(const char *name){return webserver::config::RuntimeConfig::flag(name);}
+std::size_t boundedEnvironmentSize(const char*name,std::size_t fallback,std::size_t low,std::size_t high){return webserver::config::RuntimeConfig::size(name,fallback,low,high);}
 
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
 std::string readPrivateHexKey(const char *path)
@@ -286,7 +266,8 @@ int main()
 {
     try
     {
-        const bool productionMode = environmentFlag("WEB_PRODUCTION_MODE");
+        const auto runtimeConfig=webserver::config::RuntimeConfig::load();
+        const bool productionMode = runtimeConfig.production;
         const std::string authSecret = std::getenv("WEB_AUTH_SECRET")
                                            ? std::getenv("WEB_AUTH_SECRET")
                                            : "";
@@ -309,6 +290,7 @@ int main()
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
         // 这些对象先于 ServerRuntime 声明，因此退出时 ServerRuntime 会先停止网络线程，
         // 然后认证适配器、数据库执行器和连接池才依次销毁，避免路由捕获悬空对象。
+        std::unique_ptr<webserver::chat::ChatWorkspaceModule> phase11Workspace;
         std::unique_ptr<webserver::phase11::PostgresStore> phase11Store;
         std::unique_ptr<webserver::phase11::PostgresStore> phase11DeliveryStore;
         std::unique_ptr<webserver::phase11::SodiumCredentialCodec> phase11Credentials;
@@ -434,6 +416,7 @@ int main()
                                                5'000, 10, 60'000))});
             if (!phase11Store->healthy())
                 throw std::runtime_error("Phase 11 PostgreSQL health check failed");
+            phase11Store->requireMigrations(24);
             phase11ModelEvaluations = std::make_unique<
                 webserver::phase11::ModelEvaluationService>(
                     *phase11Store, *phase11Store);
@@ -723,6 +706,9 @@ int main()
                 webserver::phase11::transport::Phase11SocialChatHttp>(
                     *phase11AuthHttp, *phase11Social, *phase11Chat,
                     *phase11DatabaseExecutor, server.wsManager(), notifyOutbox);
+            phase11Workspace=std::make_unique<webserver::chat::ChatWorkspaceModule>(
+                *phase11AuthHttp,*phase11DatabaseExecutor,*phase11Store,*phase11Store,
+                *phase11Store,*phase11Store,*phase11Store,*phase11Store,notifyOutbox);
             phase11FileHttp = std::make_unique<
                 webserver::phase11::transport::Phase11FileHttp>(
                     *phase11AuthHttp, *phase11Files, *phase11Chat,
@@ -1088,6 +1074,16 @@ int main()
         ctx.response->html("<h1>hello</h1>");
         return true; }, RouteOptions{ExecutionPolicy::ReactorSafe});
 
+        bool businessSchemaVerified=false;
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+        businessSchemaVerified=static_cast<bool>(phase11Store);
+#endif
+        server.router().GET("/health/version", [businessSchemaVerified](RequestContext &ctx) -> bool {
+            std::string version=webserver::build::versionJson;version.pop_back();
+            version+=",\"schemaVerifiedAtStartup\":"+std::string(businessSchemaVerified?"true":"false")+"}";
+            ctx.response->json(version);
+            return true;
+        });
         server.router().GET("/health/live", [](RequestContext &ctx) -> bool
                             {
         ctx.response->json("{\"status\":\"alive\"}");
@@ -1126,6 +1122,7 @@ int main()
                 body += "webserver_sse_replay_gaps_total " +
                         std::to_string(sse.replayGaps) + "\n";
                 body += phase11MetricsText();
+                body += webserver::business_metrics::text();
                 ctx.response->text(body);
                 ctx.response->setHeader(
                     "Content-Type", "text/plain; version=0.0.4; charset=utf-8");
@@ -1185,6 +1182,7 @@ int main()
             phase11AuthHttp->registerRoutes(server.router());
             if(phase11PrivateHttp)phase11PrivateHttp->registerRoutes(server.router());
             if(phase11WebHttp)phase11WebHttp->registerRoutes(server.router());
+            if(phase11Workspace)phase11Workspace->registerRoutes(server.router());
             phase11SocialChatHttp->registerRoutes(server.router());
             phase11FileHttp->registerRoutes(server.router());
             phase11KnowledgeHttp->registerRoutes(server.router());
@@ -1569,6 +1567,21 @@ int main()
 
         // ===== 正式开工：进入事件循环，阻塞直到收到关闭信号 =====
         server.start();
+#if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
+        // ServerRuntime has completed its network drain. Keep repositories and event sinks
+        // alive while producers cancel and accepted database/file tasks finish.
+        webserver::application::BusinessShutdown businessStop;
+        businessStop.add("presence",[&]{phase11PresenceBridge.reset();});
+        businessStop.add("private generations",[&]{phase11PrivateGenerations.reset();phase11WebGenerations.reset();});
+        businessStop.add("AI orchestration",[&]{if(phase11AiChat)phase11AiChat->shutdown();});
+        businessStop.add("file tasks",[&]{if(phase11FileExecutor)phase11FileExecutor->shutdown();});
+        businessStop.add("knowledge tasks",[&]{if(phase11KnowledgeExecutor)phase11KnowledgeExecutor->shutdown();});
+        businessStop.add("accepted database tasks",[&]{if(phase11DatabaseExecutor)phase11DatabaseExecutor->shutdown();});
+        businessStop.add("outbox",[&]{if(phase11OutboxPump)phase11OutboxPump->stop();});
+        businessStop.add("community workers",[&]{if(function3Runtime)function3Runtime->stop();});
+        businessStop.stop();
+        if(businessStop.failures())throw std::runtime_error("business shutdown reported failures");
+#endif
         return 0;
     }
     catch (const std::exception &ex)

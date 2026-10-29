@@ -70,7 +70,7 @@ const server = http.createServer((req, res) => {
       const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
       await context.addCookies([{ name: 'user', value: String(userId), url: origin }]);
       const page = await context.newPage();
-      page.on('pageerror', error => errors.push(error.message));
+      page.on('pageerror', error => {errors.push(error.message);console.error('PAGE:',error.stack);});
       page.on('dialog', dialog => dialog.accept());
       await page.routeWebSocket('**/ws', socket => {
         if (offline) { socket.close(); return; }

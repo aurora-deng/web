@@ -1,3 +1,5 @@
+#include "backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.h"
+#include "backend/application/storage/postgres/PostgresWorkspaceRepository/PostgresWorkspaceRepository.h"
 #include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
 
 #include <algorithm>
@@ -44,6 +46,7 @@ private:
 Result execute(PGconn *connection, std::string_view sql,
                const Parameters &parameters, ExecStatusType expected)
 {
+    webserver::business_metrics::Timer timer{webserver::business_metrics::Database};
     std::vector<const char *> values;
     values.reserve(parameters.size());
     for (const auto &parameter : parameters)
@@ -853,6 +856,20 @@ std::unique_ptr<ITransaction> PostgresStore::beginTransaction()
     return std::make_unique<Transaction>(*this, pool_.acquire());
 }
 
+std::vector<webserver::chat::UserCard>PostgresStore::searchUsers(UserId user,std::string_view query,UserId after,std::size_t limit)const{auto scope=connection();return PostgresWorkspaceRepository::users(scope.connection,user,query,after,limit);}
+std::vector<Message>PostgresStore::searchVisibleMessages(UserId user,ConversationId conversation,std::string_view query,MessageId before,std::size_t limit)const{auto scope=connection();return PostgresWorkspaceRepository::search(scope.connection,user,conversation,query,before,limit);}
+webserver::chat::ConversationPreference PostgresStore::preference(UserId user,ConversationId conversation)const{auto scope=connection();return PostgresWorkspaceRepository::preference(scope.connection,user,conversation);}
+webserver::chat::PreferenceWrite PostgresStore::writePreference(UserId user,ConversationId conversation,bool muted){auto scope=connection();return PostgresWorkspaceRepository::writePreference(scope.connection,user,conversation,muted);}
+
+void PostgresStore::requireMigrations(std::size_t through) const
+{
+    auto scope=connection();
+    const auto result=query(scope.connection,
+        "SELECT count(*) FROM phase11_schema_migrations WHERE version BETWEEN 1 AND $1", {number(through)});
+    if(std::stoull(result.value(0,0))!=through)
+        throw std::runtime_error("Business requires database migrations through 024; no automatic migrations performed");
+}
+
 bool PostgresStore::healthy() const noexcept
 {
     try
@@ -1288,9 +1305,9 @@ std::vector<ConversationSummary> PostgresStore::listConversationSummaries(
         "CASE WHEN c.kind='direct' THEN COALESCE(NULLIF(cp.remark,''),peer.display_name,'') ELSE c.title END,"
         "peer.avatar_file_id,COALESCE(latest.preview,''),"
         "COALESCE((extract(epoch FROM latest.created_at)*1000000)::bigint,0),"
-        "COALESCE(cp.notifications_muted,false),"
+        "COALESCE(pref.notifications_muted,cp.notifications_muted,false),"
         "EXISTS(SELECT 1 FROM conversation_members am JOIN users au ON au.id=am.user_id "
-        "WHERE am.conversation_id=c.id AND au.ai_account) "
+        "WHERE am.conversation_id=c.id AND au.ai_account),peer.id,COALESCE(pref.revision,0) "
         "FROM conversations c JOIN conversation_members m ON m.conversation_id=c.id "
         // LATERAL 读取最新消息可使用现有 (conversation_id,conversation_seq) 索引。
         // 所有会话一次往返；HTTP 层不再逐会话查用户/最新消息。
@@ -1302,6 +1319,7 @@ std::vector<ConversationSummary> PostgresStore::listConversationSummaries(
         "LEFT JOIN LATERAL (SELECT CASE WHEN state='recalled' THEN '这条消息已被撤回' "
         "WHEN body='' THEN '[附件]' ELSE left(body,120) END AS preview,created_at "
         "FROM messages WHERE conversation_id=c.id ORDER BY conversation_seq DESC LIMIT 1) latest ON true "
+        "LEFT JOIN conversation_preferences pref ON pref.conversation_id=c.id AND pref.user_id=$1 "
         "WHERE m.user_id=$1::bigint AND c.state='active' "
         "ORDER BY COALESCE(latest.created_at,c.created_at) DESC,c.id DESC", {number(user)});
     std::vector<ConversationSummary> summaries;
@@ -1317,6 +1335,8 @@ std::vector<ConversationSummary> PostgresStore::listConversationSummaries(
         summary.lastMessageAt = decodeTime(result, row, 16);
         summary.notificationsMuted = decodeBool(result, row, 17);
         summary.containsAi = decodeBool(result, row, 18);
+        summary.peerUserId=decodeOptionalId(result,row,19);
+        summary.preferencesRevision=std::stoull(result.value(row,20));
         summaries.push_back(std::move(summary));
     }
     return summaries;
@@ -1485,79 +1505,36 @@ std::vector<Message> PostgresStore::messagesAfter(
     ConversationId conversation, std::uint64_t sequence,
     std::size_t limit) const
 {
-    auto scope = connection();
-    const auto result = query(scope.connection,
-        "SELECT " + std::string(kMessageColumns) +
-        " FROM messages WHERE conversation_id=$1::bigint AND conversation_seq>$2::bigint "
-        "ORDER BY conversation_seq LIMIT $3::bigint",
-        {number(conversation), number(sequence), number(limit)});
-    std::vector<Message> messages;
-    messages.reserve(result.rows());
-    for (int row = 0; row < result.rows(); ++row)
-        messages.push_back(hydrateMessage(scope.connection,
-                                          readMessage(result, row)));
-    return messages;
+    auto scope=connection();
+    return PostgresMessageRepository::after(scope.connection,conversation,sequence,limit);
 }
 
 std::vector<Message> PostgresStore::messagesBefore(
     ConversationId conversation, std::uint64_t before, std::size_t limit) const
 {
-    auto scope = connection();
-    const auto result = query(scope.connection,
-        "SELECT " + std::string(kMessageColumns) +
-        " FROM messages WHERE conversation_id=$1::bigint "
-        "AND ($2::bigint=0 OR conversation_seq<$2::bigint) "
-        "ORDER BY conversation_seq DESC LIMIT $3::bigint",
-        {number(conversation), number(before), number(limit)});
-    std::vector<Message> messages;
-    messages.reserve(result.rows());
-    // 数据库反向扫描现有 (conversation_id, conversation_seq) 唯一索引，输出统一升序。
-    for (int row = result.rows() - 1; row >= 0; --row)
-        messages.push_back(hydrateMessage(scope.connection, readMessage(result, row)));
-    return messages;
+    auto scope=connection();
+    return PostgresMessageRepository::before(scope.connection,conversation,before,limit);
 }
 
 std::optional<Message> PostgresStore::findOwnMessage(
     ConversationId conversation, UserId sender, std::string_view clientMessageId) const
 {
-    auto scope = connection();
-    const auto result = query(scope.connection,
-        "SELECT " + std::string(kMessageColumns) +
-        " FROM messages WHERE conversation_id=$1::bigint AND sender_id=$2::bigint "
-        "AND client_message_id=$3",
-        {number(conversation), number(sender), std::string(clientMessageId)});
-    return result.rows() ? std::optional<Message>{hydrateMessage(
-        scope.connection, readMessage(result, 0))} : std::nullopt;
+    auto scope=connection();
+    return PostgresMessageRepository::own(scope.connection,conversation,sender,clientMessageId);
 }
 
 std::vector<Message> PostgresStore::searchMessages(
     ConversationId conversation, std::string_view text,
     std::size_t limit) const
 {
-    auto scope = connection();
-    const auto result = query(scope.connection,
-        "SELECT " + std::string(kMessageColumns) +
-        " FROM messages WHERE conversation_id=$1::bigint AND state='active' "
-        "AND body ILIKE '%' || $2 || '%' "
-        "ORDER BY conversation_seq LIMIT $3::bigint",
-        {number(conversation), std::string(text), number(limit)});
-    std::vector<Message> messages;
-    messages.reserve(result.rows());
-    for (int row = 0; row < result.rows(); ++row)
-        messages.push_back(hydrateMessage(scope.connection,
-                                          readMessage(result, row)));
-    return messages;
+    auto scope=connection();
+    return PostgresMessageRepository::search(scope.connection,conversation,text,limit);
 }
 
 std::optional<Message> PostgresStore::findMessage(MessageId id) const
 {
-    auto scope = connection();
-    const auto result = query(scope.connection,
-        "SELECT " + std::string(kMessageColumns) +
-        " FROM messages WHERE id=$1::bigint", {number(id)});
-    return result.rows() ? std::optional<Message>{hydrateMessage(
-                               scope.connection, readMessage(result, 0))}
-                         : std::nullopt;
+    auto scope=connection();
+    return PostgresMessageRepository::find(scope.connection,id);
 }
 
 RecallMessageResult PostgresStore::recallMessage(MessageId id, UserId actor,

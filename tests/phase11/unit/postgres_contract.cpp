@@ -3,6 +3,7 @@
 #include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
 #include "backend/ai/models/RagService/RagService.h"
 #include "tests/phase11/unit/RepositoryContract.h"
+#include "tests/function3/unit/WorkspaceContract.h"
 
 #if defined(WEBSERVER_HAS_SODIUM)
 #include "backend/application/business/AuthService/AuthService.h"
@@ -489,6 +490,7 @@ int main()
             {store, store, store, store, store, store, store},
             std::chrono::system_clock::now());
         runExtendedContract(store, std::chrono::system_clock::now());
+        webserver::chat::test::runWorkspaceContract(store);
 #if defined(WEBSERVER_HAS_SODIUM)
         runSecurePostgresAuthContract(store, std::chrono::system_clock::now());
 #endif

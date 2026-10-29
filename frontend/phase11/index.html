@@ -6,14 +6,15 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#07101f">
   <title>Nebula Chat · 星云聊天</title>
-  <link rel="stylesheet" href="/phase11/styles.css">
-<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/ChatWorkbench.css?v=36">
+  <link rel="stylesheet" href="/phase11/styles.css?v=4ec58ab3c1e38adb">
+<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/ChatWorkbench.css?v=4ec58ab3c1e38adb">
 <!-- NEBULA DS v1：token → 基础层 → 工作区桥接。必须放在本页样式之后。 -->
-<link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css">
-<link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css">
-<link rel="stylesheet" href="/phase11/shared/DesignSystem/workspaces.css">
+<link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=4ec58ab3c1e38adb">
+<link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css?v=4ec58ab3c1e38adb">
+<link rel="stylesheet" href="/phase11/shared/DesignSystem/workspaces.css?v=4ec58ab3c1e38adb">
 <!-- 业务层样式：必须排在 workspaces.css 之后，否则压不住 DS 桥接层。回滚 = 删这一行。 -->
-<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/BusinessLayer.css?v=1">
+<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/BusinessLayer.css?v=4ec58ab3c1e38adb">
+<link rel="stylesheet" href="/phase11/chat/WorkspaceUi/WorkspaceUi.css?v=4ec58ab3c1e38adb">
 </head>
 <body data-workspace="chat">
   <div class="space-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -111,7 +112,7 @@
       <section class="detail-identity"><span id="detail-avatar" class="avatar avatar-xl">✦</span><div><h3 id="detail-title">尚未选择会话</h3><p id="detail-kind">选择会话后显示详情</p></div></section>
       <section id="group-governance" class="detail-card group-governance hidden"><div class="detail-card-head"><h3>群聊治理</h3><button id="edit-group-profile" class="mini-button hidden" type="button">编辑</button></div><p id="group-announcement" class="group-announcement">暂无群公告</p><div class="group-actions"><button id="leave-group" class="mini-button hidden" type="button">退出群聊</button><button id="dissolve-group" class="mini-button danger hidden" type="button">解散群聊</button></div></section>
       <section class="detail-card"><div class="detail-card-head"><h3>成员 <span id="detail-member-count">0</span></h3></div><ul id="detail-member-list" class="member-list"><li class="detail-empty">暂无成员信息</li></ul></section>
-      <section class="detail-card connection-card"><div class="detail-card-head"><h3>连接状态</h3></div><div class="health-row"><span><i class="health-dot ok"></i>HTTP API</span><b id="http-health">正常</b></div><div class="health-row"><span><i id="detail-ws-dot" class="health-dot"></i>WebSocket</span><b id="detail-ws-state">连接中</b></div><div class="health-row"><span><i id="detail-sse-dot" class="health-dot"></i>SSE 通知</span><b id="detail-sse-state">连接中</b></div></section>
+      <section class="detail-card"><label class="conversation-mute-control"><input id="conversation-muted" type="checkbox" disabled>会话免打扰</label><small>只关闭提醒，消息仍会送达并计入未读。</small></section><section class="detail-card connection-card"><div class="detail-card-head"><h3>连接状态</h3></div><div class="health-row"><span><i class="health-dot ok"></i>HTTP API</span><b id="http-health">正常</b></div><div class="health-row"><span><i id="detail-ws-dot" class="health-dot"></i>WebSocket</span><b id="detail-ws-state">连接中</b></div><div class="health-row"><span><i id="detail-sse-dot" class="health-dot"></i>SSE 通知</span><b id="detail-sse-state">连接中</b></div></section>
       <section class="detail-card delivery-card"><span class="delivery-icon">DB</span><div><h3>离线投递已启用</h3><p>接收成员不在线也可以发送。消息与 Outbox 在同一事务内保存，上线后按序恢复。</p></div></section>
     </aside>
   </main>
@@ -124,7 +125,7 @@
 
   <dialog id="profile-dialog"><form id="profile-form" class="dialog-card profile-dialog-card"><header><div><p class="eyebrow">PROFILE</p><h2>个人资料</h2><p id="profile-id-hint">用户 ID</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="profile-preview"><span id="profile-dialog-avatar" class="avatar avatar-xl">U</span><p>这些信息会在星云聊天中展示</p></div><label>头像图片<input name="avatar" type="file" accept="image/png,image/jpeg,image/gif,image/webp"><small>PNG/JPEG/GIF/WebP，最大 10 MiB；保存时分片上传。</small></label><label>显示名称<input name="displayName" maxlength="64" required></label><label>个人简介<textarea name="biography" maxlength="240" rows="4" placeholder="介绍一下自己"></textarea></label><p class="form-status" id="profile-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">保存资料</button></footer></form></dialog>
 
-  <dialog id="search-dialog"><section class="dialog-card dialog-wide search-dialog-card"><header><div><p class="eyebrow">HISTORY SEARCH</p><h2>历史消息搜索</h2><p>只搜索当前有权访问的会话内容。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><form id="search-form" class="inline-form"><label>关键词<input name="query" maxlength="120" required placeholder="输入消息关键词"></label><button type="submit" class="primary-button">搜索</button></form><ol id="search-results" class="search-results"></ol><p class="form-status" id="search-status" role="status"></p></section></dialog>
+  <dialog id="search-dialog"><section class="dialog-card dialog-wide search-dialog-card"><header><div><p class="eyebrow">HISTORY SEARCH</p><h2>历史消息搜索</h2><p>只搜索当前有权访问的会话内容。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><form id="search-form" class="inline-form"><label>范围<select name="scope"><option value="current">当前会话</option><option value="all">我的全部会话</option></select></label><label>关键词<input name="query" maxlength="120" required placeholder="输入消息关键词"></label><button type="submit" class="primary-button">搜索</button></form><ol id="search-results" class="search-results"></ol><button type="button" id="search-more" class="ghost-button" disabled>加载更多结果</button><p class="form-status" id="search-status" role="status"></p></section></dialog>
 
   <dialog id="member-dialog"><form id="member-form" class="dialog-card"><header><div><p class="eyebrow">GROUP MEMBER</p><h2>邀请群成员</h2><p>群主和管理员可以邀请新成员。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>用户 ID<input name="memberId" inputmode="numeric" required placeholder="输入要邀请的用户 ID"></label><p class="form-status" id="member-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">邀请成员</button></footer></form></dialog>
 
@@ -140,6 +141,6 @@
 
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <!-- 版本参数让已经打开过旧页面的浏览器重新获取修复后的 ES Module。 -->
-  <script type="module" src="/phase11/app.js?v=function3-phase37"></script>
+  <script type="module" src="/phase11/app.js?v=4ec58ab3c1e38adb"></script>
 </body>
 </html>

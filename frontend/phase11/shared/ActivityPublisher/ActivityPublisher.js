@@ -1,8 +1,11 @@
-import { MediaUploader } from '../MediaUploader/MediaUploader.js';
+import { MediaUploader } from '../MediaUploader/MediaUploader.js?v=4ec58ab3c1e38adb';
+import { paintUploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=4ec58ab3c1e38adb';
 /** 树和主页共用一条发布链路；公开范围确认进入服务器契约，不能只改 UI 提示。 */
 export class ActivityPublisher {
   constructor(form,api,{initialDestination='profile',files=()=>[],status,onPublished}) {
     this.form=form;this.api=api;this.files=files;this.status=status;this.onPublished=onPublished;this.uploader=new MediaUploader(api);
+    // Read rules when the publisher is opened/used, after the owning page restored its login.
+    form.addEventListener('focusin',()=>paintUploadCapabilities(api,form).catch(error=>{this.status.textContent=error.message;}),{once:true});
     const box=document.createElement('section');box.className='publisher-audience';
     box.innerHTML='<label>发布到<select name="destination"><option value="profile">个人主页</option><option value="tree">苦情树</option><option value="both">主页与苦情树</option></select></label><label>谁可以看<select name="visibility"><option value="friends">好友可见</option><option value="members">登录用户可见</option><option value="private">仅自己</option></select></label><label class="publisher-public-confirm" hidden><input name="publicConfirmed" type="checkbox">我确认：苦情树内容对所有登录用户可见</label>';
     const header=form.querySelector('header');if(header)header.after(box);else form.prepend(box);

@@ -1,0 +1,26 @@
+{
+  "cloudCalls": 0,
+  "realCloudVerified": false,
+  "naturalnessVerified": false,
+  "voices": [
+    {
+      "voice": "zf_001",
+      "speed": 0.95,
+      "seconds": 4.549,
+      "rms": 2205.68,
+      "prepareSeconds": 12.211,
+      "provider": "local",
+      "fallback": "missing-key"
+    },
+    {
+      "voice": "zm_009",
+      "speed": 0.95,
+      "seconds": 4.469,
+      "rms": 1794.36,
+      "prepareSeconds": 11.686,
+      "provider": "local",
+      "fallback": "missing-key"
+    }
+  ],
+  "passed": true
+}

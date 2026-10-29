@@ -1,0 +1,12 @@
+{
+  "sha256": "430309c20a1e1763e0e8bee54b6eb13f11cc486273a49ea9f4b789bf986f0748",
+  "observed": "after server trials, before final frontend/status metadata rebuild",
+  "versionAtTrial": {
+    "sourceFingerprint": "6646c36ae25cdf99f9c3496f7b461f77d4719272b220fbe60cfbf1fb44cf8acd",
+    "revision": "source-snapshot",
+    "requiredMigration": 24,
+    "testResults": "see phase43-47 evidence; not a runtime health assertion",
+    "schemaVerifiedAtStartup": true
+  },
+  "note": "The original trial summaries record the baseline hash. This observation is supplementary, not a retroactive per-round hash assertion."
+}

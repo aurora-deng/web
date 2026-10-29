@@ -63,6 +63,10 @@ const server=http.createServer((req,res)=>{
         assert.equal(metrics.rankingDetailRequests,1,'ranking still fans out per fruit');
         for(const size of [{width:1440,height:900},{width:1920,height:1080},{width:390,height:844}]){
           await page.setViewportSize(size);await page.reload();await page.waitForFunction(()=>document.querySelector('#tree-count')?.textContent.includes('100'));await page.waitForTimeout(300);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'horizontal overflow');
+          const layout=await page.evaluate(()=>{const bounds=selector=>{const r=document.querySelector(selector).getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};return {heading:bounds('.scene-heading'),scene:bounds('#scene'),controls:bounds('.scene-controls'),visible:getComputedStyle(document.querySelector('.scene-heading')).display!=='none'};});
+          (metrics.viewportLayouts ||= []).push({width:size.width,...layout});
+          if(size.width>760){assert(layout.heading.width>=180,'old overlay max-width shrank the caption grid');assert(layout.heading.right<=layout.scene.left+2,'caption overlaps 3D hit-test viewport');assert(layout.heading.bottom<layout.controls.top,'caption overlaps scene controls');}
+          else assert(!layout.visible,'mobile decorative caption was not collapsed');
           await page.screenshot({path:path.join(output,`tree-${size.width}.png`)});
         }
         await page.getByRole('button',{name:/故事广场/}).click();assert.equal(await page.locator('.tree-stage').isVisible(),false);

@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "database": "function3_runtime_test",
+  "modelAccount": "131",
+  "firstTokenSeconds": 41.872,
+  "completeSeconds": 42.478,
+  "answerBytes": 33,
+  "checks": [
+    "real configured model completion",
+    "server rejects missing consent",
+    "idempotent retry and payload conflict",
+    "different actor denied",
+    "private HTTP endpoint remains denied",
+    "cancellation and other actor denial",
+    "no server chat message persisted"
+  ],
+  "cloudApi": "not tested with real key; browser fixture covers protocol success/failure"
+}

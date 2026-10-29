@@ -1,3 +1,4 @@
+#include "backend/application/modules/tree/domain/TreeContentPolicy/TreeContentPolicy.h"
 #include "FfmpegMediaProcessor.h"
 #include "backend/application/modules/shared/infrastructure/ProcessRunner/ProcessRunner.h"
 #include <map>
@@ -16,9 +17,9 @@ ValidatedMedia FfmpegMediaProcessor::validate(Id file,std::string input,std::uin
     const auto codec=fields["codec_name"];
     if(image && codec!="png"&&codec!="mjpeg"&&codec!="gif"&&codec!="webp")throw BusinessError(Failure::Invalid,"unsupported image codec");
     if(!image && fields["codec_type"]!="audio")throw BusinessError(Failure::Invalid,"image or audio required");
-    if(bytes>(image?5ULL:10ULL)*1024*1024)throw BusinessError(Failure::Invalid,"media size exceeded");
+    if(bytes>(image?TreeContentPolicy::imageBytes:TreeContentPolicy::voiceBytes))throw BusinessError(Failure::Invalid,"media size exceeded");
     Milliseconds duration=0;
-    if(!image){if(auto i=fields.find("duration");i!=fields.end()&&i->second!="N/A"){const auto seconds=std::stod(i->second);if(!std::isfinite(seconds)||seconds<=0||seconds>60)throw BusinessError(Failure::Invalid,"audio must be at most 60 seconds");}}
+    if(!image){if(auto i=fields.find("duration");i!=fields.end()&&i->second!="N/A"){const auto seconds=std::stod(i->second);if(!std::isfinite(seconds)||seconds<=0||seconds>TreeContentPolicy::voiceMilliseconds/1000.0)throw BusinessError(Failure::Invalid,"audio must be at most 60 seconds");}}
     else{auto w=std::stoull(fields.at("width")),h=std::stoull(fields.at("height"));if(!w||!h||w>4096||h>4096)throw BusinessError(Failure::Invalid,"image dimensions exceed 4096 pixels");}
     std::filesystem::create_directories(output_);if(std::filesystem::space(output_).available<256*1024*1024)throw BusinessError(Failure::Busy,"media storage reserve reached");const auto destination=output_/(std::to_string(file)+(image?".png":".wav"));
     const auto temporary=destination.string()+"."+std::to_string(getpid())+".partial";
@@ -31,7 +32,7 @@ ValidatedMedia FfmpegMediaProcessor::validate(Id file,std::string input,std::uin
     if(!image){
         auto measured=runProcess({(prefix_/"bin/ffprobe").string(),"-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",temporary},std::chrono::seconds(5));
         double seconds=0;try{seconds=std::stod(measured.output);}catch(...){}
-        if(measured.status||!std::isfinite(seconds)||seconds<=0||seconds>60){std::filesystem::remove(temporary);throw BusinessError(Failure::Invalid,"decoded audio must be at most 60 seconds");}
+        if(measured.status||!std::isfinite(seconds)||seconds<=0||seconds>TreeContentPolicy::voiceMilliseconds/1000.0){std::filesystem::remove(temporary);throw BusinessError(Failure::Invalid,"decoded audio must be at most 60 seconds");}
         duration=static_cast<Milliseconds>(std::llround(seconds*1000));
     }
     std::filesystem::rename(temporary,destination);

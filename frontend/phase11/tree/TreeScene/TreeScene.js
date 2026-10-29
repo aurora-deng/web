@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { TreeAccents } from '../TreeAccents/TreeAccents.js';
-import { fruitGeometry, fruitMaps, fruitStemGeometry, fruitColor } from '../FruitAppearance/FruitAppearance.js';
-import { OrbitControls } from '../../vendor/three-r186/OrbitControls.js';
-import { mergeWood } from './WoodGeometry.js';
+import { TreeAccents } from '../TreeAccents/TreeAccents.js?v=4ec58ab3c1e38adb';
+import { fruitGeometry, fruitMaps, fruitStemGeometry, fruitColor } from '../FruitAppearance/FruitAppearance.js?v=4ec58ab3c1e38adb';
+import { OrbitControls } from '../../vendor/three-r186/OrbitControls.js?v=4ec58ab3c1e38adb';
+import { mergeWood } from './WoodGeometry.js?v=4ec58ab3c1e38adb';
 const point=p=>new THREE.Vector3(...p);
 // 固定种子只用于造型；果实身份、数量和名次全部来自真实业务数据。
 function random(seed=2317){return()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296;};}

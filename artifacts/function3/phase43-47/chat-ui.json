@@ -1,0 +1,27 @@
+{
+  "kind": "synthetic browser/API fixture",
+  "passed": true,
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "checks": [
+    "431 mixed messages over three days, bounded virtual DOM",
+    "six layout/theme screenshots",
+    "user picker writes existing request DTO",
+    "group mute confirmed by backend fixture",
+    "global search cursor and bounded context jump",
+    "newer paging from search context",
+    "no module errors"
+  ]
+}

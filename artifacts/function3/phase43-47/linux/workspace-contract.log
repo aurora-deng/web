@@ -1,0 +1,109 @@
+Internal ctest changing into directory: /home/pikachu/function3-src/build-release
+Test project /home/pikachu/function3-src/build-release
+    Start  75: function3_runtime_config
+1/4 Test  #75: function3_runtime_config ..........   Passed    0.00 sec
+    Start  77: function3_workspace_contract
+2/4 Test  #77: function3_workspace_contract ......***Failed    0.02 sec
+workspace contract: recalled context leaked body
+
+    Start  86: phase11_postgres_contract_tests
+3/4 Test  #86: phase11_postgres_contract_tests ...***Failed    0.85 sec
+NOTICE:  truncate cascades to table "user_sessions"
+NOTICE:  truncate cascades to table "friend_requests"
+NOTICE:  truncate cascades to table "friendships"
+NOTICE:  truncate cascades to table "conversations"
+NOTICE:  truncate cascades to table "conversation_members"
+NOTICE:  truncate cascades to table "messages"
+NOTICE:  truncate cascades to table "model_versions"
+NOTICE:  truncate cascades to table "model_edges"
+NOTICE:  truncate cascades to table "model_bindings"
+NOTICE:  truncate cascades to table "training_candidates"
+NOTICE:  truncate cascades to table "dataset_candidates"
+NOTICE:  truncate cascades to table "contact_preferences"
+NOTICE:  truncate cascades to table "user_blocks"
+NOTICE:  truncate cascades to table "user_presence"
+NOTICE:  truncate cascades to table "file_objects"
+NOTICE:  truncate cascades to table "model_activation_audits"
+NOTICE:  truncate cascades to table "ai_generation_audits"
+NOTICE:  truncate cascades to table "model_evaluation_cases"
+NOTICE:  truncate cascades to table "model_evaluation_runs"
+NOTICE:  truncate cascades to table "model_activation_policies"
+NOTICE:  truncate cascades to table "knowledge_chunks"
+NOTICE:  truncate cascades to table "rag_citations"
+NOTICE:  truncate cascades to table "model_training_lineages"
+NOTICE:  truncate cascades to table "site_roles"
+NOTICE:  truncate cascades to table "tree_posts"
+NOTICE:  truncate cascades to table "tree_likes"
+NOTICE:  truncate cascades to table "tree_replies"
+NOTICE:  truncate cascades to table "site_audit"
+NOTICE:  truncate cascades to table "content_reports"
+NOTICE:  truncate cascades to table "notification_settings"
+NOTICE:  truncate cascades to table "announcement_playback_claims"
+NOTICE:  truncate cascades to table "activity_favorites"
+NOTICE:  truncate cascades to table "profile_display_settings"
+NOTICE:  truncate cascades to table "profile_operation_receipts"
+NOTICE:  truncate cascades to table "private_archive_purge_receipts"
+NOTICE:  truncate cascades to table "message_attachments"
+NOTICE:  truncate cascades to table "model_evaluation_case_results"
+NOTICE:  truncate cascades to table "tree_tags"
+NOTICE:  truncate cascades to table "tree_media_validation"
+NOTICE:  truncate cascades to table "tree_media"
+NOTICE:  truncate cascades to table "tree_rank_entries"
+NOTICE:  truncate cascades to table "tree_reply_links"
+NOTICE:  truncate cascades to table "conversation_preferences"
+NOTICE:  truncate cascades to table "user_sessions"
+NOTICE:  truncate cascades to table "friend_requests"
+NOTICE:  truncate cascades to table "friendships"
+NOTICE:  truncate cascades to table "conversations"
+NOTICE:  truncate cascades to table "conversation_members"
+NOTICE:  truncate cascades to table "messages"
+NOTICE:  truncate cascades to table "model_versions"
+NOTICE:  truncate cascades to table "model_edges"
+NOTICE:  truncate cascades to table "model_bindings"
+NOTICE:  truncate cascades to table "training_candidates"
+NOTICE:  truncate cascades to table "dataset_candidates"
+NOTICE:  truncate cascades to table "contact_preferences"
+NOTICE:  truncate cascades to table "user_blocks"
+NOTICE:  truncate cascades to table "user_presence"
+NOTICE:  truncate cascades to table "file_objects"
+NOTICE:  truncate cascades to table "model_activation_audits"
+NOTICE:  truncate cascades to table "ai_generation_audits"
+NOTICE:  truncate cascades to table "model_evaluation_cases"
+NOTICE:  truncate cascades to table "model_evaluation_runs"
+NOTICE:  truncate cascades to table "model_activation_policies"
+NOTICE:  truncate cascades to table "knowledge_chunks"
+NOTICE:  truncate cascades to table "rag_citations"
+NOTICE:  truncate cascades to table "model_training_lineages"
+NOTICE:  truncate cascades to table "site_roles"
+NOTICE:  truncate cascades to table "tree_posts"
+NOTICE:  truncate cascades to table "tree_likes"
+NOTICE:  truncate cascades to table "tree_replies"
+NOTICE:  truncate cascades to table "site_audit"
+NOTICE:  truncate cascades to table "content_reports"
+NOTICE:  truncate cascades to table "notification_settings"
+NOTICE:  truncate cascades to table "announcement_playback_claims"
+NOTICE:  truncate cascades to table "activity_favorites"
+NOTICE:  truncate cascades to table "profile_display_settings"
+NOTICE:  truncate cascades to table "profile_operation_receipts"
+NOTICE:  truncate cascades to table "private_archive_purge_receipts"
+NOTICE:  truncate cascades to table "message_attachments"
+NOTICE:  truncate cascades to table "model_evaluation_case_results"
+NOTICE:  truncate cascades to table "tree_tags"
+NOTICE:  truncate cascades to table "tree_media_validation"
+NOTICE:  truncate cascades to table "tree_media"
+NOTICE:  truncate cascades to table "tree_rank_entries"
+NOTICE:  truncate cascades to table "tree_reply_links"
+NOTICE:  truncate cascades to table "conversation_preferences"
+phase11 PostgreSQL repository contract failed: workspace contract: recalled context leaked body
+
+    Start 107: function3_postgres_contract
+4/4 Test #107: function3_postgres_contract .......   Passed    0.23 sec
+
+50% tests passed, 2 tests failed out of 4
+
+Total Test time (real) =   1.13 sec
+
+The following tests FAILED:
+	 77 - function3_workspace_contract (Failed)
+	 86 - phase11_postgres_contract_tests (Failed)
+Errors while running CTest

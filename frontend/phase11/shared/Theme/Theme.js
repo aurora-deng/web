@@ -13,7 +13,7 @@ export function applyTheme(value) {
   window.dispatchEvent(new CustomEvent('nebula:theme', { detail: theme }));
 }
 export function mountTheme(button) {
-  if(!document.querySelector('[data-theme-css]')){const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/Theme/Theme.css?v=43';css.dataset.themeCss='';document.head.append(css);}
+  if(!document.querySelector('[data-theme-css]')){const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/Theme/Theme.css?v=4ec58ab3c1e38adb';css.dataset.themeCss='';document.head.append(css);}
   let saved; try { saved = localStorage.getItem(key); } catch {}
   button.dataset.themeToggle = '';
   button.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));

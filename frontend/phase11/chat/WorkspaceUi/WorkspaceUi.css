@@ -1,0 +1,16 @@
+/* Phase46 components use the existing semantic palette in both themes. */
+.user-picker { display:grid; gap:8px; margin:10px 0; min-width:0; }
+.user-picker-results { display:grid; gap:4px; max-height:190px; overflow:auto; }
+.user-picker-option { background:var(--surface-2); color:var(--text); text-align:left; padding:9px 10px; white-space:normal; }
+.user-picker-selected { display:flex; gap:6px; flex-wrap:wrap; }
+.user-picker small,.advanced-id-input { color:var(--text-3); font-size:12px; }
+.advanced-id-input { margin-top:4px; }
+.conversation-mute-control { display:flex; align-items:center; gap:10px; color:var(--text); }
+.conversation-mute-control input { width:auto; accent-color:var(--accent); }
+.message.message-grouped { margin-top:3px; }
+.message.message-grouped > .avatar { visibility:hidden; }
+.message.message-grouped .message-author { display:none; }
+.message.message-group-next { margin-bottom:4px; }
+.message.message-grouped:not(.mine) .message-footer:not(:has(button)) { display:none; }
+#search-more { margin-top:12px; }
+@media(max-width:600px) { #search-form { flex-wrap:wrap; } #search-form label { min-width:0; flex:1 1 140px; } }

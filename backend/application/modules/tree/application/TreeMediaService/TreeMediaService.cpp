@@ -1,11 +1,12 @@
+#include "backend/application/modules/tree/domain/TreeContentPolicy/TreeContentPolicy.h"
 #include "TreeMediaService.h"
 #include <algorithm>
 namespace webserver::function3 {
 phase11::FileObject TreeMediaService::create(Id actor,std::string name,std::string mime,std::uint64_t bytes,phase11::TimePoint now){
     if(const auto separator=mime.find(';');separator!=std::string::npos)mime.erase(separator);
-    const bool image=mime=="image/png"||mime=="image/jpeg"||mime=="image/gif"||mime=="image/webp";
-    const bool audio=mime=="audio/wav"||mime=="audio/x-wav"||mime=="audio/mpeg"||mime=="audio/ogg"||mime=="audio/webm";
-    if((!image&&!audio)||!bytes||bytes>(image?5ULL:10ULL)*1024*1024)throw BusinessError(Failure::Invalid,"unsupported tree media or size");
+    const bool image=std::find(TreeContentPolicy::imageTypes.begin(),TreeContentPolicy::imageTypes.end(),mime)!=TreeContentPolicy::imageTypes.end();
+    const bool audio=std::find(TreeContentPolicy::voiceTypes.begin(),TreeContentPolicy::voiceTypes.end(),mime)!=TreeContentPolicy::voiceTypes.end();
+    if((!image&&!audio)||!bytes||bytes>(image?TreeContentPolicy::imageBytes:TreeContentPolicy::voiceBytes))throw BusinessError(Failure::Invalid,"unsupported tree media or size");
     // 先作为私有、不透明文件上传。只有独立处理器确认类型/时长后才能成为公开果实媒体。
     if(name.size()>245)name.resize(245);
     return files_.createUpload(actor,name+".bin","application/octet-stream",bytes,now);

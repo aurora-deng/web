@@ -1,4 +1,4 @@
-import { companionSession } from '../ClientBootstrap/ClientBootstrap.js';
+import { companionSession } from '../ClientBootstrap/ClientBootstrap.js?v=4ec58ab3c1e38adb';
 /** 私人资料只允许走本机专用前缀；不回退到服务器聊天或公开知识上传接口。 */
 export class LocalAssistantApi {
   constructor(){this.session=null;this.account='';}

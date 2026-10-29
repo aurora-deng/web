@@ -258,12 +258,16 @@ std::string conversationSummaryJson(const ConversationSummary &summary)
            std::to_string(summary.lastDeliveredSequence) +
            ",\"lastReadSequence\":" +
            std::to_string(summary.lastReadSequence) +
+           ",\"latestSequence\":" + quoteJson(std::to_string(conversation.nextSequence - 1)) +
+           ",\"readSequence\":" + quoteJson(std::to_string(summary.lastReadSequence)) +
            ",\"unreadCount\":" + std::to_string(summary.unreadCount) +
            ",\"displayTitle\":" + quoteJson(summary.displayTitle) +
+           ",\"peerId\":" + (summary.peerUserId ? quoteJson(std::to_string(*summary.peerUserId)) : "null") +
            ",\"avatarUrl\":" + (summary.avatarFileId ? quoteJson("/api/files/" + std::to_string(*summary.avatarFileId)) : "null") +
            ",\"lastMessagePreview\":" + quoteJson(summary.lastMessagePreview) +
            ",\"lastMessageAt\":" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(summary.lastMessageAt.time_since_epoch()).count()) +
            ",\"notificationsMuted\":" + (summary.notificationsMuted ? "true" : "false") +
+           ",\"preferencesVersion\":" + quoteJson(std::to_string(summary.preferencesRevision)) +
            ",\"containsAi\":" + (summary.containsAi ? "true" : "false") + "}";
 }
 

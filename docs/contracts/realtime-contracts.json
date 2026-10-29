@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "transport": "Existing WebSocket JSON and SSE data envelopes, not a new protocol parser",
+  "ws": {
+    "chat.send": {
+      "required": [
+        "v",
+        "type",
+        "id",
+        "conversationId",
+        "content"
+      ],
+      "idempotency": "actor + conversation + id; same payload on retry"
+    },
+    "chat.accepted": {
+      "required": [
+        "type",
+        "replyTo",
+        "id",
+        "sequence",
+        "status"
+      ],
+      "meaning": "durable commit proof, not recipient read"
+    },
+    "chat.ack": {
+      "required": [
+        "v",
+        "type",
+        "id",
+        "conversationId",
+        "sequence"
+      ],
+      "meaning": "delivered watermark"
+    },
+    "chat.read": {
+      "required": [
+        "v",
+        "type",
+        "id",
+        "conversationId",
+        "sequence"
+      ],
+      "meaning": "monotonic read watermark"
+    },
+    "chat.receipt": {
+      "required": [
+        "type",
+        "conversationId",
+        "userId",
+        "sequence",
+        "state"
+      ]
+    },
+    "chat.recall": {
+      "required": [
+        "v",
+        "type",
+        "id",
+        "conversationId",
+        "replyTo"
+      ],
+      "meaning": "replyTo is message ID; existing actor/time/role rules apply"
+    }
+  },
+  "sse": {
+    "conversation.preferences": {
+      "required": [
+        "type",
+        "conversationId",
+        "notificationsMuted",
+        "version"
+      ],
+      "audience": "actor only; compare per-user revision before applying"
+    },
+    "friend.request": {
+      "audience": "receiver"
+    },
+    "conversation.invited": {
+      "audience": "current authorized members"
+    },
+    "ai.token": {
+      "audience": "authorized generation recipients"
+    },
+    "ai.completed": {
+      "audience": "authorized generation recipients"
+    }
+  }
+}

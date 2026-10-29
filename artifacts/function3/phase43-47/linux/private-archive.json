@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "actual TLS required",
+    "owner isolation",
+    "C++/Python UTF8 length-framed SHA256 agreement",
+    "HTTP send persistent dedup",
+    "explicit purge confirmation",
+    "changed source rejected",
+    "concurrent duplicate purge idempotent",
+    "messages after snapshot retained",
+    "private knowledge redacted and excluded from retrieval"
+  ],
+  "formalDatabaseChanged": false
+}

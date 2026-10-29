@@ -72,14 +72,7 @@ std::string FileService::normalizeMediaType(std::string mediaType)
     return mediaType;
 }
 
-void FileService::validateType(std::string_view name,
-                               std::string_view mediaType,
-                               std::uint64_t size)
-{
-    if (size == 0 || size > kMaximumFileBytes)
-        throw ApplicationError(ErrorCode::InvalidArgument,
-                               "file size must be between 1 byte and 25 MiB");
-    const auto extension = extensionOf(name);
+const std::map<std::string,std::vector<std::string>>& FileService::allowedUploadTypes() {
     static const std::map<std::string, std::vector<std::string>> allowed{
         {".png", {"image/png"}},
         {".jpg", {"image/jpeg"}}, {".jpeg", {"image/jpeg"}},
@@ -93,6 +86,18 @@ void FileService::validateType(std::string_view name,
         {".pptx", {"application/vnd.openxmlformats-officedocument.presentationml.presentation"}},
         {".bin", {"application/octet-stream"}}
     };
+    return allowed;
+}
+
+void FileService::validateType(std::string_view name,
+                               std::string_view mediaType,
+                               std::uint64_t size)
+{
+    if (size == 0 || size > kMaximumFileBytes)
+        throw ApplicationError(ErrorCode::InvalidArgument,
+                               "file size must be between 1 byte and 25 MiB");
+    const auto extension = extensionOf(name);
+    const auto &allowed = allowedUploadTypes();
     const auto found = allowed.find(extension);
     if (found == allowed.end() ||
         std::find(found->second.begin(), found->second.end(), mediaType) ==

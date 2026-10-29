@@ -1,4 +1,4 @@
-@import url('/phase11/shared/AnnouncementPlayer/AnnouncementPlayer.css');
+@import url('/phase11/shared/AnnouncementPlayer/AnnouncementPlayer.css?v=4ec58ab3c1e38adb');
 :root{color-scheme:dark;--p-bg:#15191f;--p-panel:#1e242d;--p-soft:#242c37;--p-text:#e6eaf1;--p-muted:#919daf;--p-line:#ffffff10;--p-accent:#a8c9ba;font-family:"Segoe UI","Microsoft YaHei",sans-serif}
 :root[data-theme=light]{color-scheme:light;--p-bg:#f3f5f7;--p-panel:#fff;--p-soft:#edf1f4;--p-text:#263541;--p-muted:#74828e;--p-line:#20304015;--p-accent:#487766}
 *{box-sizing:border-box}body{margin:0;background:var(--p-bg);color:var(--p-text);font-size:14px}button,input,select,textarea{font:inherit}button,a,input,textarea,select{outline-offset:4px}button{cursor:pointer}button:disabled{cursor:wait;opacity:.55}a{color:var(--p-accent);text-decoration:none}button{background:var(--p-soft);color:var(--p-text);border:1px solid var(--p-line);border-radius:8px;padding:9px 15px}button:hover{filter:brightness(1.1)}[hidden]{display:none!important}

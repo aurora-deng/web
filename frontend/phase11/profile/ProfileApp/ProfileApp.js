@@ -1,9 +1,9 @@
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js';
-import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js';
-import { ActivityDetail } from '../../shared/ActivityDetail/ActivityDetail.js';
-import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js';
-import { formatShortDateTime } from '../../shared/TimeFormat/TimeFormat.js';
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=4ec58ab3c1e38adb';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=4ec58ab3c1e38adb';
+import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=4ec58ab3c1e38adb';
+import { ActivityDetail } from '../../shared/ActivityDetail/ActivityDetail.js?v=4ec58ab3c1e38adb';
+import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=4ec58ab3c1e38adb';
+import { formatShortDateTime } from '../../shared/TimeFormat/TimeFormat.js?v=4ec58ab3c1e38adb';
 mountNavigation('profile');
 const $=s=>document.querySelector(s),api=new BusinessApi();
 const state={owner:'',channel:'all',section:'timeline',before:'0',rows:[],busy:false};

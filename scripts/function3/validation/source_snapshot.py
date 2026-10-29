@@ -2,11 +2,15 @@
 from pathlib import Path
 import subprocess
 import tarfile
+import sys
 
 root = Path(__file__).resolve().parents[3]
 output = root / 'build-function3/source.tar.gz'
 output.parent.mkdir(exist_ok=True)
-names = subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], cwd=root).decode().split('\0')
+# Reuse the audited public inventory: do not ship local data or verification outputs.
+sys.path.insert(0,str(root/'scripts/project'))
+from source_guard import names as public_source_names
+names = list(public_source_names())
 with tarfile.open(output, 'w:gz') as archive:
     for name in sorted(set(names)):
         if name and (root/name).is_file():

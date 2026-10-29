@@ -2,7 +2,7 @@ const node=(tag,text)=>{const n=document.createElement(tag);if(text)n.textConten
 /** 果实只提供作者入口；是否允许申请、是否已是好友都由服务端返回。 */
 export async function openTreeAuthor(api,post){
   const author=await api.request(`/api/tree/posts/${post.id}/author`);
-  if(!document.querySelector('[data-author-card-css]')){const css=node('link');css.rel='stylesheet';css.href='/phase11/shared/TreeAuthorCard/TreeAuthorCard.css';css.dataset.authorCardCss='';document.head.append(css);}
+  if(!document.querySelector('[data-author-card-css]')){const css=node('link');css.rel='stylesheet';css.href='/phase11/shared/TreeAuthorCard/TreeAuthorCard.css?v=4ec58ab3c1e38adb';css.dataset.authorCardCss='';document.head.append(css);}
   const dialog=node('dialog');dialog.className='tree-author-card';
   const close=node('button','×');close.type='button';close.className='author-close';close.setAttribute('aria-label','关闭作者卡');close.onclick=()=>dialog.close();
   const avatar=node('div',[...author.displayName][0]||'友');avatar.className='author-avatar';

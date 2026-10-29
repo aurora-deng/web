@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-29",
+  "branch": "feature/function3-tree",
+  "baselineCheckpoint": "6dafe1e",
+  "communicationCoreUnchangedFiles": 152,
+  "functionalPassed": true,
+  "performancePassed": false,
+  "linuxTests": {
+    "release": 114,
+    "debug": 114,
+    "asanLsanUbsan": 114
+  },
+  "frontendLogicTests": 24,
+  "projectGateTests": 8,
+  "windowsContracts": {
+    "release": 5,
+    "debug": 5
+  },
+  "browserSuites": 7,
+  "performance": {
+    "fastRegressionPercent": -0.22591852068258866,
+    "pairedAckP99IncreasePercent": [
+      18.29481029219362,
+      23.32762912258868,
+      1.62946734218814
+    ],
+    "mixedMedianBefore": 508.378,
+    "mixedMedianAfter": 593.996
+  },
+  "limits": [
+    "ACK P99 round 2 exceeds 20 percent; gate remains failed",
+    "Remote CI not executed; no push or runner installed",
+    "Cloud API keys and perceptual speech/model quality not accepted",
+    "Exact per-event commit-to-wire correlation remains future work",
+    "Proxy timing includes local Python HTTP, scheduler, SSH and VM"
+  ],
+  "formalDatabaseWritten": false,
+  "dailyServiceDeployed": false,
+  "githubPushed": false,
+  "finalRuntimeSmoke": "linux/final-runtime-smoke.json",
+  "assetsVersion": "4ec58ab3c1e38adb"
+}

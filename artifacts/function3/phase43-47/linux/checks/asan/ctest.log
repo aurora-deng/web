@@ -1,0 +1,234 @@
+Internal ctest changing into directory: /home/pikachu/function3-src/build-asan
+Test project /home/pikachu/function3-src/build-asan
+        Start   1: BufferTest.AppendsCompactsAndFindsDelimiters
+  1/114 Test   #1: BufferTest.AppendsCompactsAndFindsDelimiters .....................................   Passed    0.06 sec
+        Start   2: HttpParserTest.WaitsForHalfPacketAndContentLengthBody
+  2/114 Test   #2: HttpParserTest.WaitsForHalfPacketAndContentLengthBody ............................   Passed    0.05 sec
+        Start   3: HttpParserTest.LeavesPipelinedRequestInBuffer
+  3/114 Test   #3: HttpParserTest.LeavesPipelinedRequestInBuffer ....................................   Passed    0.05 sec
+        Start   4: HttpParserTest.DecodesChunkedBodyAcrossPackets
+  4/114 Test   #4: HttpParserTest.DecodesChunkedBodyAcrossPackets ...................................   Passed    0.05 sec
+        Start   5: HttpParserTest.ParsesByteRangesAndRejectsConflictingLengths
+  5/114 Test   #5: HttpParserTest.ParsesByteRangesAndRejectsConflictingLengths ......................   Passed    0.05 sec
+        Start   6: HttpParserTest.EnforcesRequestLineHeaderAndContentLengthLimits
+  6/114 Test   #6: HttpParserTest.EnforcesRequestLineHeaderAndContentLengthLimits ...................   Passed    0.06 sec
+        Start   7: HttpParserTest.RejectsIncrementalChunkedBodyOverLimit
+  7/114 Test   #7: HttpParserTest.RejectsIncrementalChunkedBodyOverLimit ............................   Passed    0.05 sec
+        Start   8: HttpParserTest.RejectsAmbiguousRequestFramingAndMissingHost
+  8/114 Test   #8: HttpParserTest.RejectsAmbiguousRequestFramingAndMissingHost ......................   Passed    0.06 sec
+        Start   9: HttpParserTest.RequiresResetAfterDeliveryAndParsesConnectionTokens
+  9/114 Test   #9: HttpParserTest.RequiresResetAfterDeliveryAndParsesConnectionTokens ...............   Passed    0.05 sec
+        Start  10: HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser
+ 10/114 Test  #10: HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser ...........................   Passed    0.05 sec
+        Start  11: HttpRangeTest.PreservesContentRangeForMemoryAndFileBodies
+ 11/114 Test  #11: HttpRangeTest.PreservesContentRangeForMemoryAndFileBodies ........................   Passed    0.07 sec
+        Start  12: HttpResponseTest.SendfilePreservesRouteCachePolicy
+ 12/114 Test  #12: HttpResponseTest.SendfilePreservesRouteCachePolicy ...............................   Passed    0.06 sec
+        Start  13: RouterTest.MatchesDynamicRouteAndExtractsParameter
+ 13/114 Test  #13: RouterTest.MatchesDynamicRouteAndExtractsParameter ...............................   Passed    0.05 sec
+        Start  14: RouterTest.MiddlewareCanShortCircuitRoute
+ 14/114 Test  #14: RouterTest.MiddlewareCanShortCircuitRoute ........................................   Passed    0.05 sec
+        Start  15: RouterTest.ResolvesExecutionPolicyBeforeDispatch
+ 15/114 Test  #15: RouterTest.ResolvesExecutionPolicyBeforeDispatch .................................   Passed    0.05 sec
+        Start  16: RouterTest.FrozenRouterRejectsMutation
+ 16/114 Test  #16: RouterTest.FrozenRouterRejectsMutation ...........................................   Passed    0.05 sec
+        Start  17: RouterTest.ProducesNotFoundResponse
+ 17/114 Test  #17: RouterTest.ProducesNotFoundResponse ..............................................   Passed    0.05 sec
+        Start  18: OperationalMetricsTest.ConcurrentStripedCountersPreserveTotal
+ 18/114 Test  #18: OperationalMetricsTest.ConcurrentStripedCountersPreserveTotal ....................   Passed    0.06 sec
+        Start  19: ObjectPoolTest.ConcurrentAcquireReleaseKeepsObjectsReset
+ 19/114 Test  #19: ObjectPoolTest.ConcurrentAcquireReleaseKeepsObjectsReset .........................   Passed    0.08 sec
+        Start  20: WebSocketHandshakeTest.AcceptKeyMatchesRfc6455Example
+ 20/114 Test  #20: WebSocketHandshakeTest.AcceptKeyMatchesRfc6455Example ............................   Passed    0.04 sec
+        Start  21: WebSocketHandshakeTest.ValidateRequiresVersion13
+ 21/114 Test  #21: WebSocketHandshakeTest.ValidateRequiresVersion13 .................................   Passed    0.05 sec
+        Start  22: WebSocketCodecTest.EncodeDecodeTextRoundTrip
+ 22/114 Test  #22: WebSocketCodecTest.EncodeDecodeTextRoundTrip .....................................   Passed    0.05 sec
+        Start  23: WebSocketCodecTest.RejectUnmaskedClientFrame
+ 23/114 Test  #23: WebSocketCodecTest.RejectUnmaskedClientFrame .....................................   Passed    0.05 sec
+        Start  24: WebSocketCodecTest.RejectsInvalidOutboundTextAndControlFrames
+ 24/114 Test  #24: WebSocketCodecTest.RejectsInvalidOutboundTextAndControlFrames ....................   Passed    0.04 sec
+        Start  25: WebSocketCodecTest.ApplicationEnvelopeRoundTripsEscapedFields
+ 25/114 Test  #25: WebSocketCodecTest.ApplicationEnvelopeRoundTripsEscapedFields ....................   Passed    0.05 sec
+        Start  26: WebSocketParserTest.NeedMoreThenComplete
+ 26/114 Test  #26: WebSocketParserTest.NeedMoreThenComplete .........................................   Passed    0.05 sec
+        Start  27: WebSocketParserTest.RejectsReservedOpcodeAndFragmentedControl
+ 27/114 Test  #27: WebSocketParserTest.RejectsReservedOpcodeAndFragmentedControl ....................   Passed    0.05 sec
+        Start  28: WebSocketParserTest.RejectsNonCanonicalExtendedLengths
+ 28/114 Test  #28: WebSocketParserTest.RejectsNonCanonicalExtendedLengths ...........................   Passed    0.05 sec
+        Start  29: WebSocketMessageAssemblerTest.EmptyFirstFragmentIsStillActive
+ 29/114 Test  #29: WebSocketMessageAssemblerTest.EmptyFirstFragmentIsStillActive ....................   Passed    0.05 sec
+        Start  30: WebSocketMessageAssemblerTest.RejectsInterleavingAndCapsWholeMessage
+ 30/114 Test  #30: WebSocketMessageAssemblerTest.RejectsInterleavingAndCapsWholeMessage .............   Passed    0.05 sec
+        Start  31: WebSocketValidationTest.ValidatesCompleteUtf8IncludingSplitCodePoint
+ 31/114 Test  #31: WebSocketValidationTest.ValidatesCompleteUtf8IncludingSplitCodePoint .............   Passed    0.04 sec
+        Start  32: WebSocketValidationTest.ParsesClosePayloadByFailureKind
+ 32/114 Test  #32: WebSocketValidationTest.ParsesClosePayloadByFailureKind ..........................   Passed    0.05 sec
+        Start  33: WebSocketValidationTest.AcceptsOnlyWireCloseCodeRanges
+ 33/114 Test  #33: WebSocketValidationTest.AcceptsOnlyWireCloseCodeRanges ...........................   Passed    0.05 sec
+        Start  34: WebSocketDeliveryTrackerTest.DeduplicatesAndValidatesAckOwner
+ 34/114 Test  #34: WebSocketDeliveryTrackerTest.DeduplicatesAndValidatesAckOwner ....................   Passed    0.05 sec
+        Start  35: WebSocketDeliveryTrackerTest.NamespacesMessageIdsByServerInstance
+ 35/114 Test  #35: WebSocketDeliveryTrackerTest.NamespacesMessageIdsByServerInstance ................   Passed    0.05 sec
+        Start  36: WebSocketDeliveryTrackerTest.BoundsWindowAndPrunesTerminalRecords
+ 36/114 Test  #36: WebSocketDeliveryTrackerTest.BoundsWindowAndPrunesTerminalRecords ................   Passed    0.04 sec
+        Start  37: WebSocketDeliveryTrackerTest.KeepsClientAndServerIdLimitsIndependent
+ 37/114 Test  #37: WebSocketDeliveryTrackerTest.KeepsClientAndServerIdLimitsIndependent .............   Passed    0.05 sec
+        Start  38: WebSocketDeliveryTrackerTest.EmitsBoundedRetryDecisionsThenFails
+ 38/114 Test  #38: WebSocketDeliveryTrackerTest.EmitsBoundedRetryDecisionsThenFails .................   Passed    0.05 sec
+        Start  39: WebSocketDeliveryTrackerTest.BoundsDeterministicRetryJitter
+ 39/114 Test  #39: WebSocketDeliveryTrackerTest.BoundsDeterministicRetryJitter ......................   Passed    0.05 sec
+        Start  40: WebSocketDeliveryServiceTest.ObservesWriteThenAcceptsApplicationAck
+ 40/114 Test  #40: WebSocketDeliveryServiceTest.ObservesWriteThenAcceptsApplicationAck ..............   Passed    0.05 sec
+        Start  41: WebSocketDeliveryServiceTest.IgnoresLateReceiptAndRetriesWithSameId
+ 41/114 Test  #41: WebSocketDeliveryServiceTest.IgnoresLateReceiptAndRetriesWithSameId ..............   Passed    0.05 sec
+        Start  42: WebSocketDeliveryServiceTest.StopsWorkerAndRejectsNewSubmissions
+ 42/114 Test  #42: WebSocketDeliveryServiceTest.StopsWorkerAndRejectsNewSubmissions .................   Passed    0.05 sec
+        Start  43: WebSocketDeliveryServiceTest.BackgroundWorkerHonorsRetrySchedule
+ 43/114 Test  #43: WebSocketDeliveryServiceTest.BackgroundWorkerHonorsRetrySchedule .................   Passed    0.05 sec
+        Start  44: WebSocketDeliveryServiceTest.RetriesOfflineTargetThenNotifiesFailure
+ 44/114 Test  #44: WebSocketDeliveryServiceTest.RetriesOfflineTargetThenNotifiesFailure .............   Passed    0.05 sec
+        Start  45: WebSocketDeliveryServiceTest.ExposesRetryAndAckMetrics
+ 45/114 Test  #45: WebSocketDeliveryServiceTest.ExposesRetryAndAckMetrics ...........................   Passed    0.05 sec
+        Start  46: WebSocketDispatcherTest.RoutesByTypeAndEchoDefault
+ 46/114 Test  #46: WebSocketDispatcherTest.RoutesByTypeAndEchoDefault ...............................   Passed    0.05 sec
+        Start  47: WebSocketDispatcherTest.SupportsConcurrentDispatchAndRegistration
+ 47/114 Test  #47: WebSocketDispatcherTest.SupportsConcurrentDispatchAndRegistration ................   Passed    0.06 sec
+        Start  48: RequestContextTest.AcceptWebSocketFlag
+ 48/114 Test  #48: RequestContextTest.AcceptWebSocketFlag ...........................................   Passed    0.05 sec
+        Start  49: RequestContextTest.LongProtocolAcceptFlagsAreMutuallyExclusive
+ 49/114 Test  #49: RequestContextTest.LongProtocolAcceptFlagsAreMutuallyExclusive ...................   Passed    0.05 sec
+        Start  50: WebSocketSessionManagerTest.MultiDeviceUnregisterKeepsOtherConnection
+ 50/114 Test  #50: WebSocketSessionManagerTest.MultiDeviceUnregisterKeepsOtherConnection ............   Passed    0.05 sec
+        Start  51: WebSocketSessionManagerTest.RevocationRemovesRoutesEvenWhenCloseCannotBeQueued
+ 51/114 Test  #51: WebSocketSessionManagerTest.RevocationRemovesRoutesEvenWhenCloseCannotBeQueued ...   Passed    0.05 sec
+        Start  52: WebSocketSessionManagerTest.PreservesOutboundRejectionReason
+ 52/114 Test  #52: WebSocketSessionManagerTest.PreservesOutboundRejectionReason .....................   Passed    0.05 sec
+        Start  53: ExecutorTest.ShutdownDrainsAcceptedTasksAndRejectsNewTasks
+ 53/114 Test  #53: ExecutorTest.ShutdownDrainsAcceptedTasksAndRejectsNewTasks .......................   Passed    0.05 sec
+        Start  54: ExecutorTest.SeparateHttpAndWebSocketLanesDoNotStarveEachOther
+ 54/114 Test  #54: ExecutorTest.SeparateHttpAndWebSocketLanesDoNotStarveEachOther ...................   Passed    0.05 sec
+        Start  55: HandlerCancellationTest.DistinguishesCancellationFromDeadline
+ 55/114 Test  #55: HandlerCancellationTest.DistinguishesCancellationFromDeadline ....................   Passed    0.05 sec
+        Start  56: HandlerCancellationTest.CooperativeLoopObservesExecutorDeadline
+ 56/114 Test  #56: HandlerCancellationTest.CooperativeLoopObservesExecutorDeadline ..................   Passed    0.07 sec
+        Start  57: SseCodecTest.EncodesFieldsMultilineDataAndRetry
+ 57/114 Test  #57: SseCodecTest.EncodesFieldsMultilineDataAndRetry ..................................   Passed    0.05 sec
+        Start  58: SseCodecTest.PreventsFieldInjection
+ 58/114 Test  #58: SseCodecTest.PreventsFieldInjection ..............................................   Passed    0.05 sec
+        Start  59: SseCodecTest.WrapsEventTextAsOneHttpChunk
+ 59/114 Test  #59: SseCodecTest.WrapsEventTextAsOneHttpChunk ........................................   Passed    0.05 sec
+        Start  60: SseHandshakeTest.UsesHeaderOnlyChunkedResponse
+ 60/114 Test  #60: SseHandshakeTest.UsesHeaderOnlyChunkedResponse ...................................   Passed    0.05 sec
+        Start  61: TransportWriterTest.PreservesEncodedTaskFifo
+ 61/114 Test  #61: TransportWriterTest.PreservesEncodedTaskFifo .....................................   Passed    0.05 sec
+        Start  62: TransportWriterTest.YieldsAfterPerConnectionWriteBudget
+ 62/114 Test  #62: TransportWriterTest.YieldsAfterPerConnectionWriteBudget ..........................   Passed    0.05 sec
+        Start  63: TransportWriterTest.ReturnsPooledHttpResponseExactlyOnce
+ 63/114 Test  #63: TransportWriterTest.ReturnsPooledHttpResponseExactlyOnce .........................   Passed    0.05 sec
+        Start  64: TransportWriterTest.AppliesWriteBudgetToHttpHeaderAndBody
+ 64/114 Test  #64: TransportWriterTest.AppliesWriteBudgetToHttpHeaderAndBody ........................   Passed    0.05 sec
+        Start  65: TransportWriterTest.AppliesHighWatermarkBackpressure
+ 65/114 Test  #65: TransportWriterTest.AppliesHighWatermarkBackpressure .............................   Passed    0.05 sec
+        Start  66: TransportWriterTest.ReceiptRecordsBackpressureAndCancellationOnce
+ 66/114 Test  #66: TransportWriterTest.ReceiptRecordsBackpressureAndCancellationOnce ................   Passed    0.05 sec
+        Start  67: TransportWriterTest.CloseTaskIsWriteBarrierForLaterTasks
+ 67/114 Test  #67: TransportWriterTest.CloseTaskIsWriteBarrierForLaterTasks .........................   Passed    0.05 sec
+        Start  68: TransportWriterTest.RejectsOversizedFirstTaskWithoutOverflow
+ 68/114 Test  #68: TransportWriterTest.RejectsOversizedFirstTaskWithoutOverflow .....................   Passed    0.06 sec
+        Start  69: TransportWriterTest.SharesImmutableBroadcastBuffer
+ 69/114 Test  #69: TransportWriterTest.SharesImmutableBroadcastBuffer ...............................   Passed    0.06 sec
+        Start  70: ChunkedBodyTest.BorrowsStableSegmentsWithinRequestedBudget
+ 70/114 Test  #70: ChunkedBodyTest.BorrowsStableSegmentsWithinRequestedBudget .......................   Passed    0.05 sec
+        Start  71: OutboundQueueTest.BoundsMailboxGloballyAndPerConnection
+ 71/114 Test  #71: OutboundQueueTest.BoundsMailboxGloballyAndPerConnection ..........................   Passed    0.05 sec
+        Start  72: OutboundQueueTest.DropsStaleGenerationDuringDrain
+ 72/114 Test  #72: OutboundQueueTest.DropsStaleGenerationDuringDrain ................................   Passed    0.05 sec
+        Start  73: CoroutineSchedulerTest.ReapsEveryConnectionRole
+ 73/114 Test  #73: CoroutineSchedulerTest.ReapsEveryConnectionRole ..................................   Passed    0.05 sec
+        Start  74: CoroutineSchedulerTest.KeepsFdReuseIdentityInCompletion
+ 74/114 Test  #74: CoroutineSchedulerTest.KeepsFdReuseIdentityInCompletion ..........................   Passed    0.05 sec
+        Start  75: function3_runtime_config
+ 75/114 Test  #75: function3_runtime_config .........................................................   Passed    0.02 sec
+        Start  76: function3_business_shutdown
+ 76/114 Test  #76: function3_business_shutdown ......................................................   Passed    0.02 sec
+        Start  77: phase11_core_tests
+ 77/114 Test  #77: phase11_core_tests ...............................................................   Passed    0.07 sec
+        Start  78: function3_workspace_contract
+ 78/114 Test  #78: function3_workspace_contract .....................................................   Passed    0.05 sec
+        Start  79: phase39_private_generation_tests
+ 79/114 Test  #79: phase39_private_generation_tests .................................................   Passed    0.31 sec
+        Start  80: phase11_chat_reliability_tests
+ 80/114 Test  #80: phase11_chat_reliability_tests ...................................................   Passed    0.15 sec
+        Start  81: phase11_http_auth_tests
+ 81/114 Test  #81: phase11_http_auth_tests ..........................................................   Passed    0.13 sec
+        Start  82: phase11_ai_chat_tests
+ 82/114 Test  #82: phase11_ai_chat_tests ............................................................   Passed    0.18 sec
+        Start  83: phase11_ai_resilience_tests
+ 83/114 Test  #83: phase11_ai_resilience_tests ......................................................   Passed    0.16 sec
+        Start  84: phase11_rag_tests
+ 84/114 Test  #84: phase11_rag_tests ................................................................   Passed    0.06 sec
+        Start  85: phase11_training_tests
+ 85/114 Test  #85: phase11_training_tests ...........................................................   Passed    0.07 sec
+        Start  86: phase11_file_tests
+ 86/114 Test  #86: phase11_file_tests ...............................................................   Passed    0.06 sec
+        Start  87: phase11_postgres_contract_tests
+ 87/114 Test  #87: phase11_postgres_contract_tests ..................................................   Passed    1.30 sec
+        Start  88: phase11_sodium_credentials_tests
+ 88/114 Test  #88: phase11_sodium_credentials_tests .................................................   Passed    0.98 sec
+        Start  89: phase11_ollama_provider_tests
+ 89/114 Test  #89: phase11_ollama_provider_tests ....................................................   Passed    2.47 sec
+        Start  90: phase11_onnx_provider_tests
+ 90/114 Test  #90: phase11_onnx_provider_tests ......................................................   Passed    0.22 sec
+        Start  91: phase11_grpc_onnx_provider_tests
+ 91/114 Test  #91: phase11_grpc_onnx_provider_tests .................................................   Passed    0.11 sec
+        Start  92: phase9_foundation_tests
+ 92/114 Test  #92: phase9_foundation_tests ..........................................................   Passed    0.05 sec
+        Start  93: grpc_message_codec_tests
+ 93/114 Test  #93: grpc_message_codec_tests .........................................................   Passed    0.00 sec
+        Start  94: grpc_integration
+ 94/114 Test  #94: grpc_integration .................................................................   Passed    2.39 sec
+        Start  95: http2_stream_coroutine_lifecycle
+ 95/114 Test  #95: http2_stream_coroutine_lifecycle .................................................   Passed    0.00 sec
+        Start  96: http2_codec_roundtrip
+ 96/114 Test  #96: http2_codec_roundtrip ............................................................   Passed    0.01 sec
+        Start  97: reliable_inbox_unit
+ 97/114 Test  #97: reliable_inbox_unit ..............................................................   Passed    0.08 sec
+        Start  98: phase15_business_benchmark_tools
+ 98/114 Test  #98: phase15_business_benchmark_tools .................................................   Passed    0.13 sec
+        Start  99: tls_blackbox
+ 99/114 Test  #99: tls_blackbox .....................................................................   Passed    0.49 sec
+        Start 100: http_blackbox
+100/114 Test #100: http_blackbox ....................................................................   Passed    7.00 sec
+        Start 101: websocket_blackbox
+101/114 Test #101: websocket_blackbox ...............................................................   Passed   14.99 sec
+        Start 102: sse_blackbox
+102/114 Test #102: sse_blackbox .....................................................................   Passed    0.31 sec
+        Start 103: phase9_security_blackbox
+103/114 Test #103: phase9_security_blackbox .........................................................   Passed    0.45 sec
+        Start 104: phase9_shutdown_blackbox
+104/114 Test #104: phase9_shutdown_blackbox .........................................................   Passed    0.52 sec
+        Start 105: phase11_supervisor_recovery
+105/114 Test #105: phase11_supervisor_recovery ......................................................   Passed    0.43 sec
+        Start 106: function3_speech_policy
+106/114 Test #106: function3_speech_policy ..........................................................   Passed    0.07 sec
+        Start 107: function3_process_contract
+107/114 Test #107: function3_process_contract .......................................................   Passed    1.19 sec
+        Start 108: function3_postgres_contract
+108/114 Test #108: function3_postgres_contract ......................................................   Passed    0.30 sec
+        Start 109: function3_model_admin_contract
+109/114 Test #109: function3_model_admin_contract ...................................................   Passed    0.05 sec
+        Start 110: function3_recovery_contract
+110/114 Test #110: function3_recovery_contract ......................................................   Passed    0.03 sec
+        Start 111: function3_architecture
+111/114 Test #111: function3_architecture ...........................................................   Passed    0.05 sec
+        Start 112: function3_tree_contract
+112/114 Test #112: function3_tree_contract ..........................................................   Passed    0.04 sec
+        Start 113: function3_activities_contract
+113/114 Test #113: function3_activities_contract ....................................................   Passed    0.03 sec
+        Start 114: function3_redis_contract
+114/114 Test #114: function3_redis_contract .........................................................   Passed    1.23 sec
+
+100% tests passed, 0 tests failed out of 114
+
+Total Test time (real) =  40.22 sec

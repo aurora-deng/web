@@ -1,26 +1,46 @@
-name: ci
+name: source-and-business
 
 on:
   push:
-    branches: [main, master]
+    branches: ['**']
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-test:
+  source:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++ libgtest-dev
-
-      - name: Configure
-        run: cmake -B build -DBUILD_TESTING=ON -DWEBSERVER_ENABLE_ASAN=ON
-
-      - name: Build
-        run: cmake --build build -j$(nproc)
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
+      - name: Source and frontend contracts (no installation)
+        run: python3 scripts/project/ci_checks.py source
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: source-evidence
+          path: build-function3/ci-report.json
+  business:
+    # An isolated, explicitly approved runner label is required. Never attach
+    # an untrusted PR to the daily learning VM or install dependencies silently.
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, linux, webserver-isolated-ci]
+    environment: isolated-ci
+    env:
+      PHASE11_POSTGRES_CONNECTION: ${{ secrets.WEB_CI_POSTGRES_CONNECTION }}
+      FUNCTION3_REDIS_TEST_PORT: ${{ vars.WEB_CI_REDIS_PORT || '6379' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Full configured business matrix and real isolated PostgreSQL
+        run: python3 scripts/project/ci_checks.py full
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: business-evidence
+          path: build-function3/ci-report.json

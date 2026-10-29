@@ -2,13 +2,31 @@
 export class BusinessApi {
   constructor() { this.csrf = ''; this.user = null; }
   async restore() { const data = await this.request('/api/me'); this.csrf = data.csrfToken; this.user = data.user; return this.user; }
-  async request(path, { method = 'GET', data, signal, headers = {} } = {}) {
-    if (data !== undefined) headers['Content-Type'] = 'application/json';
-    if (!['GET', 'HEAD'].includes(method)) headers['X-CSRF-Token'] = this.csrf;
-    const response = await fetch(path, { method, credentials: 'same-origin', cache: 'no-store', signal, headers,
-      body: data === undefined ? undefined : JSON.stringify(data) });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) { const error = new Error(result.message || `请求失败 (${response.status})`); error.status = response.status; throw error; }
+  async request(path, { method = 'GET', data, body, signal, headers: supplied = {}, ...options } = {}) {
+    method = method.toUpperCase();
+    const headers = new Headers(supplied);
+    const writing = !['GET', 'HEAD'].includes(method);
+    if (data !== undefined) body = JSON.stringify(data);
+    if (body !== undefined && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+    if (writing && this.csrf) headers.set('X-CSRF-Token', this.csrf);
+    let response;
+    try {
+      response = await fetch(path, { ...options, method, credentials: 'same-origin', cache: 'no-store', signal, headers, body });
+    } catch (cause) {
+      if (cause.name === 'AbortError') throw cause;
+      const error = new Error(writing ? '网络中断，操作结果尚未确认；请先查询结果，再决定重试' : '无法连接服务器，请检查网络或服务状态');
+      error.uncertain = writing; error.cause = cause; throw error;
+    }
+    const text = await response.text();
+    let result = null;
+    try { result = text ? JSON.parse(text) : null; } catch { result = { message: text }; }
+    if (!response.ok) {
+      const fallback = {401:'登录已过期，请重新登录',403:'没有执行此操作的权限',409:'内容或状态冲突，请刷新后确认',429:'操作太频繁，请稍后重试'};
+      const error = new Error(result?.message || result?.error || fallback[response.status] || `请求失败 (${response.status})`);
+      error.status = response.status; error.retryAfter = response.headers.get('Retry-After');
+      // HTTP failure is definitive; network failure above may have committed a write.
+      error.uncertain = false; throw error;
+    }
     return result;
   }
 }

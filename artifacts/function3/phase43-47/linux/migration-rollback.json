@@ -1,0 +1,9 @@
+{
+  "database": "function3_phase11_test",
+  "passed": true,
+  "forcedFailureRolledBackDDLAndHistory": true,
+  "missingMigrationRefusedStartup": true,
+  "reapplyAfterRollback": true,
+  "secondMigrateSkippedAppliedVersion": true,
+  "sourceSha256": "bf69123cb917ca56ee474b7217cea7b7823e9833c3e9057bc57bc03e1bb73a5a"
+}

@@ -18,7 +18,11 @@ def names():
     for name in sorted(set(raw.decode().split('\0'))):
         if not name or not (ROOT/name).is_file():continue
         parts=Path(name).parts
-        if any(p.startswith(('build','artifacts','.git')) for p in parts):continue
+        # Filter generated directories, not legitimate files such as build_stamp.py.
+        # .github/.gitignore are public project configuration, not .git metadata.
+        if parts[0] in ('runtime-data','client-data','models'):continue
+        if any(p.startswith(('build','artifacts')) or p in ('.git','.aws','.codex') for p in parts[:-1]):continue
+        if parts[-1].startswith('.env') and parts[-1]!='.env.example':continue
         if any(fnmatch.fnmatch(name.lower(),p) for p in ['*.local.*','*.key','*.dump','*.sqlite*','*.db','*.env','*.pem']):continue
         yield name
 def main():

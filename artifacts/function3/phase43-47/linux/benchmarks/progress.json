@@ -1,0 +1,92 @@
+{
+  "baselineBinarySha256": "0cd108a158cdd8b7f46f9c774521992397a9970555367969e4a40567565dfdd9",
+  "configuration": {
+    "reactors": 2,
+    "httpWorkers": 4,
+    "databaseWorkers": 4,
+    "databasePool": 4,
+    "delivery": "local-durable",
+    "redis": false,
+    "tts": false,
+    "ai": false,
+    "tlsPort": 18444,
+    "diagnostic": false,
+    "synchronousCommit": "on"
+  },
+  "baseline": [
+    {
+      "round": 1,
+      "pid": 23507,
+      "fastQps": 54355.88,
+      "ackP99Ms": 13.758,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 5.583,
+        "p95": 10.053,
+        "p99": 24.429
+      }
+    },
+    {
+      "round": 2,
+      "pid": 23777,
+      "fastQps": 53742.82,
+      "ackP99Ms": 12.856,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.984,
+        "p95": 12.124,
+        "p99": 20.796
+      }
+    },
+    {
+      "round": 3,
+      "pid": 23884,
+      "fastQps": 54738.29,
+      "ackP99Ms": 14.606,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.895,
+        "p95": 6.544,
+        "p99": 8.341
+      }
+    }
+  ],
+  "current": [
+    {
+      "round": 1,
+      "pid": 23617,
+      "fastQps": 54127.71,
+      "ackP99Ms": 16.275,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.704,
+        "p95": 6.494,
+        "p99": 8.595
+      }
+    },
+    {
+      "round": 2,
+      "pid": 23698,
+      "fastQps": 54478.68,
+      "ackP99Ms": 15.855,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.668,
+        "p95": 6.31,
+        "p99": 7.316
+      }
+    },
+    {
+      "round": 3,
+      "pid": 23963,
+      "fastQps": 54747.14,
+      "ackP99Ms": 14.844,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.768,
+        "p95": 7.536,
+        "p99": 7.86
+      }
+    }
+  ]
+}

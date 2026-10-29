@@ -95,3 +95,5 @@ Function3逐步教学：[从浏览器发布到事务、MQ与语音](function3-wa
 本地新轮次：[Phase36 聊天布局](phase36.md) → [Phase37 统一动态/主页](phase37.md) → [Phase38 Windows客户端](phase38.md) → [Phase39 三形态AI/确认操作](phase39.md) → [Phase40 语音](phase40.md)。[新端到端架构图](phase36-41-end-to-end.md)、[Phase41验收与未达标项](phase41.md)、[组件索引](phase36-41-code-index.md)、[本地预览](../../ops/phase36-41-local-preview.md)。模型、训练和语音代码位于 `backend/ai`，不再放在 `backend/application` 内。
 
 保持上述架构方向的后续改进：[Phase42：TLS复用、神树批量读取与绘制/外观优化](phase42.md)。
+
+本轮冻结通信核心后的业务演进见[Phase43–47](phase43-47-progress.md)，[代码索引](phase43-47-code-index.md)、[业务接入教学](phase43-47-teaching.md)与[总图](phase43-47-end-to-end.md)。

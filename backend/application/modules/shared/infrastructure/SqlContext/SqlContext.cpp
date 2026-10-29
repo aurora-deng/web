@@ -1,3 +1,4 @@
+#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
 #include "SqlContext.h"
 #include <map>
 #include <memory>
@@ -8,6 +9,7 @@ namespace {
 thread_local std::map<const SqlContext *, PGconn *> connections;
 thread_local std::map<const SqlContext *,std::vector<std::function<void()>>> notifications;
 SqlRows execute(PGconn *connection, const std::string &sql, const std::vector<std::string> &parameters) {
+    webserver::business_metrics::Timer timer{webserver::business_metrics::Database};
     std::vector<const char *> values;
     for (const auto &p : parameters) values.push_back(p.c_str());
     std::unique_ptr<PGresult, decltype(&PQclear)> result(PQexecParams(connection, sql.c_str(),

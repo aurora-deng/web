@@ -1,3 +1,4 @@
+#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
 #include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 
 #include "backend/application/transport/FlatJson/FlatJson.h"
@@ -284,6 +285,13 @@ void Phase11AiEventSink::completed(const AiCompletedEvent &event)
 
 bool Phase11RealtimeOutboxSink::publish(const OutboxEvent &event)
 {
+    const auto age=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now()-event.createdAt).count();
+    if(age>=0)webserver::business_metrics::observe(webserver::business_metrics::Delivery,static_cast<unsigned long long>(age));
+    if(event.type=="conversation.preferences"){
+        (void)webSockets_.broadcastText(std::vector<UserId>{event.aggregateId},event.payload);
+        SseEvent notification;notification.id=std::to_string(event.id);notification.eventName="conversation.preferences";notification.data=event.payload;(void)sse_.publish(event.aggregateId,notification);return true;
+    }
+
     if (event.type == "message.created")
     {
         const auto message = messages_.findMessage(event.aggregateId);

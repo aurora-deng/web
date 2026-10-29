@@ -1,3 +1,4 @@
+#include "backend/application/modules/tree/domain/TreeContentPolicy/TreeContentPolicy.h"
 #include "TreeService.h"
 #include "backend/application/modules/shared/TextRules/TextRules.h"
 #include <algorithm>
@@ -73,8 +74,8 @@ TreePost TreeService::publish(Id user, PublishPost request, Milliseconds now) {
             auto value = media_.requireOwnedReadyMedia(user, file);
             if (!value.bytes) throw BusinessError(Failure::Invalid, "empty attachment");
             if (value.kind == MediaKind::Image) {
-                if (++images > 6 || value.bytes > 5 * 1024 * 1024) throw BusinessError(Failure::Invalid, "image limit exceeded");
-            } else if (++audio > 1 || value.bytes > 10 * 1024 * 1024 || value.duration <= 0 || value.duration > 60000)
+                if (++images > TreeContentPolicy::images || value.bytes > TreeContentPolicy::imageBytes) throw BusinessError(Failure::Invalid, "image limit exceeded");
+            } else if (++audio > TreeContentPolicy::voices || value.bytes > TreeContentPolicy::voiceBytes || value.duration <= 0 || value.duration > TreeContentPolicy::voiceMilliseconds)
                 throw BusinessError(Failure::Invalid, "audio limit exceeded");
             attachments.push_back(value);
         }

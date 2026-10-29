@@ -30,6 +30,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # 定义项目名称 webserver，指定编程语言仅使用 C++
 project(webserver LANGUAGES CXX)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ==============================================================================
 # C++ 标准配置
@@ -174,6 +175,11 @@ if(WEBSERVER_ENABLE_PHASE11)
         backend/ai/training/TrainingDataService/TrainingDataService.cpp)
     target_include_directories(webserver_ai PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_ai PUBLIC webserver_application_support OpenSSL::Crypto)
+    # Chat use cases depend on ports only; a driver is selected at assembly time.
+    add_library(webserver_chat_workspace
+        backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.cpp)
+    target_include_directories(webserver_chat_workspace PUBLIC ${PROJECT_SOURCE_DIR})
+    target_link_libraries(webserver_chat_workspace PUBLIC webserver_sanitizers)
     add_library(webserver_phase11
         backend/application/storage/InMemoryStore/InMemoryStore.cpp
         backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.cpp
@@ -188,7 +194,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         backend/application/storage/files/LocalFileStorage/LocalFileStorage.cpp)
     target_include_directories(webserver_phase11 PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_phase11 PUBLIC Threads::Threads
-        webserver_sanitizers OpenSSL::Crypto webserver_ai webserver_application_support)
+        webserver_sanitizers OpenSSL::Crypto webserver_ai webserver_application_support webserver_chat_workspace)
 
     if(WEBSERVER_ENABLE_POSTGRES)
         # 只接受用户已经安装好的 PostgreSQL。WEBSERVER_POSTGRES_ROOT 可以指向
@@ -203,7 +209,9 @@ if(WEBSERVER_ENABLE_PHASE11)
         find_package(PostgreSQL REQUIRED)
         target_sources(webserver_phase11 PRIVATE
             backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp
-            backend/application/storage/postgres/PostgresStore/PostgresStore.cpp)
+            backend/application/storage/postgres/PostgresStore/PostgresStore.cpp
+            backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.cpp
+            backend/application/storage/postgres/PostgresWorkspaceRepository/PostgresWorkspaceRepository.cpp)
         target_link_libraries(webserver_phase11 PUBLIC PostgreSQL::PostgreSQL)
         target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_POSTGRES=1)
 
@@ -402,6 +410,7 @@ if(WEBSERVER_ENABLE_PHASE11)
     add_library(webserver_phase11_http
         backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp
         backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp
+        backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp
         backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp
         backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp
         backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp
@@ -422,9 +431,29 @@ endif()
 # ==============================================================================
 add_library(function3_assets backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.cpp)
 target_link_libraries(function3_assets PUBLIC webserver_core)
+add_library(webserver_runtime_config backend/application/config/RuntimeConfig/RuntimeConfig.cpp)
+target_include_directories(webserver_runtime_config PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(webserver_runtime_config PUBLIC webserver_sanitizers)
 add_executable(webserver main.cpp)
+target_link_libraries(webserver PRIVATE webserver_runtime_config)
+if(BUILD_TESTING)
+ add_executable(function3_runtime_config tests/function3/unit/runtime_config.cpp)
+ target_link_libraries(function3_runtime_config PRIVATE webserver_runtime_config)
+ add_test(NAME function3_runtime_config COMMAND function3_runtime_config)
+ add_executable(function3_business_shutdown tests/function3/unit/business_shutdown.cpp)
+ target_link_libraries(function3_business_shutdown PRIVATE webserver_runtime_config)
+ add_test(NAME function3_business_shutdown COMMAND function3_business_shutdown)
+endif()
 # 链接核心业务库
 target_link_libraries(webserver PRIVATE webserver_core function3_assets)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_custom_target(project_build_stamp
+    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/project/build_stamp.py
+            --header ${PROJECT_BINARY_DIR}/generated/ProjectBuild.h
+    BYPRODUCTS ${PROJECT_BINARY_DIR}/generated/ProjectBuild.h
+    COMMENT "Stamping public source fingerprint (no runtime secrets)")
+add_dependencies(webserver project_build_stamp)
+target_include_directories(webserver PRIVATE ${PROJECT_BINARY_DIR}/generated)
 if(WEBSERVER_ENABLE_PHASE11)
     target_link_libraries(webserver PRIVATE webserver_phase11_http)
     target_link_libraries(webserver PRIVATE webserver_private_http)
@@ -572,6 +601,9 @@ if(BUILD_TESTING)
         add_executable(phase11_core_tests tests/phase11/unit/core.cpp)
         target_link_libraries(phase11_core_tests PRIVATE webserver_phase11)
         add_test(NAME phase11_core_tests COMMAND phase11_core_tests)
+        add_executable(function3_workspace_contract tests/function3/unit/workspace.cpp)
+        target_link_libraries(function3_workspace_contract PRIVATE webserver_phase11)
+        add_test(NAME function3_workspace_contract COMMAND function3_workspace_contract)
         add_executable(phase39_private_generation_tests tests/function3/unit/private_generation.cpp)
         target_link_libraries(phase39_private_generation_tests PRIVATE webserver_ai)
         add_test(NAME phase39_private_generation_tests COMMAND phase39_private_generation_tests)

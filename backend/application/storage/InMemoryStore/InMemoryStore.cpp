@@ -45,6 +45,35 @@ private:
     bool finished_ = false;
 };
 
+namespace {
+std::string lowerText(std::string value){for(char&c:value)if(c>='A'&&c<='Z')c=static_cast<char>(c-'A'+'a');return value;}
+}
+std::vector<webserver::chat::UserCard>InMemoryStore::searchUsers(UserId viewer,std::string_view query,UserId after,std::size_t limit)const{
+ std::lock_guard lock(mutex_);std::vector<webserver::chat::UserCard>result;const auto prefix=lowerText(std::string(query));
+ for(const auto&[id,user]:state_.users){if(user.disabled||id==viewer||id<=after||blockedEitherDirection(viewer,id))continue;
+ if(!lowerText(user.username).starts_with(prefix)&&!lowerText(user.displayName).starts_with(prefix))continue;
+ bool pending=false;for(const auto&[_,request]:state_.friendRequests)if(request.state==FriendRequestState::Pending&&((request.senderId==viewer&&request.receiverId==id)||(request.senderId==id&&request.receiverId==viewer)))pending=true;
+ // Search is a minimal directory, not permission to expose profile media.
+ result.push_back({id,user.username,user.displayName,std::nullopt,user.aiAccount,areFriends(viewer,id),pending});}
+ std::sort(result.begin(),result.end(),[](const auto&a,const auto&b){return a.id<b.id;});if(result.size()>limit)result.resize(limit);return result;
+}
+std::vector<Message>InMemoryStore::searchVisibleMessages(UserId viewer,ConversationId conversation,std::string_view query,MessageId before,std::size_t limit)const{
+ std::lock_guard lock(mutex_);std::vector<Message>result;const auto needle=lowerText(std::string(query));
+ for(const auto&[id,message]:state_.messages){if((before&&id>=before)||(conversation&&message.conversationId!=conversation)||message.state!=MessageState::Active||!state_.members.contains({message.conversationId,viewer}))continue;
+ if(state_.conversations.at(message.conversationId).state!=ConversationState::Active||lowerText(message.body).find(needle)==std::string::npos)continue;result.push_back(hydrateMessageLocked(message));}
+ std::sort(result.begin(),result.end(),[](const auto&a,const auto&b){return a.id>b.id;});if(result.size()>limit)result.resize(limit);return result;
+}
+webserver::chat::ConversationPreference InMemoryStore::preference(UserId user,ConversationId conversation)const{
+ std::lock_guard lock(mutex_);if(auto i=state_.conversationPreferences.find({conversation,user});i!=state_.conversationPreferences.end())return i->second;
+ bool muted=false;auto c=state_.conversations.find(conversation);if(c!=state_.conversations.end()&&c->second.kind==ConversationKind::Direct)for(const auto&[key,member]:state_.members)if(key.first==conversation&&key.second!=user)muted=contactSettings(user,member.userId).notificationsMuted;
+ return{conversation,user,muted,0};
+}
+webserver::chat::PreferenceWrite InMemoryStore::writePreference(UserId user,ConversationId conversation,bool muted){
+ std::lock_guard lock(mutex_);if(!state_.members.contains({conversation,user}))throw std::runtime_error("preference requires membership");
+ auto it=state_.conversationPreferences.find({conversation,user});if(it!=state_.conversationPreferences.end()&&it->second.muted==muted)return{it->second,false};
+ auto&value=state_.conversationPreferences[{conversation,user}];value={conversation,user,muted,value.version+1};return{value,true};
+}
+
 std::unique_ptr<ITransaction> InMemoryStore::beginTransaction()
 {
     return std::make_unique<Transaction>(*this);
@@ -422,11 +451,16 @@ std::vector<ConversationSummary> InMemoryStore::listConversationSummaries(
             if (conversation.kind != ConversationKind::Direct || other.id == user) continue;
             summary.displayTitle = other.displayName;
             summary.avatarFileId = other.avatarFileId;
+            summary.peerUserId=other.id;
             if (const auto preference = state_.contactSettings.find({user, other.id});
                 preference != state_.contactSettings.end()) {
                 if (!preference->second.remark.empty()) summary.displayTitle = preference->second.remark;
                 summary.notificationsMuted = preference->second.notificationsMuted;
             }
+        }
+        if(auto preference=state_.conversationPreferences.find({conversation.id,user});preference!=state_.conversationPreferences.end()){
+            summary.notificationsMuted=preference->second.muted;
+            summary.preferencesRevision=preference->second.version;
         }
         if (const auto ids = state_.messageIds.find(conversation.id);
             ids != state_.messageIds.end() && !ids->second.empty()) {
@@ -523,6 +557,7 @@ bool InMemoryStore::updateMemberMute(
 bool InMemoryStore::removeMember(ConversationId conversation, UserId user)
 {
     std::lock_guard lock(mutex_);
+    state_.conversationPreferences.erase({conversation,user});
     return state_.members.erase({conversation, user}) == 1;
 }
 

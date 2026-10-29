@@ -1,0 +1,30 @@
+{
+  "version": "r186",
+  "license": "MIT",
+  "files": {
+    "three.module.js": {
+      "source": "https://api.github.com/repos/mrdoob/three.js/git/blobs/c52087acfabae80efabb8cc05e3a1d96e35a1426",
+      "gitBlob": "c52087acfabae80efabb8cc05e3a1d96e35a1426",
+      "sha256": "9052042d676cb0fdc1ddfefe193053f34b7ac0513a616fdac4535d49987812ea",
+      "bytes": 662772
+    },
+    "three.core.js": {
+      "source": "https://api.github.com/repos/mrdoob/three.js/git/blobs/0a1d6cb9ef3cabc97a50bd02394c85e8d1c513c2",
+      "gitBlob": "0a1d6cb9ef3cabc97a50bd02394c85e8d1c513c2",
+      "sha256": "9edde002b066a9a05676a6127f67735b62baf399bdea529f2f7e31657da769e6",
+      "bytes": 1458113
+    },
+    "OrbitControls.js": {
+      "source": "https://api.github.com/repos/mrdoob/three.js/git/blobs/3b49ec2db3aae21cc7c9fa1df38d2c703e28b324",
+      "gitBlob": "3b49ec2db3aae21cc7c9fa1df38d2c703e28b324",
+      "sha256": "3d79d07ecb686b4e5d93232eedab255331c1beef711e13164eaa1f68655a5f2b",
+      "bytes": 40755
+    },
+    "LICENSE": {
+      "source": "https://api.github.com/repos/mrdoob/three.js/git/blobs/8ada2a5f982916b0ba4b7a0aa7de347587e745d7",
+      "gitBlob": "8ada2a5f982916b0ba4b7a0aa7de347587e745d7",
+      "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc",
+      "bytes": 1081
+    }
+  }
+}

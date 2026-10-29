@@ -7,6 +7,7 @@ import signal
 import subprocess
 import shutil
 import time
+from process_identity import owned_process
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('action',choices=('start','stop','status'))
@@ -26,15 +27,7 @@ root=Path('/home/pikachu/phase11-data/function3/validation');root.mkdir(parents=
 pidfile=root/(a.variant+'.pid');ticksfile=root/(a.variant+'.ticks')
 def owned():
     if not pidfile.exists():return None
-    pid=int(pidfile.read_text());proc=Path('/proc')/str(pid)
-    try:
-        stat=(proc/'stat').read_text().split()
-        if stat[2]=='Z':return None
-        command=(proc/'cmdline').read_bytes().decode().replace('\0',' ')
-    except (FileNotFoundError,ProcessLookupError):return None
-    if str(binary) not in command or stat[21]!=ticksfile.read_text():
-        raise RuntimeError('PID identity mismatch; refusing to control it')
-    return pid
+    return owned_process(int(pidfile.read_text()),ticksfile.read_text(),binary)
 if a.action=='stop':
     if pid:=owned():
         os.kill(pid,signal.SIGTERM)
