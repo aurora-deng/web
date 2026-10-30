@@ -1,0 +1,100 @@
+{
+  "kind": "synthetic browser fixture; not real API/model evidence",
+  "variants": {
+    "after": {
+      "drawCalls": 25,
+      "triangles": 92882,
+      "geometries": 15,
+      "rebuiltOnInteractionOnly": false,
+      "framesInTwoSeconds": 60,
+      "rankingDetailRequests": 1,
+      "viewportLayouts": [
+        {
+          "width": 1440,
+          "heading": {
+            "left": 261,
+            "right": 579.078125,
+            "top": 417.609375,
+            "bottom": 665.765625,
+            "width": 318.078125,
+            "height": 248.15625
+          },
+          "scene": {
+            "left": 579.078125,
+            "right": 1396.984375,
+            "top": 210.1875,
+            "bottom": 873.1875,
+            "width": 817.90625,
+            "height": 663
+          },
+          "controls": {
+            "left": 317.796875,
+            "right": 685.515625,
+            "top": 742,
+            "bottom": 781.1875,
+            "width": 367.71875,
+            "height": 39.1875
+          },
+          "visible": true
+        },
+        {
+          "width": 1920,
+          "heading": {
+            "left": 274,
+            "right": 719.1875,
+            "top": 494.546875,
+            "bottom": 766.828125,
+            "width": 445.1875,
+            "height": 272.28125
+          },
+          "scene": {
+            "left": 719.1875,
+            "right": 1863.984375,
+            "top": 214.1875,
+            "bottom": 1047.1875,
+            "width": 1144.796875,
+            "height": 833
+          },
+          "controls": {
+            "left": 353.5,
+            "right": 721.21875,
+            "top": 916,
+            "bottom": 955.1875,
+            "width": 367.71875,
+            "height": 39.1875
+          },
+          "visible": true
+        },
+        {
+          "width": 390,
+          "heading": {
+            "left": 0,
+            "right": 0,
+            "top": 0,
+            "bottom": 0,
+            "width": 0,
+            "height": 0
+          },
+          "scene": {
+            "left": 15,
+            "right": 365,
+            "top": 254.578125,
+            "bottom": 811.578125,
+            "width": 350,
+            "height": 557
+          },
+          "controls": {
+            "left": 32.5,
+            "right": 195.859375,
+            "top": 712.390625,
+            "bottom": 747.578125,
+            "width": 163.359375,
+            "height": 35.1875
+          },
+          "visible": false
+        }
+      ]
+    }
+  },
+  "passed": true
+}

@@ -13,18 +13,21 @@ import shutil
 import time
 
 SOURCE=Path('/home/pikachu/function3-src');BASE=SOURCE
-BEFORE=Path('/home/pikachu/phase11-data/function3/validation/phase43-47/webserver-before')
 ROOT=Path('/home/pikachu/phase11-data/function3/validation')
-parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--diagnostic',action='store_true');parser.add_argument('--synchronous-commit',choices=('on','off'),default='on');parser.add_argument('--label',default='',help='Separate evidence directory for a later explicitly justified rerun');a=parser.parse_args()
+parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--diagnostic',action='store_true');parser.add_argument('--synchronous-commit',choices=('on','off'),default='on');parser.add_argument('--label',default='',help='Separate evidence directory for a later explicitly justified rerun')
+parser.add_argument('--stage',choices=('phase43-47','phase48'),default='phase43-47')
+parser.add_argument('--baseline-stage',choices=('phase43-47','phase48'),default='phase43-47')
+a=parser.parse_args()
+BEFORE=ROOT/a.baseline_stage/'webserver-before'
 if a.label and not re.fullmatch(r'[a-z0-9-]{1,40}',a.label):parser.error('label must be a short lowercase directory name')
 if a.synchronous_commit=='off' and not a.diagnostic:parser.error('Asynchronous commit is a non-durable diagnostic control only, never an acceptance configuration')
-OUT=ROOT/('phase43-47/diagnostic-'+a.synchronous_commit if a.diagnostic else 'phase43-47/benchmarks')
+OUT=ROOT/a.stage/('diagnostic-'+a.synchronous_commit if a.diagnostic else 'benchmarks')
 if a.label:OUT=OUT.with_name(OUT.name+'-'+a.label)
 if (OUT/'summary.json').exists():raise RuntimeError('Evidence already exists; preserve it and choose a new --label for a justified rerun')
 OUT.mkdir(parents=True,exist_ok=True)
 if not BEFORE.is_file():raise RuntimeError('Save the exact pre-change executable first; no substitute baseline accepted')
 subprocess.run(['python3',str(SOURCE/'scripts/function3/validation/run_server.py'),'stop'],check=True)
-summary={'baselineBinarySha256':hashlib.sha256(BEFORE.read_bytes()).hexdigest(),'currentBinarySha256':hashlib.sha256((SOURCE/'build-release/webserver').read_bytes()).hexdigest(),'configuration':{'reactors':2,'httpWorkers':4,'databaseWorkers':4,'databasePool':4,'delivery':'local-durable' if a.synchronous_commit=='on' else 'non-durable-diagnostic-only','redis':False,'tts':False,'ai':False,'tlsPort':18444,'diagnostic':a.diagnostic,'synchronousCommit':a.synchronous_commit},'baseline':[],'current':[]}
+summary={'stage':a.stage,'baselineStage':a.baseline_stage,'baselineBinarySha256':hashlib.sha256(BEFORE.read_bytes()).hexdigest(),'currentBinarySha256':hashlib.sha256((SOURCE/'build-release/webserver').read_bytes()).hexdigest(),'configuration':{'reactors':2,'httpWorkers':4,'databaseWorkers':4,'databasePool':4,'delivery':'local-durable' if a.synchronous_commit=='on' else 'non-durable-diagnostic-only','redis':False,'tts':False,'ai':False,'tlsPort':18444,'diagnostic':a.diagnostic,'synchronousCommit':a.synchronous_commit},'baseline':[],'current':[]}
 # 复用已存在的基准库，追加缺少的迁移；不创建数据库、不接触原业务库。
 pg='/home/pikachu/phase11-deps/postgresql/18.6/bin/psql'
 baseline_connection='host=/home/pikachu/phase11-data/function3/pg/run port=55434 user=function3_test_admin dbname=function3_baseline_test'

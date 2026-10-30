@@ -1,7 +1,8 @@
+export const dependencies={"resources":["$","elements","state","messageView","history","sender","runtime"],"commands":["settleHistoryPending","recoverRealtime","setStatus","initials","createClientId","conversationTitle","api","formatBytes","paintAvatar","openConversation","openCitationDetails","openTrainingConsent","sendSocket","selectAiTarget","applyAiModels","loadAiModels"],"types":["groupMessages","canRecallMessage","formatChatTime","formatDateDivider"]};
 /** MessageController: explicit use cases; shared state/other controllers arrive through context. */
 export function createMessageController(context) {
-  const {businessApi,userPickers,unreadWatermarks,pageBudget,wsBackoff,sseBackoff,$,elements,state,messageView,history,sender,trainingStateLabels,runtime,actions,types}=context;
-  const {mountNavigation,UserPicker,groupMessages,BusinessApi,AnnouncementPlayer,UnreadWatermarks,ChatHistory,canRecallMessage,ReliableSender,VirtualMessageList,RecoveryBudget,ReconnectBackoff,formatChatTime,formatDayKey,formatDateDivider}=types;
+  const {$,elements,state,messageView,history,sender,runtime,actions,types}=context;
+  const {groupMessages,canRecallMessage,formatChatTime,formatDateDivider}=types;
   const settleHistoryPending = (...args) => actions.settleHistoryPending(...args);
   const recoverRealtime = (...args) => actions.recoverRealtime(...args);
   const setStatus = (...args) => actions.setStatus(...args);

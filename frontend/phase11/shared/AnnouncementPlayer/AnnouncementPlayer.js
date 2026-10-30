@@ -1,4 +1,4 @@
-import { ReconnectBackoff } from '../RecoveryBudget/RecoveryBudget.js?v=4ec58ab3c1e38adb';
+import { ReconnectBackoff } from '../RecoveryBudget/RecoveryBudget.js?v=227af12a6c379d08';
 /** 文字独立于音频。自动播报先取得服务器一次性播放权，多个标签页不会重复播放。 */
 export class AnnouncementPlayer {
   constructor(api, container,{connectEvents=false}={}) { this.connectEvents=connectEvents;this.api=api;this.container=container;this.after='0';this.pending=new Map();this.playing=false;this.recording=false;this.started=Date.now();this.settings={sound:false,voice:'zf_001'};this.backoff=new ReconnectBackoff(); }

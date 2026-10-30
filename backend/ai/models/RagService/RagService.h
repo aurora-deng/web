@@ -2,7 +2,12 @@
 
 #include "backend/application/business/ApplicationError/ApplicationError.h"
 #include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/ports/IUserRepository/IUserRepository.h"
+#include "backend/application/ports/IConversationRepository/IConversationRepository.h"
+#include "backend/application/ports/IKnowledgeRepository/IKnowledgeRepository.h"
+#include "backend/application/ports/IKnowledgeIndex/IKnowledgeIndex.h"
+#include "backend/application/ports/IRagContextProvider/IRagContextProvider.h"
+#include "backend/application/domain/KnowledgeTypes/KnowledgeTypes.h"
 
 namespace webserver::phase11
 {

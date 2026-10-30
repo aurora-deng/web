@@ -1,7 +1,8 @@
+export const dependencies={"resources":["$","businessApi","state","runtime"],"commands":[],"types":[]};
 /** FeedbackController: explicit use cases; shared state/other controllers arrive through context. */
 export function createFeedbackController(context) {
-  const {businessApi,userPickers,unreadWatermarks,pageBudget,wsBackoff,sseBackoff,$,elements,state,messageView,history,sender,trainingStateLabels,runtime,actions,types}=context;
-  const {mountNavigation,UserPicker,groupMessages,BusinessApi,AnnouncementPlayer,UnreadWatermarks,ChatHistory,canRecallMessage,ReliableSender,VirtualMessageList,RecoveryBudget,ReconnectBackoff,formatChatTime,formatDayKey,formatDateDivider}=types;
+  const {$,businessApi,state,runtime}=context;
+
 
 function setStatus(element, message = '', kind = '') {
   element.textContent = message;

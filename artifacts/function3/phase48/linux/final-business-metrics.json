@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "scope": "isolated runtime after real workspace writes; notification/batch not per-event wire timing",
+  "metrics": {
+    "webserver_business_database_count": 811.0,
+    "webserver_business_database_microseconds_total": 626637.0,
+    "webserver_business_database_microseconds_max": 24048.0,
+    "webserver_business_queue_wait_count": 48.0,
+    "webserver_business_queue_wait_microseconds_total": 6690.0,
+    "webserver_business_queue_wait_microseconds_max": 1794.0,
+    "webserver_business_outbox_event_age_count": 12.0,
+    "webserver_business_outbox_event_age_microseconds_total": 70493.0,
+    "webserver_business_outbox_event_age_microseconds_max": 10132.0,
+    "webserver_business_commit_notify_to_dispatch_count": 21.0,
+    "webserver_business_commit_notify_to_dispatch_microseconds_total": 2497.0,
+    "webserver_business_commit_notify_to_dispatch_microseconds_max": 560.0,
+    "webserver_business_outbox_cycle_count": 103.0,
+    "webserver_business_outbox_cycle_microseconds_total": 138697.0,
+    "webserver_business_outbox_cycle_microseconds_max": 8220.0
+  }
+}

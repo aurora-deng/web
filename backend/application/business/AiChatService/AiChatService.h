@@ -1,4 +1,8 @@
 #pragma once
+#include "backend/application/ports/IAiGenerationAuditRepository/IAiGenerationAuditRepository.h"
+#include "backend/application/ports/IConversationRepository/IConversationRepository.h"
+#include "backend/application/ports/IRagContextProvider/IRagContextProvider.h"
+#include "backend/application/ports/IUserRepository/IUserRepository.h"
 
 #include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
 #include "backend/application/business/ChatService/ChatService.h"

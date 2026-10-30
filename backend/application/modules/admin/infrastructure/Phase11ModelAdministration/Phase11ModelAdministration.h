@@ -1,4 +1,5 @@
 #pragma once
+#include "backend/application/ports/IModelRepository/IModelRepository.h"
 #include "backend/application/modules/admin/ports/IModelAdministration/IModelAdministration.h"
 #include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
 #include "backend/ai/models/ModelEvaluationService/ModelEvaluationService.h"

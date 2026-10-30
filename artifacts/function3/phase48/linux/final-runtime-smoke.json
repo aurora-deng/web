@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "version": {
+    "sourceFingerprint": "dfd47f97daec6bab9ad1cc5a90ac96255f95c184be62e59d6fdca8b54d34f231",
+    "revision": "source-snapshot",
+    "requiredMigration": 24,
+    "testResults": "see phase48 evidence and retained phase43-47 history; not a runtime health assertion",
+    "schemaVerifiedAtStartup": true
+  },
+  "assets": {
+    "version": "227af12a6c379d08",
+    "nativeFiles": 80,
+    "vendor": "three-r186 (unchanged)",
+    "includesDynamicReferences": true
+  },
+  "database": "function3_runtime_test",
+  "actualMigration": "24",
+  "ledgerPhase": "48",
+  "binarySha256": "5627e14bbd5ee6edf70e356ac29d21efdfb48f3a452c136662f6670135c6f08c",
+  "metrics": {
+    "webserver_business_database_count": 1776.0,
+    "webserver_business_database_microseconds_total": 1306366.0,
+    "webserver_business_database_microseconds_max": 20388.0,
+    "webserver_business_queue_wait_count": 48.0,
+    "webserver_business_queue_wait_microseconds_total": 5774.0,
+    "webserver_business_queue_wait_microseconds_max": 667.0,
+    "webserver_business_outbox_event_age_count": 12.0,
+    "webserver_business_outbox_event_age_microseconds_total": 79596.0,
+    "webserver_business_outbox_event_age_microseconds_max": 12513.0,
+    "webserver_business_commit_notify_to_dispatch_count": 20.0,
+    "webserver_business_commit_notify_to_dispatch_microseconds_total": 16315.0,
+    "webserver_business_commit_notify_to_dispatch_microseconds_max": 8840.0,
+    "webserver_business_outbox_cycle_count": 326.0,
+    "webserver_business_outbox_cycle_microseconds_total": 384121.0,
+    "webserver_business_outbox_cycle_microseconds_max": 20577.0
+  },
+  "scope": "final metadata/frontend stamp build; measured performance binary recorded separately",
+  "windowsSourceFingerprint": "dfd47f97daec6bab9ad1cc5a90ac96255f95c184be62e59d6fdca8b54d34f231",
+  "crossPlatformFingerprintMatched": true,
+  "finalization": "portable metadata and blank-line formatting only; final Release 115 plus real workspace rerun"
+}

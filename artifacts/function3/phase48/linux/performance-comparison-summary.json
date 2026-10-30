@@ -1,0 +1,84 @@
+{
+  "original-baseline": {
+    "passed": true,
+    "baselineBinarySha256": "0cd108a158cdd8b7f46f9c774521992397a9970555367969e4a40567565dfdd9",
+    "currentBinarySha256": "5e9c1ff9a4e442fb86dfa0822803dd3d1c0a6e004ee7e52271a6e3067f17c215",
+    "fastRegressionPercent": 0.8395340642580296,
+    "mixedMedianBefore": 515.183,
+    "mixedMedianAfter": 680.047,
+    "mixedMedianImprovementPercent": 32.00105593546372,
+    "rounds": [
+      {
+        "round": 1,
+        "baselineFastQps": 57383.02,
+        "currentFastQps": 57092.57,
+        "baselineMixedOps": 502.491,
+        "currentMixedOps": 660.816,
+        "baselineAckP99Ms": 19.729,
+        "currentAckP99Ms": 13.165,
+        "ackIncreasePercent": -33.270819605656655
+      },
+      {
+        "round": 2,
+        "baselineFastQps": 57359.58,
+        "currentFastQps": 56901.27,
+        "baselineMixedOps": 515.183,
+        "currentMixedOps": 680.047,
+        "baselineAckP99Ms": 15.026,
+        "currentAckP99Ms": 12.585,
+        "ackIncreasePercent": -16.24517502994808
+      },
+      {
+        "round": 3,
+        "baselineFastQps": 57708.16,
+        "currentFastQps": 56418.64,
+        "baselineMixedOps": 574.912,
+        "currentMixedOps": 698.608,
+        "baselineAckP99Ms": 13.631,
+        "currentAckP99Ms": 12.61,
+        "ackIncreasePercent": -7.490279509940578
+      }
+    ]
+  },
+  "previous-release": {
+    "passed": true,
+    "baselineBinarySha256": "916671401541cf1e62d4229b25ee53e8170ce0933e99cea14a800b862efa2598",
+    "currentBinarySha256": "5e9c1ff9a4e442fb86dfa0822803dd3d1c0a6e004ee7e52271a6e3067f17c215",
+    "fastRegressionPercent": -1.381002437548795,
+    "mixedMedianBefore": 628.151,
+    "mixedMedianAfter": 691.329,
+    "mixedMedianImprovementPercent": 10.057772732989356,
+    "rounds": [
+      {
+        "round": 1,
+        "baselineFastQps": 55333.68,
+        "currentFastQps": 56685.63,
+        "baselineMixedOps": 601.757,
+        "currentMixedOps": 672.66,
+        "baselineAckP99Ms": 17.04,
+        "currentAckP99Ms": 13.983,
+        "ackIncreasePercent": -17.940140845070417
+      },
+      {
+        "round": 2,
+        "baselineFastQps": 56926.04,
+        "currentFastQps": 57975.75,
+        "baselineMixedOps": 628.151,
+        "currentMixedOps": 691.329,
+        "baselineAckP99Ms": 15.676,
+        "currentAckP99Ms": 12.4,
+        "ackIncreasePercent": -20.898188313345244
+      },
+      {
+        "round": 3,
+        "baselineFastQps": 57437.02,
+        "currentFastQps": 57712.19,
+        "baselineMixedOps": 659.206,
+        "currentMixedOps": 693.146,
+        "baselineAckP99Ms": 18.472,
+        "currentAckP99Ms": 13.212,
+        "ackIncreasePercent": -28.475530532698144
+      }
+    ]
+  }
+}

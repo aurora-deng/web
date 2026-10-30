@@ -1,4 +1,6 @@
-# web-test 2.0 · Function3 本地开发版（Phase 28–47）
+# web-test 2.0 · Function3 本地开发版（Phase 28–48）
+
+> Phase48补齐配色与领域拆分：[变化与验收](docs/architecture/business/phase48.md)、[组件索引](docs/architecture/business/phase48-code-index.md)、[教学](docs/architecture/business/phase48-teaching.md)。功能回归通过，最终ACK尾延迟门槛仍未通过；旧阶段报告继续保留，当前成果尚未部署日常服务。
 
 > 本轮Phase43–47：[进度与验收](docs/architecture/business/phase43-47-progress.md)、[接入教学](docs/architecture/business/phase43-47-teaching.md)、[端到端图](docs/architecture/business/phase43-47-end-to-end.md)。通信核心冻结，新增聊天搜索/上下文/会话免打扰，前端按水位与版本收敛。功能回归通过；第2轮ACK P99超过门槛，详见[Phase47](docs/architecture/business/phase47.md)。源码更新不代表日常服务已部署。
 

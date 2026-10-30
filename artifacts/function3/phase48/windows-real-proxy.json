@@ -1,0 +1,53 @@
+{
+  "configuration": "release",
+  "checks": [
+    "DPAPI cookie restored and revalidated by Linux after client restart",
+    "loopback bootstrap, real TLS register/login, server cookie kept out of browser",
+    "separate histories, shared confirmed memories, consent-gated CJK retrieval, real DOCX parser",
+    "legacy private knowledge copied, C++ OpenSSL/BCrypt digest agreement, local consent default off, explicit and duplicate purge",
+    "actual Agent message/profile writes, payload substitution rejected, repeated confirmation dedup, server replay preserves later profile edit",
+    "real private ONNX generation, incremental response, cancellation, local terminal history",
+    "personal DPAPI key redaction/removal, real missing-key fallback to Linux Kokoro, native audio retrieval",
+    "account switch rejects stale actor and isolates documents, memories and threads",
+    "real Edge: upstream WebSocket ACK, SSE, viewport layout, private sidebar"
+  ],
+  "certificateTrust": "process-local, confirmed fingerprint",
+  "target": "existing isolated TLS 18444",
+  "idleWorkingSetMiB": 12.934,
+  "privateInference": [
+    {
+      "run": 1,
+      "firstResponseSeconds": 15.203,
+      "terminalState": "completed",
+      "citations": 1
+    },
+    {
+      "run": 2,
+      "firstResponseSeconds": 25.234,
+      "terminalState": "cancelled",
+      "citations": 2
+    }
+  ],
+  "speech": {
+    "fallback": "missing-key",
+    "waveBytes": 218384,
+    "cloudCalls": 0,
+    "realCloudVerified": false
+  },
+  "httpPool": {
+    "connected": 10,
+    "reused": 243,
+    "discarded": 7,
+    "readRetries": 1,
+    "failures": 1,
+    "active": 0,
+    "idle": 3
+  },
+  "passed": true,
+  "resources": {
+    "samples": 198,
+    "peakWorkingSetMiB": 17.133,
+    "scope": "native companion process only; browser excluded"
+  },
+  "gracefulShutdown": true
+}

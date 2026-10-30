@@ -1,5 +1,7 @@
 # 架构说明
 
+当前保持三端架构与通信核心冻结；新增领域驱动、HTTP适配器和前端依赖边界见 [Phase48](business/phase48.md)。完整跨端流程见 [端到端图](business/phase43-47-end-to-end.md)。
+
 当前三端拆分的完整新图见 [Windows客户端、Linux共享业务与AI端到端架构](business/phase36-41-end-to-end.md)，物理目录见 [目录与构建边界](project-layout.md)。本文继续作为通信内核基线保留。
 
 > 当前实现以本文为网络内核结构基线；阶段演进从 [`phase4_upgrade.md`](communication/phase4_upgrade.md) 延伸到

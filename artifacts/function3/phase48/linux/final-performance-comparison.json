@@ -1,0 +1,35 @@
+{
+  "overallGatePassed": false,
+  "finalMeasuredBinarySha256": "e7f00da218f28a57f27b86282d09b56fadab845d8281e8352abfbf3ea5ed75a5",
+  "comparisons": [
+    {
+      "label": "original-phase43",
+      "evidenceDirectory": "benchmarks-final",
+      "passed": false,
+      "baselineBinarySha256": "0cd108a158cdd8b7f46f9c774521992397a9970555367969e4a40567565dfdd9",
+      "fastRegressionPercent": -0.4287911594048843,
+      "mixedThroughputMedianChangePercent": 19.046337581018214,
+      "pairedAckP99IncreasePercent": [
+        16.214165261382796,
+        -11.344195519348277,
+        23.505528680027645
+      ],
+      "errors": 0
+    },
+    {
+      "label": "direct-previous-release",
+      "evidenceDirectory": "benchmarks-previous-final",
+      "passed": false,
+      "baselineBinarySha256": "916671401541cf1e62d4229b25ee53e8170ce0933e99cea14a800b862efa2598",
+      "fastRegressionPercent": 2.145170330274293,
+      "mixedThroughputMedianChangePercent": -11.345052552838396,
+      "pairedAckP99IncreasePercent": [
+        15.787674160184629,
+        24.856771460208947,
+        54.198508424638604
+      ],
+      "errors": 0
+    }
+  ],
+  "previousMeasurementsRetained": true
+}

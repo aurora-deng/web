@@ -1,7 +1,8 @@
+export const dependencies={"resources":["$","state"],"commands":["api","formatBytes"],"types":[]};
 /** AttachmentController: explicit use cases; shared state/other controllers arrive through context. */
 export function createAttachmentController(context) {
-  const {businessApi,userPickers,unreadWatermarks,pageBudget,wsBackoff,sseBackoff,$,elements,state,messageView,history,sender,trainingStateLabels,runtime,actions,types}=context;
-  const {mountNavigation,UserPicker,groupMessages,BusinessApi,AnnouncementPlayer,UnreadWatermarks,ChatHistory,canRecallMessage,ReliableSender,VirtualMessageList,RecoveryBudget,ReconnectBackoff,formatChatTime,formatDayKey,formatDateDivider}=types;
+  const {$,state,actions}=context;
+
   const api = (...args) => actions.api(...args);
   const formatBytes = (...args) => actions.formatBytes(...args);
 function declaredMediaType(file) {

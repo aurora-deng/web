@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "version": {
+    "sourceFingerprint": "6b55b07b667568331a568a416978126b8c1043bc8f63b605465220db0f3bc779",
+    "revision": "source-snapshot",
+    "requiredMigration": 24,
+    "testResults": "see phase48 evidence and retained phase43-47 history; not a runtime health assertion",
+    "schemaVerifiedAtStartup": true
+  },
+  "assets": {
+    "version": "b165d7bc8ca39f02",
+    "nativeFiles": 80,
+    "vendor": "three-r186 (unchanged)",
+    "includesDynamicReferences": true
+  },
+  "database": "function3_runtime_test",
+  "actualMigration": "24",
+  "ledgerPhase": "48",
+  "binarySha256": "ad26390d5a9138b9d1405527c816da0482505e54e4ffdcc1ea33c18919307a83",
+  "metrics": {
+    "webserver_business_database_count": 1506.0,
+    "webserver_business_database_microseconds_total": 1081750.0,
+    "webserver_business_database_microseconds_max": 9827.0,
+    "webserver_business_queue_wait_count": 48.0,
+    "webserver_business_queue_wait_microseconds_total": 5099.0,
+    "webserver_business_queue_wait_microseconds_max": 1476.0,
+    "webserver_business_outbox_event_age_count": 12.0,
+    "webserver_business_outbox_event_age_microseconds_total": 82516.0,
+    "webserver_business_outbox_event_age_microseconds_max": 14948.0,
+    "webserver_business_commit_notify_to_dispatch_count": 21.0,
+    "webserver_business_commit_notify_to_dispatch_microseconds_total": 3474.0,
+    "webserver_business_commit_notify_to_dispatch_microseconds_max": 813.0,
+    "webserver_business_outbox_cycle_count": 264.0,
+    "webserver_business_outbox_cycle_microseconds_total": 298996.0,
+    "webserver_business_outbox_cycle_microseconds_max": 10767.0
+  },
+  "scope": "final metadata/frontend stamp build; measured performance binary recorded separately"
+}

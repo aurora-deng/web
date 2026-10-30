@@ -1,5 +1,5 @@
-import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=4ec58ab3c1e38adb';
-import { modelConnection,openModelConnection,requestOwnModel,resetModelConnection } from '../ModelConnection/ModelConnection.js?v=4ec58ab3c1e38adb';
+import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=227af12a6c379d08';
+import { modelConnection,openModelConnection,requestOwnModel,resetModelConnection } from '../ModelConnection/ModelConnection.js?v=227af12a6c379d08';
 const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
 const id=()=>Array.from(crypto.getRandomValues(new Uint8Array(20)),n=>n.toString(16).padStart(2,'0')).join('');
 

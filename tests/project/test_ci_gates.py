@@ -35,5 +35,17 @@ class CiGates(unittest.TestCase):
             (root/'CMakeCache.txt').write_text('CMAKE_HOME_DIRECTORY:INTERNAL='+str(ROOT)+'\n'+'\n'.join(n+':BOOL=ON' for n in ['WEBSERVER_ENABLE_PHASE11','WEBSERVER_ENABLE_POSTGRES','WEBSERVER_ENABLE_SODIUM','BUILD_TESTING']))
             (root/'compile_commands.json').write_text(json.dumps([{'file':'unrelated.cpp','command':'c++ -DWEBSERVER_HAS_POSTGRES=1 -DWEBSERVER_HAS_SODIUM=1 unrelated.cpp'}]))
             with patch.object(ci,'run'),patch.dict(os.environ,{'PHASE11_POSTGRES_CONNECTION':'isolated_test'}):self.invoke(root,'Required adapter not compiled')
+    def test_missing_suites_are_not_green_and_private_ai_is_a_business_test(self):
+        with self.assertRaisesRegex(RuntimeError,'Required test lanes'):ci.test_matrix(['phase11_postgres_contract_tests'])
+        names=['phase11_core_tests','function3_workspace_contract','phase11_chat_reliability_tests',
+               'phase11_http_auth_tests','phase11_file_tests','phase11_sodium_credentials_tests',
+               'phase11_postgres_contract_tests','function3_postgres_contract',
+               'function3_runtime_config','function3_business_shutdown','function3_commit_wakeup',
+               'HttpParserTest.WaitsForHalfPacketAndContentLengthBody',
+               'WebSocketParserTest.AcceptsMaskedText','phase39_private_generation_tests']
+        matrix=ci.test_matrix(names)
+        self.assertIn('phase39_private_generation_tests',matrix['businessWithoutPostgres'])
+        with self.assertRaisesRegex(RuntimeError,'protocol tests not registered'):
+            ci.test_matrix([n for n in names if not n.startswith('HttpParserTest.')])
 
 if __name__=='__main__':unittest.main()

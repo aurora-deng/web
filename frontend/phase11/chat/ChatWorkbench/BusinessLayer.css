@@ -9,97 +9,97 @@
 /* .message 是 display:flex（styles.css:149），不能塞入额外列表项，
    否则 VirtualMessageList 的 prefix.length === messages.length + 1 不变量被破坏，
    所以分隔条作为行的绝对定位子元素，占用行上方新增的 margin。 */
-body[data-workspace=chat] .message { position: relative; }
-body[data-workspace=chat] .message.has-date-break { margin-top: var(--sp-8); }
+body[data-workspace=chat] .message { position:relative; }
+body[data-workspace=chat] .message.has-date-break { margin-top:var(--sp-8); }
 
 body[data-workspace=chat] .message > .date-divider {
-  position: absolute;
-  top: calc(-1 * var(--sp-6) - 2px);
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  color: var(--text-3);
-  font-size: var(--fs-micro);
-  line-height: 1;
-  pointer-events: none;
+  position:absolute;
+  top:calc(-1 * var(--sp-6) - 2px);
+  left:0;
+  right:0;
+  display:flex;
+  align-items:center;
+  gap:var(--sp-3);
+  color:var(--text-3);
+  font-size:var(--fs-micro);
+  line-height:1;
+  pointer-events:none;
 }
 body[data-workspace=chat] .message > .date-divider::before,
 body[data-workspace=chat] .message > .date-divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--line);
+  content:"";
+  flex:1;
+  height:1px;
+  background:var(--line);
 }
 
 /* ---------- 消息流：搜索命中高亮（恰好 2000ms，不带过渡动画） ---------- */
 body[data-workspace=chat] .message.search-hit > .message-content > .message-bubble {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline:2px solid var(--accent);
+  outline-offset:2px;
 }
 
 /* ---------- 搜索结果行：从 <li> 里的纯文本升级为可点击行 ---------- */
 .search-results .search-result {
-  display: block;
-  width: 100%;
-  padding: 0;
-  font: inherit;
-  text-align: left;
-  color: var(--text);
-  background: none;
-  border: 0;
-  border-radius: var(--r-xs);
-  cursor: pointer;
+  display:block;
+  width:100%;
+  padding:0;
+  font:inherit;
+  text-align:left;
+  color:var(--text);
+  background:none;
+  border:0;
+  border-radius:var(--r-xs);
+  cursor:pointer;
 }
-.search-results .search-result:hover { background: var(--accent-softer); }
-.search-results .search-result:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
-.search-results .search-result p { margin: 0; }
+.search-results .search-result:hover { background:var(--accent-softer); }
+.search-results .search-result:focus-visible { outline:2px solid var(--focus); outline-offset:3px; }
+.search-results .search-result p { margin:0; }
 .search-results .search-result small {
-  display: block;
-  margin-top: var(--sp-1);
-  color: var(--text-3);
-  font-size: var(--fs-micro);
+  display:block;
+  margin-top:var(--sp-1);
+  color:var(--text-3);
+  font-size:var(--fs-micro);
 }
 
 /* ---------- 会话列表：时间变长后的标题让位 + 新消息一次性上浮 ---------- */
 /* 时间是绝对定位在右上角（workspaces.css:670），"昨天 10:00" 比 "10:00" 宽约 30px。 */
-body[data-workspace=chat] .conversation-item .conversation-copy strong { padding-right: 76px; }
+body[data-workspace=chat] .conversation-item .conversation-copy strong { padding-right:76px; }
 
-@keyframes conversation-bump { from { opacity: .42; } to { opacity: 1; } }
-body[data-workspace=chat] .conversation-item.is-bumped { animation: conversation-bump 380ms var(--ease); }
+@keyframes conversation-bump { from { opacity:.42; } to { opacity:1; } }
+body[data-workspace=chat] .conversation-item.is-bumped { animation:conversation-bump 380ms var(--ease); }
 
 /* ---------- 输入区：AI 目标模型下拉 ---------- */
 body[data-workspace=chat] .composer .ai-target select {
-  width: 100%;
-  height: 30px;
-  padding: 0 var(--sp-2);
-  color: var(--text);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-xs);
-  font-size: var(--fs-micro);
+  width:100%;
+  height:30px;
+  padding:0 var(--sp-2);
+  color:var(--text);
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:var(--r-xs);
+  font-size:var(--fs-micro);
 }
-body[data-workspace=chat] .composer .ai-target .ai-advanced { min-width: 0; }
+body[data-workspace=chat] .composer .ai-target .ai-advanced { min-width:0; }
 body[data-workspace=chat] .composer .ai-target .ai-advanced summary {
-  cursor: pointer;
-  color: var(--text-3);
-  font-size: var(--fs-micro);
+  cursor:pointer;
+  color:var(--text-3);
+  font-size:var(--fs-micro);
 }
 body[data-workspace=chat] .composer .ai-target .ai-advanced label {
-  display: block;
-  margin-top: var(--sp-2);
-  color: var(--text-2);
-  font-size: var(--fs-micro);
+  display:block;
+  margin-top:var(--sp-2);
+  color:var(--text-2);
+  font-size:var(--fs-micro);
 }
 body[data-workspace=chat] .composer .ai-target .ai-advanced input {
-  width: 100%;
-  height: 28px;
-  margin-top: var(--sp-1);
-  padding: 0 var(--sp-2);
-  color: var(--text);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-xs);
-  font-size: var(--fs-micro);
+  width:100%;
+  height:28px;
+  margin-top:var(--sp-1);
+  padding:0 var(--sp-2);
+  color:var(--text);
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:var(--r-xs);
+  font-size:var(--fs-micro);
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "backend/application/ports/IUserRepository/IUserRepository.h"
 #include "backend/ai/private/ports/IPrivateInference/IPrivateInference.h"
 #include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
 namespace webserver::phase11 {

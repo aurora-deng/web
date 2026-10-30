@@ -1,6 +1,6 @@
 # 业务功能架构
 
-最新开发阶段：[Phase36 聊天布局与目录边界](phase36.md)、[Phase37 统一动态与个人主页](phase37.md)、[Phase38 Windows本机入口](phase38.md)、[Phase39 私人助手与确认行动](phase39.md)。后续语音和完整验收继续实施，不能把分项通过当成整套方案完成。
+当前补齐阶段：[Phase48 配色、领域拆分与 Outbox](phase48.md)、[代码索引](phase48-code-index.md)、[教学](phase48-teaching.md)。原Phase36–47文档作为历史阶段保留。
 
 
 本目录集中说明“用户能做什么，以及这些操作如何落到业务服务、Repository、数据库、实时通知和模型系统”。

@@ -1,8 +1,8 @@
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=4ec58ab3c1e38adb';
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=227af12a6c379d08';
 mountNavigation('admin');
-import {BusinessApi} from '../../shared/BusinessApi/BusinessApi.js?v=4ec58ab3c1e38adb';
-import {AnnouncementPlayer} from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=4ec58ab3c1e38adb';
-import {openSpeechSettings} from '../../shared/SpeechSettings/SpeechSettings.js?v=4ec58ab3c1e38adb';
+import {BusinessApi} from '../../shared/BusinessApi/BusinessApi.js?v=227af12a6c379d08';
+import {AnnouncementPlayer} from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=227af12a6c379d08';
+import {openSpeechSettings} from '../../shared/SpeechSettings/SpeechSettings.js?v=227af12a6c379d08';
 const api=new BusinessApi(),$=s=>document.querySelector(s);let view=['users','reports','audits','messaging','categories','models','runtime','speech'].includes(location.hash.slice(1))?location.hash.slice(1):'users',cursor='',rows=[],role,pageToken='',pageTrail=[];
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 const names={users:'用户与权限',reports:'内容举报',audits:'操作审计',messaging:'消息队列',categories:'内容分类',models:'模型治理',runtime:'运行状态',speech:'公告音色'};

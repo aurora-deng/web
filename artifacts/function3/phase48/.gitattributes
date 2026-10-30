@@ -1,0 +1,2 @@
+# Keep raw report bytes and their checksums; log whitespace is evidence.
+* -text whitespace=cr-at-eol,-blank-at-eol

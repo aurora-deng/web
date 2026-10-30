@@ -1,7 +1,8 @@
+export const dependencies={"resources":["$","state"],"commands":["toast","initials","api","paintAvatar","loadConversations","openConversation","actionListEmpty"],"types":[]};
 /** GroupController: explicit use cases; shared state/other controllers arrive through context. */
 export function createGroupController(context) {
-  const {businessApi,userPickers,unreadWatermarks,pageBudget,wsBackoff,sseBackoff,$,elements,state,messageView,history,sender,trainingStateLabels,runtime,actions,types}=context;
-  const {mountNavigation,UserPicker,groupMessages,BusinessApi,AnnouncementPlayer,UnreadWatermarks,ChatHistory,canRecallMessage,ReliableSender,VirtualMessageList,RecoveryBudget,ReconnectBackoff,formatChatTime,formatDayKey,formatDateDivider}=types;
+  const {$,state,actions}=context;
+
   const toast = (...args) => actions.toast(...args);
   const initials = (...args) => actions.initials(...args);
   const api = (...args) => actions.api(...args);

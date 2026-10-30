@@ -1,6 +1,7 @@
 #pragma once
 
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/ports/IKnowledgeIndex/IKnowledgeIndex.h"
+#include "backend/application/domain/KnowledgeTypes/KnowledgeTypes.h"
 
 #include <shared_mutex>
 #include <unordered_map>

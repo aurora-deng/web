@@ -182,6 +182,18 @@ if(WEBSERVER_ENABLE_PHASE11)
     target_link_libraries(webserver_chat_workspace PUBLIC webserver_sanitizers)
     add_library(webserver_phase11
         backend/application/storage/InMemoryStore/InMemoryStore.cpp
+        backend/application/storage/memory/MemoryAccountRepository/MemoryAccountRepository.cpp
+        backend/application/storage/memory/MemoryContactsRepository/MemoryContactsRepository.cpp
+        backend/application/storage/memory/MemoryConversationRepository/MemoryConversationRepository.cpp
+        backend/application/storage/memory/MemoryEvaluationRepository/MemoryEvaluationRepository.cpp
+        backend/application/storage/memory/MemoryFileRepository/MemoryFileRepository.cpp
+        backend/application/storage/memory/MemoryGenerationAuditRepository/MemoryGenerationAuditRepository.cpp
+        backend/application/storage/memory/MemoryKnowledgeRepository/MemoryKnowledgeRepository.cpp
+        backend/application/storage/memory/MemoryMessageWriteRepository/MemoryMessageWriteRepository.cpp
+        backend/application/storage/memory/MemoryModelRepository/MemoryModelRepository.cpp
+        backend/application/storage/memory/MemoryOutboxRepository/MemoryOutboxRepository.cpp
+        backend/application/storage/memory/MemoryTrainingRepository/MemoryTrainingRepository.cpp
+        backend/application/storage/memory/MemoryWorkspaceRepository/MemoryWorkspaceRepository.cpp
         backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.cpp
         backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp
         backend/application/business/AuthService/AuthService.cpp
@@ -210,6 +222,17 @@ if(WEBSERVER_ENABLE_PHASE11)
         target_sources(webserver_phase11 PRIVATE
             backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp
             backend/application/storage/postgres/PostgresStore/PostgresStore.cpp
+            backend/application/storage/postgres/PostgresAccountRepository/PostgresAccountRepository.cpp
+            backend/application/storage/postgres/PostgresContactsRepository/PostgresContactsRepository.cpp
+            backend/application/storage/postgres/PostgresConversationRepository/PostgresConversationRepository.cpp
+            backend/application/storage/postgres/PostgresEvaluationRepository/PostgresEvaluationRepository.cpp
+            backend/application/storage/postgres/PostgresFileRepository/PostgresFileRepository.cpp
+            backend/application/storage/postgres/PostgresGenerationAuditRepository/PostgresGenerationAuditRepository.cpp
+            backend/application/storage/postgres/PostgresKnowledgeRepository/PostgresKnowledgeRepository.cpp
+            backend/application/storage/postgres/PostgresMessageWriteRepository/PostgresMessageWriteRepository.cpp
+            backend/application/storage/postgres/PostgresModelRepository/PostgresModelRepository.cpp
+            backend/application/storage/postgres/PostgresOutboxRepository/PostgresOutboxRepository.cpp
+            backend/application/storage/postgres/PostgresTrainingRepository/PostgresTrainingRepository.cpp
             backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.cpp
             backend/application/storage/postgres/PostgresWorkspaceRepository/PostgresWorkspaceRepository.cpp)
         target_link_libraries(webserver_phase11 PUBLIC PostgreSQL::PostgreSQL)
@@ -604,6 +627,10 @@ if(BUILD_TESTING)
         add_executable(function3_workspace_contract tests/function3/unit/workspace.cpp)
         target_link_libraries(function3_workspace_contract PRIVATE webserver_phase11)
         add_test(NAME function3_workspace_contract COMMAND function3_workspace_contract)
+        add_executable(function3_commit_wakeup tests/function3/unit/commit_wakeup.cpp)
+        target_include_directories(function3_commit_wakeup PRIVATE ${PROJECT_SOURCE_DIR})
+        target_link_libraries(function3_commit_wakeup PRIVATE webserver_sanitizers)
+        add_test(NAME function3_commit_wakeup COMMAND function3_commit_wakeup)
         add_executable(phase39_private_generation_tests tests/function3/unit/private_generation.cpp)
         target_link_libraries(phase39_private_generation_tests PRIVATE webserver_ai)
         add_test(NAME phase39_private_generation_tests COMMAND phase39_private_generation_tests)
@@ -904,4 +931,22 @@ if(WEBSERVER_BUILD_FUZZER)
     target_link_libraries(websocket_parser_fuzz PRIVATE webserver_core)
     target_compile_options(websocket_parser_fuzz PRIVATE -fsanitize=fuzzer)
     target_link_options(websocket_parser_fuzz PRIVATE -fsanitize=fuzzer)
+endif()
+
+# Root composition helpers retain the executable's existing feature definitions.
+target_sources(webserver PRIVATE
+    backend/application/transport/learning/LearningRoutes/LearningRoutes.cpp)
+if(WEBSERVER_ENABLE_PHASE11 AND WEBSERVER_ENABLE_POSTGRES AND WEBSERVER_ENABLE_SODIUM)
+    target_sources(webserver PRIVATE
+        backend/ai/bootstrap/ModelProviderAssembly/ModelProviderAssembly.cpp
+        backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.cpp)
+endif()
+
+if(TARGET webserver_phase11_http)
+    target_sources(webserver_phase11_http PRIVATE
+        backend/application/transport/http/ContactsHttp/ContactsHttp.cpp
+        backend/application/transport/http/ConversationsHttp/ConversationsHttp.cpp
+        backend/application/transport/http/MessageHistoryHttp/MessageHistoryHttp.cpp
+        backend/application/transport/http/GroupGovernanceHttp/GroupGovernanceHttp.cpp
+    )
 endif()

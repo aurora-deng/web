@@ -2,7 +2,11 @@
 
 #include "backend/application/business/ApplicationError/ApplicationError.h"
 #include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/ports/IUserRepository/IUserRepository.h"
+#include "backend/application/ports/ISessionRepository/ISessionRepository.h"
+#include "backend/application/ports/ICredentialCodec/ICredentialCodec.h"
+#include "backend/application/ports/ILoginRateLimiter/ILoginRateLimiter.h"
+#include "backend/application/domain/AccountTypes/AccountTypes.h"
 
 #include <chrono>
 

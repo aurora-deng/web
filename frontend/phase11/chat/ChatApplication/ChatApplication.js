@@ -1,28 +1,35 @@
-import { createChatContext } from '../ChatContext/ChatContext.js?v=4ec58ab3c1e38adb';
-import { bindChat } from '../ChatBindings/ChatBindings.js?v=4ec58ab3c1e38adb';
-import { createFeedbackController } from '../FeedbackController/FeedbackController.js?v=4ec58ab3c1e38adb';
-import { createConversationController } from '../ConversationController/ConversationController.js?v=4ec58ab3c1e38adb';
-import { createGroupController } from '../GroupController/GroupController.js?v=4ec58ab3c1e38adb';
-import { createAttachmentController } from '../AttachmentController/AttachmentController.js?v=4ec58ab3c1e38adb';
-import { createMessageController } from '../MessageController/MessageController.js?v=4ec58ab3c1e38adb';
-import { createRealtimeController } from '../RealtimeController/RealtimeController.js?v=4ec58ab3c1e38adb';
-import { createContactsController } from '../ContactsController/ContactsController.js?v=4ec58ab3c1e38adb';
-import { createAiController } from '../AiController/AiController.js?v=4ec58ab3c1e38adb';
-import { createKnowledgeController } from '../KnowledgeController/KnowledgeController.js?v=4ec58ab3c1e38adb';
+import { createChatScope, assertChatAssembly } from '../ChatScope/ChatScope.js?v=227af12a6c379d08';
+import { createChatContext } from '../ChatContext/ChatContext.js?v=227af12a6c379d08';
+import { bindChat } from '../ChatBindings/ChatBindings.js?v=227af12a6c379d08';
+import { createFeedbackController, dependencies as createFeedbackControllerDependencies } from '../FeedbackController/FeedbackController.js?v=227af12a6c379d08';
+import { createConversationController, dependencies as createConversationControllerDependencies } from '../ConversationController/ConversationController.js?v=227af12a6c379d08';
+import { createGroupController, dependencies as createGroupControllerDependencies } from '../GroupController/GroupController.js?v=227af12a6c379d08';
+import { createAttachmentController, dependencies as createAttachmentControllerDependencies } from '../AttachmentController/AttachmentController.js?v=227af12a6c379d08';
+import { createMessageController, dependencies as createMessageControllerDependencies } from '../MessageController/MessageController.js?v=227af12a6c379d08';
+import { createRealtimeController, dependencies as createRealtimeControllerDependencies } from '../RealtimeController/RealtimeController.js?v=227af12a6c379d08';
+import { createContactsController, dependencies as createContactsControllerDependencies } from '../ContactsController/ContactsController.js?v=227af12a6c379d08';
+import { createAiController, dependencies as createAiControllerDependencies } from '../AiController/AiController.js?v=227af12a6c379d08';
+import { createKnowledgeController, dependencies as createKnowledgeControllerDependencies } from '../KnowledgeController/KnowledgeController.js?v=227af12a6c379d08';
 let active;
 /** Composition only: domain controllers own behavior, context owns mutable resources. */
 export function startChatApplication() {
   if(active)return active;
   const actions={},context=createChatContext(actions);
-  Object.assign(actions,createFeedbackController(context));
-  Object.assign(actions,createConversationController(context));
-  Object.assign(actions,createGroupController(context));
-  Object.assign(actions,createAttachmentController(context));
-  Object.assign(actions,createMessageController(context));
-  Object.assign(actions,createRealtimeController(context));
-  Object.assign(actions,createContactsController(context));
-  Object.assign(actions,createAiController(context));
-  Object.assign(actions,createKnowledgeController(context));
+  Object.assign(actions,createFeedbackController(createChatScope(context,createFeedbackControllerDependencies)));
+  Object.assign(actions,createConversationController(createChatScope(context,createConversationControllerDependencies)));
+  Object.assign(actions,createGroupController(createChatScope(context,createGroupControllerDependencies)));
+  Object.assign(actions,createAttachmentController(createChatScope(context,createAttachmentControllerDependencies)));
+  Object.assign(actions,createMessageController(createChatScope(context,createMessageControllerDependencies)));
+  Object.assign(actions,createRealtimeController(createChatScope(context,createRealtimeControllerDependencies)));
+  Object.assign(actions,createContactsController(createChatScope(context,createContactsControllerDependencies)));
+  Object.assign(actions,createAiController(createChatScope(context,createAiControllerDependencies)));
+  Object.assign(actions,createKnowledgeController(createChatScope(context,createKnowledgeControllerDependencies)));
+  assertChatAssembly(context,[
+    createFeedbackControllerDependencies,createConversationControllerDependencies,
+    createGroupControllerDependencies,createAttachmentControllerDependencies,
+    createMessageControllerDependencies,createRealtimeControllerDependencies,
+    createContactsControllerDependencies,createAiControllerDependencies,createKnowledgeControllerDependencies,
+  ]);
   context.types.mountNavigation('chat');
   bindChat(context);
   const dispose=()=>{

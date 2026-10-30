@@ -1,4 +1,9 @@
 #pragma once
+#include "backend/application/observability/CommitWakeClock/CommitWakeClock.h"
+#include "backend/application/ports/IConversationRepository/IConversationRepository.h"
+#include "backend/application/ports/IMessageRepository/IMessageRepository.h"
+#include "backend/application/ports/IOutboxRepository/IOutboxRepository.h"
+#include "backend/application/ports/ISocialRepository/ISocialRepository.h"
 
 #include "backend/application/business/AiChatService/AiChatService.h"
 #include "backend/application/business/ApplicationError/ApplicationError.h"
@@ -172,7 +177,7 @@ private:
     std::mutex mutex_;
     std::condition_variable wake_;
     std::uint64_t wakeGeneration_ = 0;
-    std::thread worker_;
+    webserver::application::CommitWakeClock commitWakeClock_;
     std::atomic<std::uint64_t> cycles_{0};
     std::atomic<std::uint64_t> wakeups_{0};
     std::atomic<std::uint64_t> attempted_{0};
@@ -182,6 +187,9 @@ private:
     std::atomic<std::size_t> lastBatch_{0};
     std::atomic<std::size_t> batchHighWatermark_{0};
     std::atomic<std::uint64_t> oldestAttemptAgeMicroseconds_{0};
+    // Start last: run() must never observe counters before their construction.
+    // The destructor joins the worker before any of these fields are destroyed.
+    std::thread worker_;
 };
 
 } // namespace webserver::phase11::transport

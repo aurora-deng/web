@@ -1,4 +1,4 @@
-import { uploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=4ec58ab3c1e38adb';
+import { uploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=227af12a6c379d08';
 /** 业务媒体复用原上传/校验协议；WeakMap 保留同一 File 的成功结果以便幂等重试。 */
 export class MediaUploader {
   constructor(api) { this.api=api;this.uploads=new WeakMap(); }

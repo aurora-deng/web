@@ -147,6 +147,7 @@ public:
     OutboxEvent appendOutbox(OutboxEvent event) override;
     std::vector<OutboxEvent> pendingOutbox(std::size_t limit) const override;
     bool markPublished(OutboxEventId id, TimePoint now) override;
+    bool markPublishedBatch(const std::vector<OutboxEventId> &ids, TimePoint now) override;
 
     /** 只读运行指标，不把 libpq 类型暴露给业务接口。 */
     [[nodiscard]] PostgresConnectionPool::Snapshot poolSnapshot() const noexcept

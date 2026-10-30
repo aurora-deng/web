@@ -588,6 +588,7 @@ void Phase11OutboxPump::notifyCommitted() noexcept
     {
         std::lock_guard lock(mutex_);
         ++wakeGeneration_;
+        commitWakeClock_.committed();
     }
     wakeups_.fetch_add(1, std::memory_order_relaxed);
     wake_.notify_one();
@@ -614,10 +615,13 @@ void Phase11OutboxPump::run() noexcept
         {
             std::lock_guard lock(mutex_);
             observedGeneration = wakeGeneration_;
+            if(const auto delay=commitWakeClock_.dispatchStarted())
+                webserver::business_metrics::observe(webserver::business_metrics::CommitWake,delay->count());
         }
         std::chrono::milliseconds delay{250};
         try
         {
+            webserver::business_metrics::Timer cycleTimer{webserver::business_metrics::OutboxCycle};
             const auto result = dispatcher_.dispatchPending(100, now());
             cycles_.fetch_add(1, std::memory_order_relaxed);
             attempted_.fetch_add(result.attempted, std::memory_order_relaxed);

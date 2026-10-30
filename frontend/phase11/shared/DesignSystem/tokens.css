@@ -1,8 +1,8 @@
 /* ============================================================================
    NEBULA Design System v1 · tokens.css
    ----------------------------------------------------------------------------
-   唯一色板与尺度来源。所有页面必须在本文件之后加载自己的样式，且不得再写
-   颜色字面量（#xxx / rgb()），只能引用下面的语义变量。
+   唯一色板与尺度来源。旧布局样式后依次加载 tokens、base、workspace 桥接；
+   动态组件也只引用语义变量，不再追加一套颜色覆盖样式。
 
    三层结构：
      1. 原始色阶  --n-*      只允许语义层引用，组件层禁止使用
@@ -74,6 +74,9 @@
 
   /* 强调色：全站唯一「这是主操作」信号 */
   --brand: var(--n-violet-600);          /* 跨工作区导航，永远不跟随工作区 */
+  --brand-text: var(--n-violet-400);
+  --on-brand: #FFFFFF;
+  --brand-soft: rgba(108, 88, 240, .12);
   --accent: var(--n-violet-600);
   --accent-hover: var(--n-violet-500);
   --accent-text: var(--n-violet-400);    /* 文字形态的强调色 */
@@ -168,6 +171,8 @@
   --line-strong: rgba(28, 46, 74, .26);
 
   --brand: var(--n-violet-700);
+  --brand-text: var(--n-violet-700);
+  --brand-soft: rgba(91, 58, 224, .10);
   --accent: #5B3AE0;
   --accent-hover: #4A2BC8;
   --accent-text: #5B3AE0;
@@ -227,4 +232,26 @@ body[data-workspace=tree] {
   --accent-softer: rgba(169, 104, 138, .06);
   --on-accent: #FFFFFF;
   --focus: var(--n-rose-700);
+}
+
+/* Shared component roles. No component owns a private hard-coded palette. */
+:root {
+  --field-bg: var(--surface-2);
+  --panel-glass: color-mix(in srgb, var(--surface) 96%, transparent);
+  --shadow-color: #000000;
+  --overlay: #050914;
+  --bubble-own-bg: #2E2853;
+  --bubble-own-text: #EEF3FC;
+  --scene-bg: #171D2D;
+  --scene-haze: #313044;
+  --scene-glow: #A9688A;
+}
+:root[data-theme=light] {
+  --shadow-color: #102038;
+  --overlay: #182038;
+  --bubble-own-bg: #E6E2FF;
+  --bubble-own-text: #241C4D;
+  --scene-bg: #ECE5F1;
+  --scene-haze: #FEF6F5;
+  --scene-glow: #C58BAB;
 }

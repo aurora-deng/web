@@ -1,3 +1,15 @@
+#include "backend/application/storage/memory/MemoryAccountRepository/MemoryAccountRepository.h"
+#include "backend/application/storage/memory/MemoryContactsRepository/MemoryContactsRepository.h"
+#include "backend/application/storage/memory/MemoryConversationRepository/MemoryConversationRepository.h"
+#include "backend/application/storage/memory/MemoryEvaluationRepository/MemoryEvaluationRepository.h"
+#include "backend/application/storage/memory/MemoryFileRepository/MemoryFileRepository.h"
+#include "backend/application/storage/memory/MemoryGenerationAuditRepository/MemoryGenerationAuditRepository.h"
+#include "backend/application/storage/memory/MemoryKnowledgeRepository/MemoryKnowledgeRepository.h"
+#include "backend/application/storage/memory/MemoryMessageWriteRepository/MemoryMessageWriteRepository.h"
+#include "backend/application/storage/memory/MemoryModelRepository/MemoryModelRepository.h"
+#include "backend/application/storage/memory/MemoryOutboxRepository/MemoryOutboxRepository.h"
+#include "backend/application/storage/memory/MemoryTrainingRepository/MemoryTrainingRepository.h"
+#include "backend/application/storage/memory/MemoryWorkspaceRepository/MemoryWorkspaceRepository.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 
 #include <algorithm>
@@ -48,30 +60,25 @@ private:
 namespace {
 std::string lowerText(std::string value){for(char&c:value)if(c>='A'&&c<='Z')c=static_cast<char>(c-'A'+'a');return value;}
 }
-std::vector<webserver::chat::UserCard>InMemoryStore::searchUsers(UserId viewer,std::string_view query,UserId after,std::size_t limit)const{
- std::lock_guard lock(mutex_);std::vector<webserver::chat::UserCard>result;const auto prefix=lowerText(std::string(query));
- for(const auto&[id,user]:state_.users){if(user.disabled||id==viewer||id<=after||blockedEitherDirection(viewer,id))continue;
- if(!lowerText(user.username).starts_with(prefix)&&!lowerText(user.displayName).starts_with(prefix))continue;
- bool pending=false;for(const auto&[_,request]:state_.friendRequests)if(request.state==FriendRequestState::Pending&&((request.senderId==viewer&&request.receiverId==id)||(request.senderId==id&&request.receiverId==viewer)))pending=true;
- // Search is a minimal directory, not permission to expose profile media.
- result.push_back({id,user.username,user.displayName,std::nullopt,user.aiAccount,areFriends(viewer,id),pending});}
- std::sort(result.begin(),result.end(),[](const auto&a,const auto&b){return a.id<b.id;});if(result.size()>limit)result.resize(limit);return result;
+std::vector<webserver::chat::UserCard>InMemoryStore::searchUsers(UserId viewer,std::string_view query,UserId after,std::size_t limit)const
+{
+    std::lock_guard lock(mutex_);
+    return MemoryWorkspaceRepository::searchUsers(state_, std::move(viewer), std::move(query), std::move(after), std::move(limit));
 }
-std::vector<Message>InMemoryStore::searchVisibleMessages(UserId viewer,ConversationId conversation,std::string_view query,MessageId before,std::size_t limit)const{
- std::lock_guard lock(mutex_);std::vector<Message>result;const auto needle=lowerText(std::string(query));
- for(const auto&[id,message]:state_.messages){if((before&&id>=before)||(conversation&&message.conversationId!=conversation)||message.state!=MessageState::Active||!state_.members.contains({message.conversationId,viewer}))continue;
- if(state_.conversations.at(message.conversationId).state!=ConversationState::Active||lowerText(message.body).find(needle)==std::string::npos)continue;result.push_back(hydrateMessageLocked(message));}
- std::sort(result.begin(),result.end(),[](const auto&a,const auto&b){return a.id>b.id;});if(result.size()>limit)result.resize(limit);return result;
+std::vector<Message>InMemoryStore::searchVisibleMessages(UserId viewer,ConversationId conversation,std::string_view query,MessageId before,std::size_t limit)const
+{
+    std::lock_guard lock(mutex_);
+    return MemoryWorkspaceRepository::searchVisibleMessages(state_, std::move(viewer), std::move(conversation), std::move(query), std::move(before), std::move(limit));
 }
-webserver::chat::ConversationPreference InMemoryStore::preference(UserId user,ConversationId conversation)const{
- std::lock_guard lock(mutex_);if(auto i=state_.conversationPreferences.find({conversation,user});i!=state_.conversationPreferences.end())return i->second;
- bool muted=false;auto c=state_.conversations.find(conversation);if(c!=state_.conversations.end()&&c->second.kind==ConversationKind::Direct)for(const auto&[key,member]:state_.members)if(key.first==conversation&&key.second!=user)muted=contactSettings(user,member.userId).notificationsMuted;
- return{conversation,user,muted,0};
+webserver::chat::ConversationPreference InMemoryStore::preference(UserId user,ConversationId conversation)const
+{
+    std::lock_guard lock(mutex_);
+    return MemoryWorkspaceRepository::preference(state_, std::move(user), std::move(conversation));
 }
-webserver::chat::PreferenceWrite InMemoryStore::writePreference(UserId user,ConversationId conversation,bool muted){
- std::lock_guard lock(mutex_);if(!state_.members.contains({conversation,user}))throw std::runtime_error("preference requires membership");
- auto it=state_.conversationPreferences.find({conversation,user});if(it!=state_.conversationPreferences.end()&&it->second.muted==muted)return{it->second,false};
- auto&value=state_.conversationPreferences[{conversation,user}];value={conversation,user,muted,value.version+1};return{value,true};
+webserver::chat::PreferenceWrite InMemoryStore::writePreference(UserId user,ConversationId conversation,bool muted)
+{
+    std::lock_guard lock(mutex_);
+    return MemoryWorkspaceRepository::writePreference(state_, std::move(user), std::move(conversation), std::move(muted));
 }
 
 std::unique_ptr<ITransaction> InMemoryStore::beginTransaction()
@@ -79,194 +86,113 @@ std::unique_ptr<ITransaction> InMemoryStore::beginTransaction()
     return std::make_unique<Transaction>(*this);
 }
 
-InMemoryStore::UserPair InMemoryStore::orderedUsers(UserId first, UserId second)
-{
-    return first < second ? UserPair{first, second} : UserPair{second, first};
-}
+
 
 User InMemoryStore::create(User user)
 {
     std::lock_guard lock(mutex_);
-    if (user.username.empty() || state_.usernames.contains(user.username))
-        throw std::invalid_argument("username already exists or is empty");
-    user.id = state_.nextUserId++;
-    state_.usernames.emplace(user.username, user.id);
-    state_.users.emplace(user.id, user);
-    return user;
+    return MemoryAccountRepository::create(state_, std::move(user));
 }
 
 std::optional<User> InMemoryStore::findUser(UserId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.users.find(id);
-    return found == state_.users.end() ? std::nullopt
-                                       : std::optional<User>{found->second};
+    return MemoryAccountRepository::findUser(state_, std::move(id));
 }
 
 std::optional<User> InMemoryStore::findUserByName(std::string_view username) const
 {
     std::lock_guard lock(mutex_);
-    const auto named = state_.usernames.find(std::string(username));
-    if (named == state_.usernames.end())
-        return std::nullopt;
-    return state_.users.at(named->second);
+    return MemoryAccountRepository::findUserByName(state_, std::move(username));
 }
 
 bool InMemoryStore::updateProfile(UserId id, std::string displayName,
                                   std::string biography)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.users.find(id);
-    if (found == state_.users.end())
-        return false;
-    found->second.displayName = std::move(displayName);
-    found->second.biography = std::move(biography);
-    return true;
+    return MemoryAccountRepository::updateProfile(state_, std::move(id), std::move(displayName), std::move(biography));
 }
 
 // 收据随State一起快照与回滚，契约与PostgreSQL一致。
 ProfileWriteResult InMemoryStore::writeProfileOnce(UserId id,std::string operation,std::string displayName,std::string biography)
 {
-    std::lock_guard lock(mutex_);const auto user=state_.users.find(id);if(user==state_.users.end())return ProfileWriteResult::NotFound;
-    const auto key=std::make_pair(id,operation);const auto payload=std::make_pair(displayName,biography);
-    if(const auto previous=state_.profileOperations.find(key);previous!=state_.profileOperations.end())return previous->second==payload?ProfileWriteResult::Replay:ProfileWriteResult::Conflict;
-    state_.profileOperations.emplace(key,payload);user->second.displayName=std::move(displayName);user->second.biography=std::move(biography);return ProfileWriteResult::Applied;
+    std::lock_guard lock(mutex_);
+    return MemoryAccountRepository::writeProfileOnce(state_, std::move(id), std::move(operation), std::move(displayName), std::move(biography));
 }
 bool InMemoryStore::updateAvatar(UserId id, std::optional<FileId> avatar)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.users.find(id);
-    if (found == state_.users.end() ||
-        (avatar && !state_.files.contains(*avatar)))
-        return false;
-    found->second.avatarFileId = avatar;
-    return true;
+    return MemoryAccountRepository::updateAvatar(state_, std::move(id), std::move(avatar));
 }
 
 Session InMemoryStore::createSession(Session session)
 {
     std::lock_guard lock(mutex_);
-    if (session.id.empty() || session.tokenHash.empty() ||
-        !state_.users.contains(session.userId) ||
-        state_.sessionsById.contains(session.id) ||
-        state_.sessionIdByTokenHash.contains(session.tokenHash))
-        throw std::invalid_argument("invalid or duplicate session");
-    state_.sessionIdByTokenHash.emplace(session.tokenHash, session.id);
-    state_.sessionsById.emplace(session.id, session);
-    return session;
+    return MemoryAccountRepository::createSession(state_, std::move(session));
 }
 
 std::optional<Session> InMemoryStore::findSessionByTokenHash(
     std::string_view tokenHash) const
 {
     std::lock_guard lock(mutex_);
-    const auto mapped = state_.sessionIdByTokenHash.find(std::string(tokenHash));
-    if (mapped == state_.sessionIdByTokenHash.end())
-        return std::nullopt;
-    return state_.sessionsById.at(mapped->second);
+    return MemoryAccountRepository::findSessionByTokenHash(state_, std::move(tokenHash));
 }
 
 bool InMemoryStore::revokeSession(std::string_view sessionId, TimePoint now)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.sessionsById.find(std::string(sessionId));
-    if (found == state_.sessionsById.end())
-        return false;
-    found->second.revokedAt = now;
-    return true;
+    return MemoryAccountRepository::revokeSession(state_, std::move(sessionId), std::move(now));
 }
 
 FriendRequest InMemoryStore::createFriendRequest(FriendRequest request)
 {
     std::lock_guard lock(mutex_);
-    if (!state_.users.contains(request.senderId) ||
-        !state_.users.contains(request.receiverId) ||
-        request.senderId == request.receiverId)
-        throw std::invalid_argument("invalid friend request users");
-    request.id = state_.nextFriendRequestId++;
-    state_.friendRequests.emplace(request.id, request);
-    return request;
+    return MemoryContactsRepository::createFriendRequest(state_, std::move(request));
 }
 
 std::optional<FriendRequest> InMemoryStore::findFriendRequest(
     FriendRequestId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.friendRequests.find(id);
-    return found == state_.friendRequests.end()
-               ? std::nullopt
-               : std::optional<FriendRequest>{found->second};
+    return MemoryContactsRepository::findFriendRequest(state_, std::move(id));
 }
 
 bool InMemoryStore::decideFriendRequest(FriendRequestId id, UserId receiver,
                                         FriendRequestState decision, TimePoint now)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.friendRequests.find(id);
-    if (found == state_.friendRequests.end() ||
-        found->second.receiverId != receiver ||
-        found->second.state != FriendRequestState::Pending ||
-        decision == FriendRequestState::Pending)
-        return false;
-    found->second.state = decision;
-    found->second.decidedAt = now;
-    if (decision == FriendRequestState::Accepted)
-        state_.friendships.emplace(
-            orderedUsers(found->second.senderId, found->second.receiverId));
-    return true;
+    return MemoryContactsRepository::decideFriendRequest(state_, std::move(id), std::move(receiver), std::move(decision), std::move(now));
 }
 
 bool InMemoryStore::areFriends(UserId first, UserId second) const
 {
     std::lock_guard lock(mutex_);
-    return state_.friendships.contains(orderedUsers(first, second));
+    return MemoryContactsRepository::areFriends(state_, std::move(first), std::move(second));
 }
 
 std::vector<UserId> InMemoryStore::listFriendIds(UserId user) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<UserId> result;
-    for (const auto &[low, high] : state_.friendships)
-    {
-        if (low == user)
-            result.push_back(high);
-        else if (high == user)
-            result.push_back(low);
-    }
-    return result;
+    return MemoryContactsRepository::listFriendIds(state_, std::move(user));
 }
 
 std::vector<FriendRequest> InMemoryStore::pendingRequests(UserId receiver) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<FriendRequest> result;
-    for (const auto &[_, request] : state_.friendRequests)
-        if (request.receiverId == receiver &&
-            request.state == FriendRequestState::Pending)
-            result.push_back(request);
-    return result;
+    return MemoryContactsRepository::pendingRequests(state_, std::move(receiver));
 }
 
 bool InMemoryStore::removeFriendship(UserId first, UserId second)
 {
     std::lock_guard lock(mutex_);
-    const auto removed = state_.friendships.erase(orderedUsers(first, second)) != 0;
-    if (removed)
-    {
-        state_.contactSettings.erase({first, second});
-        state_.contactSettings.erase({second, first});
-    }
-    return removed;
+    return MemoryContactsRepository::removeFriendship(state_, std::move(first), std::move(second));
 }
 
 ContactSettings InMemoryStore::contactSettings(UserId owner,
                                                 UserId contact) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.contactSettings.find({owner, contact});
-    return found == state_.contactSettings.end()
-               ? ContactSettings{owner, contact, {}, false}
-               : found->second;
+    return MemoryContactsRepository::contactSettings(state_, std::move(owner), std::move(contact));
 }
 
 bool InMemoryStore::updateContactSettings(UserId owner, UserId contact,
@@ -274,231 +200,103 @@ bool InMemoryStore::updateContactSettings(UserId owner, UserId contact,
                                           bool notificationsMuted)
 {
     std::lock_guard lock(mutex_);
-    if (!state_.friendships.contains(orderedUsers(owner, contact)))
-        return false;
-    state_.contactSettings[{owner, contact}] =
-        ContactSettings{owner, contact, std::move(remark), notificationsMuted};
-    return true;
+    return MemoryContactsRepository::updateContactSettings(state_, std::move(owner), std::move(contact), std::move(remark), std::move(notificationsMuted));
 }
 
 bool InMemoryStore::blockUser(UserId blocker, UserId blocked, TimePoint now)
 {
     std::lock_guard lock(mutex_);
-    if (blocker == blocked || !state_.users.contains(blocker) ||
-        !state_.users.contains(blocked))
-        return false;
-    const auto inserted = state_.blocks.emplace(blocker, blocked).second;
-    if (!inserted)
-        return false;
-
-    state_.friendships.erase(orderedUsers(blocker, blocked));
-    state_.contactSettings.erase({blocker, blocked});
-    state_.contactSettings.erase({blocked, blocker});
-    for (auto &[_, request] : state_.friendRequests)
-    {
-        const bool samePair =
-            (request.senderId == blocker && request.receiverId == blocked) ||
-            (request.senderId == blocked && request.receiverId == blocker);
-        if (samePair && request.state == FriendRequestState::Pending)
-        {
-            request.state = FriendRequestState::Rejected;
-            request.decidedAt = now;
-        }
-    }
-    return true;
+    return MemoryContactsRepository::blockUser(state_, std::move(blocker), std::move(blocked), std::move(now));
 }
 
 bool InMemoryStore::unblockUser(UserId blocker, UserId blocked)
 {
     std::lock_guard lock(mutex_);
-    return state_.blocks.erase({blocker, blocked}) != 0;
+    return MemoryContactsRepository::unblockUser(state_, std::move(blocker), std::move(blocked));
 }
 
 bool InMemoryStore::isBlocked(UserId blocker, UserId blocked) const
 {
     std::lock_guard lock(mutex_);
-    return state_.blocks.contains({blocker, blocked});
+    return MemoryContactsRepository::isBlocked(state_, std::move(blocker), std::move(blocked));
 }
 
 bool InMemoryStore::blockedEitherDirection(UserId first, UserId second) const
 {
     std::lock_guard lock(mutex_);
-    return state_.blocks.contains({first, second}) ||
-           state_.blocks.contains({second, first});
+    return MemoryContactsRepository::blockedEitherDirection(state_, std::move(first), std::move(second));
 }
 
 std::vector<UserId> InMemoryStore::listBlockedIds(UserId blocker) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<UserId> result;
-    for (const auto &[owner, blocked] : state_.blocks)
-        if (owner == blocker)
-            result.push_back(blocked);
-    return result;
+    return MemoryContactsRepository::listBlockedIds(state_, std::move(blocker));
 }
 
 bool InMemoryStore::updateLastActive(UserId user, TimePoint now)
 {
     std::lock_guard lock(mutex_);
-    if (!state_.users.contains(user))
-        return false;
-    state_.lastActive[user] = now;
-    return true;
+    return MemoryContactsRepository::updateLastActive(state_, std::move(user), std::move(now));
 }
 
 std::optional<TimePoint> InMemoryStore::lastActive(UserId user) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.lastActive.find(user);
-    return found == state_.lastActive.end()
-               ? std::nullopt : std::optional<TimePoint>{found->second};
+    return MemoryContactsRepository::lastActive(state_, std::move(user));
 }
 
 Conversation InMemoryStore::createConversation(
     Conversation conversation, std::vector<ConversationMember> members)
 {
     std::lock_guard lock(mutex_);
-    if (members.empty())
-        throw std::invalid_argument("conversation requires members");
-    conversation.id = state_.nextConversationId++;
-    conversation.nextSequence = 1;
-    state_.conversations.emplace(conversation.id, conversation);
-    for (auto &member : members)
-    {
-        if (!state_.users.contains(member.userId))
-            throw std::invalid_argument("conversation member does not exist");
-        member.conversationId = conversation.id;
-        state_.members.emplace(MemberKey{conversation.id, member.userId}, member);
-    }
-    return conversation;
+    return MemoryConversationRepository::createConversation(state_, std::move(conversation), std::move(members));
 }
 
 std::optional<Conversation> InMemoryStore::findConversation(
     ConversationId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.conversations.find(id);
-    return found == state_.conversations.end()
-               ? std::nullopt
-               : std::optional<Conversation>{found->second};
+    return MemoryConversationRepository::findConversation(state_, std::move(id));
 }
 
 std::optional<ConversationMember> InMemoryStore::findMember(
     ConversationId conversation, UserId user) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.members.find({conversation, user});
-    return found == state_.members.end()
-               ? std::nullopt
-               : std::optional<ConversationMember>{found->second};
+    return MemoryConversationRepository::findMember(state_, std::move(conversation), std::move(user));
 }
 
 std::optional<Conversation> InMemoryStore::findDirectConversation(
     UserId first, UserId second) const
 {
     std::lock_guard lock(mutex_);
-    for (const auto &[id, conversation] : state_.conversations)
-    {
-        if (conversation.kind != ConversationKind::Direct ||
-            conversation.state != ConversationState::Active)
-            continue;
-        if (state_.members.contains({id, first}) &&
-            state_.members.contains({id, second}))
-            return conversation;
-    }
-    return std::nullopt;
+    return MemoryConversationRepository::findDirectConversation(state_, std::move(first), std::move(second));
 }
 
 std::vector<Conversation> InMemoryStore::listConversations(UserId user) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<Conversation> result;
-    for (const auto &[key, _] : state_.members)
-        if (key.second == user)
-        {
-            const auto &conversation = state_.conversations.at(key.first);
-            if (conversation.state == ConversationState::Active)
-                result.push_back(conversation);
-        }
-    return result;
+    return MemoryConversationRepository::listConversations(state_, std::move(user));
 }
 
 std::vector<ConversationSummary> InMemoryStore::listConversationSummaries(
     UserId user) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<ConversationSummary> result;
-    for (const auto &[key, member] : state_.members)
-    {
-        if (key.second != user)
-            continue;
-        const auto &conversation = state_.conversations.at(key.first);
-        if (conversation.state != ConversationState::Active)
-            continue;
-        const auto latest = conversation.nextSequence > 0
-                                ? conversation.nextSequence - 1 : 0;
-        result.push_back({conversation,
-                          member.lastDeliveredSequence,
-                          member.lastReadSequence,
-                          latest > member.lastReadSequence
-                              ? latest - member.lastReadSequence : 0});
-        auto &summary = result.back();
-        summary.displayTitle = conversation.title;
-        for (const auto &[otherKey, otherMember] : state_.members) {
-            if (otherKey.first != conversation.id) continue;
-            const auto &other = state_.users.at(otherMember.userId);
-            summary.containsAi = summary.containsAi || other.aiAccount;
-            if (conversation.kind != ConversationKind::Direct || other.id == user) continue;
-            summary.displayTitle = other.displayName;
-            summary.avatarFileId = other.avatarFileId;
-            summary.peerUserId=other.id;
-            if (const auto preference = state_.contactSettings.find({user, other.id});
-                preference != state_.contactSettings.end()) {
-                if (!preference->second.remark.empty()) summary.displayTitle = preference->second.remark;
-                summary.notificationsMuted = preference->second.notificationsMuted;
-            }
-        }
-        if(auto preference=state_.conversationPreferences.find({conversation.id,user});preference!=state_.conversationPreferences.end()){
-            summary.notificationsMuted=preference->second.muted;
-            summary.preferencesRevision=preference->second.version;
-        }
-        if (const auto ids = state_.messageIds.find(conversation.id);
-            ids != state_.messageIds.end() && !ids->second.empty()) {
-            const auto &message = state_.messages.at(ids->second.back());
-            summary.lastMessagePreview = message.state == MessageState::Recalled
-                ? "这条消息已被撤回" : message.body.empty() ? "[附件]" : message.body;
-            summary.lastMessageAt = message.createdAt;
-        }
-    }
-    std::sort(result.begin(), result.end(), [](const auto &a, const auto &b) {
-        const auto at = a.lastMessageAt == TimePoint{} ? a.conversation.createdAt : a.lastMessageAt;
-        const auto bt = b.lastMessageAt == TimePoint{} ? b.conversation.createdAt : b.lastMessageAt;
-        return at == bt ? a.conversation.id > b.conversation.id : at > bt;
-    });
-    return result;
+    return MemoryConversationRepository::listConversationSummaries(state_, std::move(user));
 }
 
 std::vector<ConversationMember> InMemoryStore::listMembers(
     ConversationId conversation) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<ConversationMember> result;
-    for (const auto &[key, member] : state_.members)
-        if (key.first == conversation)
-            result.push_back(member);
-    return result;
+    return MemoryConversationRepository::listMembers(state_, std::move(conversation));
 }
 
 bool InMemoryStore::addMember(ConversationMember member)
 {
     std::lock_guard lock(mutex_);
-    const auto conversation = state_.conversations.find(member.conversationId);
-    if (conversation == state_.conversations.end() ||
-        conversation->second.state != ConversationState::Active ||
-        !state_.users.contains(member.userId))
-        return false;
-    return state_.members.emplace(
-        MemberKey{member.conversationId, member.userId}, member).second;
+    return MemoryConversationRepository::addMember(state_, std::move(member));
 }
 
 bool InMemoryStore::updateConversationProfile(
@@ -506,40 +304,21 @@ bool InMemoryStore::updateConversationProfile(
     std::string announcement)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.conversations.find(conversation);
-    if (found == state_.conversations.end() ||
-        found->second.kind != ConversationKind::Group ||
-        found->second.state != ConversationState::Active)
-        return false;
-    found->second.title = std::move(title);
-    found->second.announcement = std::move(announcement);
-    return true;
+    return MemoryConversationRepository::updateConversationProfile(state_, std::move(conversation), std::move(title), std::move(announcement));
 }
 
 bool InMemoryStore::dissolveConversation(ConversationId conversation,
                                          UserId actor, TimePoint now)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.conversations.find(conversation);
-    if (found == state_.conversations.end() ||
-        found->second.kind != ConversationKind::Group ||
-        found->second.state != ConversationState::Active)
-        return false;
-    found->second.state = ConversationState::Dissolved;
-    found->second.dissolvedBy = actor;
-    found->second.dissolvedAt = now;
-    return true;
+    return MemoryConversationRepository::dissolveConversation(state_, std::move(conversation), std::move(actor), std::move(now));
 }
 
 bool InMemoryStore::updateMemberRole(ConversationId conversation, UserId user,
                                      MemberRole role)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.members.find({conversation, user});
-    if (found == state_.members.end())
-        return false;
-    found->second.role = role;
-    return true;
+    return MemoryConversationRepository::updateMemberRole(state_, std::move(conversation), std::move(user), std::move(role));
 }
 
 bool InMemoryStore::updateMemberMute(
@@ -547,89 +326,39 @@ bool InMemoryStore::updateMemberMute(
     std::optional<TimePoint> mutedUntil)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.members.find({conversation, user});
-    if (found == state_.members.end())
-        return false;
-    found->second.mutedUntil = mutedUntil;
-    return true;
+    return MemoryConversationRepository::updateMemberMute(state_, std::move(conversation), std::move(user), std::move(mutedUntil));
 }
 
 bool InMemoryStore::removeMember(ConversationId conversation, UserId user)
 {
     std::lock_guard lock(mutex_);
-    state_.conversationPreferences.erase({conversation,user});
-    return state_.members.erase({conversation, user}) == 1;
+    return MemoryConversationRepository::removeMember(state_, std::move(conversation), std::move(user));
 }
 
 bool InMemoryStore::updateDelivered(ConversationId conversation, UserId user,
                                     std::uint64_t sequence)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.members.find({conversation, user});
-    if (found == state_.members.end())
-        return false;
-    if (sequence <= found->second.lastDeliveredSequence)
-        return false;
-    found->second.lastDeliveredSequence =
-        std::max(found->second.lastDeliveredSequence, sequence);
-    return true;
+    return MemoryConversationRepository::updateDelivered(state_, std::move(conversation), std::move(user), std::move(sequence));
 }
 
 bool InMemoryStore::updateRead(ConversationId conversation, UserId user,
                                std::uint64_t sequence)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.members.find({conversation, user});
-    if (found == state_.members.end())
-        return false;
-    if (sequence <= found->second.lastReadSequence)
-        return false;
-    found->second.lastReadSequence =
-        std::max(found->second.lastReadSequence, sequence);
-    found->second.lastDeliveredSequence =
-        std::max(found->second.lastDeliveredSequence, sequence);
-    return true;
+    return MemoryConversationRepository::updateRead(state_, std::move(conversation), std::move(user), std::move(sequence));
 }
 
 AppendMessageResult InMemoryStore::appendMessage(Message message)
 {
     std::lock_guard lock(mutex_);
-    const IdempotencyKey key{
-        message.conversationId, message.senderId, message.clientMessageId};
-    if (message.clientMessageId.empty())
-        throw std::invalid_argument("client message id is required");
-    if (const auto duplicate = state_.idempotency.find(key);
-        duplicate != state_.idempotency.end())
-        return {hydrateMessageLocked(state_.messages.at(duplicate->second)), false};
-
-    const auto conversation = state_.conversations.find(message.conversationId);
-    if (conversation == state_.conversations.end())
-        throw std::invalid_argument("conversation does not exist");
-    if (conversation->second.state != ConversationState::Active)
-        throw std::invalid_argument("conversation is not active");
-    message.id = state_.nextMessageId++;
-    message.sequence = conversation->second.nextSequence++;
-    state_.messages.emplace(message.id, message);
-    state_.messageIds[message.conversationId].push_back(message.id);
-    state_.idempotency.emplace(key, message.id);
-    return {message, true};
+    return MemoryMessageWriteRepository::appendMessage(state_, std::move(message));
 }
 
 Message InMemoryStore::hydrateMessageLocked(Message message) const
 {
-    message.attachments.clear();
-    const auto linked = state_.attachments.find(message.id);
-    if (linked == state_.attachments.end()) return message;
-    for (const auto fileId : linked->second)
-    {
-        const auto file = state_.files.find(fileId);
-        if (file == state_.files.end() || file->second.state != FileState::Ready)
-            continue;
-        message.attachments.push_back(
-            {fileId, file->second.originalName, file->second.mediaType,
-             file->second.expectedSize, file->second.sha256});
-    }
-    return message;
+    std::lock_guard lock(mutex_);
+    return MemoryMessageWriteRepository::hydrateMessageLocked(state_, std::move(message));
 }
 
 std::vector<Message> InMemoryStore::messagesAfter(
@@ -637,50 +366,21 @@ std::vector<Message> InMemoryStore::messagesAfter(
     std::size_t limit) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<Message> result;
-    const auto found = state_.messageIds.find(conversation);
-    if (found == state_.messageIds.end())
-        return result;
-    for (const auto id : found->second)
-    {
-        const auto &message = state_.messages.at(id);
-        if (message.sequence > sequence)
-        {
-            result.push_back(hydrateMessageLocked(message));
-            if (result.size() == limit)
-                break;
-        }
-    }
-    return result;
+    return MemoryMessageWriteRepository::messagesAfter(state_, std::move(conversation), std::move(sequence), std::move(limit));
 }
 
 std::vector<Message> InMemoryStore::messagesBefore(
     ConversationId conversation, std::uint64_t before, std::size_t limit) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<Message> result;
-    const auto found = state_.messageIds.find(conversation);
-    if (found == state_.messageIds.end() || !limit) return result;
-    // 从最新记录反向取一页，再恢复升序；游标不是 OFFSET，因此新消息插入不挤动旧页。
-    for (auto it = found->second.rbegin(); it != found->second.rend(); ++it)
-    {
-        const auto &message = state_.messages.at(*it);
-        if (before && message.sequence >= before) continue;
-        result.push_back(hydrateMessageLocked(message));
-        if (result.size() == limit) break;
-    }
-    std::reverse(result.begin(), result.end());
-    return result;
+    return MemoryMessageWriteRepository::messagesBefore(state_, std::move(conversation), std::move(before), std::move(limit));
 }
 
 std::optional<Message> InMemoryStore::findOwnMessage(
     ConversationId conversation, UserId sender, std::string_view clientMessageId) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.idempotency.find(
-        IdempotencyKey{conversation, sender, std::string(clientMessageId)});
-    return found == state_.idempotency.end() ? std::nullopt
-        : std::optional<Message>{hydrateMessageLocked(state_.messages.at(found->second))};
+    return MemoryMessageWriteRepository::findOwnMessage(state_, std::move(conversation), std::move(sender), std::move(clientMessageId));
 }
 
 std::vector<Message> InMemoryStore::searchMessages(
@@ -688,64 +388,32 @@ std::vector<Message> InMemoryStore::searchMessages(
     std::size_t limit) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<Message> result;
-    const auto found = state_.messageIds.find(conversation);
-    if (found == state_.messageIds.end() || query.empty())
-        return result;
-    for (const auto id : found->second)
-    {
-        const auto &message = state_.messages.at(id);
-        if (message.state == MessageState::Active &&
-            message.body.find(query) != std::string::npos)
-        {
-            result.push_back(hydrateMessageLocked(message));
-            if (result.size() == limit)
-                break;
-        }
-    }
-    return result;
+    return MemoryMessageWriteRepository::searchMessages(state_, std::move(conversation), std::move(query), std::move(limit));
 }
 
 std::optional<Message> InMemoryStore::findMessage(MessageId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.messages.find(id);
-    return found == state_.messages.end()
-               ? std::nullopt
-               : std::optional<Message>{hydrateMessageLocked(found->second)};
+    return MemoryMessageWriteRepository::findMessage(state_, std::move(id));
 }
 
 RecallMessageResult InMemoryStore::recallMessage(MessageId id, UserId actor,
                                                  TimePoint now)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.messages.find(id);
-    if (found == state_.messages.end())
-        return {};
-    if (found->second.state == MessageState::Recalled)
-        return {hydrateMessageLocked(found->second), false};
-    found->second.state = MessageState::Recalled;
-    found->second.recalledBy = actor;
-    found->second.recalledAt = now;
-    return {hydrateMessageLocked(found->second), true};
+    return MemoryMessageWriteRepository::recallMessage(state_, std::move(id), std::move(actor), std::move(now));
 }
 
 FileObject InMemoryStore::createFile(FileObject file)
 {
     std::lock_guard lock(mutex_);
-    if (!state_.users.contains(file.ownerId) || file.expectedSize == 0)
-        throw std::invalid_argument("invalid file metadata");
-    file.id = state_.nextFileId++;
-    state_.files.emplace(file.id, file);
-    return file;
+    return MemoryFileRepository::createFile(state_, std::move(file));
 }
 
 std::optional<FileObject> InMemoryStore::findFile(FileId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.files.find(id);
-    return found == state_.files.end() ? std::nullopt
-                                      : std::optional<FileObject>{found->second};
+    return MemoryFileRepository::findFile(state_, std::move(id));
 }
 
 bool InMemoryStore::updateFileProgress(FileId id, UserId owner,
@@ -753,140 +421,69 @@ bool InMemoryStore::updateFileProgress(FileId id, UserId owner,
                                        std::uint64_t uploadedSize)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.files.find(id);
-    if (found == state_.files.end() || found->second.ownerId != owner ||
-        found->second.state != FileState::Pending ||
-        found->second.uploadedSize != expectedOffset ||
-        uploadedSize < expectedOffset || uploadedSize > found->second.expectedSize)
-        return false;
-    found->second.uploadedSize = uploadedSize;
-    return true;
+    return MemoryFileRepository::updateFileProgress(state_, std::move(id), std::move(owner), std::move(expectedOffset), std::move(uploadedSize));
 }
 
 bool InMemoryStore::completeFile(FileId id, UserId owner,
                                  std::string sha256, TimePoint now)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.files.find(id);
-    if (found == state_.files.end() || found->second.ownerId != owner ||
-        found->second.state != FileState::Pending ||
-        found->second.uploadedSize != found->second.expectedSize ||
-        sha256.size() != 64)
-        return false;
-    found->second.sha256 = std::move(sha256);
-    found->second.state = FileState::Ready;
-    found->second.readyAt = now;
-    return true;
+    return MemoryFileRepository::completeFile(state_, std::move(id), std::move(owner), std::move(sha256), std::move(now));
 }
 
 bool InMemoryStore::failFile(FileId id, UserId owner)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.files.find(id);
-    if (found == state_.files.end() || found->second.ownerId != owner ||
-        found->second.state != FileState::Pending)
-        return false;
-    found->second.state = FileState::Failed;
-    return true;
+    return MemoryFileRepository::failFile(state_, std::move(id), std::move(owner));
 }
 
 bool InMemoryStore::attachFile(MessageId message, FileId file)
 {
     std::lock_guard lock(mutex_);
-    const auto foundMessage = state_.messages.find(message);
-    const auto foundFile = state_.files.find(file);
-    if (foundMessage == state_.messages.end() || foundFile == state_.files.end() ||
-        foundFile->second.state != FileState::Ready ||
-        foundMessage->second.senderId != foundFile->second.ownerId)
-        return false;
-    auto &linked = state_.attachments[message];
-    if (!linked.empty()) return false;
-    linked.push_back(file);
-    return true;
+    return MemoryFileRepository::attachFile(state_, std::move(message), std::move(file));
 }
 
 std::vector<MessageAttachment> InMemoryStore::attachmentsForMessage(
     MessageId message) const
 {
     std::lock_guard lock(mutex_);
-    Message stub;
-    stub.id = message;
-    return hydrateMessageLocked(std::move(stub)).attachments;
+    return MemoryFileRepository::attachmentsForMessage(state_, std::move(message));
 }
 
 bool InMemoryStore::canAccessFile(UserId user, FileId file) const
 {
     std::lock_guard lock(mutex_);
-    const auto foundFile = state_.files.find(file);
-    if (foundFile == state_.files.end() ||
-        foundFile->second.state != FileState::Ready)
-        return false;
-    if (foundFile->second.ownerId == user) return true;
-    for (const auto &[_, profile] : state_.users)
-        if (profile.avatarFileId == file) return true;
-    for (const auto &[messageId, linked] : state_.attachments)
-    {
-        if (std::find(linked.begin(), linked.end(), file) == linked.end()) continue;
-        const auto message = state_.messages.find(messageId);
-        if (message != state_.messages.end() &&
-            state_.members.contains({message->second.conversationId, user}))
-            return true;
-    }
-    return false;
+    return MemoryFileRepository::canAccessFile(state_, std::move(user), std::move(file));
 }
 
 OutboxEvent InMemoryStore::appendOutbox(OutboxEvent event)
 {
     std::lock_guard lock(mutex_);
-    event.id = state_.nextOutboxEventId++;
-    state_.outbox.emplace(event.id, event);
-    return event;
+    return MemoryOutboxRepository::appendOutbox(state_, std::move(event));
 }
 
 std::vector<OutboxEvent> InMemoryStore::pendingOutbox(std::size_t limit) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<OutboxEvent> result;
-    for (const auto &[_, event] : state_.outbox)
-    {
-        if (!event.publishedAt)
-            result.push_back(event);
-    }
-    std::sort(result.begin(), result.end(),
-              [](const auto &left, const auto &right) {
-                  return left.id < right.id;
-              });
-    if (result.size() > limit)
-        result.resize(limit);
-    return result;
+    return MemoryOutboxRepository::pendingOutbox(state_, std::move(limit));
 }
 
 bool InMemoryStore::markPublished(OutboxEventId id, TimePoint now)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.outbox.find(id);
-    if (found == state_.outbox.end())
-        return false;
-    found->second.publishedAt = now;
-    return true;
+    return MemoryOutboxRepository::markPublished(state_, std::move(id), std::move(now));
 }
 
 ModelNode InMemoryStore::createModelNode(ModelNode node)
 {
     std::lock_guard lock(mutex_);
-    node.id = state_.nextModelNodeId++;
-    state_.modelNodes.emplace(node.id, node);
-    return node;
+    return MemoryModelRepository::createModelNode(state_, std::move(node));
 }
 
 ModelVersion InMemoryStore::createModelVersion(ModelVersion version)
 {
     std::lock_guard lock(mutex_);
-    if (!state_.modelNodes.contains(version.nodeId))
-        throw std::invalid_argument("model node does not exist");
-    version.id = state_.nextModelVersionId++;
-    state_.modelVersions.emplace(version.id, version);
-    return version;
+    return MemoryModelRepository::createModelVersion(state_, std::move(version));
 }
 
 std::pair<ModelVersion, ModelTrainingLineage>
@@ -894,325 +491,163 @@ InMemoryStore::createTrainedModelVersion(ModelVersion version,
                                          ModelTrainingLineage lineage)
 {
     std::lock_guard lock(mutex_);
-    if (!state_.modelNodes.contains(version.nodeId) ||
-        version.state != ModelVersionState::Candidate ||
-        lineage.modelVersionId != 0 || lineage.actor.empty())
-        throw std::invalid_argument("invalid trained model version");
-    const bool databaseVerified =
-        lineage.authorizationMode == TrainingAuthorizationMode::DatabaseVerified;
-    if (databaseVerified != lineage.datasetVersionId.has_value())
-        throw std::invalid_argument("invalid training authorization lineage");
-    if (lineage.datasetVersionId)
-    {
-        const auto dataset = state_.datasets.find(*lineage.datasetVersionId);
-        if (dataset == state_.datasets.end())
-            throw std::invalid_argument("training dataset does not exist");
-        auto checksum = dataset->second.checksum;
-        if (checksum.starts_with("sha256:")) checksum.erase(0, 7);
-        if (checksum != lineage.datasetSha256 ||
-            dataset->second.recordCount != lineage.datasetRecords)
-            throw std::invalid_argument("training dataset lineage mismatch");
-    }
-    version.id = state_.nextModelVersionId++;
-    lineage.modelVersionId = version.id;
-    state_.modelVersions.emplace(version.id, version);
-    state_.modelTrainingLineages.emplace(version.id, lineage);
-    return {version, lineage};
+    return MemoryModelRepository::createTrainedModelVersion(state_, std::move(version), std::move(lineage));
 }
 
 ModelEdge InMemoryStore::createModelEdge(ModelEdge edge)
 {
     std::lock_guard lock(mutex_);
-    if (edge.from == edge.to || !state_.modelNodes.contains(edge.from) ||
-        !state_.modelNodes.contains(edge.to))
-        throw std::invalid_argument("invalid model edge");
-    edge.id = state_.nextModelEdgeId++;
-    state_.modelEdges.emplace(edge.id, edge);
-    return edge;
+    return MemoryModelRepository::createModelEdge(state_, std::move(edge));
 }
 
 bool InMemoryStore::bindAiAccount(ModelBinding binding)
 {
     std::lock_guard lock(mutex_);
-    const auto user = state_.users.find(binding.aiUserId);
-    if (user == state_.users.end() || !user->second.aiAccount ||
-        !state_.modelNodes.contains(binding.nodeId))
-        return false;
-    state_.modelBindings.insert_or_assign(binding.aiUserId, binding);
-    return true;
+    return MemoryModelRepository::bindAiAccount(state_, std::move(binding));
 }
 
 std::optional<ModelNode> InMemoryStore::findModelNode(ModelNodeId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.modelNodes.find(id);
-    return found == state_.modelNodes.end()
-               ? std::nullopt
-               : std::optional<ModelNode>{found->second};
+    return MemoryModelRepository::findModelNode(state_, std::move(id));
 }
 
-std::vector<ModelNode> InMemoryStore::modelNodes(ModelNodeId after,std::size_t limit)const{
-    std::lock_guard lock(mutex_);std::vector<ModelNode>result;
-    for(const auto&[id,node]:state_.modelNodes)if(id>after)result.push_back(node);
-    std::sort(result.begin(),result.end(),[](const auto&a,const auto&b){return a.id<b.id;});
-    if(result.size()>std::min<std::size_t>(limit,50))result.resize(std::min<std::size_t>(limit,50));return result;
+std::vector<ModelNode> InMemoryStore::modelNodes(ModelNodeId after,std::size_t limit)const
+{
+    std::lock_guard lock(mutex_);
+    return MemoryModelRepository::modelNodes(state_, std::move(after), std::move(limit));
 }
-std::vector<ModelVersion> InMemoryStore::modelVersions(ModelNodeId node,ModelVersionId after,std::size_t limit)const{
-    std::lock_guard lock(mutex_);std::vector<ModelVersion>result;
-    for(const auto&[id,version]:state_.modelVersions)if(id>after&&version.nodeId==node)result.push_back(version);
-    std::sort(result.begin(),result.end(),[](const auto&a,const auto&b){return a.id<b.id;});
-    if(result.size()>std::min<std::size_t>(limit,50))result.resize(std::min<std::size_t>(limit,50));return result;
+std::vector<ModelVersion> InMemoryStore::modelVersions(ModelNodeId node,ModelVersionId after,std::size_t limit)const
+{
+    std::lock_guard lock(mutex_);
+    return MemoryModelRepository::modelVersions(state_, std::move(node), std::move(after), std::move(limit));
 }
 
 std::optional<ModelVersion> InMemoryStore::findModelVersion(
     ModelVersionId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.modelVersions.find(id);
-    return found == state_.modelVersions.end()
-               ? std::nullopt
-               : std::optional<ModelVersion>{found->second};
+    return MemoryModelRepository::findModelVersion(state_, std::move(id));
 }
 
 std::optional<ModelTrainingLineage>
 InMemoryStore::findModelTrainingLineage(ModelVersionId version) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.modelTrainingLineages.find(version);
-    return found == state_.modelTrainingLineages.end()
-               ? std::nullopt
-               : std::optional<ModelTrainingLineage>{found->second};
+    return MemoryModelRepository::findModelTrainingLineage(state_, std::move(version));
 }
 
 std::optional<ModelBinding> InMemoryStore::findModelBinding(UserId aiUser) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.modelBindings.find(aiUser);
-    return found == state_.modelBindings.end()
-               ? std::nullopt
-               : std::optional<ModelBinding>{found->second};
+    return MemoryModelRepository::findModelBinding(state_, std::move(aiUser));
 }
 
 std::vector<ModelEdge> InMemoryStore::modelEdges() const
 {
     std::lock_guard lock(mutex_);
-    std::vector<ModelEdge> result;
-    result.reserve(state_.modelEdges.size());
-    for (const auto &[_, edge] : state_.modelEdges)
-        result.push_back(edge);
-    return result;
+    return MemoryModelRepository::modelEdges(state_);
 }
 
 bool InMemoryStore::activateModelVersion(ModelNodeId node, ModelVersionId version,
                                          ModelActivationAudit audit)
 {
     std::lock_guard lock(mutex_);
-    const auto foundNode = state_.modelNodes.find(node);
-    const auto foundVersion = state_.modelVersions.find(version);
-    if (foundNode == state_.modelNodes.end() ||
-        foundVersion == state_.modelVersions.end() ||
-        foundVersion->second.nodeId != node ||
-        foundVersion->second.checksum.empty() ||
-        foundVersion->second.state == ModelVersionState::Rejected ||
-        audit.nodeId != node || audit.targetVersionId != version ||
-        audit.outcome != ModelActivationOutcome::Succeeded ||
-        audit.actor.empty())
-        return false;
-    audit.previousVersionId = foundNode->second.activeVersionId;
-    if (foundNode->second.activeVersionId)
-    {
-        auto &previous = state_.modelVersions.at(*foundNode->second.activeVersionId);
-        previous.state = ModelVersionState::Retired;
-    }
-    foundVersion->second.state = ModelVersionState::Active;
-    foundNode->second.activeVersionId = version;
-    audit.id = state_.nextModelActivationAuditId++;
-    state_.modelActivationAudits.emplace(audit.id, std::move(audit));
-    return true;
+    return MemoryModelRepository::activateModelVersion(state_, std::move(node), std::move(version), std::move(audit));
 }
 
 ModelActivationAudit InMemoryStore::appendModelActivationAudit(
     ModelActivationAudit audit)
 {
     std::lock_guard lock(mutex_);
-    const auto version = state_.modelVersions.find(audit.targetVersionId);
-    if (!state_.modelNodes.contains(audit.nodeId) ||
-        version == state_.modelVersions.end() ||
-        version->second.nodeId != audit.nodeId || audit.actor.empty())
-        throw std::invalid_argument("invalid model activation audit");
-    audit.id = state_.nextModelActivationAuditId++;
-    state_.modelActivationAudits.emplace(audit.id, audit);
-    return audit;
+    return MemoryModelRepository::appendModelActivationAudit(state_, std::move(audit));
 }
 
 std::vector<ModelActivationAudit> InMemoryStore::modelActivationAudits(
     ModelNodeId node, std::size_t limit) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<ModelActivationAudit> result;
-    for (const auto &[_, audit] : state_.modelActivationAudits)
-        if (audit.nodeId == node)
-            result.push_back(audit);
-    std::sort(result.begin(), result.end(),
-              [](const auto &left, const auto &right)
-              {
-                  return left.createdAt != right.createdAt
-                             ? left.createdAt > right.createdAt
-                             : left.id > right.id;
-              });
-    if (result.size() > limit)
-        result.resize(limit);
-    return result;
+    return MemoryModelRepository::modelActivationAudits(state_, std::move(node), std::move(limit));
 }
 
 bool InMemoryStore::upsertGenerationAudit(AiGenerationAudit audit)
 {
     std::lock_guard lock(mutex_);
-    if (audit.generationId.empty() || audit.promptSha256.size() != 64 ||
-        audit.revision == 0)
-        return false;
-    const auto found = state_.generationAudits.find(audit.generationId);
-    if (found != state_.generationAudits.end() &&
-        found->second.revision > audit.revision)
-        return false;
-    state_.generationAudits.insert_or_assign(audit.generationId,
-                                             std::move(audit));
-    return true;
+    return MemoryGenerationAuditRepository::upsertGenerationAudit(state_, std::move(audit));
 }
 
 std::optional<AiGenerationAudit> InMemoryStore::findGenerationAudit(
     std::string_view generationId) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.generationAudits.find(std::string(generationId));
-    return found == state_.generationAudits.end()
-               ? std::nullopt
-               : std::optional<AiGenerationAudit>{found->second};
+    return MemoryGenerationAuditRepository::findGenerationAudit(state_, std::move(generationId));
 }
 
 ModelEvaluationSuite InMemoryStore::createEvaluationSuite(
     ModelEvaluationSuite suite, std::vector<ModelEvaluationCase> cases)
 {
     std::lock_guard lock(mutex_);
-    if (suite.name.empty() || cases.empty())
-        throw std::invalid_argument("invalid evaluation suite");
-    suite.id = state_.nextEvaluationSuiteId++;
-    for (auto &testCase : cases)
-    {
-        testCase.id = state_.nextEvaluationCaseId++;
-        testCase.suiteId = suite.id;
-    }
-    state_.evaluationSuites.emplace(suite.id, suite);
-    for (auto &testCase : cases)
-        state_.evaluationCases.emplace(testCase.id, std::move(testCase));
-    return suite;
+    return MemoryEvaluationRepository::createEvaluationSuite(state_, std::move(suite), std::move(cases));
 }
 
 std::optional<ModelEvaluationSuite> InMemoryStore::findEvaluationSuite(
     ModelEvaluationSuiteId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.evaluationSuites.find(id);
-    return found == state_.evaluationSuites.end()
-               ? std::nullopt
-               : std::optional<ModelEvaluationSuite>{found->second};
+    return MemoryEvaluationRepository::findEvaluationSuite(state_, std::move(id));
 }
 
 std::vector<ModelEvaluationCase> InMemoryStore::evaluationCases(
     ModelEvaluationSuiteId suite) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<ModelEvaluationCase> result;
-    for (const auto &[_, testCase] : state_.evaluationCases)
-        if (testCase.suiteId == suite)
-            result.push_back(testCase);
-    std::sort(result.begin(), result.end(), [](const auto &left, const auto &right)
-              { return left.id < right.id; });
-    return result;
+    return MemoryEvaluationRepository::evaluationCases(state_, std::move(suite));
 }
 
 ModelEvaluationRun InMemoryStore::createEvaluationRun(ModelEvaluationRun run)
 {
     std::lock_guard lock(mutex_);
-    const auto version = state_.modelVersions.find(run.modelVersionId);
-    if (!state_.evaluationSuites.contains(run.suiteId) ||
-        version == state_.modelVersions.end() ||
-        run.status != ModelEvaluationRunStatus::Running || run.totalCases == 0)
-        throw std::invalid_argument("invalid evaluation run");
-    run.id = state_.nextEvaluationRunId++;
-    state_.evaluationRuns.emplace(run.id, run);
-    return run;
+    return MemoryEvaluationRepository::createEvaluationRun(state_, std::move(run));
 }
 
 std::optional<ModelEvaluationRun> InMemoryStore::findEvaluationRun(
     ModelEvaluationRunId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.evaluationRuns.find(id);
-    return found == state_.evaluationRuns.end()
-               ? std::nullopt
-               : std::optional<ModelEvaluationRun>{found->second};
+    return MemoryEvaluationRepository::findEvaluationRun(state_, std::move(id));
 }
 
 bool InMemoryStore::appendEvaluationCaseResult(
     ModelEvaluationCaseResult result)
 {
     std::lock_guard lock(mutex_);
-    const auto run = state_.evaluationRuns.find(result.runId);
-    const auto testCase = state_.evaluationCases.find(result.caseId);
-    if (run == state_.evaluationRuns.end() ||
-        run->second.status != ModelEvaluationRunStatus::Running ||
-        testCase == state_.evaluationCases.end() ||
-        testCase->second.suiteId != run->second.suiteId)
-        return false;
-    return state_.evaluationResults.emplace(
-        std::make_pair(result.runId, result.caseId), std::move(result)).second;
+    return MemoryEvaluationRepository::appendEvaluationCaseResult(state_, std::move(result));
 }
 
 std::vector<ModelEvaluationCaseResult> InMemoryStore::evaluationCaseResults(
     ModelEvaluationRunId run) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<ModelEvaluationCaseResult> result;
-    for (const auto &[key, value] : state_.evaluationResults)
-        if (key.first == run)
-            result.push_back(value);
-    return result;
+    return MemoryEvaluationRepository::evaluationCaseResults(state_, std::move(run));
 }
 
 bool InMemoryStore::finishEvaluationRun(ModelEvaluationRun run)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.evaluationRuns.find(run.id);
-    if (found == state_.evaluationRuns.end() ||
-        found->second.status != ModelEvaluationRunStatus::Running ||
-        run.status == ModelEvaluationRunStatus::Running ||
-        run.suiteId != found->second.suiteId ||
-        run.modelVersionId != found->second.modelVersionId ||
-        run.totalCases != found->second.totalCases || !run.completedAt)
-        return false;
-    found->second = std::move(run);
-    return true;
+    return MemoryEvaluationRepository::finishEvaluationRun(state_, std::move(run));
 }
 
 bool InMemoryStore::upsertActivationPolicy(ModelActivationPolicy policy)
 {
     std::lock_guard lock(mutex_);
-    if (!state_.modelNodes.contains(policy.nodeId) ||
-        !state_.evaluationSuites.contains(policy.suiteId))
-        return false;
-    state_.activationPolicies.insert_or_assign(policy.nodeId, std::move(policy));
-    return true;
+    return MemoryEvaluationRepository::upsertActivationPolicy(state_, std::move(policy));
 }
 
 std::optional<ModelActivationPolicy> InMemoryStore::findActivationPolicy(
     ModelNodeId node) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.activationPolicies.find(node);
-    return found == state_.activationPolicies.end()
-               ? std::nullopt
-               : std::optional<ModelActivationPolicy>{found->second};
+    return MemoryEvaluationRepository::findActivationPolicy(state_, std::move(node));
 }
 
 std::optional<ModelEvaluationRun>
@@ -1220,47 +655,14 @@ InMemoryStore::latestCompletedEvaluationRun(
     ModelVersionId version, ModelEvaluationSuiteId suite) const
 {
     std::lock_guard lock(mutex_);
-    std::optional<ModelEvaluationRun> latest;
-    for (const auto &[_, run] : state_.evaluationRuns)
-    {
-        if (run.modelVersionId != version || run.suiteId != suite ||
-            run.status != ModelEvaluationRunStatus::Completed ||
-            !run.completedAt)
-            continue;
-        if (!latest || *run.completedAt > *latest->completedAt ||
-            (*run.completedAt == *latest->completedAt && run.id > latest->id))
-            latest = run;
-    }
-    return latest;
+    return MemoryEvaluationRepository::latestCompletedEvaluationRun(state_, std::move(version), std::move(suite));
 }
 
 KnowledgeDocument InMemoryStore::createKnowledgeDocument(
     KnowledgeDocument document, std::vector<KnowledgeChunk> chunks)
 {
     std::lock_guard lock(mutex_);
-    const bool validScope =
-        (document.scope == KnowledgeScope::PrivateUser &&
-         !document.conversationId) ||
-        (document.scope == KnowledgeScope::Conversation &&
-         document.conversationId &&
-         state_.conversations.contains(*document.conversationId));
-    if (!state_.users.contains(document.ownerId) || !validScope ||
-        document.state != KnowledgeDocumentState::Indexing || chunks.empty())
-        throw std::invalid_argument("invalid knowledge document");
-    if (document.conversationId &&
-        !state_.members.contains({*document.conversationId, document.ownerId}))
-        throw std::invalid_argument("knowledge document owner is not a member");
-
-    document.id = state_.nextKnowledgeDocumentId++;
-    for (auto &chunk : chunks)
-    {
-        chunk.id = state_.nextKnowledgeChunkId++;
-        chunk.documentId = document.id;
-    }
-    state_.knowledgeDocuments.emplace(document.id, document);
-    for (auto &chunk : chunks)
-        state_.knowledgeChunks.emplace(chunk.id, std::move(chunk));
-    return document;
+    return MemoryKnowledgeRepository::createKnowledgeDocument(state_, std::move(document), std::move(chunks));
 }
 
 bool InMemoryStore::updateKnowledgeDocumentState(
@@ -1269,60 +671,35 @@ bool InMemoryStore::updateKnowledgeDocumentState(
     std::optional<TimePoint> indexedAt)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.knowledgeDocuments.find(document);
-    if (found == state_.knowledgeDocuments.end() ||
-        found->second.state != expected)
-        return false;
-    found->second.state = next;
-    found->second.failureDetail = std::move(failureDetail);
-    found->second.indexedAt = indexedAt;
-    return true;
+    return MemoryKnowledgeRepository::updateKnowledgeDocumentState(state_, std::move(document), std::move(expected), std::move(next), std::move(failureDetail), std::move(indexedAt));
 }
 
 std::optional<KnowledgeDocument> InMemoryStore::findKnowledgeDocument(
     KnowledgeDocumentId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.knowledgeDocuments.find(id);
-    return found == state_.knowledgeDocuments.end()
-               ? std::nullopt
-               : std::optional<KnowledgeDocument>{found->second};
+    return MemoryKnowledgeRepository::findKnowledgeDocument(state_, std::move(id));
 }
 
 std::optional<KnowledgeChunk> InMemoryStore::findKnowledgeChunk(
     KnowledgeChunkId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.knowledgeChunks.find(id);
-    return found == state_.knowledgeChunks.end()
-               ? std::nullopt
-               : std::optional<KnowledgeChunk>{found->second};
+    return MemoryKnowledgeRepository::findKnowledgeChunk(state_, std::move(id));
 }
 
 std::vector<KnowledgeChunk> InMemoryStore::knowledgeChunks(
     KnowledgeDocumentId document) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<KnowledgeChunk> result;
-    for (const auto &[_, chunk] : state_.knowledgeChunks)
-        if (chunk.documentId == document)
-            result.push_back(chunk);
-    std::sort(result.begin(), result.end(), [](const auto &left, const auto &right)
-              { return left.ordinal < right.ordinal; });
-    return result;
+    return MemoryKnowledgeRepository::knowledgeChunks(state_, std::move(document));
 }
 
 std::vector<KnowledgeDocument> InMemoryStore::privateKnowledgeDocuments(
     UserId owner) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<KnowledgeDocument> result;
-    for (const auto &[_, document] : state_.knowledgeDocuments)
-        if (document.ownerId == owner &&
-            document.scope == KnowledgeScope::PrivateUser &&
-            document.state == KnowledgeDocumentState::Ready)
-            result.push_back(document);
-    return result;
+    return MemoryKnowledgeRepository::privateKnowledgeDocuments(state_, std::move(owner));
 }
 
 std::vector<KnowledgeDocument>
@@ -1330,145 +707,75 @@ InMemoryStore::conversationKnowledgeDocuments(
     ConversationId conversation) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<KnowledgeDocument> result;
-    for (const auto &[_, document] : state_.knowledgeDocuments)
-        if (document.conversationId == conversation &&
-            document.scope == KnowledgeScope::Conversation &&
-            document.state == KnowledgeDocumentState::Ready)
-            result.push_back(document);
-    return result;
+    return MemoryKnowledgeRepository::conversationKnowledgeDocuments(state_, std::move(conversation));
 }
 
 std::vector<KnowledgeChunk> InMemoryStore::allReadyKnowledgeChunks() const
 {
     std::lock_guard lock(mutex_);
-    std::vector<KnowledgeChunk> result;
-    for (const auto &[_, chunk] : state_.knowledgeChunks)
-    {
-        const auto document = state_.knowledgeDocuments.find(chunk.documentId);
-        if (document != state_.knowledgeDocuments.end() &&
-            document->second.state == KnowledgeDocumentState::Ready)
-            result.push_back(chunk);
-    }
-    return result;
+    return MemoryKnowledgeRepository::allReadyKnowledgeChunks(state_);
 }
 
 bool InMemoryStore::saveRagRetrieval(
     RagRetrieval retrieval, std::vector<RagCitation> citations)
 {
     std::lock_guard lock(mutex_);
-    if (retrieval.generationId.empty() ||
-        !state_.users.contains(retrieval.requesterId) ||
-        !state_.conversations.contains(retrieval.conversationId) ||
-        state_.ragRetrievals.contains(retrieval.generationId))
-        return false;
-    for (std::size_t index = 0; index < citations.size(); ++index)
-    {
-        const auto &citation = citations[index];
-        const auto document = state_.knowledgeDocuments.find(citation.documentId);
-        const auto chunk = state_.knowledgeChunks.find(citation.chunkId);
-        if (citation.generationId != retrieval.generationId ||
-            citation.rank != index + 1 ||
-            document == state_.knowledgeDocuments.end() ||
-            document->second.state != KnowledgeDocumentState::Ready ||
-            chunk == state_.knowledgeChunks.end() ||
-            chunk->second.documentId != citation.documentId)
-            return false;
-    }
-    state_.ragRetrievals.emplace(retrieval.generationId, retrieval);
-    state_.ragCitations.emplace(retrieval.generationId, std::move(citations));
-    return true;
+    return MemoryKnowledgeRepository::saveRagRetrieval(state_, std::move(retrieval), std::move(citations));
 }
 
 std::optional<RagRetrieval> InMemoryStore::findRagRetrieval(
     std::string_view generationId) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.ragRetrievals.find(std::string(generationId));
-    return found == state_.ragRetrievals.end()
-               ? std::nullopt
-               : std::optional<RagRetrieval>{found->second};
+    return MemoryKnowledgeRepository::findRagRetrieval(state_, std::move(generationId));
 }
 
 std::vector<RagCitation> InMemoryStore::ragCitations(
     std::string_view generationId) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.ragCitations.find(std::string(generationId));
-    return found == state_.ragCitations.end()
-               ? std::vector<RagCitation>{}
-               : found->second;
+    return MemoryKnowledgeRepository::ragCitations(state_, std::move(generationId));
 }
 
 TrainingCandidate InMemoryStore::createTrainingCandidate(
     TrainingCandidate candidate)
 {
     std::lock_guard lock(mutex_);
-    for (const auto &[_, current] : state_.trainingCandidates)
-        if (current.ownerUserId == candidate.ownerUserId &&
-            current.sourceMessageId == candidate.sourceMessageId &&
-            current.state != TrainingCandidateState::Revoked &&
-            candidate.state != TrainingCandidateState::Revoked)
-            throw std::logic_error(
-                "an active training candidate already exists for this source");
-    candidate.id = state_.nextTrainingCandidateId++;
-    state_.trainingCandidates.emplace(candidate.id, candidate);
-    return candidate;
+    return MemoryTrainingRepository::createTrainingCandidate(state_, std::move(candidate));
 }
 
 std::optional<TrainingCandidate> InMemoryStore::findTrainingCandidate(
     TrainingCandidateId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.trainingCandidates.find(id);
-    return found == state_.trainingCandidates.end()
-               ? std::nullopt
-               : std::optional<TrainingCandidate>{found->second};
+    return MemoryTrainingRepository::findTrainingCandidate(state_, std::move(id));
 }
 
 std::optional<TrainingCandidate> InMemoryStore::findActiveTrainingCandidate(
     UserId owner, MessageId sourceMessage) const
 {
     std::lock_guard lock(mutex_);
-    for (const auto &[_, candidate] : state_.trainingCandidates)
-        if (candidate.ownerUserId == owner &&
-            candidate.sourceMessageId == sourceMessage &&
-            candidate.state != TrainingCandidateState::Revoked)
-            return candidate;
-    return std::nullopt;
+    return MemoryTrainingRepository::findActiveTrainingCandidate(state_, std::move(owner), std::move(sourceMessage));
 }
 
 std::vector<TrainingCandidate> InMemoryStore::trainingCandidatesForOwner(
     UserId owner) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<TrainingCandidate> result;
-    for (const auto &[_, candidate] : state_.trainingCandidates)
-        if (candidate.ownerUserId == owner)
-            result.push_back(candidate);
-    std::ranges::sort(result, {}, &TrainingCandidate::id);
-    return result;
+    return MemoryTrainingRepository::trainingCandidatesForOwner(state_, std::move(owner));
 }
 
 std::vector<TrainingCandidate> InMemoryStore::trainingCandidatesByState(
     TrainingCandidateState state) const
 {
     std::lock_guard lock(mutex_);
-    std::vector<TrainingCandidate> result;
-    for (const auto &[id, candidate] : state_.trainingCandidates)
-        if (candidate.state == state) result.push_back(candidate);
-    std::ranges::sort(result, {}, &TrainingCandidate::id);
-    return result;
+    return MemoryTrainingRepository::trainingCandidatesByState(state_, std::move(state));
 }
 
 bool InMemoryStore::updateTrainingCandidate(TrainingCandidate candidate)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.trainingCandidates.find(candidate.id);
-    if (found == state_.trainingCandidates.end())
-        return false;
-    found->second = std::move(candidate);
-    return true;
+    return MemoryTrainingRepository::updateTrainingCandidate(state_, std::move(candidate));
 }
 
 bool InMemoryStore::transitionTrainingCandidate(
@@ -1476,31 +783,27 @@ bool InMemoryStore::transitionTrainingCandidate(
     TrainingCandidateState next, std::optional<DatasetVersionId> dataset)
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.trainingCandidates.find(id);
-    if (found == state_.trainingCandidates.end() ||
-        found->second.state != expected)
-        return false;
-    found->second.state = next;
-    found->second.datasetVersionId = dataset;
-    return true;
+    return MemoryTrainingRepository::transitionTrainingCandidate(state_, std::move(id), std::move(expected), std::move(next), std::move(dataset));
 }
 
 DatasetVersion InMemoryStore::createDatasetVersion(DatasetVersion version)
 {
     std::lock_guard lock(mutex_);
-    version.id = state_.nextDatasetVersionId++;
-    state_.datasets.emplace(version.id, version);
-    return version;
+    return MemoryTrainingRepository::createDatasetVersion(state_, std::move(version));
 }
 
 std::optional<DatasetVersion> InMemoryStore::findDatasetVersion(
     DatasetVersionId id) const
 {
     std::lock_guard lock(mutex_);
-    const auto found = state_.datasets.find(id);
-    return found == state_.datasets.end()
-               ? std::nullopt
-               : std::optional<DatasetVersion>{found->second};
+    return MemoryTrainingRepository::findDatasetVersion(state_, std::move(id));
 }
 
 } // namespace webserver::phase11
+
+namespace webserver::phase11 {
+bool InMemoryStore::markPublishedBatch(const std::vector<OutboxEventId> &ids,TimePoint now) {
+    std::lock_guard lock(mutex_);
+    return MemoryOutboxRepository::markPublishedBatch(state_,ids,now);
+}
+}

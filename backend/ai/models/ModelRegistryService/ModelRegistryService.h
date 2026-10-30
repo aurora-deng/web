@@ -2,7 +2,9 @@
 
 #include "backend/ai/models/ModelProvider/ModelProvider.h"
 #include "backend/application/business/ApplicationError/ApplicationError.h"
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/ports/IModelRepository/IModelRepository.h"
+#include "backend/application/ports/IModelQualityGate/IModelQualityGate.h"
+#include "backend/application/domain/ModelTypes/ModelTypes.h"
 
 #include <memory>
 #include <mutex>

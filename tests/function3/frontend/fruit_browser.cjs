@@ -1,7 +1,7 @@
 /* Deterministic synthetic UI/render comparison. Real API ACL is tested separately. */
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE);
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
-const root=path.resolve(__dirname,'../../..'),output=path.join(root,'build-client/phase43-ui/tree');fs.mkdirSync(output,{recursive:true});
+const root=path.resolve(__dirname,'../../..'),output=path.join(root,'build-function3/phase48-ui/tree');fs.mkdirSync(output,{recursive:true});
 let source=root,requests=[];
 const posts=Array.from({length:24},(_,i)=>({id:String(100-i),authorId:'1',authorName:'树下的旅人',body:'把今天的小小快乐，挂在花开处。',categoryId:'1',mood:'平静',tags:['日常'],media:[],createdAt:1729000000000,version:'1',likes:'2',repliers:'1',liked:false,visibility:'members',capabilities:{delete:true}}));
 const ranks=posts.slice(0,10).map((p,i)=>({postId:p.id,score:10-i}));

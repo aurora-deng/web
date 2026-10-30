@@ -2,7 +2,12 @@
 
 #include "backend/application/business/ApplicationError/ApplicationError.h"
 #include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/ports/IDatabase/IDatabase.h"
+#include "backend/application/ports/IUserRepository/IUserRepository.h"
+#include "backend/application/ports/IFileRepository/IFileRepository.h"
+#include "backend/application/ports/IFileStorage/IFileStorage.h"
+#include "backend/application/domain/AccountTypes/AccountTypes.h"
+#include "backend/application/domain/FileTypes/FileTypes.h"
 #include <map>
 
 namespace webserver::phase11

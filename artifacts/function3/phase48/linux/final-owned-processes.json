@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "isolatedPortsClosed": {
+    "18094": true,
+    "18444": true,
+    "50062": true
+  },
+  "dailyServiceControlled": false,
+  "originalDatabaseWritten": false
+}

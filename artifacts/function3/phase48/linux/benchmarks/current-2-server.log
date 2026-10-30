@@ -1,0 +1,5 @@
+worker pools: http=4, websocket=4
+Phase 11 authentication enabled
+gRPC listening on 127.0.0.1:50064 (bound port 50064)
+server started...
+server stopped.

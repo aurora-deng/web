@@ -1,5 +1,7 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
+Phase48没有新增迁移；Outbox批量确认与版本024兼容说明见 [本轮数据库说明](phase48-outbox.md)。
+
 开发版追加迁移019：统一动态沿用原 `tree_posts` 正文和ID，增加树/主页频道、可见范围；新增 `activity_favorites`（幂等收藏）与 `profile_display_settings`（公开资料展示开关）。正文、媒体、点赞和评论没有复制。详见 [Phase37](../architecture/business/phase37.md)。019目前仅验证于已有隔离测试库；原业务库升级须与新服务的可见性校验一起部署，不能让旧版本服务读取新产生的私有动态。
 
 Windows 私人存储独立于服务器：`local_documents/local_chunks/local_terms` 保存授权资料和词法索引，`private_threads/private_messages` 保存两个助手入口各自历史，`private_memories` 保存已确认记忆。凭据使用DPAPI；正文是受NTFS访问权限保护的本地SQLite数据，未宣称整库加密。

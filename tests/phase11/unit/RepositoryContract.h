@@ -40,10 +40,13 @@ inline void runRepositoryContract(RepositoryBundle repositories,
         repositories.users.create(
             {0, "contract-rollback", "Rollback", {}, "hash",
              false, false, now});
+        repositories.outbox.appendOutbox({0,"rollback","test",0,"",now,{}});
         // 未 commit 的事务离开作用域必须自动回滚。
     }
     contractRequire(!repositories.users.findUserByName("contract-rollback"),
                     "uncommitted user survived rollback");
+    contractRequire(repositories.outbox.pendingOutbox(10).empty(),
+                    "cross-domain outbox survived transaction rollback");
 
     auto alice = repositories.users.create(
         {0, "contract-alice", "Alice", {}, "hash-a", false, false, now});
@@ -126,6 +129,22 @@ inline void runRepositoryContract(RepositoryBundle repositories,
                     "outbox acknowledgement failed");
     contractRequire(repositories.outbox.pendingOutbox(10).empty(),
                     "acknowledged outbox event remained pending");
+
+    const auto batchFirst=repositories.outbox.appendOutbox({0,"batch-a","test",0,"",now,{}});
+    const auto batchSecond=repositories.outbox.appendOutbox({0,"batch-b","test",0,"",now,{}});
+    contractRequire(!repositories.outbox.markPublishedBatch({batchFirst.id,9223372036854775807ULL},now),
+                    "batch with absent identity should fail");
+    contractRequire(!repositories.outbox.markPublishedBatch({batchFirst.id,batchFirst.id},now),
+                    "duplicate identities should fail without partial writes");
+    contractRequire(repositories.outbox.pendingOutbox(10).size()==2,
+                    "failed batch partially acknowledged events");
+    {
+        auto transaction=repositories.database.beginTransaction();
+        contractRequire(repositories.outbox.markPublishedBatch({batchFirst.id,batchSecond.id},now),"batch inside transaction failed");
+    }
+    contractRequire(repositories.outbox.pendingOutbox(10).size()==2,"batch acknowledgement escaped rollback");
+    contractRequire(repositories.outbox.markPublishedBatch({batchFirst.id,batchSecond.id},now),"batch acknowledgement failed");
+    contractRequire(repositories.outbox.pendingOutbox(10).empty(),"acknowledged batch remained pending");
 
     const auto moderator = repositories.users.create(
         {0, "contract-moderator", "Moderator", {}, "hash-m",

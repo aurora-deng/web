@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "aiUserId": 131,
+  "runs": [
+    {
+      "trigger": "mention",
+      "firstTokenObservedSeconds": 2.336,
+      "totalSeconds": 60.911,
+      "historyAiMessages": 1,
+      "streamedBytes": 1020
+    },
+    {
+      "trigger": "reply",
+      "firstTokenObservedSeconds": 31.776,
+      "totalSeconds": 97.184,
+      "historyAiMessages": 2,
+      "streamedBytes": 1014
+    }
+  ]
+}

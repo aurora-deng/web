@@ -1,7 +1,8 @@
 #pragma once
 
 #include "backend/application/business/ApplicationError/ApplicationError.h"
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/ports/IOutboxRepository/IOutboxRepository.h"
+#include "backend/application/domain/OutboxTypes/OutboxTypes.h"
 
 #include <cstddef>
 #include <chrono>
@@ -29,7 +30,8 @@ struct OutboxDispatchResult
 
 /**
  * 按事件 ID 顺序搬运 Outbox。发布成功后才标记 published；失败立即停在当前事件，避免
- * 后面的通知越过它。若“推送成功、标记失败”，事件会在下次被再次投递，因此接收端必须
+ * 后面的通知越过它。已成功的前缀一次批量标记，减少逐事件同步提交。
+ * 若“推送成功、标记失败”，该前缀会在下次被再次投递，因此接收端必须
  * 按 OutboxEvent.id 去重——这是标准的 at-least-once（至少一次）语义。
  */
 class OutboxDispatcher

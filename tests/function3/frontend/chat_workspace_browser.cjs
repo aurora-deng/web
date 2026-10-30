@@ -1,3 +1,4 @@
+const {assertPalette}=require('./palette_assertions.cjs');
 /* 浏览器测试使用真实前端 + 可控协议替身，专门制造 ACK 丢失和断线。
  * 它不替代真实服务器/数据库黑盒测试，也不下载浏览器或第三方依赖。
  * 设置 PLAYWRIGHT_MODULE 与 CHAT_TEST_BROWSER 指向已经安装的工具。
@@ -71,7 +72,7 @@ const server = http.createServer((req, res) => {
 (async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const origin='http://127.0.0.1:'+server.address().port;
- const out=path.join(root,'build-function3/phase43-47-ui/chat');fs.mkdirSync(out,{recursive:true});
+ const out=path.join(root,'build-function3/phase48-ui/chat');fs.mkdirSync(out,{recursive:true});
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHAT_TEST_BROWSER});
  const context=await browser.newContext({viewport:{width:1440,height:900}}),page=await context.newPage();
  const report={kind:'synthetic browser/API fixture',passed:false,viewports:[]};
@@ -91,6 +92,7 @@ const server = http.createServer((req, res) => {
     await page.evaluate(t=>{document.documentElement.dataset.theme=t;},theme);await page.waitForTimeout(80);
     const b=await page.evaluate(()=>{const box=s=>{const r=document.querySelector(s).getBoundingClientRect();return{top:r.top,bottom:r.bottom,height:r.height};};return{pane:box('.conversation-pane'),list:box('#message-list'),input:box('#message-form'),width:document.documentElement.scrollWidth};});
     assert(Math.abs(b.pane.bottom-b.input.bottom)<2);assert(b.list.height>200);assert(b.width<=size.width+2);
+    (report.palette??=[]).push({size,theme,pairs:await assertPalette(page,['#conversation-title','.conversation-copy strong','.composer-context','.private-friend-entry strong','.composer textarea'])});
     await page.screenshot({path:path.join(out,'chat-'+size.width+'-'+theme+'.png')});
    }report.viewports.push(size);
   }

@@ -1,7 +1,10 @@
 #pragma once
 
 #include "backend/application/business/ApplicationError/ApplicationError.h"
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/ports/IModelRepository/IModelRepository.h"
+#include "backend/application/ports/IModelEvaluationRepository/IModelEvaluationRepository.h"
+#include "backend/application/ports/IModelQualityGate/IModelQualityGate.h"
+#include "backend/application/domain/EvaluationTypes/EvaluationTypes.h"
 
 #include <string_view>
 

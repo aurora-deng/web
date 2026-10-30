@@ -5,7 +5,7 @@
 #include <string>
 namespace webserver::business_metrics {
     enum Stage:std::size_t{
-        Database,Queue,Delivery,Stages
+        Database,Queue,Delivery,CommitWake,OutboxCycle,Stages
     };
     struct Counter{
         std::atomic<unsigned long long>count{
@@ -36,7 +36,7 @@ namespace webserver::business_metrics {
     inline std::string text(){
         std::string result;
         const char*names[]={
-            "database","queue_wait","outbox_event_age"
+            "database","queue_wait","outbox_event_age","commit_notify_to_dispatch","outbox_cycle"
         };
         for(std::size_t i=0;i<Stages;i++){
             const std::string name="webserver_business_"+std::string(names[i]);

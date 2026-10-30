@@ -1,0 +1,6 @@
+PASS chat layout at three viewports, growing input and persisted theme
+PASS browser latest/older pagination and administrator recall
+PASS browser reconnect catches every page and missed recall
+PASS browser lost ACK reconciliation and fixed-ID retry
+PASS browser pending reload and sender offline queue recovery
+PASS browser owner/member permission entry and no JavaScript errors

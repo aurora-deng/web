@@ -1,7 +1,8 @@
+export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","conversationTitle","api","actionListEmpty"],"types":[]};
 /** KnowledgeController: explicit use cases; shared state/other controllers arrive through context. */
 export function createKnowledgeController(context) {
-  const {businessApi,userPickers,unreadWatermarks,pageBudget,wsBackoff,sseBackoff,$,elements,state,messageView,history,sender,trainingStateLabels,runtime,actions,types}=context;
-  const {mountNavigation,UserPicker,groupMessages,BusinessApi,AnnouncementPlayer,UnreadWatermarks,ChatHistory,canRecallMessage,ReliableSender,VirtualMessageList,RecoveryBudget,ReconnectBackoff,formatChatTime,formatDayKey,formatDateDivider}=types;
+  const {$,elements,state,actions}=context;
+
   const setStatus = (...args) => actions.setStatus(...args);
   const conversationTitle = (...args) => actions.conversationTitle(...args);
   const api = (...args) => actions.api(...args);

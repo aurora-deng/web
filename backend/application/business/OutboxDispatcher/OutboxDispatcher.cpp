@@ -13,6 +13,8 @@ OutboxDispatchResult OutboxDispatcher::dispatchPending(
                                "outbox batch limit must be between 1 and 1000");
 
     OutboxDispatchResult result;
+    std::vector<OutboxEventId> acceptedIds;
+    acceptedIds.reserve(limit);
     for (const auto &event : outbox_.pendingOutbox(limit))
     {
         ++result.attempted;
@@ -35,11 +37,15 @@ OutboxDispatchResult OutboxDispatcher::dispatchPending(
             result.blocked = true;
             break;
         }
-        if (!outbox_.markPublished(event.id, now))
-            throw ApplicationError(ErrorCode::Unavailable,
-                                   "published outbox event could not be acknowledged");
-        ++result.published;
+        acceptedIds.push_back(event.id);
     }
+    // One durable acknowledgement for the accepted prefix saves a synchronous
+    // database commit per event. A crash before this point replays that prefix;
+    // clients/Inbox still deduplicate by the original event/message identity.
+    if (!acceptedIds.empty() && !outbox_.markPublishedBatch(acceptedIds, now))
+        throw ApplicationError(ErrorCode::Unavailable,
+                               "published outbox batch could not be acknowledged");
+    result.published = acceptedIds.size();
     return result;
 }
 

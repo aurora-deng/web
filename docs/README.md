@@ -6,7 +6,8 @@
 
 | 主题 | 入口 |
 |---|---|
-| 本轮交付与性能未通过记录 | [Phase47](architecture/business/phase47.md) |
+| 当前补齐配色/拆分与验收 | [Phase48](architecture/business/phase48.md)、[索引](architecture/business/phase48-code-index.md)、[教学](architecture/business/phase48-teaching.md) |
+| Phase43–47交付与历史未通过记录 | [Phase47](architecture/business/phase47.md) |
 | 本轮完整架构与代码索引 | [总图](architecture/business/phase43-47-end-to-end.md)、[索引](architecture/business/phase43-47-code-index.md) |
 | 本轮业务接入教学 | [从用户操作到事务和Outbox](architecture/business/phase43-47-teaching.md) |
 | 当前系统和版本对比 | [项目 README](../README.md) |

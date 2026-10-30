@@ -1,0 +1,103 @@
+{
+  "stage": "phase48",
+  "baselineStage": "phase48",
+  "baselineBinarySha256": "916671401541cf1e62d4229b25ee53e8170ce0933e99cea14a800b862efa2598",
+  "currentBinarySha256": "5e9c1ff9a4e442fb86dfa0822803dd3d1c0a6e004ee7e52271a6e3067f17c215",
+  "configuration": {
+    "reactors": 2,
+    "httpWorkers": 4,
+    "databaseWorkers": 4,
+    "databasePool": 4,
+    "delivery": "local-durable",
+    "redis": false,
+    "tts": false,
+    "ai": false,
+    "tlsPort": 18444,
+    "diagnostic": false,
+    "synchronousCommit": "on"
+  },
+  "baseline": [
+    {
+      "round": 1,
+      "pid": 52810,
+      "fastQps": 55333.68,
+      "ackP99Ms": 17.04,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.048,
+        "p95": 6.217,
+        "p99": 7.77
+      }
+    },
+    {
+      "round": 2,
+      "pid": 53075,
+      "fastQps": 56926.04,
+      "ackP99Ms": 15.676,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.78,
+        "p95": 5.952,
+        "p99": 7.518
+      }
+    },
+    {
+      "round": 3,
+      "pid": 53155,
+      "fastQps": 57437.02,
+      "ackP99Ms": 18.472,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.6,
+        "p95": 5.171,
+        "p99": 7.482
+      }
+    }
+  ],
+  "current": [
+    {
+      "round": 1,
+      "pid": 52889,
+      "fastQps": 56685.63,
+      "ackP99Ms": 13.983,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.788,
+        "p95": 6.629,
+        "p99": 7.974
+      }
+    },
+    {
+      "round": 2,
+      "pid": 52995,
+      "fastQps": 57975.75,
+      "ackP99Ms": 12.4,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.97,
+        "p95": 5.36,
+        "p99": 5.482
+      }
+    },
+    {
+      "round": 3,
+      "pid": 53262,
+      "fastQps": 57712.19,
+      "ackP99Ms": 13.212,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.673,
+        "p95": 5.038,
+        "p99": 5.677
+      }
+    }
+  ],
+  "fastRegressionPercent": -1.381002437548795,
+  "pairedAckP99IncreasePercent": [
+    -17.940140845070417,
+    -20.898188313345244,
+    -28.475530532698144
+  ],
+  "gateEvaluated": true,
+  "passed": true
+}

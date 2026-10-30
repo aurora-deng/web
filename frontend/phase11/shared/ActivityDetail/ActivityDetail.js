@@ -1,4 +1,4 @@
-import { openTreeAuthor } from '../TreeAuthorCard/TreeAuthorCard.js?v=4ec58ab3c1e38adb';
+import { openTreeAuthor } from '../TreeAuthorCard/TreeAuthorCard.js?v=227af12a6c379d08';
 const node=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
 const key=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');
 export class ActivityDetail {

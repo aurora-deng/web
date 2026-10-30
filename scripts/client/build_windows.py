@@ -40,7 +40,9 @@ sources=['client/companion/JsonRuntime/JsonRuntime.cpp','client/storage/SqliteSt
          'backend/ai/speech/application/SpeechText/SpeechText.cpp','backend/ai/speech/application/WaveCodec/WaveCodec.cpp',
          'backend/ai/speech/application/SpeechWire/SpeechWire.cpp','backend/ai/speech/application/CloudSpeechPolicy/CloudSpeechPolicy.cpp']
 objects=[]
-header_time=max(p.stat().st_mtime for folder in (root/'client',root/'backend/ai/speech') for p in folder.rglob('*') if p.suffix in ('.h','.ipp'))
+# Shared domain/port headers are also transitive client dependencies. A broad
+# conservative watermark prevents stale objects after a server-domain refactor.
+header_time=max(p.stat().st_mtime for folder in (root/'client',root/'backend') for p in folder.rglob('*') if p.suffix in ('.h','.ipp'))
 for source in sources:
     target=output/(Path(source).stem+'.o');objects.append(os.path.relpath(target,root))
     command=[compiler,*flags,'-c',source,'-o',objects[-1]]

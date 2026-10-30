@@ -1,0 +1,59 @@
+PASS frozen communication core (152 files) and chat domain/port/application dependency boundaries
+{"version": "227af12a6c379d08", "nativeFiles": 80, "vendor": "three-r186 (unchanged)", "includesDynamicReferences": true, "updatedFiles": 0}
+PASS 16 component stylesheets and HTML style blocks use the shared semantic palette
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.131s
+
+OK
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.116s
+
+OK
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.119s
+
+OK
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.050s
+
+OK
+✔ controller sees declared ports only and resolves cooperating commands lazily (3.7098ms)
+✔ missing required dependencies fail at assembly instead of a later button click (0.4607ms)
+✔ completed composition rejects a declared command with no installed provider (0.4764ms)
+✔ all module subscriptions are revoked by the same page lifecycle (1.6265ms)
+✔ 一万条历史全部可达，缓存上限不阻断前后翻页 (109.5359ms)
+✔ 阅读旧页时新消息不挤走窗口，随后可追赶，撤回终态保留 (4.7097ms)
+✔ 恢复闸机限制并发、速率、排队，切会话取消旧请求 (2.7749ms)
+✔ 重连随机退避有上下界和最大值 (0.6828ms)
+✔ 十万条记录的渲染窗口始终有界，临界滚动位置不返回空窗口 (10.6909ms)
+✔ 10 snapshot plus two concurrent messages is 12; duplicate/old snapshots do not lose data (2.334ms)
+✔ read arrives first, exact decimal strings, account reset and removed memberships (0.5458ms)
+✔ old list/event cannot reverse a newer per-member preference; logout drops previous account (5.2009ms)
+✔ grouping uses data and five-minute/system/day boundaries, keeps one row per message (13.7995ms)
+✔ search window preserves synchronized cursor and recall terminal state (2.0431ms)
+✔ request errors distinguish definitive failure, abort and uncertain writes without retry (115.1839ms)
+✔ 最新页与两页旧历史无遗漏、无重叠，结果保持升序 (10.9733ms)
+✔ 较高乱序广播不跳过缺口；重连分页补齐并刷新旧消息撤回 (1.7465ms)
+✔ 撤回终态不能被较晚到达的旧 HTTP 响应覆盖 (0.4153ms)
+✔ 切换会话后忽略上一会话迟到页面 (0.4378ms)
+✔ 空会话随后出现新消息也能恢复；无进展页面不会无限循环 (3.0045ms)
+✔ 合并同步目标；同一旧页同时点击只请求一次 (1.0328ms)
+✔ ACK 丢失但已落库：查询确认，不再发送 (1.0893ms)
+✔ 未落库的 ACK 超时：原载荷有限重试，保留未知结果并允许手动重试 (0.7847ms)
+✔ 断线和页面恢复保留原幂等键；后台会话回执也能结束队列 (1.091ms)
+✔ 广播先到、accepted 后到不会重复收敛或丢失完整消息 (0.4251ms)
+✔ 查询失败仍为未知；显式服务器拒绝先核对再显示失败 (0.6054ms)
+✔ ACK 校验会话、队列有上限、退出后迟到查询不再写状态 (0.796ms)
+✔ 群管理撤回按钮符合角色、时间窗和撤回终态 (2.6736ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 461.5197

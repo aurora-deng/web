@@ -1,4 +1,6 @@
 #pragma once
+#include "backend/application/ports/IMessageRepository/IMessageRepository.h"
+#include "backend/application/ports/IModelRepository/IModelRepository.h"
 #include <memory>
 #include <string>
 #include <functional>

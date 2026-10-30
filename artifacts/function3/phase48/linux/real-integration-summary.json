@@ -1,0 +1,49 @@
+{
+  "passed": true,
+  "provider": "existing onnx-inprocess",
+  "tests": [
+    {
+      "name": "workspace",
+      "passed": true,
+      "seconds": 0.723
+    },
+    {
+      "name": "tree-social",
+      "passed": true,
+      "seconds": 0.697
+    },
+    {
+      "name": "activities",
+      "passed": true,
+      "seconds": 0.985
+    },
+    {
+      "name": "private-archive",
+      "passed": true,
+      "seconds": 0.613
+    },
+    {
+      "name": "web-ai",
+      "passed": true,
+      "seconds": 22.333
+    },
+    {
+      "name": "group-ai",
+      "passed": true,
+      "seconds": 158.906
+    },
+    {
+      "name": "speech",
+      "passed": true,
+      "seconds": 1.754
+    },
+    {
+      "name": "files",
+      "passed": true
+    },
+    {
+      "name": "chat-reliability",
+      "passed": true
+    }
+  ]
+}

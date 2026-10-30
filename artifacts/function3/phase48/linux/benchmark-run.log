@@ -1,0 +1,109 @@
+baseline {'round': 1, 'pid': 51845, 'fastQps': 57383.02, 'ackP99Ms': 19.729, 'errors': 0, 'treeReadLatencyMs': {'p50': 4.08, 'p95': 5.529, 'p99': 6.526}}
+current {'round': 1, 'pid': 51926, 'fastQps': 57092.57, 'ackP99Ms': 13.165, 'errors': 0, 'treeReadLatencyMs': {'p50': 3.958, 'p95': 6.555, 'p99': 7.39}}
+current {'round': 2, 'pid': 52005, 'fastQps': 56901.27, 'ackP99Ms': 12.585, 'errors': 0, 'treeReadLatencyMs': {'p50': 3.819, 'p95': 6.58, 'p99': 7.644}}
+baseline {'round': 2, 'pid': 52111, 'fastQps': 57359.58, 'ackP99Ms': 15.026, 'errors': 0, 'treeReadLatencyMs': {'p50': 3.996, 'p95': 5.589, 'p99': 5.903}}
+baseline {'round': 3, 'pid': 52192, 'fastQps': 57708.16, 'ackP99Ms': 13.631, 'errors': 0, 'treeReadLatencyMs': {'p50': 3.607, 'p95': 4.728, 'p99': 5.444}}
+current {'round': 3, 'pid': 52271, 'fastQps': 56418.64, 'ackP99Ms': 12.61, 'errors': 0, 'treeReadLatencyMs': {'p50': 4.106, 'p95': 5.449, 'p99': 6.468}}
+{
+  "stage": "phase48",
+  "baselineStage": "phase43-47",
+  "baselineBinarySha256": "0cd108a158cdd8b7f46f9c774521992397a9970555367969e4a40567565dfdd9",
+  "currentBinarySha256": "5e9c1ff9a4e442fb86dfa0822803dd3d1c0a6e004ee7e52271a6e3067f17c215",
+  "configuration": {
+    "reactors": 2,
+    "httpWorkers": 4,
+    "databaseWorkers": 4,
+    "databasePool": 4,
+    "delivery": "local-durable",
+    "redis": false,
+    "tts": false,
+    "ai": false,
+    "tlsPort": 18444,
+    "diagnostic": false,
+    "synchronousCommit": "on"
+  },
+  "baseline": [
+    {
+      "round": 1,
+      "pid": 51845,
+      "fastQps": 57383.02,
+      "ackP99Ms": 19.729,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.08,
+        "p95": 5.529,
+        "p99": 6.526
+      }
+    },
+    {
+      "round": 2,
+      "pid": 52111,
+      "fastQps": 57359.58,
+      "ackP99Ms": 15.026,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.996,
+        "p95": 5.589,
+        "p99": 5.903
+      }
+    },
+    {
+      "round": 3,
+      "pid": 52192,
+      "fastQps": 57708.16,
+      "ackP99Ms": 13.631,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.607,
+        "p95": 4.728,
+        "p99": 5.444
+      }
+    }
+  ],
+  "current": [
+    {
+      "round": 1,
+      "pid": 51926,
+      "fastQps": 57092.57,
+      "ackP99Ms": 13.165,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.958,
+        "p95": 6.555,
+        "p99": 7.39
+      }
+    },
+    {
+      "round": 2,
+      "pid": 52005,
+      "fastQps": 56901.27,
+      "ackP99Ms": 12.585,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.819,
+        "p95": 6.58,
+        "p99": 7.644
+      }
+    },
+    {
+      "round": 3,
+      "pid": 52271,
+      "fastQps": 56418.64,
+      "ackP99Ms": 12.61,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.106,
+        "p95": 5.449,
+        "p99": 6.468
+      }
+    }
+  ],
+  "fastRegressionPercent": 0.8395340642580296,
+  "pairedAckP99IncreasePercent": [
+    -33.270819605656655,
+    -16.24517502994808,
+    -7.490279509940578
+  ],
+  "gateEvaluated": true,
+  "passed": true
+}

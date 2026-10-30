@@ -283,6 +283,38 @@ void verifyOutboxRetry(TimePoint now)
     CHECK(retried.attempted == 2 && retried.published == 2 && !retried.blocked);
     CHECK(store.pendingOutbox(10).empty());
     CHECK(sink.attempted.size() == 3 && sink.attempted[0] == sink.attempted[1]);
+
+    struct BatchStore final : IOutboxRepository {
+        InMemoryStore data;
+        bool rejectAck=false;
+        std::vector<std::size_t> batchSizes;
+        OutboxEvent appendOutbox(OutboxEvent event)override{return data.appendOutbox(std::move(event));}
+        std::vector<OutboxEvent>pendingOutbox(std::size_t limit)const override{return data.pendingOutbox(limit);}
+        bool markPublished(OutboxEventId,TimePoint)override{throw std::logic_error("unexpected per-event commit");}
+        bool markPublishedBatch(const std::vector<OutboxEventId>&ids,TimePoint time)override{
+            batchSizes.push_back(ids.size());return !rejectAck&&data.markPublishedBatch(ids,time);
+        }
+    } batch;
+    struct PrefixSink final : IOutboxEventSink {
+        std::vector<OutboxEventId>attempts;
+        bool blockSecond=true;
+        bool publish(const OutboxEvent&event)override{
+            attempts.push_back(event.id);return !(blockSecond&&event.id==2);
+        }
+    } prefix;
+    for(int i=0;i<3;++i)batch.appendOutbox({0,"prefix","test",0,"",now,{}});
+    OutboxDispatcher batches(batch,prefix);
+    const auto partial=batches.dispatchPending(10,now);
+    CHECK(partial.published==1&&partial.blocked&&batch.batchSizes==std::vector<std::size_t>{1});
+    CHECK(batch.pendingOutbox(10).size()==2);
+    prefix.blockSecond=false;batch.rejectAck=true;
+    bool failed=false;try{(void)batches.dispatchPending(10,now);}catch(const ApplicationError&){failed=true;}
+    CHECK(failed&&batch.pendingOutbox(10).size()==2);
+    batch.rejectAck=false;
+    CHECK(batches.dispatchPending(10,now).published==2);
+    CHECK(batch.pendingOutbox(10).empty());
+    CHECK(batch.batchSizes==std::vector<std::size_t>({1,2,2}));
+    CHECK(prefix.attempts==std::vector<OutboxEventId>({1,2,2,3,2,3}));
 }
 
 void verifyDatabaseExecutorBackpressure()
