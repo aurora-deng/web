@@ -1,8 +1,8 @@
 #pragma once
-#include "backend/application/transport/http/ContactsHttp/ContactsHttp.h"
-#include "backend/application/transport/http/ConversationsHttp/ConversationsHttp.h"
-#include "backend/application/transport/http/MessageHistoryHttp/MessageHistoryHttp.h"
-#include "backend/application/transport/http/GroupGovernanceHttp/GroupGovernanceHttp.h"
+#include "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.h"
+#include "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.h"
+#include "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.h"
+#include "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.h"
 namespace webserver::phase11::transport {
 /** Compatibility composition root. Domain adapters own handlers and budgets. */
 class Phase11SocialChatHttp final {

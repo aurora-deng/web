@@ -1,6 +1,6 @@
 #include "backend/application/business/ApplicationError/ApplicationError.h"
-#include "backend/application/business/ChatService/ChatService.h"
-#include "backend/application/business/FileService/FileService.h"
+#include "backend/application/modules/chat/application/ChatService/ChatService.h"
+#include "backend/application/modules/files/application/FileService/FileService.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 #include "backend/application/storage/files/LocalFileStorage/LocalFileStorage.h"
 

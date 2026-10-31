@@ -1,3 +1,4 @@
+import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
 export const dependencies={"resources":["$","elements","state","messageView","history","sender","runtime"],"commands":["settleHistoryPending","recoverRealtime","setStatus","initials","createClientId","conversationTitle","api","formatBytes","paintAvatar","openConversation","openCitationDetails","openTrainingConsent","sendSocket","selectAiTarget","applyAiModels","loadAiModels"],"types":["groupMessages","canRecallMessage","formatChatTime","formatDateDivider"]};
 /** MessageController: explicit use cases; shared state/other controllers arrive through context. */
 export function createMessageController(context) {
@@ -353,7 +354,7 @@ async function jumpToMessage(message) {
     await openConversation(target);
   }
   const version=state.viewVersion, conversation=state.conversation;
-  const context=await api(`/api/conversations/${conversation.id}/messages/${message.id}/context?radius=30`);
+  const context=await api(chatApi.getConversationsIdMessagesMessageIdContext({"id":(conversation.id),"messageId":(message.id)}, "radius=30"));
   if(version!==state.viewVersion||state.me?.id!==userId) return;
   if(!history.focusContext(context.items,conversation.id)) return;
   elements.searchDialog.close(); renderCurrentMessages(); revealMessageRow(message.id);
@@ -416,7 +417,7 @@ async function searchWorkspace(append) {
   if(!append)$('#search-results').replaceChildren();
   $('#search-more').disabled=true;setStatus($('#search-status'),'正在搜索…');
   try {
-    const page=await api('/api/search/messages/page?'+new URLSearchParams({q:search.query,conversationId:search.conversation,before:append?search.cursor:'0',limit:30}),{signal:controller.signal});
+    const page=await api(chatApi.getSearchMessagesPage({}, String(new URLSearchParams({q:search.query,conversationId:search.conversation,before:append?search.cursor:'0',limit:30}))),{signal:controller.signal});
     if(version!==search.version||state.me?.id!==user)return;
     search.cursor=page.nextCursor;
     for(const message of page.items){

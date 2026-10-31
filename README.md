@@ -1,4 +1,6 @@
-# web-test 2.0 · Function3 本地开发版（Phase 28–48）
+# web-test 2.0 · Function3 本地开发版（Phase 28–49）
+
+> Phase49继续完成接口对齐和资源装配：[改动与验收](docs/architecture/business/phase49.md)、[教学](docs/architecture/business/phase49-teaching.md)、[数据库对象分层](docs/database/domain-layering.md)、[组件索引](docs/architecture/business/phase49-code-index.md)、[整体调用图](docs/architecture/business/phase49-end-to-end.md)。通信核心不变，main只保留进程入口，业务按领域组织；三轮性能门槛仍未通过：/fast中位-3.89%，第三轮ACK P99 +78.47%；功能回归通过。未部署日常服务、未推送远程。
 
 > Phase48补齐配色与领域拆分：[变化与验收](docs/architecture/business/phase48.md)、[组件索引](docs/architecture/business/phase48-code-index.md)、[教学](docs/architecture/business/phase48-teaching.md)。功能回归通过，最终ACK尾延迟门槛仍未通过；旧阶段报告继续保留，当前成果尚未部署日常服务。
 

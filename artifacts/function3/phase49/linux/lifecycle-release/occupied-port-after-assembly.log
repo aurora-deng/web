@@ -1,0 +1,3 @@
+worker pools: http=2, websocket=2
+Phase 11 authentication enabled
+webserver failed to start: bind: Address already in use

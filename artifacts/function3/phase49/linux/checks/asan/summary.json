@@ -1,0 +1,62 @@
+{
+  "flavour": "asan",
+  "passed": true,
+  "toolchain": "c++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-15)",
+  "testDatabase": "function3_phase11_test",
+  "flags": [
+    "cmake",
+    "-S",
+    "/home/pikachu/function3-src",
+    "-B",
+    "/home/pikachu/function3-src/build-asan",
+    "-DCMAKE_BUILD_TYPE=Debug",
+    "-DCMAKE_CXX_FLAGS_DEBUG=-Og -g1",
+    "-DCMAKE_C_FLAGS_DEBUG=-Og -g1",
+    "-DBUILD_TESTING=ON",
+    "-DCMAKE_PREFIX_PATH:UNINITIALIZED=/home/pikachu/.local-grpc-systemssl",
+    "-DGTest_DIR:UNINITIALIZED=/home/pikachu/.local/lib64/cmake/GTest",
+    "-DWEBSERVER_BUILD_BENCHMARKS:BOOL=OFF",
+    "-DWEBSERVER_BUILD_FUZZER:BOOL=OFF",
+    "-DWEBSERVER_CURL_ROOT:PATH=/home/pikachu/phase11-deps/curl/8.22.0",
+    "-DWEBSERVER_ENABLE_CURL_CLIENT:BOOL=ON",
+    "-DWEBSERVER_ENABLE_GRPC:BOOL=ON",
+    "-DWEBSERVER_ENABLE_ONNX_GENAI:BOOL=ON",
+    "-DWEBSERVER_ENABLE_PHASE11:BOOL=ON",
+    "-DWEBSERVER_ENABLE_POSTGRES:BOOL=ON",
+    "-DWEBSERVER_ENABLE_ROCKETMQ:BOOL=ON",
+    "-DWEBSERVER_ENABLE_SHERPA_TTS:BOOL=ON",
+    "-DWEBSERVER_ENABLE_SODIUM:BOOL=ON",
+    "-DWEBSERVER_ONNX_GENAI_INCLUDE_DIR:PATH=/home/pikachu/phase11-deps/onnxruntime-genai/0.17.0/include",
+    "-DWEBSERVER_ONNX_GENAI_LIBRARY:FILEPATH=/home/pikachu/phase11-deps/onnxruntime-genai/0.17.0/lib/libonnxruntime-genai.so",
+    "-DWEBSERVER_ONNX_GENAI_ROOT:PATH=/home/pikachu/phase11-deps/onnxruntime-genai/0.17.0",
+    "-DWEBSERVER_ONNX_RUNTIME_INCLUDE_DIR:PATH=/home/pikachu/phase11-deps/onnxruntime/1.28.0/include",
+    "-DWEBSERVER_ONNX_RUNTIME_LIBRARY:FILEPATH=/home/pikachu/phase11-deps/onnxruntime/1.28.0/lib/libonnxruntime.so",
+    "-DWEBSERVER_ONNX_RUNTIME_ROOT:PATH=/home/pikachu/phase11-deps/onnxruntime/1.28.0",
+    "-DWEBSERVER_POSTGRES_ROOT:PATH=/home/pikachu/phase11-deps/postgresql/18.6",
+    "-DWEBSERVER_ROCKETMQ_ROOT:PATH=/home/pikachu/phase11-deps/rocketmq-cpp/5.1.1/install",
+    "-DWEBSERVER_SHERPA_ROOT:PATH=/home/pikachu/phase11-deps/sherpa-onnx/1.13.8",
+    "-DWEBSERVER_SODIUM_INCLUDE_DIR:PATH=/home/pikachu/phase11-deps/libsodium/1.0.22/include",
+    "-DWEBSERVER_SODIUM_LIBRARY:FILEPATH=/home/pikachu/phase11-deps/libsodium/1.0.22/lib/libsodium.so",
+    "-DWEBSERVER_SODIUM_ROOT:PATH=/home/pikachu/phase11-deps/libsodium/1.0.22",
+    "-DWEBSERVER_ENABLE_ASAN=ON",
+    "-DWEBSERVER_ENABLE_UBSAN=ON",
+    "-DWEBSERVER_ENABLE_TSAN=OFF"
+  ],
+  "steps": [
+    {
+      "name": "configure",
+      "seconds": 2.777,
+      "logSha256": "9ebac5d19d9e40c14cc3fe3304c882279d4b3829407dd550ecfd868aabbc77da"
+    },
+    {
+      "name": "build",
+      "seconds": 57.004,
+      "logSha256": "f61667452c87390c3140e3047880ee674ab05520e163a0893694d40d1a9d4009"
+    },
+    {
+      "name": "ctest",
+      "seconds": 41.494,
+      "logSha256": "f7581c1dfda9751adc9280b051f6f7eec0fce92d224900a76dec946d079e65be"
+    }
+  ]
+}

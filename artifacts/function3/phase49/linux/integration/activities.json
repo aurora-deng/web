@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "database": "function3_runtime_test",
+  "port": 18094,
+  "checks": [
+    "friends/private isolation",
+    "shared content ID and interactions",
+    "explicit public confirmation",
+    "tree count isolation",
+    "favorite idempotence",
+    "creator/admin deletion ACL",
+    "required admin reason and audit",
+    "deleted old media/share/favorites denial",
+    "block revokes friends audience",
+    "public profile excludes private fields"
+  ]
+}

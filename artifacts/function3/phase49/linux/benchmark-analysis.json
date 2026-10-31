@@ -1,0 +1,33 @@
+{
+  "round3": {
+    "baseline": {
+      "ackP99Ms": 8.71,
+      "mixedOpsPerSecond": 1034.416,
+      "databaseCallAverageMs": 0.3303,
+      "databaseCallMaxMsIncludingWarmup": 5.864,
+      "businessQueueAverageMs": 0.0391,
+      "dbQueueHighWatermark": 2.0,
+      "poolWaitedAcquires": 252.0,
+      "poolTimeouts": 0.0,
+      "commitNotifyDispatchAverageMs": 0.8905,
+      "commitNotifyDispatchMaxMsIncludingWarmup": 7.407,
+      "outboxCycleAverageMs": 2.6743,
+      "outboxFailures": 0.0
+    },
+    "current": {
+      "ackP99Ms": 15.545,
+      "mixedOpsPerSecond": 565.786,
+      "databaseCallAverageMs": 0.6047,
+      "databaseCallMaxMsIncludingWarmup": 14.36,
+      "businessQueueAverageMs": 0.0695,
+      "dbQueueHighWatermark": 2.0,
+      "poolWaitedAcquires": 255.0,
+      "poolTimeouts": 0.0,
+      "commitNotifyDispatchAverageMs": 1.7411,
+      "commitNotifyDispatchMaxMsIncludingWarmup": 11.367,
+      "outboxCycleAverageMs": 4.7878,
+      "outboxFailures": 0.0
+    }
+  },
+  "limitations": "aggregate counters are not per-message tracing or proof of causality"
+}

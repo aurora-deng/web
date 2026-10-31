@@ -1,4 +1,6 @@
-import { uploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=227af12a6c379d08';
+import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=dc39cdb5489c964d";
+import { filesApi } from "../../files/FilesApi/FilesApi.js?v=dc39cdb5489c964d";
+import { uploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=dc39cdb5489c964d';
 /** 业务媒体复用原上传/校验协议；WeakMap 保留同一 File 的成功结果以便幂等重试。 */
 export class MediaUploader {
   constructor(api) { this.api=api;this.uploads=new WeakMap(); }
@@ -14,14 +16,14 @@ export class MediaUploader {
   }
   async perform(file) {
     const api=this.api;
-    const meta=await api.request('/api/tree/media/uploads',{method:'POST',data:{name:file.name,size:String(file.size),mediaType:file.type}});
+    const meta=await api.request(treeApi.postTreeMediaUploads({}),{method:'POST',data:{name:file.name,size:String(file.size),mediaType:file.type}});
     const chunkBytes=(await uploadCapabilities(api)).chat.chunkBytes;
     for(let offset=0;offset<file.size;offset+=chunkBytes) {
-      const response=await fetch(`/api/files/${meta.id}/content`,{method:'PATCH',credentials:'same-origin',
+      const response=await fetch(filesApi.patchFilesFileContent({"file":(meta.id)}) .path,{method:'PATCH',credentials:'same-origin',
         headers:{'X-CSRF-Token':api.csrf,'Content-Type':'application/octet-stream','Upload-Offset':String(offset)},body:file.slice(offset,offset+chunkBytes)});
       if(!response.ok)throw new Error('媒体上传失败，可重试。');
     }
-    await api.request(`/api/files/${meta.id}/complete`,{method:'POST',data:{}});
-    await api.request(`/api/tree/media/${meta.id}/validate`,{method:'POST',data:{}});return meta.id;
+    await api.request(filesApi.postFilesFileComplete({"file":(meta.id)}),{method:'POST',data:{}});
+    await api.request(treeApi.postTreeMediaFileValidate({"file":(meta.id)}),{method:'POST',data:{}});return meta.id;
   }
 }

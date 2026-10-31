@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "binary": "/home/pikachu/function3-src/build-asan/webserver",
+  "database": "function3_phase11_test",
+  "cases": [
+    {
+      "name": "missing-private-key",
+      "exitCode": 1,
+      "seconds": 0.847
+    },
+    {
+      "name": "invalid-tls-after-assembly",
+      "exitCode": 1,
+      "seconds": 0.83
+    },
+    {
+      "name": "occupied-port-after-assembly",
+      "exitCode": 1,
+      "seconds": 0.369
+    },
+    {
+      "name": "occupied-grpc-after-assembly",
+      "exitCode": 1,
+      "seconds": 0.39
+    }
+  ]
+}

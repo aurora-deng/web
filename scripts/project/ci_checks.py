@@ -37,6 +37,8 @@ def main():
             run(['python3' if os.name!='nt' else os.sys.executable,'scripts/project/check_boundaries.py'])
             run(['python3' if os.name!='nt' else os.sys.executable,'scripts/project/frontend_release.py','--check'])
             run([os.sys.executable,'scripts/project/check_presentation.py'])
+            run([os.sys.executable,'scripts/project/sync_api_contracts.py','--check'])
+            run([os.sys.executable,'tests/project/test_api_contracts.py'])
             run([os.sys.executable,'tests/project/test_ci_gates.py'])
             run([os.sys.executable,'tests/project/test_process_identity.py'])
             run([os.sys.executable,'tests/project/test_source_inventory.py'])
@@ -45,7 +47,7 @@ def main():
                 for path in (ROOT/folder).rglob('*.py'):ast.parse(path.read_text(encoding='utf-8-sig'),filename=str(path))
             for path in (ROOT/'frontend/phase11').rglob('*.js'):
                 if 'vendor' not in path.parts:run(['node','--check',str(path)],stdout=subprocess.DEVNULL)
-            run(['node','--test','tests/function3/frontend/history_capacity.test.mjs','tests/phase11/frontend/chat_reliability.test.mjs','tests/function3/frontend/unread_watermarks.test.mjs','tests/function3/frontend/workspace_logic.test.mjs','tests/function3/frontend/chat_scope.test.mjs'])
+            run(['node','--test','tests/function3/frontend/history_capacity.test.mjs','tests/phase11/frontend/chat_reliability.test.mjs','tests/function3/frontend/unread_watermarks.test.mjs','tests/function3/frontend/workspace_logic.test.mjs','tests/function3/frontend/chat_scope.test.mjs','tests/function3/frontend/api_contracts.test.mjs'])
         else:
             build=a.build.resolve();cache=build/'CMakeCache.txt'
             if not cache.exists():raise RuntimeError('A provisioned Linux build is required. Configure PostgreSQL/libsodium ON; no silent fallback or installation.')

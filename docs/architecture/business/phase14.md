@@ -191,8 +191,8 @@ WebSocket 和 SSE 收到好友或 Presence 事件后刷新相同状态。页面�
 | 领域对象 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
 | Repository 端口 | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
 | 业务接口 | [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
-| 联系人业务规则 | [SocialService.cpp](../../../backend/application/business/SocialService/SocialService.cpp) |
-| 私聊权限复查 | [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) |
+| 联系人业务规则 | [SocialService.cpp](../../../backend/application/modules/contacts/application/SocialService/SocialService.cpp) |
+| 私聊权限复查 | [ChatService.cpp](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp) |
 | 内存参考实现 | [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
 | PostgreSQL 实现 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 第 4 号迁移 | [004_contacts_presence.sql](../../../backend/application/storage/postgres/migrations/004_contacts_presence.sql) |

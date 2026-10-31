@@ -1,0 +1,92 @@
+-- The CXX compiler identification is GNU 11.5.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Found OpenSSL: /usr/lib64/libcrypto.so (found version "3.5.5") found components: SSL Crypto
+-- Looking for SSL_read_ex
+-- Looking for SSL_read_ex - found
+-- Looking for SSL_write_ex
+-- Looking for SSL_write_ex - found
+-- Found Python3: /usr/bin/python3.9 (found version "3.9.23") found components: Interpreter
+-- Configuring done (2.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/pikachu/function3-src/build-phase49-minimal
+[  3%] Building CXX object CMakeFiles/webserver_security.dir/backend/server/security/AuthToken.cpp.o
+[  3%] Building CXX object CMakeFiles/webserver_runtime_config.dir/backend/application/config/RuntimeConfig/RuntimeConfig.cpp.o
+[  4%] Linking CXX static library libwebserver_runtime_config.a
+[  4%] Built target webserver_runtime_config
+[  6%] Stamping public source fingerprint (no runtime secrets)
+[  7%] Linking CXX static library libwebserver_security.a
+[  7%] Built target project_build_stamp
+[  7%] Built target webserver_security
+[ 11%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/Route/Router.cpp.o
+[ 11%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/ObjectPool/ObjectPool.cpp.o
+[ 12%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/Buffer/Buffer.cpp.o
+[ 14%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/buffer_pool/BufferPoll.cpp.o
+[ 15%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/thread_pool/thread_pool.cpp.o
+[ 17%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/observability/logger/logger.cpp.o
+[ 19%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/SubReactor/SubReactor.cpp.o
+[ 20%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/Reactor/ReactorGroup.cpp.o
+[ 22%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/Runtime/ServerRuntime.cpp.o
+[ 23%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/timer/TimeWheel.cpp.o
+[ 25%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/SegmentPool/SegmentPool.cpp.o
+[ 26%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/CoroutineScheduler/CoroutineScheduler.cpp.o
+[ 28%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/CoroutineScheduler/AWaiter.cpp.o
+[ 30%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/transport/OutboundTask.cpp.o
+[ 31%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/transport/OutboundAdmission.cpp.o
+[ 33%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/transport/TransportWriter.cpp.o
+[ 34%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/transport/OutboundQueue.cpp.o
+[ 36%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/http/http.cpp.o
+[ 38%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/http/HttpCodec/HttpCodec.cpp.o
+[ 39%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/http/HttpParser/HttpParser.cpp.o
+[ 41%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/http/HttpSession/HttpSession.cpp.o
+[ 42%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/http2/Http2Codec.cpp.o
+[ 44%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/http2/Http2Session.cpp.o
+[ 46%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/tls/TlsContext.cpp.o
+[ 47%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/tls/TlsTransport.cpp.o
+[ 49%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/tls/TlsSession.cpp.o
+[ 50%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/http/RequestContext/RequestContext.cpp.o
+[ 52%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/response/ChunkedBody.cpp.o
+[ 53%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/response/FileBody.cpp.o
+[ 55%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/response/StringBody.cpp.o
+[ 57%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/response/HeaderBody.cpp.o
+[ 58%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/sse/SseCodec.cpp.o
+[ 60%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/sse/SseReplayBuffer.cpp.o
+[ 61%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/sse/SseSession.cpp.o
+[ 63%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/sse/SseSessionManager.cpp.o
+[ 65%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/session/ProtocolSessionFactory.cpp.o
+[ 66%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketHandshake/WebSocketHandshake.cpp.o
+[ 68%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketCodec/WebSocketCodec.cpp.o
+[ 69%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketParser/WebSocketParser.cpp.o
+[ 71%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketMessageAssembler/WebSocketMessageAssembler.cpp.o
+[ 73%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketValidation/WebSocketValidation.cpp.o
+[ 74%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketDelivery/WebSocketDeliveryTracker.cpp.o
+[ 76%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketDelivery/WebSocketDeliveryService.cpp.o
+[ 77%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketSession/WebSocketSession.cpp.o
+[ 79%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.cpp.o
+[ 80%] Building CXX object CMakeFiles/webserver_core.dir/backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.cpp.o
+[ 82%] Linking CXX static library libwebserver_core.a
+[ 82%] Built target webserver_core
+[ 84%] Building CXX object CMakeFiles/function3_assets.dir/backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.cpp.o
+[ 85%] Linking CXX static library libfunction3_assets.a
+[ 85%] Built target function3_assets
+[ 88%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/NetworkSetup/NetworkSetup.cpp.o
+[ 88%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.cpp.o
+[ 90%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp.o
+[ 92%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/GrpcRuntime/GrpcRuntime.cpp.o
+[ 93%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp.o
+[ 95%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/transport/learning/LearningRoutes/LearningRoutes.cpp.o
+[ 96%] Linking CXX static library libwebserver_application_runtime.a
+[ 96%] Built target webserver_application_runtime
+[ 98%] Building CXX object CMakeFiles/webserver.dir/main.cpp.o
+[100%] Linking CXX executable webserver
+Copying static assets next to webserver
+[100%] Built target webserver
+worker pools: http=2, websocket=2
+server started...
+server stopped.

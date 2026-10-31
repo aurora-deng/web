@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "database": "function3_runtime_test",
+  "checks": [
+    "public user search/cursor/self exclusion",
+    "safe directory DTO",
+    "auth/CSRF/member isolation",
+    "global search stable pages",
+    "bounded context",
+    "same-value preference idempotence",
+    "per-member mute independent of delivery/unread",
+    "recalled content redaction",
+    "permission revocation on leave",
+    "server upload capabilities"
+  ]
+}

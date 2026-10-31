@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "version": {
+    "sourceFingerprint": "73eb4608d746053f0056c5139e93b0bfcdb2c8ddf9a21f059f2358f29d1c705c",
+    "revision": "source-snapshot",
+    "requiredMigration": 24,
+    "testResults": "see phase49 evidence and retained phase43-48 history; not a runtime health assertion",
+    "schemaVerifiedAtStartup": true
+  },
+  "assets": {
+    "version": "dc39cdb5489c964d",
+    "nativeFiles": 100,
+    "vendor": "three-r186 (unchanged)",
+    "includesDynamicReferences": true
+  },
+  "ready": {
+    "status": "ready"
+  },
+  "database": "function3_runtime_test|24",
+  "ledgerPhase": "49",
+  "binarySha256": "a8b04969b43a7b9c9388190150eb856107c5ae50f7ba0ec4fb58c2bd76d1270a",
+  "linuxSourceFingerprint": "73eb4608d746053f0056c5139e93b0bfcdb2c8ddf9a21f059f2358f29d1c705c",
+  "scope": "final metadata build; benchmark binary SHA recorded separately",
+  "windowsSourceFingerprint": "73eb4608d746053f0056c5139e93b0bfcdb2c8ddf9a21f059f2358f29d1c705c",
+  "crossPlatformFingerprintMatched": true
+}

@@ -1,0 +1,47 @@
+{
+  "stage": "phase49",
+  "baselineStage": "phase49",
+  "baselineBinarySha256": "5627e14bbd5ee6edf70e356ac29d21efdfb48f3a452c136662f6670135c6f08c",
+  "currentBinarySha256": "3e0d9371906ebe670f623019a9d01e4990069cd504aca5c06402e3bd8817a100",
+  "configuration": {
+    "reactors": 2,
+    "httpWorkers": 4,
+    "databaseWorkers": 4,
+    "databasePool": 4,
+    "delivery": "local-durable",
+    "redis": false,
+    "tts": false,
+    "ai": false,
+    "tlsPort": 18444,
+    "diagnostic": false,
+    "synchronousCommit": "on"
+  },
+  "baseline": [
+    {
+      "round": 1,
+      "pid": 16539,
+      "fastQps": 53441.68,
+      "ackP99Ms": 23.963,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 5.425,
+        "p95": 9.586,
+        "p99": 9.751
+      }
+    }
+  ],
+  "current": [
+    {
+      "round": 1,
+      "pid": 16620,
+      "fastQps": 54506.79,
+      "ackP99Ms": 16.944,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 5.263,
+        "p95": 8.025,
+        "p99": 9.741
+      }
+    }
+  ]
+}

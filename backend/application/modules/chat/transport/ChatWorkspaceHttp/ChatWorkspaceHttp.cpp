@@ -1,7 +1,7 @@
 #include "backend/application/modules/tree/domain/TreeContentPolicy/TreeContentPolicy.h"
 #include "ChatWorkspaceHttp.h"
 #include "backend/application/transport/serialization/MessageJson/MessageJson.h"
-#include "backend/application/business/FileService/FileService.h"
+#include "backend/application/modules/files/application/FileService/FileService.h"
 namespace webserver::chat {
     namespace {
         namespace http=webserver::function3::http;
@@ -14,21 +14,9 @@ namespace webserver::chat {
     }
     void ChatWorkspaceHttp::registerRoutes(Router&router){
         auto scope=http::executor(router,executor_);
-        router.GET("/api/users/search",[this](RequestContext&ctx){
-            return http::guarded(ctx,[&]{
-                const auto actor=auth_.authorizeRequest(ctx).user.id;
-                const auto page=service_.users(actor,http::query(ctx,"q"),http::number(http::query(ctx,"after","0"),true),http::number(http::query(ctx,"limit","20")));
-                http::reply(ctx,"{\"items\":"+http::array(page.items,[](const UserCard&u){
-                    return "{\"id\":"+http::id(u.id)+",\"username\":"+http::quote(u.username)+",\"displayName\":"+http::quote(u.displayName)+",\"avatarUrl\":"+(u.avatar?http::quote("/api/files/"+std::to_string(*u.avatar)):"null")+",\"aiAccount\":"+(u.ai?"true":"false")+",\"friendship\":"+(u.friendship?"true":"false")+",\"pendingRequest\":"+(u.pending?"true":"false")+",\"canRequestFriendship\":"+(!u.friendship&&!u.pending?"true":"false")+"}";
-                }
-                )+",\"nextCursor\":"+http::id(page.nextCursor)+"}");
-            }
-            );
-        }
-        );
         router.GET("/api/search/messages/page",[this](RequestContext&ctx){
             return http::guarded(ctx,[&]{
-                const auto actor=auth_.authorizeRequest(ctx).user.id;const auto page=service_.search(actor,http::number(http::query(ctx,"conversationId","0"),true),http::query(ctx,"q"),http::number(http::query(ctx,"before","0"),true),http::number(http::query(ctx,"limit","30")));
+                const auto actor=auth_.authorizeRequest(ctx).user.id;const auto page=service_.search(actor,MessageSearchQuery{http::number(http::query(ctx,"conversationId","0"),true),http::query(ctx,"q"),http::number(http::query(ctx,"before","0"),true),http::number(http::query(ctx,"limit","30"))});
                 http::reply(ctx,"{\"items\":"+http::array(page.items,messageJson)+",\"nextCursor\":"+http::id(page.nextCursor)+"}");
             }
             );
@@ -43,14 +31,14 @@ namespace webserver::chat {
         );
         router.PATCH("/api/conversations/:id/preferences",[this](RequestContext&ctx){
             return http::guarded(ctx,[&]{
-                const auto actor=auth_.authorizeRequest(ctx,true).user.id;const auto body=http::body(ctx);auto value=service_.setPreferences(actor,http::path(ctx,"id"),http::boolean(http::field(body,"notificationsMuted")),std::chrono::system_clock::now());if(committed_)committed_();http::reply(ctx,preferenceJson(value));
+                const auto actor=auth_.authorizeRequest(ctx,true).user.id;const auto body=http::body(ctx);auto value=service_.setPreferences(actor,SetConversationPreference{http::path(ctx,"id"),http::boolean(http::field(body,"notificationsMuted"))},std::chrono::system_clock::now());if(committed_)committed_();http::reply(ctx,preferenceJson(value));
             }
             );
         }
         );
         router.GET("/api/conversations/:id/messages/:messageId/context",[this](RequestContext&ctx){
             return http::guarded(ctx,[&]{
-                const auto value=service_.context(auth_.authorizeRequest(ctx).user.id,http::path(ctx,"id"),http::path(ctx,"messageId"),http::number(http::query(ctx,"radius","20")));http::reply(ctx,"{\"target\":"+messageJson(value.target)+",\"items\":"+http::array(value.items,messageJson)+"}");
+                const auto value=service_.context(auth_.authorizeRequest(ctx).user.id,MessageContextQuery{http::path(ctx,"id"),http::path(ctx,"messageId"),http::number(http::query(ctx,"radius","20"))});http::reply(ctx,"{\"target\":"+messageJson(value.target)+",\"items\":"+http::array(value.items,messageJson)+"}");
             }
             );
         }

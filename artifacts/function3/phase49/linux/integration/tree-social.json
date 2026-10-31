@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "database": "function3_runtime_test",
+  "checks": [
+    "tree visible across non-friend accounts",
+    "stranger author profiles restricted to tree stories",
+    "direct ID/share/favorite privacy",
+    "opt-in default off and legacy patch preserves consent",
+    "creator derived from post",
+    "self/private-source request denied",
+    "pending request deduplication",
+    "acceptance opens friend activities but not private posts",
+    "revocation and blocking",
+    "web consent required by server",
+    "private HTTPS requirement retained",
+    "anonymous access denied"
+  ]
+}

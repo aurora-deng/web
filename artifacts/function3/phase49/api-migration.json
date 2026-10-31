@@ -1,0 +1,25 @@
+{
+  "converted": 106,
+  "manualReview": [
+    [
+      "chat\\AiController\\AiController.js",
+      "GET '/api/ai/web/models'"
+    ],
+    [
+      "chat\\KnowledgeController\\KnowledgeController.js",
+      "GET `/api/knowledge/documents${query}`"
+    ],
+    [
+      "shared\\ClientBootstrap\\ClientBootstrap.js",
+      "POST '/api/local/session/bootstrap'"
+    ],
+    [
+      "shared\\ClientBootstrap\\ClientBootstrap.js",
+      "GET '/api/local/session/info'"
+    ],
+    [
+      "shared\\WebAssistantPanel\\WebAssistantPanel.js",
+      "GET '/api/ai/web/models'"
+    ]
+  ]
+}

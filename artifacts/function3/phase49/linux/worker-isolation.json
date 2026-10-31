@@ -1,0 +1,44 @@
+{
+  "runtime": "onnx-grpc",
+  "modelVersion": 5,
+  "modelNode": 5,
+  "aiUserId": 335,
+  "artifactReused": true,
+  "runs": [
+    {
+      "firstPollTokenSeconds": 16.671,
+      "serverFirstTokenMs": 16633.328,
+      "totalSeconds": 21.359,
+      "state": "completed",
+      "outputBytes": 46,
+      "cache": "cold",
+      "workerRssMiB": 3222.57
+    },
+    {
+      "firstPollTokenSeconds": 1.251,
+      "serverFirstTokenMs": 1221.994,
+      "totalSeconds": 6.285,
+      "state": "completed",
+      "outputBytes": 46,
+      "cache": "hot",
+      "workerRssMiB": 3226.09
+    },
+    {
+      "firstPollTokenSeconds": 13.051,
+      "serverFirstTokenMs": 13003.974,
+      "totalSeconds": 14.036,
+      "state": "completed",
+      "outputBytes": 16,
+      "cache": "after-worker-restart"
+    }
+  ],
+  "modelQualityEvaluated": false,
+  "passed": true,
+  "crashIsolation": {
+    "signal": "SIGKILL to identity-checked isolated Worker",
+    "privateTask": "failed",
+    "serverLive": true,
+    "ordinaryMessagePersisted": true,
+    "privateAiMessagesInDatabase": 0
+  }
+}

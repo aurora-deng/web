@@ -1,0 +1,26 @@
+[
+  {
+    "test": "tests/function3/frontend/workspace_browser.cjs",
+    "exitCode": 0
+  },
+  {
+    "test": "tests/function3/frontend/fruit_browser.cjs",
+    "exitCode": 0
+  },
+  {
+    "test": "tests/function3/frontend/profile_browser.cjs",
+    "exitCode": 0
+  },
+  {
+    "test": "tests/phase11/frontend/chat_browser_smoke.cjs",
+    "exitCode": 0
+  },
+  {
+    "test": "tests/function3/frontend/browser_smoke.cjs",
+    "exitCode": 0
+  },
+  {
+    "test": "tests/function3/frontend/announcement_browser.cjs",
+    "exitCode": 0
+  }
+]

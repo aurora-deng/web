@@ -3,7 +3,7 @@
 #include "backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.h"
 #include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
 #include "backend/ai/models/RagService/RagService.h"
-#include "backend/application/business/ChatService/ChatService.h"
+#include "backend/application/modules/chat/application/ChatService/ChatService.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 #include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #include "backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"

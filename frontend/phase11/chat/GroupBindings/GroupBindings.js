@@ -1,4 +1,5 @@
-import { createChatScope } from '../ChatScope/ChatScope.js?v=227af12a6c379d08';
+import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
+import { createChatScope } from '../ChatScope/ChatScope.js?v=dc39cdb5489c964d';
 export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","toast","clearConversationView","setButtonBusy","api","loadConversations","openConversation","refreshCurrentGroup"],"types":[],"events":true};
 /** Group UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindGroup(context) {
@@ -18,7 +19,7 @@ listen($('#member-form'), 'submit', async event => {
   const memberId = new FormData(form).get('memberId');
   setButtonBusy(button, true, '添加中…');
   try {
-    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/members`, {
+    await api(chatApi.postConversationsIdMembers({"id":(state.conversation.id)}), {
       method: 'POST', body: JSON.stringify({ memberId }),
     });
     setStatus($('#member-status'), '成员已添加。', 'success');
@@ -47,7 +48,7 @@ listen($('#group-profile-form'), 'submit', async event => {
   const button = form.querySelector('[type="submit"]');
   setButtonBusy(button, true, '保存中…');
   try {
-    const updated = await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}`, {
+    const updated = await api(chatApi.patchConversationsId({"id":(state.conversation.id)}), {
       method: 'PATCH',
       body: JSON.stringify({
         title: values.get('title').trim(),
@@ -65,7 +66,7 @@ listen($('#group-profile-form'), 'submit', async event => {
 listen($('#leave-group'), 'click', async () => {
   if (!state.conversation || !confirm('确定退出当前群聊吗？退出后将不能继续查看或发送消息。')) return;
   try {
-    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/leave`, {
+    await api(chatApi.postConversationsIdLeave({"id":(state.conversation.id)}), {
       method: 'POST', body: '{}',
     });
     clearConversationView();
@@ -77,7 +78,7 @@ listen($('#leave-group'), 'click', async () => {
 listen($('#dissolve-group'), 'click', async () => {
   if (!state.conversation || !confirm('确定解散当前群聊吗？该操作会停止所有成员继续发送消息。')) return;
   try {
-    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/dissolve`, {
+    await api(chatApi.postConversationsIdDissolve({"id":(state.conversation.id)}), {
       method: 'POST', body: '{}',
     });
     clearConversationView();

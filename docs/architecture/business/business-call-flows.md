@@ -51,7 +51,7 @@ sequenceDiagram
 ```
 
 代码：[`Phase11AuthHttp`](../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp)、
-[`AuthService`](../../../backend/application/business/AuthService/AuthService.cpp)、
+[`AuthService`](../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp)、
 [`SodiumCredentialCodec`](../../../backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)。
 
 ## 3. 好友与联系人
@@ -74,7 +74,7 @@ flowchart TD
 
 好友关系是双方确认后的关系；备注和免打扰是每个用户自己的单向设置。联系人离线不会阻止发送持久消息。
 
-代码：[`SocialService`](../../../backend/application/business/SocialService/SocialService.cpp)、
+代码：[`SocialService`](../../../backend/application/modules/contacts/application/SocialService/SocialService.cpp)、
 [`Phase11SocialChatHttp`](../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)。
 
 ## 4. 消息发送与离线接收
@@ -123,7 +123,7 @@ sequenceDiagram
 [Phase 27](phase27.md) 补齐浏览器侧的恢复编排：最新页用 `before=0`、旧页用排他 `before`、缺口用排他 `after` 逐页读取；重连也刷新可见旧消息的撤回状态。
 文字命令 5 秒未确认时，先用 `messages/by-client-id` 查询当前发送者的原幂等键，再有限重试；前端按角色显示“管理撤回”，最终仍由 `ChatService` 授权。
 
-代码：[`ChatService`](../../../backend/application/business/ChatService/ChatService.cpp)、
+代码：[`ChatService`](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp)、
 [`Phase11Realtime`](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)、
 [`OutboxDispatcher`](../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp)。
 
@@ -167,7 +167,7 @@ flowchart TD
 
 元数据由 Repository 管理，文件正文由 `LocalFileStorage` 管理；临时分片只有完成摘要校验后才原子变成正式文件。
 
-代码：[`FileService`](../../../backend/application/business/FileService/FileService.cpp)、
+代码：[`FileService`](../../../backend/application/modules/files/application/FileService/FileService.cpp)、
 [`Phase11FileHttp`](../../../backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp)、
 [`LocalFileStorage`](../../../backend/application/storage/files/LocalFileStorage/LocalFileStorage.cpp)。
 

@@ -1,0 +1,3 @@
+PASS real latest/backward pagination, exclusive cursor, and membership checks
+PASS real ACK reconciliation, sender isolation, duplicate replay and content conflict
+PASS real administrator authorization, offline 129-message catch-up, and recalled history

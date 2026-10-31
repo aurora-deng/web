@@ -1,0 +1,4 @@
+Isolated ONNX Worker listening on loopback 50062 with TLS and token; model loads on first use
+Started isolated current PID 11415 HTTP 18094 / HTTPS 18444
+Isolated ONNX Worker listening on loopback 50062 with TLS and token; model loads on first use
+PASS real independent ONNX gRPC/TLS, cold/hot first-token measurement, abrupt Worker failure isolation and recovery

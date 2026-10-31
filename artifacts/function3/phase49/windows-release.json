@@ -1,0 +1,37 @@
+{
+  "configuration": "release",
+  "compiler": "E:\\MINGW\\winlibs-x86_64-posix-seh-gcc-15.2.0-mingw-w64msvcrt-13.0.0-r1\\mingw64\\bin\\g++.EXE",
+  "boost": "1.92.0",
+  "tests": [
+    {
+      "name": "storage",
+      "passed": true,
+      "seconds": 0.31199999999989814,
+      "output": "PASS Windows SQLite 3.51.1, UTF8, bound SQL, rollback, DPAPI and site isolation"
+    },
+    {
+      "name": "private_data",
+      "passed": true,
+      "seconds": 0.31300000000010186,
+      "output": "PASS separate private histories, terminal cancellation, confirmed memory, authorized CJK lexical retrieval and restart persistence"
+    },
+    {
+      "name": "loopback_policy",
+      "passed": true,
+      "seconds": 0.23399999999855936,
+      "output": "PASS local Host/Origin/session/CSRF and one-use bootstrap protection"
+    },
+    {
+      "name": "action",
+      "passed": true,
+      "seconds": 0.2809999999990396,
+      "output": "PASS structured tool allowlist, payload-bound confirmation, duplicate confirmation and cancellation"
+    },
+    {
+      "name": "speech",
+      "passed": true,
+      "seconds": 0.23500000000058208,
+      "output": "PASS speech free-tier/key/consent/budget/429/fallback policy, bounded PCM/WAV and phrasing"
+    }
+  ]
+}

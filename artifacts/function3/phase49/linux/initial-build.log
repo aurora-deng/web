@@ -1,0 +1,118 @@
+-- Looking for SSL_read_ex
+-- Looking for SSL_read_ex - found
+-- Looking for SSL_write_ex
+-- Looking for SSL_write_ex - found
+-- Configuring done (2.0s)
+-- Generating done (0.9s)
+-- Build files have been written to: /home/pikachu/function3-src/build-release
+[  0%] Built target webserver_security
+[  1%] Built target webserver_application_support
+[  2%] Built target webserver_chat_workspace
+[  3%] Built target webserver_runtime_config
+[  4%] Built target function3_tree
+[  4%] Stamping public source fingerprint (no runtime secrets)
+[ 18%] Built target webserver_core
+[ 18%] Syncing Phase 11 frontend assets
+[ 18%] Built target phase11_frontend_assets
+[ 20%] Built target webserver_grpc
+[ 20%] Built target project_build_stamp
+[ 20%] Built target function3_activities
+[ 21%] Built target function3_private_archive
+[ 21%] Built target function3_ranking
+[ 22%] Built target function3_admin
+[ 22%] Built target function3_moderation
+[ 22%] Built target function3_messaging
+[ 24%] Built target nebula_speech_core
+[ 25%] Built target function3_cache
+[ 25%] Built target function3_runtime_config
+[ 25%] Built target function3_business_shutdown
+[ 26%] Built target webserver-grpc
+[ 26%] Built target function3_commit_wakeup
+[ 27%] Built target phase9_foundation_tests
+[ 28%] Built target grpc_message_codec_tests
+[ 28%] Built target http2_stream_coroutine_lifecycle
+[ 29%] Built target grpc_integration
+[ 30%] Built target http2_codec_roundtrip
+[ 32%] Built target webserver_unit_tests
+[ 33%] Built target function3_tree_memory
+[ 33%] Built target function3_speech_policy
+[ 34%] Built target function3-tts-worker
+[ 35%] Built target function3_tree_contract
+[ 36%] Built target function3_activities_contract
+[ 36%] Built target function3_redis_contract
+[ 37%] Built target function3_assets
+[ 42%] Built target webserver_ai
+[ 43%] Built target function3_announcement
+[ 44%] Built target function3_rocketmq
+[ 45%] Built target phase39_private_generation_tests
+[ 45%] Built target function3_speech
+[ 46%] Built target function3_rocketmq_roundtrip
+[ 58%] Built target webserver_phase11
+[ 59%] Built target phase11-training-admin
+[ 59%] Built target phase11-model-admin
+[ 60%] Built target webserver_phase11_grpc_onnx
+[ 63%] Built target webserver_phase11_http
+[ 64%] Built target function3_media
+[ 65%] Built target function3_shared_driver
+[ 65%] Built target function3_activity_json
+[ 66%] Built target function3_speech_http
+[ 66%] Built target function3_messaging_http
+[ 66%] Built target function3_admin_http
+[ 66%] Built target function3_announcement_http
+[ 66%] Built target webserver-onnx-worker
+[ 66%] Built target phase11_core_tests
+[ 66%] Built target function3_workspace_contract
+[ 67%] Built target phase11_chat_reliability_tests
+[ 67%] Built target phase11_ai_chat_tests
+[ 68%] Built target phase11_ai_resilience_tests
+[ 68%] Built target phase11_rag_tests
+[ 69%] Built target phase11_training_tests
+[ 70%] Built target phase11_file_tests
+[ 71%] Built target phase11_postgres_contract_tests
+[ 72%] Built target phase11_sodium_credentials_tests
+[ 73%] Built target phase11_ollama_provider_tests
+[ 73%] Built target phase11_onnx_provider_tests
+[ 74%] Built target phase11_onnx_model_smoke
+[ 75%] Built target phase11_grpc_onnx_provider_tests
+[ 76%] Built target function3_process_contract
+[ 78%] Built target function3_model_admin_contract
+[ 78%] Built target function3_recovery_contract
+[ 79%] Built target function3_activity_views
+[ 80%] Built target webserver_private_http
+[ 83%] Built target function3_tree_driver
+[ 83%] Built target function3_messaging_driver
+[ 84%] Built target function3_rank_driver
+[ 85%] Built target function3_announcement_driver
+[ 86%] Built target function3_moderation_driver
+[ 87%] Built target function3_admin_driver
+[ 88%] Built target function3_tree_http
+[ 90%] Built target function3_speech_driver
+[ 91%] Built target function3_activity_http
+[ 91%] Built target phase11_http_auth_tests
+[ 91%] Built target function3-site-admin
+[ 92%] Built target function3_postgres_contract
+[ 93%] Built target function3_capacity
+[ 93%] Built target function3_private_archive_driver
+[ 94%] Built target function3_private_archive_http
+[ 95%] Built target function3_http
+[ 95%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.cpp.o
+[ 95%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/NetworkSetup/NetworkSetup.cpp.o
+[ 95%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp.o
+[ 96%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/GrpcRuntime/GrpcRuntime.cpp.o
+[ 96%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp.o
+[ 96%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/transport/learning/LearningRoutes/LearningRoutes.cpp.o
+[ 97%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/StorageRuntime/StorageRuntime.cpp.o
+[ 97%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/IdentityRuntime/IdentityRuntime.cpp.o
+[ 97%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/ChatRuntime/ChatRuntime.cpp.o
+[ 98%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/FileRuntime/FileRuntime.cpp.o
+[ 98%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp.o
+[ 98%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.cpp.o
+[ 98%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/ai/bootstrap/AiRuntime/AiRuntime.cpp.o
+[ 99%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/ai/bootstrap/ModelProviderAssembly/ModelProviderAssembly.cpp.o
+[ 99%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.cpp.o
+[ 99%] Linking CXX static library libwebserver_application_runtime.a
+[ 99%] Built target webserver_application_runtime
+[100%] Building CXX object CMakeFiles/webserver.dir/main.cpp.o
+[100%] Linking CXX executable webserver
+Copying static assets next to webserver
+[100%] Built target webserver

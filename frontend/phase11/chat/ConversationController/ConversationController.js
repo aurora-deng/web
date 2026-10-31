@@ -1,3 +1,5 @@
+import { sharedApi } from "../../shared/SharedApi/SharedApi.js?v=dc39cdb5489c964d";
+import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
 export const dependencies={"resources":["$","userPickers","unreadWatermarks","elements","state","messageView","history","sender","runtime"],"commands":["savePendingMessages","settleHistoryPending","setStatus","toast","initials","api","paintAvatar","renderConversationMembers","renderGroupGovernance","renderCurrentMessages","acknowledge","applyAiModels","loadAiModels","refreshCancelButton","connectRealtime","refreshPendingBadge","loadFriendsPreview"],"types":["UserPicker","BusinessApi","AnnouncementPlayer","formatChatTime"]};
 /** ConversationController: explicit use cases; shared state/other controllers arrive through context. */
 export function createConversationController(context) {
@@ -221,7 +223,7 @@ async function loadConversations() {
   const version = ++state.listVersion;
   elements.conversationLoading.classList.remove('hidden');
   try {
-    const conversations = await api('/api/conversations');
+    const conversations = await api(chatApi.getConversations({}));
     if (state.me?.id !== userId || state.listVersion !== version) return false;
     state.conversations = conversations;
     conversations.forEach(c=>{c.notificationsMuted=state.preferenceSnapshots.absorb(c.id,c.notificationsMuted,c.preferencesVersion);});
@@ -293,7 +295,7 @@ async function openConversation(conversation) {
   try {
     const [, members] = await Promise.all([
       history.open(conversation.id),
-      api(`/api/conversations/${encodeURIComponent(conversation.id)}/members`),
+      api(chatApi.getConversationsIdMembers({"id":(conversation.id)})),
     ]);
     if (version !== state.viewVersion) return;
     const messages = history.messages;
@@ -329,7 +331,7 @@ async function openConversation(conversation) {
 }
 
 async function createDirectConversation(peerId) {
-  const conversation = await api('/api/conversations', {
+  const conversation = await api(chatApi.postConversations({}), {
     method: 'POST', body: JSON.stringify({ kind: 'direct', peerId: String(peerId) }),
   });
   elements.friendDialog.close();
@@ -346,7 +348,7 @@ function openConversationDialog() {
 
 async function loadWorkspaceCapabilities() {
   try {
-    state.capabilities=await api('/api/client-capabilities');
+    state.capabilities=await api(sharedApi.getClientCapabilities({}));
     const uploads=state.capabilities.uploads;
     if(uploads?.chat?.allowed){
       $('#message-file').accept=uploads.chat.allowed.map(type=>type.extension).join(',');

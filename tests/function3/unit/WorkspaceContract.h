@@ -21,6 +21,8 @@ template<class Store> void runWorkspaceContract(Store& store) {
     const auto percent = store.create({0,"workspace-pct","共同%literal",{},"hash",false,false,now});
     ChatWorkspaceService app(store,store,store,store,store,store);
     auto page = app.users(a.id,"共同",0,1);
+    const auto typedPage=app.users(a.id,UserDirectoryQuery{"共同",0,1});
+    require(typedPage.items.size()==page.items.size()&&typedPage.nextCursor==page.nextCursor,"typed directory query differs from compatibility call");
     require(page.items.size()==1 && page.nextCursor==b.id,"user cursor first page");
     require(app.users(a.id,"共同",page.nextCursor,10).items.size()==2,"user next page/self exclusion");
     require(app.users(a.id,"共同%",0,10).items.front().id==percent.id,"literal percent prefix");
@@ -40,6 +42,7 @@ template<class Store> void runWorkspaceContract(Store& store) {
     rejects([&]{app.context(c.id,group.id,first.id,10);},ErrorCode::Forbidden);
     rejects([&]{app.context(b.id,group.id,store.messagesAfter(secret.id,0,10).front().id,10);},ErrorCode::NotFound);
     require(app.context(b.id,group.id,first.id,1).items.size()==2,"bounded context");
+    require(app.context(b.id,MessageContextQuery{group.id,first.id,1}).items.size()==2,"typed bounded context");
     store.recallMessage(first.id,a.id,now);
     require(app.search(b.id,0,"100%",0,10).items.empty(),"recalled body searchable");
     require(app.context(b.id,group.id,first.id,1).target.body.empty(),"recalled context leaked body");

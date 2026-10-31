@@ -1,5 +1,7 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
+Phase49按领域明确 Query/Command、业务对象、DAO 行与公开返回投影；规范及真实调用链见 [数据库领域分层](domain-layering.md)。没有新增数据库或迁移，仍兼容024。
+
 Phase48没有新增迁移；Outbox批量确认与版本024兼容说明见 [本轮数据库说明](phase48-outbox.md)。
 
 开发版追加迁移019：统一动态沿用原 `tree_posts` 正文和ID，增加树/主页频道、可见范围；新增 `activity_favorites`（幂等收藏）与 `profile_display_settings`（公开资料展示开关）。正文、媒体、点赞和评论没有复制。详见 [Phase37](../architecture/business/phase37.md)。019目前仅验证于已有隔离测试库；原业务库升级须与新服务的可见性校验一起部署，不能让旧版本服务读取新产生的私有动态。

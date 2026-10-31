@@ -1,3 +1,4 @@
+import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
 export const dependencies={"resources":["$","state"],"commands":["toast","initials","api","paintAvatar","loadConversations","openConversation","actionListEmpty"],"types":[]};
 /** GroupController: explicit use cases; shared state/other controllers arrive through context. */
 export function createGroupController(context) {
@@ -101,7 +102,7 @@ async function refreshCurrentGroup(message) {
 async function updateMemberRole(userId, role) {
   if (!state.conversation) return;
   try {
-    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/members/${encodeURIComponent(userId)}/role`, {
+    await api(chatApi.postConversationsIdMembersMemberIdRole({"id":(state.conversation.id),"memberId":(userId)}), {
       method: 'POST', body: JSON.stringify({ role }),
     });
     await refreshCurrentGroup(role === 'administrator' ? '已设置管理员' : '已取消管理员');
@@ -111,7 +112,7 @@ async function updateMemberRole(userId, role) {
 async function updateMemberMute(userId, seconds) {
   if (!state.conversation) return;
   try {
-    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/members/${encodeURIComponent(userId)}/mute`, {
+    await api(chatApi.postConversationsIdMembersMemberIdMute({"id":(state.conversation.id),"memberId":(userId)}), {
       method: 'POST', body: JSON.stringify({ seconds }),
     });
     await refreshCurrentGroup(seconds ? '成员已禁言 10 分钟' : '成员禁言已解除');
@@ -121,7 +122,7 @@ async function updateMemberMute(userId, seconds) {
 async function removeMember(member) {
   if (!state.conversation || !confirm(`确定将“${member.displayName || member.username}”移出群聊吗？`)) return;
   try {
-    await api(`/api/conversations/${encodeURIComponent(state.conversation.id)}/members/${encodeURIComponent(member.userId)}/remove`, {
+    await api(chatApi.postConversationsIdMembersMemberIdRemove({"id":(state.conversation.id),"memberId":(member.userId)}), {
       method: 'POST', body: '{}',
     });
     await refreshCurrentGroup('成员已移出群聊');

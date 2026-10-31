@@ -1,15 +1,16 @@
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=227af12a6c379d08';
-import { UserPicker } from '../UserPicker/UserPicker.js?v=227af12a6c379d08';
-import { groupMessages } from '../MessageGrouping/MessageGrouping.js?v=227af12a6c379d08';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=227af12a6c379d08';
-import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=227af12a6c379d08';
-import { UnreadWatermarks } from '../UnreadWatermarks/UnreadWatermarks.js?v=227af12a6c379d08';
-import { PreferenceSnapshots } from '../PreferenceSnapshots/PreferenceSnapshots.js?v=227af12a6c379d08';
-import { ChatHistory, canRecallMessage } from '../ChatHistory.js?v=227af12a6c379d08';
-import { ReliableSender } from '../ReliableSender.js?v=227af12a6c379d08';
-import { VirtualMessageList } from '../VirtualMessageList/VirtualMessageList.js?v=227af12a6c379d08';
-import { RecoveryBudget, ReconnectBackoff } from '../../shared/RecoveryBudget/RecoveryBudget.js?v=227af12a6c379d08';
-import { formatChatTime, formatDayKey, formatDateDivider } from '../../shared/TimeFormat/TimeFormat.js?v=227af12a6c379d08';
+import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=dc39cdb5489c964d';
+import { UserPicker } from '../UserPicker/UserPicker.js?v=dc39cdb5489c964d';
+import { groupMessages } from '../MessageGrouping/MessageGrouping.js?v=dc39cdb5489c964d';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=dc39cdb5489c964d';
+import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=dc39cdb5489c964d';
+import { UnreadWatermarks } from '../UnreadWatermarks/UnreadWatermarks.js?v=dc39cdb5489c964d';
+import { PreferenceSnapshots } from '../PreferenceSnapshots/PreferenceSnapshots.js?v=dc39cdb5489c964d';
+import { ChatHistory, canRecallMessage } from '../ChatHistory.js?v=dc39cdb5489c964d';
+import { ReliableSender } from '../ReliableSender.js?v=dc39cdb5489c964d';
+import { VirtualMessageList } from '../VirtualMessageList/VirtualMessageList.js?v=dc39cdb5489c964d';
+import { RecoveryBudget, ReconnectBackoff } from '../../shared/RecoveryBudget/RecoveryBudget.js?v=dc39cdb5489c964d';
+import { formatChatTime, formatDayKey, formatDateDivider } from '../../shared/TimeFormat/TimeFormat.js?v=dc39cdb5489c964d';
 
 export function createChatContext(actions) {
   const runtime={sseTimer:null,suppressMessageRender:false,announcementPlayer:null,lifecycle:new AbortController(),accountAbort:new AbortController()};
@@ -189,8 +190,7 @@ const state = {
 // 只在这一段屏蔽重绘，定位结束后统一渲染一次。
 
 const messageView = new VirtualMessageList(elements.messageList, createMessageElement);
-const history = new ChatHistory((conversationId, query, signal) => pageBudget.run(() => api(
-  `/api/conversations/${conversationId}/messages?${new URLSearchParams(query)}`, { signal },
+const history = new ChatHistory((conversationId, query, signal) => pageBudget.run(() => api(chatApi.getConversationsIdMessages({"id":(conversationId)}, String(new URLSearchParams(query))), { signal },
 ), signal), () => renderCurrentMessages());
 
 const sender = new ReliableSender({

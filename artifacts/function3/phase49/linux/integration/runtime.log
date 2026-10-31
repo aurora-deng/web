@@ -1,0 +1,2 @@
+Verified certificate, ALPN=h2, two authenticated business streams and sibling RST_STREAM passed
+{"passed": true, "post": "63", "rankVersion": "2159", "announcement": "20", "delivery": "local", "coverage": ["auth/CSRF", "real PNG/WAV decode", "malformed/long audio rejection", "media ownership", "persistent idempotency", "likes/replies", "rank/announcement", "durable delivery/TTS both voices", "playback claim dedup", "report/hide/old media URL", "session revocation"]}

@@ -192,7 +192,7 @@ PostgreSQL 实现还会在事务内使用 `SELECT ... FOR UPDATE` 锁住当前�
 | 角色、会话状态、公告和禁言领域字段 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
 | Repository Port | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
 | 业务门面 | [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
-| 权限矩阵、事务和 Outbox | [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) |
+| 权限矩阵、事务和 Outbox | [ChatService.cpp](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp) |
 | 内存参考实现 | [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
 | PostgreSQL 实现 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 第 3 号迁移 | [003_group_governance.sql](../../../backend/application/storage/postgres/migrations/003_group_governance.sql) |

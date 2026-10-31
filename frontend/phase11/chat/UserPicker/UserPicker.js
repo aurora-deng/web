@@ -1,3 +1,4 @@
+import { contactsApi } from "../../contacts/ContactsApi/ContactsApi.js?v=dc39cdb5489c964d";
 /** Bounded public-directory picker. Selection writes the existing DTO field; server still authorizes it. */
 export class UserPicker {
   constructor(input, request, { multiple = false } = {}) {
@@ -25,7 +26,7 @@ export class UserPicker {
     if (!q) { this.status.textContent=''; return; }
     this.status.textContent='正在搜索…';
     try {
-      const page = await this.request('/api/users/search?' + new URLSearchParams({q, limit:20}), {signal:this.controller.signal});
+      const page = await this.request(contactsApi.getUsersSearch({}, String(new URLSearchParams({q, limit:20}))), {signal:this.controller.signal});
       if (version !== this.revision) return;
       for (const user of page.items) {
         const button=document.createElement('button'); button.type='button'; button.className='user-picker-option';

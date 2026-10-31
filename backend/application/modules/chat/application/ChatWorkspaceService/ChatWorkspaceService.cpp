@@ -21,20 +21,11 @@ namespace webserver::chat {
         auto c=conversations_.findConversation(id);
         if(!c||c->state!=ConversationState::Active||!conversations_.findMember(id,actor))throw ApplicationError(ErrorCode::Forbidden,"active conversation membership required");
     }
-    UserPage ChatWorkspaceService::users(UserId actor,std::string query,UserId after,std::size_t limit)const{
-        active(actor);
-        queryText(query);
-        pageSize(limit,50);
-        UserPage page{
-            workspace_.searchUsers(actor,query,after,limit+1),0
-        };
-        if(page.items.size()>limit){
-            page.items.resize(limit);
-            page.nextCursor=page.items.back().id;
-        }
-        return page;
+    UserPage ChatWorkspaceService::users(UserId actor,UserDirectoryQuery input)const{
+        return directory_.search(actor,std::move(input));
     }
-    MessagePage ChatWorkspaceService::search(UserId actor,ConversationId conversation,std::string query,MessageId before,std::size_t limit)const{
+    MessagePage ChatWorkspaceService::search(UserId actor,MessageSearchQuery input)const{
+        auto&[conversation,query,before,limit]=input;
         active(actor);
         if(conversation)member(actor,conversation);
         queryText(query);
@@ -53,7 +44,8 @@ namespace webserver::chat {
         member(actor,conversation);
         return workspace_.preference(actor,conversation);
     }
-    ConversationPreference ChatWorkspaceService::setPreferences(UserId actor,ConversationId conversation,bool muted,TimePoint now){
+    ConversationPreference ChatWorkspaceService::setPreferences(UserId actor,SetConversationPreference input,TimePoint now){
+        const auto[conversation,muted]=input;
         auto transaction=db_.beginTransaction();
         member(actor,conversation);
         const auto result=workspace_.writePreference(actor,conversation,muted);
@@ -68,7 +60,8 @@ namespace webserver::chat {
         transaction->commit();
         return result.value;
     }
-    MessageContext ChatWorkspaceService::context(UserId actor,ConversationId conversation,MessageId message,std::size_t radius)const{
+    MessageContext ChatWorkspaceService::context(UserId actor,MessageContextQuery input)const{
+        const auto[conversation,message,radius]=input;
         member(actor,conversation);
         pageSize(radius,50);
         const auto target=messages_.findMessage(message);

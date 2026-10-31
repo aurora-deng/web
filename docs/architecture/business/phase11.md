@@ -218,8 +218,8 @@ flowchart TB
 |---|---|
 | 总装配与对象生命周期 | [main.cpp](../../../main.cpp) |
 | 领域对象与抽象端口 | [Domain.h](../../../backend/application/domain/Domain/Domain.h)、[Ports.h](../../../backend/application/ports/Ports/Ports.h) |
-| 账号与权限 | [AuthService.cpp](../../../backend/application/business/AuthService/AuthService.cpp)、[Phase11AuthHttp.cpp](../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp) |
-| 好友、群聊与消息事务 | [SocialService.cpp](../../../backend/application/business/SocialService/SocialService.cpp)、[ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) |
+| 账号与权限 | [AuthService.cpp](../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp)、[Phase11AuthHttp.cpp](../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp) |
+| 好友、群聊与消息事务 | [SocialService.cpp](../../../backend/application/modules/contacts/application/SocialService/SocialService.cpp)、[ChatService.cpp](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp) |
 | WebSocket/SSE/Outbox | [Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)、[OutboxDispatcher.cpp](../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp) |
 | PostgreSQL 与连接池 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp)、[PostgresConnectionPool.cpp](../../../backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
 | AI 编排和模型选择 | [AiChatService.cpp](../../../backend/application/business/AiChatService/AiChatService.cpp)、[ModelRegistryService.cpp](../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) |
@@ -313,7 +313,7 @@ rollback → 用快照恢复
 
 ## 4. 账号与 Session
 
-[AuthService.cpp](../../../backend/application/business/AuthService/AuthService.cpp) 已实现：
+[AuthService.cpp](../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp) 已实现：
 
 1. 用户名统一转小写并校验字符；
 2. 密码交给 `ICredentialCodec`，业务层不接触 Argon2id 细节；
@@ -394,9 +394,9 @@ Outbox 解决的是双写问题：数据库消息和“待推送事件”在同�
 
 代码入口：
 
-- [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp)：会话、权限、幂等和 Outbox；
+- [ChatService.cpp](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp)：会话、权限、幂等和 Outbox；
 - [OutboxDispatcher.cpp](../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp)：推送、确认和失败重试；
-- [SocialService.cpp](../../../backend/application/business/SocialService/SocialService.cpp)：好友申请；
+- [SocialService.cpp](../../../backend/application/modules/contacts/application/SocialService/SocialService.cpp)：好友申请；
 - [Phase11SocialChatHttp.cpp](../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)：
   好友、会话、历史和搜索 HTTP 入口；
 - [Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)：
@@ -1163,7 +1163,7 @@ Phase 11 原来按层分目录，但一个目录中平铺了较多 `.h/.cpp`。�
 ```text
 backend/server/http/HttpParser/HttpParser.{h,cpp}
 backend/server/websocket/WebSocketSession/WebSocketSession.{h,cpp}
-backend/application/business/ChatService/ChatService.{h,cpp}
+backend/application/modules/chat/application/ChatService/ChatService.{h,cpp}
 backend/ai/models/OllamaModelProvider/OllamaModelProvider.{h,cpp}
 ```
 

@@ -20,11 +20,15 @@ def frame(kind,flags,stream,payload=b''):
     return len(payload).to_bytes(3,'big')+bytes([kind,flags])+stream.to_bytes(4,'big')+payload
 
 def check_http2(client):
-    context=ssl.create_default_context(cafile='/home/pikachu/phase11-data/function3/validation/localhost.crt')
+    # Keep the business suite on the owned test listener. The former hard-coded
+    # 18443 targeted the daily service and used a different certificate.
+    port=18444
+    server_name='192.168.239.135'
+    context=ssl.create_default_context(cafile='/home/pikachu/phase11-data/function3/runtime/localhost.crt')
     context.set_alpn_protocols(['h2'])
-    fields=[(':method','GET'),(':scheme','https'),(':path','/api/tree/posts?limit=1'),(':authority','localhost:18443'),('cookie',client.cookie)]
+    fields=[(':method','GET'),(':scheme','https'),(':path','/api/tree/posts?limit=1'),(':authority',f'{server_name}:{port}'),('cookie',client.cookie)]
     block=b''.join(b'\x00'+text(name)+text(value) for name,value in fields)
-    with socket.create_connection((client.host,18443),timeout=20) as plain,context.wrap_socket(plain,server_hostname='localhost') as channel:
+    with socket.create_connection((client.host,port),timeout=20) as plain,context.wrap_socket(plain,server_hostname=server_name) as channel:
         assert channel.selected_alpn_protocol()=='h2'
         # Streams 1 and 5 finish independently; stream 3 is cancelled in the same input batch.
         channel.sendall(b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'+frame(4,0,0)+frame(1,5,1,block)+frame(1,5,3,block)+frame(3,0,3,(8).to_bytes(4,'big'))+frame(1,5,5,block))

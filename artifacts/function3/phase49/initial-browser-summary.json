@@ -1,0 +1,11 @@
+{
+  "passed": false,
+  "scope": "actual frontend with protocol fixtures; real Linux/Windows separate",
+  "suites": [
+    {
+      "name": "chat_workspace_browser",
+      "passed": false,
+      "seconds": 52.64
+    }
+  ]
+}

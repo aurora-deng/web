@@ -1,4 +1,4 @@
-#include "backend/application/business/ChatService/ChatService.h"
+#include "backend/application/modules/chat/application/ChatService/ChatService.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 #include "tests/phase11/unit/RepositoryContract.h"
 

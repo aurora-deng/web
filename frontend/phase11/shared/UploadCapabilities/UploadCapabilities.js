@@ -1,7 +1,8 @@
+import { sharedApi } from "../SharedApi/SharedApi.js?v=dc39cdb5489c964d";
 const cache=new WeakMap();
 /** A server contract, not a second client-side source of policy numbers. */
 export function uploadCapabilities(api) {
-  if(!cache.has(api))cache.set(api,api.request('/api/client-capabilities').then(value=>{
+  if(!cache.has(api))cache.set(api,api.request(sharedApi.getClientCapabilities({})).then(value=>{
     if(!value?.uploads?.chat || !value.uploads.treeImage || !value.uploads.treeVoice)throw new Error('服务器上传规则未就绪，请刷新页面后重试');
     return value.uploads;
   }).catch(error=>{cache.delete(api);throw error;}));

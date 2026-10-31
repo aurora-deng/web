@@ -1,5 +1,6 @@
-import { MediaUploader } from '../MediaUploader/MediaUploader.js?v=227af12a6c379d08';
-import { paintUploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=227af12a6c379d08';
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=dc39cdb5489c964d";
+import { MediaUploader } from '../MediaUploader/MediaUploader.js?v=dc39cdb5489c964d';
+import { paintUploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=dc39cdb5489c964d';
 /** 树和主页共用一条发布链路；公开范围确认进入服务器契约，不能只改 UI 提示。 */
 export class ActivityPublisher {
   constructor(form,api,{initialDestination='profile',files=()=>[],status,onPublished}) {
@@ -34,7 +35,7 @@ export class ActivityPublisher {
       const ids=[];for(const file of this.files()){this.status.textContent=`正在上传并校验 ${file.name}`;ids.push(await this.uploader.upload(file));}
       data.fileIds=ids.join(',');const signature=JSON.stringify(data);
       if(this.signature!==signature){this.signature=signature;this.requestId=Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');}data.requestId=this.requestId;
-      const post=await this.api.request('/api/activities',{method:'POST',data});
+      const post=await this.api.request(activitiesApi.postActivities({}),{method:'POST',data});
       this.signature='';this.status.textContent='已发布';form.reset();
       form.elements.destination.value=destination;form.elements.visibility.value=visibility;this.updateAudience();
       form.dispatchEvent(new CustomEvent('activity:published',{detail:post}));await this.onPublished(post);

@@ -1,5 +1,7 @@
 # 教学：业务怎样接入这台 C++ 服务器
 
+当前接口绑定、领域装配和数据库模型的新增讲解见 [Phase49教学](phase49-teaching.md) 与 [数据库分层](../../database/domain-layering.md)。以下保留原接入课程，源码索引已跟随服务移动。
+
 本文面向已经熟悉 Reactor、HTTP、WebSocket、SSE 和 HTTP/2 的你。学习目标不是再写一遍协议，而是能回答：**一个按钮触发的业务，怎样经过已有服务器，安全地改变数据库，再把结果返回到正确的用户？**
 
 以 2026-10-12 本地 Function2 工作区的源码为依据。本文是代码核对和学习路线，不是新一轮虚拟机测试报告；历史 Phase 的测试结论仍以各自记录为准。代码入口使用相对链接，便于本地和 GitHub 阅读。
@@ -195,7 +197,7 @@ Content-Type: application/json
 3. `runDatabase` 调用 `IAuthBusiness::login`。
 4. 收到 `LoginSession`，返回用户资料和 `csrfToken`，通过 `Set-Cookie` 保存 Session Token。
 
-读 [AuthService.cpp](../../../backend/application/business/AuthService/AuthService.cpp)：验证账号、限流和密码；生成会话；数据库保存 Token Hash。密码散列与随机 Token 的具体能力交给 [SodiumCredentialCodec](../../../backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)。
+读 [AuthService.cpp](../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp)：验证账号、限流和密码；生成会话；数据库保存 Token Hash。密码散列与随机 Token 的具体能力交给 [SodiumCredentialCodec](../../../backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)。
 
 **注册与登录要分开理解**：`POST /api/auth/register` 返回 `201` 和 `User`，它不创建登录 Cookie；`POST /api/auth/login` 才创建会话。不要把“创建了账号”画成“自动获得登录 Session”。
 
@@ -246,7 +248,7 @@ Cookie 默认安全配置与明文学习环境的配置不同；当前虚拟机 
 3. 调用 `IChatBusiness::sendText`。
 4. 业务返回后唤醒 Outbox，然后设置 `chat.accepted`。
 
-读 [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) 的 `sendText → sendMessage`：
+读 [ChatService.cpp](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp) 的 `sendText → sendMessage`：
 
 1. 检查客户端 ID、正文长度。
 2. 开事务；检查会话未解散、发送人是成员、未被禁言。
@@ -628,14 +630,14 @@ flowchart LR
 | HTTP 分发与执行策略 | [Router](../../../backend/server/Route/Router.cpp)、[HttpSession](../../../backend/server/http/HttpSession/HttpSession.cpp) |
 | WS 应用分发 | [WebSocketDispatcher](../../../backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.cpp)、[WsMessageContext](../../../backend/server/websocket/WebSocketDispatcher/WsMessageContext.h) |
 | 业务接口与存储端口 | [BusinessInterfaces](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h)、[Ports](../../../backend/application/ports/Ports/Ports.h) |
-| HTTP 身份与账号 | [AuthHttp.cpp](../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp)、[AuthHttp.h](../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h)、[AuthService](../../../backend/application/business/AuthService/AuthService.cpp) |
-| 社交/群聊/历史 HTTP | [SocialChatHttp](../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)、[SocialService](../../../backend/application/business/SocialService/SocialService.cpp) |
+| HTTP 身份与账号 | [AuthHttp.cpp](../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp)、[AuthHttp.h](../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h)、[AuthService](../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp) |
+| 社交/群聊/历史 HTTP | [SocialChatHttp](../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)、[SocialService](../../../backend/application/modules/contacts/application/SocialService/SocialService.cpp) |
 | 实时命令、Outbox Pump/Sink、Presence Bridge、AI SSE | [Phase11Realtime.cpp](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)、[Phase11Realtime.h](../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h) |
-| 发消息、游标与撤回 | [ChatService](../../../backend/application/business/ChatService/ChatService.cpp)、[MessageJson](../../../backend/application/transport/serialization/MessageJson/MessageJson.cpp) |
+| 发消息、游标与撤回 | [ChatService](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp)、[MessageJson](../../../backend/application/transport/serialization/MessageJson/MessageJson.cpp) |
 | 有界慢任务执行器 | [BoundedExecutor](../../../backend/application/runtime/BoundedExecutor/BoundedExecutor.h) |
 | PostgreSQL 事务/幂等/序号/查询 | [PostgresStore](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp)、[PostgresConnectionPool](../../../backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
 | Outbox 分发规则 | [OutboxDispatcher](../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp) |
-| 文件入口与业务 | [FileHttp](../../../backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp)、[FileService](../../../backend/application/business/FileService/FileService.cpp) |
+| 文件入口与业务 | [FileHttp](../../../backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp)、[FileService](../../../backend/application/modules/files/application/FileService/FileService.cpp) |
 | AI、RAG 与模型 | [AiChatService](../../../backend/application/business/AiChatService/AiChatService.cpp)、[RagService](../../../backend/ai/models/RagService/RagService.cpp)、[ModelRegistryService](../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) |
 | 训练数据与管理 | [TrainingDataService](../../../backend/ai/training/TrainingDataService/TrainingDataService.cpp)、[训练管理工具](../../../tools/phase11_training_admin.cpp)、[模型管理工具](../../../tools/phase11_model_admin.cpp) |
 | 前端命令与状态消费 | [app.js](../../../frontend/phase11/app.js) |

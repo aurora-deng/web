@@ -15,8 +15,8 @@ import time
 SOURCE=Path('/home/pikachu/function3-src');BASE=SOURCE
 ROOT=Path('/home/pikachu/phase11-data/function3/validation')
 parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--diagnostic',action='store_true');parser.add_argument('--synchronous-commit',choices=('on','off'),default='on');parser.add_argument('--label',default='',help='Separate evidence directory for a later explicitly justified rerun')
-parser.add_argument('--stage',choices=('phase43-47','phase48'),default='phase43-47')
-parser.add_argument('--baseline-stage',choices=('phase43-47','phase48'),default='phase43-47')
+parser.add_argument('--stage',choices=('phase43-47','phase48','phase49'),default='phase43-47')
+parser.add_argument('--baseline-stage',choices=('phase43-47','phase48','phase49'),default='phase43-47')
 a=parser.parse_args()
 BEFORE=ROOT/a.baseline_stage/'webserver-before'
 if a.label and not re.fullmatch(r'[a-z0-9-]{1,40}',a.label):parser.error('label must be a short lowercase directory name')

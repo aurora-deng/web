@@ -5,7 +5,7 @@
 #include "backend/application/ports/IUserRepository/IUserRepository.h"
 
 #include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
-#include "backend/application/business/ChatService/ChatService.h"
+#include "backend/application/modules/chat/application/ChatService/ChatService.h"
 #include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
 #include "backend/application/runtime/BoundedExecutor/BoundedExecutor.h"
 

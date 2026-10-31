@@ -29,7 +29,7 @@ test('search window preserves synchronized cursor and recall terminal state',asy
 test('request errors distinguish definitive failure, abort and uncertain writes without retry',async()=>{
   const original=globalThis.fetch;let calls=0;
   try{
-    const api=new BusinessApi();globalThis.fetch=async()=>{calls++;throw new TypeError('offline');};
+    const api=new BusinessApi({validateContracts:false});globalThis.fetch=async()=>{calls++;throw new TypeError('offline');};
     await assert.rejects(api.request('/api/x',{method:'POST',data:{a:1}}),e=>e.uncertain===true);assert.equal(calls,1);
     globalThis.fetch=async()=>{throw new DOMException('cancelled','AbortError');};
     await assert.rejects(api.request('/api/x'),e=>e.name==='AbortError');

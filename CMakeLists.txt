@@ -177,7 +177,8 @@ if(WEBSERVER_ENABLE_PHASE11)
     target_link_libraries(webserver_ai PUBLIC webserver_application_support OpenSSL::Crypto)
     # Chat use cases depend on ports only; a driver is selected at assembly time.
     add_library(webserver_chat_workspace
-        backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.cpp)
+        backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.cpp
+        backend/application/modules/contacts/application/UserDirectoryService/UserDirectoryService.cpp)
     target_include_directories(webserver_chat_workspace PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_chat_workspace PUBLIC webserver_sanitizers)
     add_library(webserver_phase11
@@ -196,10 +197,10 @@ if(WEBSERVER_ENABLE_PHASE11)
         backend/application/storage/memory/MemoryWorkspaceRepository/MemoryWorkspaceRepository.cpp
         backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.cpp
         backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp
-        backend/application/business/AuthService/AuthService.cpp
-        backend/application/business/SocialService/SocialService.cpp
-        backend/application/business/ChatService/ChatService.cpp
-        backend/application/business/FileService/FileService.cpp
+        backend/application/modules/accounts/application/AuthService/AuthService.cpp
+        backend/application/modules/contacts/application/SocialService/SocialService.cpp
+        backend/application/modules/chat/application/ChatService/ChatService.cpp
+        backend/application/modules/files/application/FileService/FileService.cpp
         backend/application/business/AiChatService/AiChatService.cpp
         backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.cpp
         backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp
@@ -934,19 +935,51 @@ if(WEBSERVER_BUILD_FUZZER)
 endif()
 
 # Root composition helpers retain the executable's existing feature definitions.
-target_sources(webserver PRIVATE
-    backend/application/transport/learning/LearningRoutes/LearningRoutes.cpp)
-if(WEBSERVER_ENABLE_PHASE11 AND WEBSERVER_ENABLE_POSTGRES AND WEBSERVER_ENABLE_SODIUM)
-    target_sources(webserver PRIVATE
-        backend/ai/bootstrap/ModelProviderAssembly/ModelProviderAssembly.cpp
-        backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.cpp)
-endif()
-
 if(TARGET webserver_phase11_http)
     target_sources(webserver_phase11_http PRIVATE
-        backend/application/transport/http/ContactsHttp/ContactsHttp.cpp
-        backend/application/transport/http/ConversationsHttp/ConversationsHttp.cpp
-        backend/application/transport/http/MessageHistoryHttp/MessageHistoryHttp.cpp
-        backend/application/transport/http/GroupGovernanceHttp/GroupGovernanceHttp.cpp
+        backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp
+        backend/application/modules/contacts/transport/UserDirectoryHttp/UserDirectoryHttp.cpp
+        backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.cpp
+        backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp
+        backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp
     )
 endif()
+
+# Application composition is independently linkable; the frozen transport core
+# has no dependency on domain runtimes or optional model providers.
+add_library(webserver_application_runtime
+    backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.cpp
+    backend/application/bootstrap/NetworkSetup/NetworkSetup.cpp
+    backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp
+    backend/application/bootstrap/GrpcRuntime/GrpcRuntime.cpp
+    backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp
+    backend/application/transport/learning/LearningRoutes/LearningRoutes.cpp)
+target_include_directories(webserver_application_runtime PUBLIC ${PROJECT_SOURCE_DIR} PRIVATE ${PROJECT_BINARY_DIR}/generated)
+add_dependencies(webserver_application_runtime project_build_stamp)
+target_link_libraries(webserver_application_runtime PUBLIC webserver_core webserver_runtime_config function3_assets)
+if(WEBSERVER_ENABLE_PHASE11)
+    target_link_libraries(webserver_application_runtime PUBLIC webserver_phase11_http webserver_private_http)
+endif()
+if(WEBSERVER_ENABLE_PHASE11 AND WEBSERVER_ENABLE_POSTGRES AND WEBSERVER_ENABLE_SODIUM)
+    target_sources(webserver_application_runtime PRIVATE
+        backend/application/bootstrap/StorageRuntime/StorageRuntime.cpp
+        backend/application/bootstrap/IdentityRuntime/IdentityRuntime.cpp
+        backend/application/bootstrap/ContactsRuntime/ContactsRuntime.cpp
+        backend/application/bootstrap/ChatRuntime/ChatRuntime.cpp
+        backend/application/bootstrap/FileRuntime/FileRuntime.cpp
+        backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp
+        backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.cpp
+        backend/ai/bootstrap/AiRuntime/AiRuntime.cpp
+        backend/ai/bootstrap/ModelProviderAssembly/ModelProviderAssembly.cpp
+        backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.cpp)
+    target_link_libraries(webserver_application_runtime PUBLIC function3_http)
+endif()
+if(WEBSERVER_ENABLE_GRPC)
+    target_compile_definitions(webserver_application_runtime PRIVATE WEBSERVER_HAS_GRPC=1)
+    target_link_libraries(webserver_application_runtime PUBLIC webserver_grpc)
+    if(TARGET webserver_phase11_grpc_onnx)
+        target_compile_definitions(webserver_application_runtime PRIVATE WEBSERVER_HAS_PHASE11_GRPC_ONNX=1)
+        target_link_libraries(webserver_application_runtime PUBLIC webserver_phase11_grpc_onnx)
+    endif()
+endif()
+target_link_libraries(webserver PRIVATE webserver_application_runtime)

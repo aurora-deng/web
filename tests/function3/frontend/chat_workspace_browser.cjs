@@ -43,6 +43,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api/me') return json({ user: { id: userId, username: `user${userId}`,
     displayName: `用户${userId}` }, csrfToken: 'test-csrf' });
   if (url.pathname === '/api/conversations') return json([summary()]);
+  if (url.pathname === '/api/knowledge/documents') return json([{id:'1',title:'契约资料',mediaType:'text/plain',sourceName:'fixture.txt',scope:'private',state:'active',sha256:'a'.repeat(64)}]);
   if (url.pathname.endsWith('/members')) return json(members);
   if (url.pathname.endsWith('/messages/by-client-id')) return json(messages.find(message =>
     message.senderId === userId && message.clientMessageId === url.searchParams.get('clientMessageId')) || null);
@@ -110,6 +111,9 @@ const server = http.createServer((req, res) => {
   await page.locator('#search-results button').first().click();await page.waitForSelector('[data-message-id="11"].search-hit');
   assert.equal(await page.locator('#message-list [data-message-id]').count(),3);
   await page.locator('.history-newer-button').click();await page.waitForSelector('[data-message-id="12"]');
+  await page.locator('#show-knowledge').evaluate(el=>el.click());
+  await page.waitForFunction(()=>document.querySelector('#knowledge-list').textContent.includes('契约资料'));
+  await page.locator('#knowledge-dialog').evaluate(el=>el.close());
   assert.deepEqual(errors,[]);report.passed=true;report.checks=['431 mixed messages over three days, bounded virtual DOM','six layout/theme screenshots','user picker writes existing request DTO','group mute confirmed by backend fixture','global search cursor and bounded context jump','newer paging from search context','no module errors'];
   console.log(JSON.stringify(report));
  }finally{fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify(report,null,2));await browser.close();server.closeAllConnections();events.forEach(e=>e.end());server.close();}

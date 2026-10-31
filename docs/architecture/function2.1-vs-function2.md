@@ -26,7 +26,7 @@ Function2 已具备聊天、文件、AI Provider、模型治理和运维工具�
 3. [ReliableSender.js](../../frontend/phase11/chat/ReliableSender.js)：ACK 超时核对、固定 ID 重试、有界队列、刷新恢复。
 4. [app.js](../../frontend/phase11/app.js)：浏览器按钮、重连编排、状态渲染、管理撤回。
 5. [SocialChatHttp](../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)：`before` 查询和 `messages/by-client-id` 接口。
-6. [ChatService](../../backend/application/business/ChatService/ChatService.cpp)、[Ports](../../backend/application/ports/Ports/Ports.h)、[PostgresStore](../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp)：业务权限、仓储抽象与现有索引的查询实现。
+6. [ChatService](../../backend/application/modules/chat/application/ChatService/ChatService.cpp)、[Ports](../../backend/application/ports/Ports/Ports.h)、[PostgresStore](../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp)：业务权限、仓储抽象与现有索引的查询实现。
 7. [端到端架构](ARCHITECTURE.md)、[通信调用图](communication/protocol-call-flows.md)、[业务调用图](business/business-call-flows.md)、[业务接入讲义](business/server-business-integration-tutorial.md)。
 
 目录调整是迁移教材与修正链接，原文仍保留；移动造成的 Git 删除/新增记录不代表教材内容被清理。

@@ -6,6 +6,7 @@
 
 | 主题 | 入口 |
 |---|---|
+| 当前接口、装配与数据库分层 | [Phase49](architecture/business/phase49.md)、[教学](architecture/business/phase49-teaching.md)、[索引](architecture/business/phase49-code-index.md)、[数据库规范](database/domain-layering.md)、[总图](architecture/business/phase49-end-to-end.md) |
 | 当前补齐配色/拆分与验收 | [Phase48](architecture/business/phase48.md)、[索引](architecture/business/phase48-code-index.md)、[教学](architecture/business/phase48-teaching.md) |
 | Phase43–47交付与历史未通过记录 | [Phase47](architecture/business/phase47.md) |
 | 本轮完整架构与代码索引 | [总图](architecture/business/phase43-47-end-to-end.md)、[索引](architecture/business/phase43-47-code-index.md) |

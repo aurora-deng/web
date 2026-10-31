@@ -1,0 +1,2 @@
+worker pools: http=2, websocket=2
+webserver failed to start: WEB_PHASE11_TOKEN_KEY_FILE must be a private regular file

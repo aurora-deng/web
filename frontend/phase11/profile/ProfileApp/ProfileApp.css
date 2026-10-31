@@ -1,4 +1,4 @@
-@import url('/phase11/shared/AnnouncementPlayer/AnnouncementPlayer.css?v=227af12a6c379d08');
+@import url('/phase11/shared/AnnouncementPlayer/AnnouncementPlayer.css?v=dc39cdb5489c964d');
 :root{color-scheme:dark;--p-bg:var(--bg);--p-panel:var(--surface);--p-soft:var(--surface-2);--p-text:var(--text);--p-muted:var(--text-3);--p-line:var(--line);--p-accent:var(--accent-text);font-family:"Segoe UI","Microsoft YaHei",sans-serif;}
 :root[data-theme=light]{color-scheme:light;--p-bg:var(--bg);--p-panel:var(--surface);--p-soft:var(--surface-2);--p-text:var(--text);--p-muted:var(--text-3);--p-line:var(--line);--p-accent:var(--accent-text);}
 *{box-sizing:border-box;}body{margin:0;background:var(--p-bg);color:var(--p-text);font-size:14px;}button,input,select,textarea{font:inherit;}button,a,input,textarea,select{outline-offset:4px;}button{cursor:pointer;}button:disabled{cursor:wait;opacity:.55;}a{color:var(--p-accent);text-decoration:none;}button{background:var(--p-soft);color:var(--p-text);border:1px solid var(--p-line);border-radius:8px;padding:9px 15px;}button:hover{filter:brightness(1.1);}[hidden]{display:none!important;}

@@ -1,0 +1,1083 @@
+{
+  "version": 1,
+  "scope": "Linux business HTTP; local assistant has a separate Windows boundary",
+  "payloadSemantics": "chat-workspace.openapi.json and realtime-contracts.json plus real integration tests; not inferred from route literals",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "domain": "accounts",
+      "operation": "postAuthLogin",
+      "sources": [
+        "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
+        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "domain": "accounts",
+      "operation": "postAuthLogout",
+      "sources": [
+        "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
+        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "domain": "accounts",
+      "operation": "postAuthRegister",
+      "sources": [
+        "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
+        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/me",
+      "domain": "accounts",
+      "operation": "getMe",
+      "sources": [
+        "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
+        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me",
+      "domain": "accounts",
+      "operation": "patchMe",
+      "sources": [
+        "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
+        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/avatar",
+      "domain": "accounts",
+      "operation": "postMeAvatar",
+      "sources": [
+        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/activities",
+      "domain": "activities",
+      "operation": "getActivities",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/activities",
+      "domain": "activities",
+      "operation": "postActivities",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/activities/:post",
+      "domain": "activities",
+      "operation": "getActivitiesPost",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/activities/:post/favorite",
+      "domain": "activities",
+      "operation": "postActivitiesPostFavorite",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/activities/:post/share",
+      "domain": "activities",
+      "operation": "getActivitiesPostShare",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/activities/favorites",
+      "domain": "activities",
+      "operation": "getActivitiesFavorites",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/audits",
+      "domain": "admin",
+      "operation": "getAdminAudits",
+      "sources": [
+        "backend/application/modules/admin/transport/AdminHttp/AdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cache",
+      "domain": "admin",
+      "operation": "getAdminCache",
+      "sources": [
+        "backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/me",
+      "domain": "admin",
+      "operation": "getAdminMe",
+      "sources": [
+        "backend/application/modules/admin/transport/AdminHttp/AdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/messaging",
+      "domain": "admin",
+      "operation": "getAdminMessaging",
+      "sources": [
+        "backend/application/modules/messaging/transport/MessagingHttp/MessagingHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/messaging/:event/replay",
+      "domain": "admin",
+      "operation": "postAdminMessagingEventReplay",
+      "sources": [
+        "backend/application/modules/messaging/transport/MessagingHttp/MessagingHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/messaging/consumer-failures",
+      "domain": "admin",
+      "operation": "getAdminMessagingConsumerFailures",
+      "sources": [
+        "backend/application/modules/messaging/transport/MessagingHttp/MessagingHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/messaging/dead",
+      "domain": "admin",
+      "operation": "getAdminMessagingDead",
+      "sources": [
+        "backend/application/modules/messaging/transport/MessagingHttp/MessagingHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/model-operations/:operation",
+      "domain": "admin",
+      "operation": "getAdminModelOperationsOperation",
+      "sources": [
+        "backend/application/modules/admin/transport/ModelAdminHttp/ModelAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/models",
+      "domain": "admin",
+      "operation": "getAdminModels",
+      "sources": [
+        "backend/application/modules/admin/transport/ModelAdminHttp/ModelAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/models/:node/versions",
+      "domain": "admin",
+      "operation": "getAdminModelsNodeVersions",
+      "sources": [
+        "backend/application/modules/admin/transport/ModelAdminHttp/ModelAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/models/:node/versions/:version",
+      "domain": "admin",
+      "operation": "postAdminModelsNodeVersionsVersion",
+      "sources": [
+        "backend/application/modules/admin/transport/ModelAdminHttp/ModelAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/models/:node/versions/:version/quality",
+      "domain": "admin",
+      "operation": "getAdminModelsNodeVersionsVersionQuality",
+      "sources": [
+        "backend/application/modules/admin/transport/ModelAdminHttp/ModelAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/reports",
+      "domain": "admin",
+      "operation": "getAdminReports",
+      "sources": [
+        "backend/application/modules/admin/transport/AdminHttp/AdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/reports/:report/resolve",
+      "domain": "admin",
+      "operation": "postAdminReportsReportResolve",
+      "sources": [
+        "backend/application/modules/admin/transport/AdminHttp/AdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/speech/audio/:key",
+      "domain": "admin",
+      "operation": "getAdminSpeechAudioKey",
+      "sources": [
+        "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/speech/preview",
+      "domain": "admin",
+      "operation": "postAdminSpeechPreview",
+      "sources": [
+        "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/speech/preview/:voice",
+      "domain": "admin",
+      "operation": "getAdminSpeechPreviewVoice",
+      "sources": [
+        "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/speech/settings",
+      "domain": "admin",
+      "operation": "getAdminSpeechSettings",
+      "sources": [
+        "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/speech/settings",
+      "domain": "admin",
+      "operation": "patchAdminSpeechSettings",
+      "sources": [
+        "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/tree/categories",
+      "domain": "admin",
+      "operation": "getAdminTreeCategories",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/tree/categories",
+      "domain": "admin",
+      "operation": "postAdminTreeCategories",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/tree/posts/:post/hide",
+      "domain": "admin",
+      "operation": "postAdminTreePostsPostHide",
+      "sources": [
+        "backend/application/modules/admin/transport/AdminHttp/AdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users",
+      "domain": "admin",
+      "operation": "getAdminUsers",
+      "sources": [
+        "backend/application/modules/admin/transport/AdminHttp/AdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/users/:user",
+      "domain": "admin",
+      "operation": "postAdminUsersUser",
+      "sources": [
+        "backend/application/modules/admin/transport/AdminHttp/AdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/generations/:generation/citations",
+      "domain": "ai",
+      "operation": "getAiGenerationsGenerationCitations",
+      "sources": [
+        "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/announcements",
+      "domain": "announcements",
+      "operation": "getAnnouncements",
+      "sources": [
+        "backend/application/modules/announcement/transport/AnnouncementHttp/AnnouncementHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/announcements/:announcement/audio",
+      "domain": "announcements",
+      "operation": "getAnnouncementsAnnouncementAudio",
+      "sources": [
+        "backend/ai/speech/transport/SpeechHttp/SpeechHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/announcements/:announcement/audio/content",
+      "domain": "announcements",
+      "operation": "getAnnouncementsAnnouncementAudioContent",
+      "sources": [
+        "backend/ai/speech/transport/SpeechHttp/SpeechHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/announcements/:announcement/claim",
+      "domain": "announcements",
+      "operation": "postAnnouncementsAnnouncementClaim",
+      "sources": [
+        "backend/ai/speech/transport/SpeechHttp/SpeechHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations",
+      "domain": "chat",
+      "operation": "getConversations",
+      "sources": [
+        "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations",
+      "domain": "chat",
+      "operation": "postConversations",
+      "sources": [
+        "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.cpp"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/conversations/:id",
+      "domain": "chat",
+      "operation": "patchConversationsId",
+      "sources": [
+        "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/dissolve",
+      "domain": "chat",
+      "operation": "postConversationsIdDissolve",
+      "sources": [
+        "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/leave",
+      "domain": "chat",
+      "operation": "postConversationsIdLeave",
+      "sources": [
+        "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/:id/members",
+      "domain": "chat",
+      "operation": "getConversationsIdMembers",
+      "sources": [
+        "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/members",
+      "domain": "chat",
+      "operation": "postConversationsIdMembers",
+      "sources": [
+        "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/members/:memberId/mute",
+      "domain": "chat",
+      "operation": "postConversationsIdMembersMemberIdMute",
+      "sources": [
+        "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/members/:memberId/remove",
+      "domain": "chat",
+      "operation": "postConversationsIdMembersMemberIdRemove",
+      "sources": [
+        "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/members/:memberId/role",
+      "domain": "chat",
+      "operation": "postConversationsIdMembersMemberIdRole",
+      "sources": [
+        "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/:id/messages",
+      "domain": "chat",
+      "operation": "getConversationsIdMessages",
+      "sources": [
+        "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:id/messages",
+      "domain": "chat",
+      "operation": "postConversationsIdMessages",
+      "sources": [
+        "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/:id/messages/:messageId/context",
+      "domain": "chat",
+      "operation": "getConversationsIdMessagesMessageIdContext",
+      "sources": [
+        "backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/:id/messages/by-client-id",
+      "domain": "chat",
+      "operation": "getConversationsIdMessagesByClientId",
+      "sources": [
+        "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/conversations/:id/preferences",
+      "domain": "chat",
+      "operation": "getConversationsIdPreferences",
+      "sources": [
+        "backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/conversations/:id/preferences",
+      "domain": "chat",
+      "operation": "patchConversationsIdPreferences",
+      "sources": [
+        "backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/messages",
+      "domain": "chat",
+      "operation": "getSearchMessages",
+      "sources": [
+        "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/messages/page",
+      "domain": "chat",
+      "operation": "getSearchMessagesPage",
+      "sources": [
+        "backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/blocks",
+      "domain": "contacts",
+      "operation": "getBlocks",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/blocks/:id",
+      "domain": "contacts",
+      "operation": "deleteBlocksId",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/blocks/:id",
+      "domain": "contacts",
+      "operation": "postBlocksId",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/friend-requests",
+      "domain": "contacts",
+      "operation": "getFriendRequests",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/friend-requests",
+      "domain": "contacts",
+      "operation": "postFriendRequests",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/friend-requests/:id",
+      "domain": "contacts",
+      "operation": "postFriendRequestsId",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/friends",
+      "domain": "contacts",
+      "operation": "getFriends",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/friends",
+      "domain": "contacts",
+      "operation": "postFriends",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/friends/:id",
+      "domain": "contacts",
+      "operation": "deleteFriendsId",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/friends/:id",
+      "domain": "contacts",
+      "operation": "patchFriendsId",
+      "sources": [
+        "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/search",
+      "domain": "contacts",
+      "operation": "getUsersSearch",
+      "sources": [
+        "backend/application/modules/contacts/transport/UserDirectoryHttp/UserDirectoryHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/conversations/:conversation/file-messages",
+      "domain": "files",
+      "operation": "postConversationsConversationFileMessages",
+      "sources": [
+        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/files/:file",
+      "domain": "files",
+      "operation": "getFilesFile",
+      "sources": [
+        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/files/:file/complete",
+      "domain": "files",
+      "operation": "postFilesFileComplete",
+      "sources": [
+        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/files/:file/content",
+      "domain": "files",
+      "operation": "patchFilesFileContent",
+      "sources": [
+        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/files/uploads",
+      "domain": "files",
+      "operation": "postFilesUploads",
+      "sources": [
+        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/knowledge/documents",
+      "domain": "knowledge",
+      "operation": "getKnowledgeDocuments",
+      "sources": [
+        "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/knowledge/documents",
+      "domain": "knowledge",
+      "operation": "postKnowledgeDocuments",
+      "sources": [
+        "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notification-settings",
+      "domain": "notifications",
+      "operation": "getMeNotificationSettings",
+      "sources": [
+        "backend/application/modules/announcement/transport/AnnouncementHttp/AnnouncementHttp.cpp"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/notification-settings",
+      "domain": "notifications",
+      "operation": "patchMeNotificationSettings",
+      "sources": [
+        "backend/application/modules/announcement/transport/AnnouncementHttp/AnnouncementHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/health/live",
+      "domain": "operations",
+      "operation": "getHealthLive",
+      "sources": [
+        "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/health/ready",
+      "domain": "operations",
+      "operation": "getHealthReady",
+      "sources": [
+        "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/health/version",
+      "domain": "operations",
+      "operation": "getHealthVersion",
+      "sources": [
+        "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/private/generations",
+      "domain": "privateAi",
+      "operation": "postAiPrivateGenerations",
+      "sources": [
+        "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.cpp"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/ai/private/generations/:generation",
+      "domain": "privateAi",
+      "operation": "deleteAiPrivateGenerationsGeneration",
+      "sources": [
+        "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/private/generations/:generation",
+      "domain": "privateAi",
+      "operation": "getAiPrivateGenerationsGeneration",
+      "sources": [
+        "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/private/legacy",
+      "domain": "privateAi",
+      "operation": "getAiPrivateLegacy",
+      "sources": [
+        "backend/application/modules/assistant/transport/PrivateArchiveHttp/PrivateArchiveHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/private/legacy/:kind/:resource",
+      "domain": "privateAi",
+      "operation": "getAiPrivateLegacyKindResource",
+      "sources": [
+        "backend/application/modules/assistant/transport/PrivateArchiveHttp/PrivateArchiveHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/private/legacy/:kind/:resource/purge",
+      "domain": "privateAi",
+      "operation": "postAiPrivateLegacyKindResourcePurge",
+      "sources": [
+        "backend/application/modules/assistant/transport/PrivateArchiveHttp/PrivateArchiveHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/private/models",
+      "domain": "privateAi",
+      "operation": "getAiPrivateModels",
+      "sources": [
+        "backend/application/modules/assistant/transport/AssistantModelsHttp/AssistantModelsHttp.cpp"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/profile-display",
+      "domain": "profiles",
+      "operation": "patchMeProfileDisplay",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/profiles/:user",
+      "domain": "profiles",
+      "operation": "getProfilesUser",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/client-capabilities",
+      "domain": "shared",
+      "operation": "getClientCapabilities",
+      "sources": [
+        "backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/speech/audio/:key",
+      "domain": "speech",
+      "operation": "getMeSpeechAudioKey",
+      "sources": [
+        "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/speech/preview",
+      "domain": "speech",
+      "operation": "postMeSpeechPreview",
+      "sources": [
+        "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/speech/preview/:voice",
+      "domain": "speech",
+      "operation": "getMeSpeechPreviewVoice",
+      "sources": [
+        "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/speech/status",
+      "domain": "speech",
+      "operation": "getMeSpeechStatus",
+      "sources": [
+        "backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/training/candidates",
+      "domain": "training",
+      "operation": "getTrainingCandidates",
+      "sources": [
+        "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/training/candidates",
+      "domain": "training",
+      "operation": "postTrainingCandidates",
+      "sources": [
+        "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/training/candidates/:candidate/revoke",
+      "domain": "training",
+      "operation": "postTrainingCandidatesCandidateRevoke",
+      "sources": [
+        "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tree/categories",
+      "domain": "tree",
+      "operation": "getTreeCategories",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/tree/media/:file/validate",
+      "domain": "tree",
+      "operation": "postTreeMediaFileValidate",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeMediaHttp/TreeMediaHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/tree/media/uploads",
+      "domain": "tree",
+      "operation": "postTreeMediaUploads",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeMediaHttp/TreeMediaHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tree/posts",
+      "domain": "tree",
+      "operation": "getTreePosts",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/tree/posts",
+      "domain": "tree",
+      "operation": "postTreePosts",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tree/posts/:post",
+      "domain": "tree",
+      "operation": "deleteTreePostsPost",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tree/posts/:post",
+      "domain": "tree",
+      "operation": "getTreePostsPost",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tree/posts/:post/author",
+      "domain": "tree",
+      "operation": "getTreePostsPostAuthor",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/tree/posts/:post/friend-request",
+      "domain": "tree",
+      "operation": "postTreePostsPostFriendRequest",
+      "sources": [
+        "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/tree/posts/:post/like",
+      "domain": "tree",
+      "operation": "postTreePostsPostLike",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tree/posts/:post/media/:file",
+      "domain": "tree",
+      "operation": "getTreePostsPostMediaFile",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeMediaHttp/TreeMediaHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tree/posts/:post/replies",
+      "domain": "tree",
+      "operation": "getTreePostsPostReplies",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/tree/posts/:post/replies",
+      "domain": "tree",
+      "operation": "postTreePostsPostReplies",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/tree/posts/:post/reports",
+      "domain": "tree",
+      "operation": "postTreePostsPostReports",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tree/ranking",
+      "domain": "tree",
+      "operation": "getTreeRanking",
+      "sources": [
+        "backend/application/modules/announcement/transport/AnnouncementHttp/AnnouncementHttp.cpp"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tree/replies/:reply",
+      "domain": "tree",
+      "operation": "deleteTreeRepliesReply",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai/web/generations",
+      "domain": "webAi",
+      "operation": "postAiWebGenerations",
+      "sources": [
+        "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.cpp"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/ai/web/generations/:generation",
+      "domain": "webAi",
+      "operation": "deleteAiWebGenerationsGeneration",
+      "sources": [
+        "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/web/generations/:generation",
+      "domain": "webAi",
+      "operation": "getAiWebGenerationsGeneration",
+      "sources": [
+        "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai/web/models",
+      "domain": "webAi",
+      "operation": "getAiWebModels",
+      "sources": [
+        "backend/application/modules/assistant/transport/AssistantModelsHttp/AssistantModelsHttp.cpp"
+      ]
+    }
+  ]
+}

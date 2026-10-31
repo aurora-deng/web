@@ -1,0 +1,52 @@
+[
+  {
+    "name": "runtime",
+    "exitCode": 0,
+    "seconds": 60.978
+  },
+  {
+    "name": "workspace",
+    "exitCode": 0,
+    "seconds": 1.095
+  },
+  {
+    "name": "tree-social",
+    "exitCode": 0,
+    "seconds": 0.961
+  },
+  {
+    "name": "activities",
+    "exitCode": 0,
+    "seconds": 1.333
+  },
+  {
+    "name": "private-archive",
+    "exitCode": 0,
+    "seconds": 1.024
+  },
+  {
+    "name": "web-assistant",
+    "exitCode": 0,
+    "seconds": 38.491
+  },
+  {
+    "name": "group-ai",
+    "exitCode": 0,
+    "seconds": 226.381
+  },
+  {
+    "name": "speech",
+    "exitCode": 0,
+    "seconds": 13.593
+  },
+  {
+    "name": "files",
+    "exitCode": 0,
+    "seconds": 0.865
+  },
+  {
+    "name": "chat-reliability",
+    "exitCode": 0,
+    "seconds": 2.959
+  }
+]

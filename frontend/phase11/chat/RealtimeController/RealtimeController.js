@@ -1,3 +1,5 @@
+import { contactsApi } from "../../contacts/ContactsApi/ContactsApi.js?v=dc39cdb5489c964d";
+import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
 export const dependencies={"resources":["$","unreadWatermarks","wsBackoff","sseBackoff","elements","state","history","sender","runtime"],"commands":["setStatus","toast","createClientId","rememberMessageId","advanceConversationSequence","bumpUnread","clearConversationView","api","renderConversations","loadConversations","openConversation","renderConversationMembers","renderGroupGovernance","createMessageElement","renderCurrentMessages","scrollMessages","refreshMessageReceipts","generationElement","appendMessage","applyRecall","refreshCancelButton","renderContactLists","renderFriendPreview","loadFriendsPreview","loadContacts"],"types":[]};
 /** RealtimeController: explicit use cases; shared state/other controllers arrive through context. */
 export function createRealtimeController(context) {
@@ -40,8 +42,7 @@ async function verifyOwnMessage(payload) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4000);
   try {
-    return await api(`/api/conversations/${payload.conversationId}/messages/by-client-id?` +
-      new URLSearchParams({ clientMessageId: payload.id }), { signal: controller.signal });
+    return await api(chatApi.getConversationsIdMessagesByClientId({"id":(payload.conversationId)}, String(new URLSearchParams({ clientMessageId: payload.id }))), { signal: controller.signal });
   } finally { clearTimeout(timer); }
 }
 
@@ -69,7 +70,7 @@ async function recoverRealtime() {
       const version = state.viewVersion;
       if (conversation) {
         try {
-          const members = await api(`/api/conversations/${conversation.id}/members`);
+          const members = await api(chatApi.getConversationsIdMembers({"id":(conversation.id)}));
           if (version !== state.viewVersion || state.me?.id !== userId) continue;
           state.members = members;
           await history.synchronize(Math.max(history.latest, Number(conversation.nextSequence) - 1),
@@ -417,7 +418,7 @@ function connectEvents() {
 async function refreshPendingBadge() {
   if (!state.me) return;
   try {
-    const requests = await api('/api/friend-requests');
+    const requests = await api(contactsApi.getFriendRequests({}));
     const badge = $('#friend-badge');
     badge.textContent = String(requests.length);
     badge.classList.toggle('hidden', requests.length === 0);

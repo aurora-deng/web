@@ -1,6 +1,8 @@
 # 业务功能架构
 
-当前补齐阶段：[Phase48 配色、领域拆分与 Outbox](phase48.md)、[代码索引](phase48-code-index.md)、[教学](phase48-teaching.md)。原Phase36–47文档作为历史阶段保留。
+Phase49新增：[接口与装配重整](phase49.md)、[教学](phase49-teaching.md)、[代码索引](phase49-code-index.md)、[数据库分层](../../database/domain-layering.md)、[当前总图](phase49-end-to-end.md)。
+
+上一补齐阶段：[Phase48 配色、领域拆分与 Outbox](phase48.md)、[代码索引](phase48-code-index.md)、[教学](phase48-teaching.md)。原Phase36–47文档作为历史阶段保留。
 
 
 本目录集中说明“用户能做什么，以及这些操作如何落到业务服务、Repository、数据库、实时通知和模型系统”。

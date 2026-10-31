@@ -1,9 +1,13 @@
+import { accountsApi } from "../../accounts/AccountsApi/AccountsApi.js?v=dc39cdb5489c964d";
+import { normalizeApplicationRequest } from '../ApiContracts/ApiContracts.js?v=dc39cdb5489c964d';
 /** Cookie 仍由浏览器保管；这里只缓存当前页面的 CSRF，不持久化密码和 Session。 */
 export class BusinessApi {
-  constructor() { this.csrf = ''; this.user = null; }
-  async restore() { const data = await this.request('/api/me'); this.csrf = data.csrfToken; this.user = data.user; return this.user; }
-  async request(path, { method = 'GET', data, body, signal, headers: supplied = {}, ...options } = {}) {
-    method = method.toUpperCase();
+  constructor({validateContracts=true}={}) { this.csrf = ''; this.user = null; this.validateContracts=validateContracts; }
+  async restore() { const data = await this.request(accountsApi.getMe({})); this.csrf = data.csrfToken; this.user = data.user; return this.user; }
+  async request(path, { method, data, body, signal, headers: supplied = {}, ...options } = {}) {
+    // A descriptor owns its HTTP verb; a caller cannot silently turn a read into a write.
+    if(this.validateContracts){const request=normalizeApplicationRequest(path,{method});path=request.path;method=request.method;}
+    else method = (method||'GET').toUpperCase();
     const headers = new Headers(supplied);
     const writing = !['GET', 'HEAD'].includes(method);
     if (data !== undefined) body = JSON.stringify(data);

@@ -1,4 +1,5 @@
-import { createChatScope } from '../ChatScope/ChatScope.js?v=227af12a6c379d08';
+import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
+import { createChatScope } from '../ChatScope/ChatScope.js?v=dc39cdb5489c964d';
 export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","toast","setButtonBusy","api","renderConversations","loadConversations","paintConversationChrome","openConversation","createDirectConversation","openConversationDialog","searchWorkspace"],"types":[],"events":true};
 /** Conversation UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindConversation(context) {
@@ -72,7 +73,7 @@ listen($('#group-conversation-form'), 'submit', async event => {
   const fields = Object.fromEntries(new FormData(form));
   setButtonBusy(button, true, '创建中…');
   try {
-    const conversation = await api('/api/conversations', {
+    const conversation = await api(chatApi.postConversations({}), {
       method: 'POST', body: JSON.stringify({ kind: 'group', ...fields }),
     });
     elements.conversationDialog.close();
@@ -103,7 +104,7 @@ listen($('#conversation-muted'), 'change',async event=>{
   const input=event.currentTarget, conversation=state.conversation, user=state.me?.id;
   if(!conversation) return; input.disabled=true;
   try {
-    const result=await api(`/api/conversations/${conversation.id}/preferences`,{method:'PATCH',data:{notificationsMuted:String(input.checked)}});
+    const result=await api(chatApi.patchConversationsIdPreferences({"id":(conversation.id)}),{method:'PATCH',data:{notificationsMuted:String(input.checked)}});
     if(state.me?.id!==user)return;
     const current=state.conversations.find(c=>Number(c.id)===Number(conversation.id));
     const muted=state.preferenceSnapshots.absorb(conversation.id,result.notificationsMuted,result.version);

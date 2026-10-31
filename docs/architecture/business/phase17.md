@@ -266,8 +266,8 @@ file_objects <──── message_attachments ────> messages
 |---|---|
 | `backend/application/domain/Domain/Domain.h` | `FileObject`、`MessageAttachment`、头像和消息附件字段 |
 | `backend/application/ports/Ports/Ports.h` | `IFileRepository` 与 `IFileStorage` 端口 |
-| `backend/application/business/FileService/` | 上传、核验、下载权限和头像业务 |
-| `backend/application/business/ChatService/` | 文件消息事务、幂等和会话权限 |
+| `backend/application/modules/files/application/FileService/` | 上传、核验、下载权限和头像业务 |
+| `backend/application/modules/chat/application/ChatService/` | 文件消息事务、幂等和会话权限 |
 | `backend/application/storage/files/LocalFileStorage/` | 分片写入、SHA-256、原子封存和路径安全 |
 | `backend/application/storage/postgres/PostgresStore/` | 文件元数据、附件关系、头像与权限 SQL |
 | `backend/application/storage/postgres/migrations/005_files.sql` | 数据库版本 5 |

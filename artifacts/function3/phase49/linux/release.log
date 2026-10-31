@@ -1,0 +1,332 @@
+[  0%] Built target webserver_security
+[  1%] Built target webserver_application_support
+[  2%] Built target webserver_chat_workspace
+[  3%] Built target webserver_runtime_config
+[ 17%] Built target webserver_core
+[ 18%] Built target function3_tree
+[ 18%] Stamping public source fingerprint (no runtime secrets)
+[ 18%] Syncing Phase 11 frontend assets
+[ 18%] Built target phase11_frontend_assets
+[ 19%] Built target webserver_grpc
+[ 19%] Built target project_build_stamp
+[ 20%] Built target function3_activities
+[ 20%] Built target function3_private_archive
+[ 22%] Built target function3_admin
+[ 22%] Built target function3_ranking
+[ 22%] Built target function3_messaging
+[ 22%] Built target function3_moderation
+[ 24%] Built target function3_cache
+[ 24%] Built target nebula_speech_core
+[ 25%] Built target function3_runtime_config
+[ 25%] Built target function3_business_shutdown
+[ 25%] Built target function3_commit_wakeup
+[ 25%] Built target webserver-grpc
+[ 26%] Built target phase9_foundation_tests
+[ 27%] Built target grpc_message_codec_tests
+[ 28%] Built target http2_stream_coroutine_lifecycle
+[ 28%] Built target grpc_integration
+[ 29%] Built target http2_codec_roundtrip
+[ 31%] Built target webserver_unit_tests
+[ 31%] Built target function3_tree_memory
+[ 32%] Built target function3_speech_policy
+[ 33%] Built target function3-tts-worker
+[ 33%] Built target function3_tree_contract
+[ 34%] Built target function3_activities_contract
+[ 34%] Built target function3_redis_contract
+[ 38%] Built target webserver_ai
+[ 39%] Built target function3_assets
+[ 40%] Built target function3_rocketmq
+[ 41%] Built target function3_announcement
+[ 42%] Built target function3_speech
+[ 43%] Built target phase39_private_generation_tests
+[ 43%] Built target function3_rocketmq_roundtrip
+[ 55%] Built target webserver_phase11
+[ 57%] Built target phase11-training-admin
+[ 57%] Built target phase11-model-admin
+[ 58%] Built target webserver_phase11_grpc_onnx
+[ 63%] Built target webserver_phase11_http
+[ 65%] Built target function3_media
+[ 65%] Built target function3_shared_driver
+[ 66%] Built target function3_speech_http
+[ 66%] Built target function3_activity_json
+[ 68%] Built target function3_messaging_http
+[ 68%] Built target function3_admin_http
+[ 68%] Built target function3_announcement_http
+[ 69%] Built target webserver-onnx-worker
+[ 70%] Built target function3_workspace_contract
+[ 71%] Built target phase11_core_tests
+[ 71%] Built target phase11_chat_reliability_tests
+[ 71%] Built target phase11_ai_chat_tests
+[ 73%] Built target phase11_ai_resilience_tests
+[ 73%] Built target phase11_rag_tests
+[ 74%] Built target phase11_file_tests
+[ 74%] Built target phase11_training_tests
+[ 75%] Built target phase11_postgres_contract_tests
+[ 75%] Built target phase11_sodium_credentials_tests
+[ 77%] Built target phase11_onnx_provider_tests
+[ 77%] Built target phase11_ollama_provider_tests
+[ 77%] Built target phase11_onnx_model_smoke
+[ 77%] Built target phase11_grpc_onnx_provider_tests
+[ 78%] Built target function3_process_contract
+[ 79%] Built target function3_model_admin_contract
+[ 80%] Built target webserver_private_http
+[ 80%] Built target function3_recovery_contract
+[ 82%] Built target function3_messaging_driver
+[ 82%] Built target function3_activity_views
+[ 83%] Built target function3_rank_driver
+[ 84%] Built target function3_tree_driver
+[ 85%] Built target function3_announcement_driver
+[ 85%] Built target function3_admin_driver
+[ 86%] Built target function3_moderation_driver
+[ 88%] Built target function3_speech_driver
+[ 89%] Built target function3_tree_http
+[ 89%] Built target function3_activity_http
+[ 90%] Built target function3-site-admin
+[ 90%] Built target phase11_http_auth_tests
+[ 91%] Built target function3_postgres_contract
+[ 91%] Built target function3_capacity
+[ 92%] Built target function3_private_archive_driver
+[ 93%] Built target function3_private_archive_http
+[ 94%] Built target function3_http
+[ 94%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp.o
+[ 94%] Linking CXX static library libwebserver_application_runtime.a
+[ 99%] Built target webserver_application_runtime
+[100%] Linking CXX executable webserver
+Copying static assets next to webserver
+[100%] Built target webserver
+Internal ctest changing into directory: /home/pikachu/function3-src/build-release
+Test project /home/pikachu/function3-src/build-release
+        Start   1: BufferTest.AppendsCompactsAndFindsDelimiters
+  1/115 Test   #1: BufferTest.AppendsCompactsAndFindsDelimiters .....................................   Passed    0.02 sec
+        Start   2: HttpParserTest.WaitsForHalfPacketAndContentLengthBody
+  2/115 Test   #2: HttpParserTest.WaitsForHalfPacketAndContentLengthBody ............................   Passed    0.01 sec
+        Start   3: HttpParserTest.LeavesPipelinedRequestInBuffer
+  3/115 Test   #3: HttpParserTest.LeavesPipelinedRequestInBuffer ....................................   Passed    0.01 sec
+        Start   4: HttpParserTest.DecodesChunkedBodyAcrossPackets
+  4/115 Test   #4: HttpParserTest.DecodesChunkedBodyAcrossPackets ...................................   Passed    0.01 sec
+        Start   5: HttpParserTest.ParsesByteRangesAndRejectsConflictingLengths
+  5/115 Test   #5: HttpParserTest.ParsesByteRangesAndRejectsConflictingLengths ......................   Passed    0.01 sec
+        Start   6: HttpParserTest.EnforcesRequestLineHeaderAndContentLengthLimits
+  6/115 Test   #6: HttpParserTest.EnforcesRequestLineHeaderAndContentLengthLimits ...................   Passed    0.01 sec
+        Start   7: HttpParserTest.RejectsIncrementalChunkedBodyOverLimit
+  7/115 Test   #7: HttpParserTest.RejectsIncrementalChunkedBodyOverLimit ............................   Passed    0.01 sec
+        Start   8: HttpParserTest.RejectsAmbiguousRequestFramingAndMissingHost
+  8/115 Test   #8: HttpParserTest.RejectsAmbiguousRequestFramingAndMissingHost ......................   Passed    0.01 sec
+        Start   9: HttpParserTest.RequiresResetAfterDeliveryAndParsesConnectionTokens
+  9/115 Test   #9: HttpParserTest.RequiresResetAfterDeliveryAndParsesConnectionTokens ...............   Passed    0.01 sec
+        Start  10: HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser
+ 10/115 Test  #10: HttpRangeTest.ParsesClosedOpenAndSuffixRangesViaParser ...........................   Passed    0.01 sec
+        Start  11: HttpRangeTest.PreservesContentRangeForMemoryAndFileBodies
+ 11/115 Test  #11: HttpRangeTest.PreservesContentRangeForMemoryAndFileBodies ........................   Passed    0.01 sec
+        Start  12: HttpResponseTest.SendfilePreservesRouteCachePolicy
+ 12/115 Test  #12: HttpResponseTest.SendfilePreservesRouteCachePolicy ...............................   Passed    0.01 sec
+        Start  13: RouterTest.MatchesDynamicRouteAndExtractsParameter
+ 13/115 Test  #13: RouterTest.MatchesDynamicRouteAndExtractsParameter ...............................   Passed    0.01 sec
+        Start  14: RouterTest.MiddlewareCanShortCircuitRoute
+ 14/115 Test  #14: RouterTest.MiddlewareCanShortCircuitRoute ........................................   Passed    0.01 sec
+        Start  15: RouterTest.ResolvesExecutionPolicyBeforeDispatch
+ 15/115 Test  #15: RouterTest.ResolvesExecutionPolicyBeforeDispatch .................................   Passed    0.01 sec
+        Start  16: RouterTest.FrozenRouterRejectsMutation
+ 16/115 Test  #16: RouterTest.FrozenRouterRejectsMutation ...........................................   Passed    0.01 sec
+        Start  17: RouterTest.ProducesNotFoundResponse
+ 17/115 Test  #17: RouterTest.ProducesNotFoundResponse ..............................................   Passed    0.01 sec
+        Start  18: OperationalMetricsTest.ConcurrentStripedCountersPreserveTotal
+ 18/115 Test  #18: OperationalMetricsTest.ConcurrentStripedCountersPreserveTotal ....................   Passed    0.01 sec
+        Start  19: ObjectPoolTest.ConcurrentAcquireReleaseKeepsObjectsReset
+ 19/115 Test  #19: ObjectPoolTest.ConcurrentAcquireReleaseKeepsObjectsReset .........................   Passed    0.01 sec
+        Start  20: WebSocketHandshakeTest.AcceptKeyMatchesRfc6455Example
+ 20/115 Test  #20: WebSocketHandshakeTest.AcceptKeyMatchesRfc6455Example ............................   Passed    0.01 sec
+        Start  21: WebSocketHandshakeTest.ValidateRequiresVersion13
+ 21/115 Test  #21: WebSocketHandshakeTest.ValidateRequiresVersion13 .................................   Passed    0.01 sec
+        Start  22: WebSocketCodecTest.EncodeDecodeTextRoundTrip
+ 22/115 Test  #22: WebSocketCodecTest.EncodeDecodeTextRoundTrip .....................................   Passed    0.01 sec
+        Start  23: WebSocketCodecTest.RejectUnmaskedClientFrame
+ 23/115 Test  #23: WebSocketCodecTest.RejectUnmaskedClientFrame .....................................   Passed    0.01 sec
+        Start  24: WebSocketCodecTest.RejectsInvalidOutboundTextAndControlFrames
+ 24/115 Test  #24: WebSocketCodecTest.RejectsInvalidOutboundTextAndControlFrames ....................   Passed    0.01 sec
+        Start  25: WebSocketCodecTest.ApplicationEnvelopeRoundTripsEscapedFields
+ 25/115 Test  #25: WebSocketCodecTest.ApplicationEnvelopeRoundTripsEscapedFields ....................   Passed    0.01 sec
+        Start  26: WebSocketParserTest.NeedMoreThenComplete
+ 26/115 Test  #26: WebSocketParserTest.NeedMoreThenComplete .........................................   Passed    0.01 sec
+        Start  27: WebSocketParserTest.RejectsReservedOpcodeAndFragmentedControl
+ 27/115 Test  #27: WebSocketParserTest.RejectsReservedOpcodeAndFragmentedControl ....................   Passed    0.01 sec
+        Start  28: WebSocketParserTest.RejectsNonCanonicalExtendedLengths
+ 28/115 Test  #28: WebSocketParserTest.RejectsNonCanonicalExtendedLengths ...........................   Passed    0.01 sec
+        Start  29: WebSocketMessageAssemblerTest.EmptyFirstFragmentIsStillActive
+ 29/115 Test  #29: WebSocketMessageAssemblerTest.EmptyFirstFragmentIsStillActive ....................   Passed    0.01 sec
+        Start  30: WebSocketMessageAssemblerTest.RejectsInterleavingAndCapsWholeMessage
+ 30/115 Test  #30: WebSocketMessageAssemblerTest.RejectsInterleavingAndCapsWholeMessage .............   Passed    0.01 sec
+        Start  31: WebSocketValidationTest.ValidatesCompleteUtf8IncludingSplitCodePoint
+ 31/115 Test  #31: WebSocketValidationTest.ValidatesCompleteUtf8IncludingSplitCodePoint .............   Passed    0.01 sec
+        Start  32: WebSocketValidationTest.ParsesClosePayloadByFailureKind
+ 32/115 Test  #32: WebSocketValidationTest.ParsesClosePayloadByFailureKind ..........................   Passed    0.01 sec
+        Start  33: WebSocketValidationTest.AcceptsOnlyWireCloseCodeRanges
+ 33/115 Test  #33: WebSocketValidationTest.AcceptsOnlyWireCloseCodeRanges ...........................   Passed    0.01 sec
+        Start  34: WebSocketDeliveryTrackerTest.DeduplicatesAndValidatesAckOwner
+ 34/115 Test  #34: WebSocketDeliveryTrackerTest.DeduplicatesAndValidatesAckOwner ....................   Passed    0.01 sec
+        Start  35: WebSocketDeliveryTrackerTest.NamespacesMessageIdsByServerInstance
+ 35/115 Test  #35: WebSocketDeliveryTrackerTest.NamespacesMessageIdsByServerInstance ................   Passed    0.01 sec
+        Start  36: WebSocketDeliveryTrackerTest.BoundsWindowAndPrunesTerminalRecords
+ 36/115 Test  #36: WebSocketDeliveryTrackerTest.BoundsWindowAndPrunesTerminalRecords ................   Passed    0.01 sec
+        Start  37: WebSocketDeliveryTrackerTest.KeepsClientAndServerIdLimitsIndependent
+ 37/115 Test  #37: WebSocketDeliveryTrackerTest.KeepsClientAndServerIdLimitsIndependent .............   Passed    0.01 sec
+        Start  38: WebSocketDeliveryTrackerTest.EmitsBoundedRetryDecisionsThenFails
+ 38/115 Test  #38: WebSocketDeliveryTrackerTest.EmitsBoundedRetryDecisionsThenFails .................   Passed    0.01 sec
+        Start  39: WebSocketDeliveryTrackerTest.BoundsDeterministicRetryJitter
+ 39/115 Test  #39: WebSocketDeliveryTrackerTest.BoundsDeterministicRetryJitter ......................   Passed    0.01 sec
+        Start  40: WebSocketDeliveryServiceTest.ObservesWriteThenAcceptsApplicationAck
+ 40/115 Test  #40: WebSocketDeliveryServiceTest.ObservesWriteThenAcceptsApplicationAck ..............   Passed    0.01 sec
+        Start  41: WebSocketDeliveryServiceTest.IgnoresLateReceiptAndRetriesWithSameId
+ 41/115 Test  #41: WebSocketDeliveryServiceTest.IgnoresLateReceiptAndRetriesWithSameId ..............   Passed    0.01 sec
+        Start  42: WebSocketDeliveryServiceTest.StopsWorkerAndRejectsNewSubmissions
+ 42/115 Test  #42: WebSocketDeliveryServiceTest.StopsWorkerAndRejectsNewSubmissions .................   Passed    0.01 sec
+        Start  43: WebSocketDeliveryServiceTest.BackgroundWorkerHonorsRetrySchedule
+ 43/115 Test  #43: WebSocketDeliveryServiceTest.BackgroundWorkerHonorsRetrySchedule .................   Passed    0.01 sec
+        Start  44: WebSocketDeliveryServiceTest.RetriesOfflineTargetThenNotifiesFailure
+ 44/115 Test  #44: WebSocketDeliveryServiceTest.RetriesOfflineTargetThenNotifiesFailure .............   Passed    0.01 sec
+        Start  45: WebSocketDeliveryServiceTest.ExposesRetryAndAckMetrics
+ 45/115 Test  #45: WebSocketDeliveryServiceTest.ExposesRetryAndAckMetrics ...........................   Passed    0.01 sec
+        Start  46: WebSocketDispatcherTest.RoutesByTypeAndEchoDefault
+ 46/115 Test  #46: WebSocketDispatcherTest.RoutesByTypeAndEchoDefault ...............................   Passed    0.01 sec
+        Start  47: WebSocketDispatcherTest.SupportsConcurrentDispatchAndRegistration
+ 47/115 Test  #47: WebSocketDispatcherTest.SupportsConcurrentDispatchAndRegistration ................   Passed    0.01 sec
+        Start  48: RequestContextTest.AcceptWebSocketFlag
+ 48/115 Test  #48: RequestContextTest.AcceptWebSocketFlag ...........................................   Passed    0.01 sec
+        Start  49: RequestContextTest.LongProtocolAcceptFlagsAreMutuallyExclusive
+ 49/115 Test  #49: RequestContextTest.LongProtocolAcceptFlagsAreMutuallyExclusive ...................   Passed    0.01 sec
+        Start  50: WebSocketSessionManagerTest.MultiDeviceUnregisterKeepsOtherConnection
+ 50/115 Test  #50: WebSocketSessionManagerTest.MultiDeviceUnregisterKeepsOtherConnection ............   Passed    0.01 sec
+        Start  51: WebSocketSessionManagerTest.RevocationRemovesRoutesEvenWhenCloseCannotBeQueued
+ 51/115 Test  #51: WebSocketSessionManagerTest.RevocationRemovesRoutesEvenWhenCloseCannotBeQueued ...   Passed    0.01 sec
+        Start  52: WebSocketSessionManagerTest.PreservesOutboundRejectionReason
+ 52/115 Test  #52: WebSocketSessionManagerTest.PreservesOutboundRejectionReason .....................   Passed    0.01 sec
+        Start  53: ExecutorTest.ShutdownDrainsAcceptedTasksAndRejectsNewTasks
+ 53/115 Test  #53: ExecutorTest.ShutdownDrainsAcceptedTasksAndRejectsNewTasks .......................   Passed    0.01 sec
+        Start  54: ExecutorTest.SeparateHttpAndWebSocketLanesDoNotStarveEachOther
+ 54/115 Test  #54: ExecutorTest.SeparateHttpAndWebSocketLanesDoNotStarveEachOther ...................   Passed    0.01 sec
+        Start  55: HandlerCancellationTest.DistinguishesCancellationFromDeadline
+ 55/115 Test  #55: HandlerCancellationTest.DistinguishesCancellationFromDeadline ....................   Passed    0.01 sec
+        Start  56: HandlerCancellationTest.CooperativeLoopObservesExecutorDeadline
+ 56/115 Test  #56: HandlerCancellationTest.CooperativeLoopObservesExecutorDeadline ..................   Passed    0.03 sec
+        Start  57: SseCodecTest.EncodesFieldsMultilineDataAndRetry
+ 57/115 Test  #57: SseCodecTest.EncodesFieldsMultilineDataAndRetry ..................................   Passed    0.01 sec
+        Start  58: SseCodecTest.PreventsFieldInjection
+ 58/115 Test  #58: SseCodecTest.PreventsFieldInjection ..............................................   Passed    0.01 sec
+        Start  59: SseCodecTest.WrapsEventTextAsOneHttpChunk
+ 59/115 Test  #59: SseCodecTest.WrapsEventTextAsOneHttpChunk ........................................   Passed    0.01 sec
+        Start  60: SseHandshakeTest.UsesHeaderOnlyChunkedResponse
+ 60/115 Test  #60: SseHandshakeTest.UsesHeaderOnlyChunkedResponse ...................................   Passed    0.01 sec
+        Start  61: TransportWriterTest.PreservesEncodedTaskFifo
+ 61/115 Test  #61: TransportWriterTest.PreservesEncodedTaskFifo .....................................   Passed    0.01 sec
+        Start  62: TransportWriterTest.YieldsAfterPerConnectionWriteBudget
+ 62/115 Test  #62: TransportWriterTest.YieldsAfterPerConnectionWriteBudget ..........................   Passed    0.01 sec
+        Start  63: TransportWriterTest.ReturnsPooledHttpResponseExactlyOnce
+ 63/115 Test  #63: TransportWriterTest.ReturnsPooledHttpResponseExactlyOnce .........................   Passed    0.01 sec
+        Start  64: TransportWriterTest.AppliesWriteBudgetToHttpHeaderAndBody
+ 64/115 Test  #64: TransportWriterTest.AppliesWriteBudgetToHttpHeaderAndBody ........................   Passed    0.01 sec
+        Start  65: TransportWriterTest.AppliesHighWatermarkBackpressure
+ 65/115 Test  #65: TransportWriterTest.AppliesHighWatermarkBackpressure .............................   Passed    0.01 sec
+        Start  66: TransportWriterTest.ReceiptRecordsBackpressureAndCancellationOnce
+ 66/115 Test  #66: TransportWriterTest.ReceiptRecordsBackpressureAndCancellationOnce ................   Passed    0.01 sec
+        Start  67: TransportWriterTest.CloseTaskIsWriteBarrierForLaterTasks
+ 67/115 Test  #67: TransportWriterTest.CloseTaskIsWriteBarrierForLaterTasks .........................   Passed    0.01 sec
+        Start  68: TransportWriterTest.RejectsOversizedFirstTaskWithoutOverflow
+ 68/115 Test  #68: TransportWriterTest.RejectsOversizedFirstTaskWithoutOverflow .....................   Passed    0.01 sec
+        Start  69: TransportWriterTest.SharesImmutableBroadcastBuffer
+ 69/115 Test  #69: TransportWriterTest.SharesImmutableBroadcastBuffer ...............................   Passed    0.01 sec
+        Start  70: ChunkedBodyTest.BorrowsStableSegmentsWithinRequestedBudget
+ 70/115 Test  #70: ChunkedBodyTest.BorrowsStableSegmentsWithinRequestedBudget .......................   Passed    0.01 sec
+        Start  71: OutboundQueueTest.BoundsMailboxGloballyAndPerConnection
+ 71/115 Test  #71: OutboundQueueTest.BoundsMailboxGloballyAndPerConnection ..........................   Passed    0.01 sec
+        Start  72: OutboundQueueTest.DropsStaleGenerationDuringDrain
+ 72/115 Test  #72: OutboundQueueTest.DropsStaleGenerationDuringDrain ................................   Passed    0.01 sec
+        Start  73: CoroutineSchedulerTest.ReapsEveryConnectionRole
+ 73/115 Test  #73: CoroutineSchedulerTest.ReapsEveryConnectionRole ..................................   Passed    0.01 sec
+        Start  74: CoroutineSchedulerTest.KeepsFdReuseIdentityInCompletion
+ 74/115 Test  #74: CoroutineSchedulerTest.KeepsFdReuseIdentityInCompletion ..........................   Passed    0.01 sec
+        Start  75: function3_runtime_config
+ 75/115 Test  #75: function3_runtime_config .........................................................   Passed    0.00 sec
+        Start  76: function3_business_shutdown
+ 76/115 Test  #76: function3_business_shutdown ......................................................   Passed    0.01 sec
+        Start  77: phase11_core_tests
+ 77/115 Test  #77: phase11_core_tests ...............................................................   Passed    0.03 sec
+        Start  78: function3_workspace_contract
+ 78/115 Test  #78: function3_workspace_contract .....................................................   Passed    0.02 sec
+        Start  79: function3_commit_wakeup
+ 79/115 Test  #79: function3_commit_wakeup ..........................................................   Passed    0.01 sec
+        Start  80: phase39_private_generation_tests
+ 80/115 Test  #80: phase39_private_generation_tests .................................................   Passed    0.28 sec
+        Start  81: phase11_chat_reliability_tests
+ 81/115 Test  #81: phase11_chat_reliability_tests ...................................................   Passed    0.04 sec
+        Start  82: phase11_http_auth_tests
+ 82/115 Test  #82: phase11_http_auth_tests ..........................................................   Passed    0.05 sec
+        Start  83: phase11_ai_chat_tests
+ 83/115 Test  #83: phase11_ai_chat_tests ............................................................   Passed    0.14 sec
+        Start  84: phase11_ai_resilience_tests
+ 84/115 Test  #84: phase11_ai_resilience_tests ......................................................   Passed    0.11 sec
+        Start  85: phase11_rag_tests
+ 85/115 Test  #85: phase11_rag_tests ................................................................   Passed    0.03 sec
+        Start  86: phase11_training_tests
+ 86/115 Test  #86: phase11_training_tests ...........................................................   Passed    0.03 sec
+        Start  87: phase11_file_tests
+ 87/115 Test  #87: phase11_file_tests ...............................................................   Passed    0.03 sec
+        Start  88: phase11_postgres_contract_tests
+ 88/115 Test  #88: phase11_postgres_contract_tests ..................................................   Passed    1.66 sec
+        Start  89: phase11_sodium_credentials_tests
+ 89/115 Test  #89: phase11_sodium_credentials_tests .................................................   Passed    1.04 sec
+        Start  90: phase11_ollama_provider_tests
+ 90/115 Test  #90: phase11_ollama_provider_tests ....................................................   Passed    2.44 sec
+        Start  91: phase11_onnx_provider_tests
+ 91/115 Test  #91: phase11_onnx_provider_tests ......................................................   Passed    0.22 sec
+        Start  92: phase11_grpc_onnx_provider_tests
+ 92/115 Test  #92: phase11_grpc_onnx_provider_tests .................................................   Passed    0.14 sec
+        Start  93: phase9_foundation_tests
+ 93/115 Test  #93: phase9_foundation_tests ..........................................................   Passed    0.01 sec
+        Start  94: grpc_message_codec_tests
+ 94/115 Test  #94: grpc_message_codec_tests .........................................................   Passed    0.01 sec
+        Start  95: grpc_integration
+ 95/115 Test  #95: grpc_integration .................................................................   Passed    2.19 sec
+        Start  96: http2_stream_coroutine_lifecycle
+ 96/115 Test  #96: http2_stream_coroutine_lifecycle .................................................   Passed    0.02 sec
+        Start  97: http2_codec_roundtrip
+ 97/115 Test  #97: http2_codec_roundtrip ............................................................   Passed    0.01 sec
+        Start  98: reliable_inbox_unit
+ 98/115 Test  #98: reliable_inbox_unit ..............................................................   Passed    0.10 sec
+        Start  99: phase15_business_benchmark_tools
+ 99/115 Test  #99: phase15_business_benchmark_tools .................................................   Passed    0.15 sec
+        Start 100: tls_blackbox
+100/115 Test #100: tls_blackbox .....................................................................   Passed    0.33 sec
+        Start 101: http_blackbox
+101/115 Test #101: http_blackbox ....................................................................   Passed    6.58 sec
+        Start 102: websocket_blackbox
+102/115 Test #102: websocket_blackbox ...............................................................   Passed   15.10 sec
+        Start 103: sse_blackbox
+103/115 Test #103: sse_blackbox .....................................................................   Passed    0.17 sec
+        Start 104: phase9_security_blackbox
+104/115 Test #104: phase9_security_blackbox .........................................................   Passed    0.19 sec
+        Start 105: phase9_shutdown_blackbox
+105/115 Test #105: phase9_shutdown_blackbox .........................................................   Passed    0.26 sec
+        Start 106: phase11_supervisor_recovery
+106/115 Test #106: phase11_supervisor_recovery ......................................................   Passed    0.44 sec
+        Start 107: function3_speech_policy
+107/115 Test #107: function3_speech_policy ..........................................................   Passed    0.01 sec
+        Start 108: function3_process_contract
+108/115 Test #108: function3_process_contract .......................................................   Passed    1.17 sec
+        Start 109: function3_postgres_contract
+109/115 Test #109: function3_postgres_contract ......................................................   Passed    0.27 sec
+        Start 110: function3_model_admin_contract
+110/115 Test #110: function3_model_admin_contract ...................................................   Passed    0.02 sec
+        Start 111: function3_recovery_contract
+111/115 Test #111: function3_recovery_contract ......................................................   Passed    0.01 sec
+        Start 112: function3_architecture
+112/115 Test #112: function3_architecture ...........................................................   Passed    0.06 sec
+        Start 113: function3_tree_contract
+113/115 Test #113: function3_tree_contract ..........................................................   Passed    0.01 sec
+        Start 114: function3_activities_contract
+114/115 Test #114: function3_activities_contract ....................................................   Passed    0.01 sec
+        Start 115: function3_redis_contract
+115/115 Test #115: function3_redis_contract .........................................................   Passed    1.21 sec
+
+100% tests passed, 0 tests failed out of 115
+
+Total Test time (real) =  35.36 sec

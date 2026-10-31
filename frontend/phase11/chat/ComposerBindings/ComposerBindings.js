@@ -1,4 +1,5 @@
-import { createChatScope } from '../ChatScope/ChatScope.js?v=227af12a6c379d08';
+import { filesApi } from "../../files/FilesApi/FilesApi.js?v=dc39cdb5489c964d";
+import { createChatScope } from '../ChatScope/ChatScope.js?v=dc39cdb5489c964d';
 export const dependencies={"resources":["$","elements","state","sender"],"commands":["setStatus","toast","createClientId","setButtonBusy","api","declaredMediaType","uploadFile","formatBytes","appendMessage","failPendingMessage","sendSocket","readAiTarget","refreshCancelButton","showSelectedFile"],"types":[],"events":true};
 /** Composer UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindComposer(context) {
@@ -69,7 +70,7 @@ listen(elements.messageForm, 'submit', async event => {
         showSelectedFile(selectedFile, progress);
         sendButton.textContent = `上传 ${Math.round(progress * 100)}%`;
       });
-      const result = await api(`/api/conversations/${conversationId}/file-messages`, {
+      const result = await api(filesApi.postConversationsConversationFileMessages({"conversation":(conversationId)}), {
         method: 'POST',
         body: JSON.stringify({ fileId: String(uploaded.id),
           clientMessageId: messageId, caption: content }),

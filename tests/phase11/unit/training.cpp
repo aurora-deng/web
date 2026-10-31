@@ -1,4 +1,4 @@
-#include "backend/application/business/ChatService/ChatService.h"
+#include "backend/application/modules/chat/application/ChatService/ChatService.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 #include "backend/ai/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.h"
 #include "backend/ai/training/TrainingDataService/TrainingDataService.h"

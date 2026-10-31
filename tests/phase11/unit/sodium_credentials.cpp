@@ -1,4 +1,4 @@
-#include "backend/application/business/AuthService/AuthService.h"
+#include "backend/application/modules/accounts/application/AuthService/AuthService.h"
 #include "backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
 #include "backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"

@@ -1,0 +1,551 @@
+{
+  "kind": "synthetic UI/API fixtures",
+  "themes": [
+    {
+      "route": "/phase11/tree/",
+      "dark": {
+        "header": "color(srgb 0.0862745 0.109804 0.14902 / 0.96)",
+        "body": "rgb(20, 24, 34)"
+      },
+      "light": {
+        "header": "color(srgb 1 1 1 / 0.96)",
+        "body": "rgb(247, 243, 248)"
+      }
+    },
+    {
+      "route": "/phase11/admin/",
+      "dark": {
+        "header": "color(srgb 0.0862745 0.109804 0.14902 / 0.96)",
+        "body": "rgb(12, 16, 23)"
+      },
+      "light": {
+        "header": "color(srgb 1 1 1 / 0.96)",
+        "body": "rgb(242, 244, 248)"
+      }
+    },
+    {
+      "route": "/phase11/profile/",
+      "dark": {
+        "header": "color(srgb 0.0862745 0.109804 0.14902 / 0.96)",
+        "body": "rgb(17, 21, 25)"
+      },
+      "light": {
+        "header": "color(srgb 1 1 1 / 0.96)",
+        "body": "rgb(245, 247, 250)"
+      }
+    },
+    {
+      "route": "/phase11/assistant/",
+      "dark": {
+        "header": "color(srgb 0.0862745 0.109804 0.14902 / 0.96)",
+        "body": "rgb(17, 22, 32)"
+      },
+      "light": {
+        "header": "color(srgb 1 1 1 / 0.96)",
+        "body": "rgb(246, 247, 251)"
+      }
+    }
+  ],
+  "palette": [
+    {
+      "route": "/phase11/tree/",
+      "pairs": [
+        {
+          "selector": "body",
+          "contrast": 15.936943703865532,
+          "foreground": "rgb(238, 243, 252)",
+          "background": [
+            0.0784313725490196,
+            0.09411764705882353,
+            0.13333333333333333,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.691374348131858,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08596077490196079,
+            0.10917654588235294,
+            0.14839253333333333,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.423058414065388,
+          "foreground": "rgb(169, 155, 255)",
+          "background": [
+            0.1264690113254902,
+            0.13748712508235295,
+            0.24352660580392155,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.691374348131858,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08596077490196079,
+            0.10917654588235294,
+            0.14839253333333333,
+            1
+          ]
+        },
+        {
+          "selector": "h1",
+          "contrast": 15.936943703865532,
+          "foreground": "rgb(238, 243, 252)",
+          "background": [
+            0.0784313725490196,
+            0.09411764705882353,
+            0.13333333333333333,
+            1
+          ]
+        },
+        {
+          "selector": "h2",
+          "gradient": true
+        }
+      ]
+    },
+    {
+      "route": "/phase11/tree/",
+      "pairs": [
+        {
+          "selector": "body",
+          "contrast": 14.943733714708214,
+          "foreground": "rgb(22, 32, 46)",
+          "background": [
+            0.9686274509803922,
+            0.9529411764705882,
+            0.9725490196078431,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.326889063527987,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9987450980392156,
+            0.9981176470588236,
+            0.9989019607843137,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.718303849539415,
+          "foreground": "rgb(88, 68, 206)",
+          "background": [
+            0.934556862745098,
+            0.9210509803921568,
+            0.9868549019607844,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.326889063527987,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9987450980392156,
+            0.9981176470588236,
+            0.9989019607843137,
+            1
+          ]
+        },
+        {
+          "selector": "h1",
+          "contrast": 14.943733714708214,
+          "foreground": "rgb(22, 32, 46)",
+          "background": [
+            0.9686274509803922,
+            0.9529411764705882,
+            0.9725490196078431,
+            1
+          ]
+        },
+        {
+          "selector": "h2",
+          "gradient": true
+        }
+      ]
+    },
+    {
+      "route": "/phase11/admin/",
+      "pairs": [
+        {
+          "selector": "body",
+          "contrast": 17.11365204853354,
+          "foreground": "rgb(238, 243, 252)",
+          "background": [
+            0.047058823529411764,
+            0.06274509803921569,
+            0.09019607843137255,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.7148429903294184,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08470587294117647,
+            0.10792164392156862,
+            0.1466670431372549,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.7148429903294184,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08470587294117647,
+            0.10792164392156862,
+            0.1466670431372549,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.446815996478285,
+          "foreground": "rgb(169, 155, 255)",
+          "background": [
+            0.1253646976,
+            0.13638281135686273,
+            0.2420081744313725,
+            1
+          ]
+        },
+        {
+          "selector": "h1",
+          "contrast": 17.11365204853354,
+          "foreground": "rgb(238, 243, 252)",
+          "background": [
+            0.047058823529411764,
+            0.06274509803921569,
+            0.09019607843137255,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/phase11/admin/",
+      "pairs": [
+        {
+          "selector": "body",
+          "contrast": 14.897376097172419,
+          "foreground": "rgb(22, 32, 46)",
+          "background": [
+            0.9490196078431372,
+            0.9568627450980393,
+            0.9725490196078431,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.326258219285283,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9979607843137255,
+            0.9982745098039215,
+            0.9989019607843137,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.326258219285283,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9979607843137255,
+            0.9982745098039215,
+            0.9989019607843137,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.717627536248319,
+          "foreground": "rgb(88, 68, 206)",
+          "background": [
+            0.9338509803921569,
+            0.921192156862745,
+            0.9868549019607844,
+            1
+          ]
+        },
+        {
+          "selector": "h1",
+          "contrast": 14.897376097172419,
+          "foreground": "rgb(22, 32, 46)",
+          "background": [
+            0.9490196078431372,
+            0.9568627450980393,
+            0.9725490196078431,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/phase11/profile/",
+      "pairs": [
+        {
+          "selector": "body",
+          "contrast": 16.47078784856599,
+          "foreground": "rgb(238, 243, 252)",
+          "background": [
+            0.06666666666666667,
+            0.08235294117647059,
+            0.09803921568627451,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.701548680687348,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08549018666666666,
+            0.10870595764705882,
+            0.146980768627451,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.701548680687348,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08549018666666666,
+            0.10870595764705882,
+            0.146980768627451,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.701548680687348,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08549018666666666,
+            0.10870595764705882,
+            0.146980768627451,
+            1
+          ]
+        },
+        {
+          "selector": "h1",
+          "contrast": 15.21001942204285,
+          "foreground": "rgb(238, 243, 252)",
+          "background": [
+            0.09411764705882353,
+            0.11372549019607843,
+            0.1411764705882353,
+            1
+          ]
+        },
+        {
+          "selector": "h2",
+          "contrast": 16.47078784856599,
+          "foreground": "rgb(238, 243, 252)",
+          "background": [
+            0.06666666666666667,
+            0.08235294117647059,
+            0.09803921568627451,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/phase11/profile/",
+      "pairs": [
+        {
+          "selector": "body",
+          "contrast": 15.28485721295513,
+          "foreground": "rgb(22, 32, 46)",
+          "background": [
+            0.9607843137254902,
+            0.9686274509803922,
+            0.9803921568627451,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.331567241449801,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9984313725490196,
+            0.9987450980392156,
+            0.9992156862745099,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.331567241449801,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9984313725490196,
+            0.9987450980392156,
+            0.9992156862745099,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.331567241449801,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9984313725490196,
+            0.9987450980392156,
+            0.9992156862745099,
+            1
+          ]
+        },
+        {
+          "selector": "h1",
+          "contrast": 16.40406207106621,
+          "foreground": "rgb(22, 32, 46)",
+          "background": [
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "selector": "h2",
+          "contrast": 15.28485721295513,
+          "foreground": "rgb(22, 32, 46)",
+          "background": [
+            0.9607843137254902,
+            0.9686274509803922,
+            0.9803921568627451,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/phase11/assistant/",
+      "pairs": [
+        {
+          "selector": "body",
+          "contrast": 16.26740481662405,
+          "foreground": "rgb(238, 243, 252)",
+          "background": [
+            0.06666666666666667,
+            0.08627450980392157,
+            0.12549019607843137,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.697533898993612,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08549018666666666,
+            0.10886282039215686,
+            0.14807880784313726,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.697533898993612,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08549018666666666,
+            0.10886282039215686,
+            0.14807880784313726,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 6.697533898993612,
+          "foreground": "rgb(147, 163, 188)",
+          "background": [
+            0.08549018666666666,
+            0.10886282039215686,
+            0.14807880784313726,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "route": "/phase11/assistant/",
+      "pairs": [
+        {
+          "selector": "body",
+          "contrast": 15.322861523210634,
+          "foreground": "rgb(22, 32, 46)",
+          "background": [
+            0.9647058823529412,
+            0.9686274509803922,
+            0.984313725490196,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.332083838213643,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9985882352941177,
+            0.9987450980392156,
+            0.9993725490196078,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.332083838213643,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9985882352941177,
+            0.9987450980392156,
+            0.9993725490196078,
+            1
+          ]
+        },
+        {
+          "selector": "#nebula-navigation nav a",
+          "contrast": 5.332083838213643,
+          "foreground": "rgb(92, 108, 131)",
+          "background": [
+            0.9985882352941177,
+            0.9987450980392156,
+            0.9993725490196078,
+            1
+          ]
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "checks": [
+    "visible light/dark and reload persistence across four pages",
+    "mobile no horizontal overflow",
+    "theme-assistant-notification order",
+    "web consent before upload",
+    "server model completion",
+    "custom API 401 and successful real HTTP fixture roundtrip",
+    "no API key in browser storage or Linux proxy",
+    "speech settings discoverability",
+    "fruit author friend request UI"
+  ]
+}

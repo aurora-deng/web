@@ -1,0 +1,110 @@
+baseline {'round': 1, 'pid': 2983, 'fastQps': 54211.97, 'ackP99Ms': 17.688, 'errors': 0, 'treeReadLatencyMs': {'p50': 4.184, 'p95': 8.006, 'p99': 11.157}}
+current {'round': 1, 'pid': 3069, 'fastQps': 54202.98, 'ackP99Ms': 17.72, 'errors': 0, 'treeReadLatencyMs': {'p50': 4.456, 'p95': 6.718, 'p99': 8.017}}
+current {'round': 2, 'pid': 3149, 'fastQps': 52102.4, 'ackP99Ms': 12.906, 'errors': 0, 'treeReadLatencyMs': {'p50': 5.054, 'p95': 8.515, 'p99': 10.454}}
+baseline {'round': 2, 'pid': 3255, 'fastQps': 53986.61, 'ackP99Ms': 11.915, 'errors': 0, 'treeReadLatencyMs': {'p50': 3.996, 'p95': 5.384, 'p99': 5.795}}
+baseline {'round': 3, 'pid': 3335, 'fastQps': 59176.21, 'ackP99Ms': 8.71, 'errors': 0, 'treeReadLatencyMs': {'p50': 5.119, 'p95': 8.998, 'p99': 10.072}}
+current {'round': 3, 'pid': 3414, 'fastQps': 49878.08, 'ackP99Ms': 15.545, 'errors': 0, 'treeReadLatencyMs': {'p50': 4.915, 'p95': 8.58, 'p99': 10.036}}
+{
+  "stage": "phase49",
+  "baselineStage": "phase49",
+  "baselineBinarySha256": "5627e14bbd5ee6edf70e356ac29d21efdfb48f3a452c136662f6670135c6f08c",
+  "currentBinarySha256": "3e0d9371906ebe670f623019a9d01e4990069cd504aca5c06402e3bd8817a100",
+  "configuration": {
+    "reactors": 2,
+    "httpWorkers": 4,
+    "databaseWorkers": 4,
+    "databasePool": 4,
+    "delivery": "local-durable",
+    "redis": false,
+    "tts": false,
+    "ai": false,
+    "tlsPort": 18444,
+    "diagnostic": false,
+    "synchronousCommit": "on"
+  },
+  "baseline": [
+    {
+      "round": 1,
+      "pid": 2983,
+      "fastQps": 54211.97,
+      "ackP99Ms": 17.688,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.184,
+        "p95": 8.006,
+        "p99": 11.157
+      }
+    },
+    {
+      "round": 2,
+      "pid": 3255,
+      "fastQps": 53986.61,
+      "ackP99Ms": 11.915,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 3.996,
+        "p95": 5.384,
+        "p99": 5.795
+      }
+    },
+    {
+      "round": 3,
+      "pid": 3335,
+      "fastQps": 59176.21,
+      "ackP99Ms": 8.71,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 5.119,
+        "p95": 8.998,
+        "p99": 10.072
+      }
+    }
+  ],
+  "current": [
+    {
+      "round": 1,
+      "pid": 3069,
+      "fastQps": 54202.98,
+      "ackP99Ms": 17.72,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.456,
+        "p95": 6.718,
+        "p99": 8.017
+      }
+    },
+    {
+      "round": 2,
+      "pid": 3149,
+      "fastQps": 52102.4,
+      "ackP99Ms": 12.906,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 5.054,
+        "p95": 8.515,
+        "p99": 10.454
+      }
+    },
+    {
+      "round": 3,
+      "pid": 3414,
+      "fastQps": 49878.08,
+      "ackP99Ms": 15.545,
+      "errors": 0,
+      "treeReadLatencyMs": {
+        "p50": 4.915,
+        "p95": 8.58,
+        "p99": 10.036
+      }
+    }
+  ],
+  "fastRegressionPercent": 3.8913361753870945,
+  "pairedAckP99IncreasePercent": [
+    0.18091361374943382,
+    8.317247167436026,
+    78.47301951779562
+  ],
+  "gateEvaluated": true,
+  "passed": false
+}
+Phase47 performance gate not met; retain measurements and previous Phase34/41 results

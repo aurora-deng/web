@@ -1,0 +1,5 @@
+page.waitForFunction: Timeout 30000ms exceeded.
+    at E:\虚拟机高级web开发\github-test6.3-staging\tests\function3\frontend\chat_workspace_browser.cjs:115:14 {
+  log: [],
+  name: 'TimeoutError'
+}

@@ -1,5 +1,6 @@
-import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=227af12a6c379d08';
-import { modelConnection,openModelConnection,requestOwnModel,resetModelConnection } from '../ModelConnection/ModelConnection.js?v=227af12a6c379d08';
+import { webAiApi } from "../../ai/WebAiApi/WebAiApi.js?v=dc39cdb5489c964d";
+import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=dc39cdb5489c964d';
+import { modelConnection,openModelConnection,requestOwnModel,resetModelConnection } from '../ModelConnection/ModelConnection.js?v=dc39cdb5489c964d';
 const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
 const id=()=>Array.from(crypto.getRandomValues(new Uint8Array(20)),n=>n.toString(16).padStart(2,'0')).join('');
 
@@ -17,7 +18,7 @@ export class WebAssistantPanel {
   }
   async start(){if(this.started)return;try{const user=await this.api.restore();this.owner=String(user.id);this.storageKey='nebula:web-chat:'+this.owner+':'+this.surface;
     try{const saved=JSON.parse(sessionStorage.getItem(this.storageKey)||'[]');if(Array.isArray(saved))this.messages=saved.filter(m=>['user','assistant'].includes(m.role)&&typeof m.content==='string').slice(-30);}catch{}
-    const models=await this.api.request('/api/ai/web/models');const select=this.host.querySelector('[data-server-model]');select.replaceChildren();for(const m of models){const option=node('option',m.name+' · '+m.runtime);option.value=m.accountId;select.append(option);}if(!models.length){const option=node('option','本站暂无已配置模型，可自带 API');option.value='';select.append(option);}
+    const models=await this.api.request(webAiApi.getAiWebModels({}));const select=this.host.querySelector('[data-server-model]');select.replaceChildren();for(const m of models){const option=node('option',m.name+' · '+m.runtime);option.value=m.accountId;select.append(option);}if(!models.length){const option=node('option','本站暂无已配置模型，可自带 API');option.value='';select.append(option);}
     this.status.textContent='网页登录已就绪 · 历史仅保留在本标签页会话存储，不与 Windows 私人空间混用';this.started=true;this.paint();this.provider();
   }catch(e){this.status.textContent=e.status===401?'请先前往消息页面登录，随后重新打开助手。':e.message;}}
   provider(){const c=modelConnection();this.host.querySelector('[data-provider]').textContent=c.provider==='server'?'本站模型 · 输入发送到 Linux':'自带 API · '+c.model;}
@@ -28,12 +29,12 @@ export class WebAssistantPanel {
     const aiUserId=this.host.querySelector('[data-server-model]').value;if(!aiUserId)throw Error('本站暂无可用模型，请打开模型连接配置自己的 API。');
     const requestId=id(),payload={requestId,aiUserId,nonConfidentialConsent:'true',messageCount:String(messages.length),maxOutputTokens:String(maxOutputTokens)};
     messages.forEach((m,i)=>{payload['role'+i]=m.role;payload['content'+i]=m.content;});let created=false,text='',after=0;
-    try{await this.api.request('/api/ai/web/generations',{method:'POST',data:payload,signal});created=true;
-      while(true){if(signal.aborted)throw new DOMException('cancelled','AbortError');const result=await this.api.request(`/api/ai/web/generations/${requestId}?after=${after}`,{signal});text+=result.pieces.join('');after=result.next;onText(text);
+    try{await this.api.request(webAiApi.postAiWebGenerations({}),{method:'POST',data:payload,signal});created=true;
+      while(true){if(signal.aborted)throw new DOMException('cancelled','AbortError');const result=await this.api.request(webAiApi.getAiWebGenerationsGeneration({"generation":(requestId)}, "after=" + String(after)),{signal});text+=result.pieces.join('');after=result.next;onText(text);
         if(!['queued','running'].includes(result.state)&&after>=result.next&&result.pieces.length<64){if(result.state!=='completed')throw Error(result.state==='cancelled'?'生成已停止':'本站模型暂时不可用，请检查运行状态或使用自己的 API。');return text;}
         await new Promise((resolve,reject)=>{const abort=()=>{clearTimeout(timer);reject(new DOMException('cancelled','AbortError'));};const timer=setTimeout(()=>{signal.removeEventListener('abort',abort);resolve();},450);signal.addEventListener('abort',abort,{once:true});});
       }
-    }finally{if(created)await this.api.request('/api/ai/web/generations/'+requestId,{method:'DELETE'}).catch(()=>{});}
+    }finally{if(created)await this.api.request(webAiApi.deleteAiWebGenerationsGeneration({"generation":(requestId)}),{method:'DELETE'}).catch(()=>{});}
   }
   async send(){if(this.controller)return;const text=this.input.value.trim();if(!text)return;if(!this.host.querySelector('[data-web-consent]').checked){this.status.textContent='请先确认信息会上传，只使用非保密内容。';return;}
     if(!this.started){await this.start();if(!this.started)return;}const context=[...this.messages.slice(-12),{role:'user',content:text}];

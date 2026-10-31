@@ -180,7 +180,7 @@ Outbox 仍是至少一次投递，所以浏览器维护一个有界的“验票�
 | 会话摘要、消息状态、撤回结果 | [Domain.h](../../../backend/application/domain/Domain/Domain.h) |
 | Repository 接口 | [Ports.h](../../../backend/application/ports/Ports/Ports.h) |
 | 业务门面 | [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
-| 发送、回执、未读与撤回规则 | [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) |
+| 发送、回执、未读与撤回规则 | [ChatService.cpp](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp) |
 | 内存 Repository | [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
 | PostgreSQL 查询与原子更新 | [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 第 2 号迁移 | [002_message_lifecycle.sql](../../../backend/application/storage/postgres/migrations/002_message_lifecycle.sql) |

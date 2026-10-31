@@ -1,0 +1,29 @@
+Compiled client/companion/JsonRuntime/JsonRuntime.cpp
+Compiled client/storage/SqliteStore/SqliteStore.cpp
+Compiled client/storage/WindowsProtection/WindowsProtection.cpp
+Compiled client/assistant/LocalKnowledge/LocalKnowledge.cpp
+Compiled client/assistant/PrivateHistory/PrivateHistory.cpp
+Compiled client/companion/BoundedPool/BoundedPool.cpp
+Compiled client/companion/LoopbackPolicy/LoopbackPolicy.cpp
+Compiled client/companion/SChannelStream/SChannelStream.cpp
+Compiled client/companion/UpstreamTransport/UpstreamTransport.cpp
+Compiled client/companion/HttpConnectionPool/HttpConnectionPool.cpp
+Compiled client/companion/ProxyServer/ProxyServer.cpp
+Compiled client/assistant/DocumentImport/DocumentImport.cpp
+Compiled client/storage/CredentialVault/CredentialVault.cpp
+Compiled client/assistant/LocalAssistantService/LocalAssistantService.cpp
+Compiled client/assistant/ActionService/ActionService.cpp
+Compiled client/assistant/PrivateMigration/PrivateMigration.cpp
+Compiled client/assistant/PersonalSpeech/PersonalSpeech.cpp
+Compiled client/assistant/WindowsCloudSpeech/WindowsCloudSpeech.cpp
+Compiled backend/ai/speech/application/SpeechText/SpeechText.cpp
+Compiled backend/ai/speech/application/WaveCodec/WaveCodec.cpp
+Compiled backend/ai/speech/application/SpeechWire/SpeechWire.cpp
+Compiled backend/ai/speech/application/CloudSpeechPolicy/CloudSpeechPolicy.cpp
+PASS Windows SQLite 3.51.1, UTF8, bound SQL, rollback, DPAPI and site isolation
+PASS separate private histories, terminal cancellation, confirmed memory, authorized CJK lexical retrieval and restart persistence
+PASS local Host/Origin/session/CSRF and one-use bootstrap protection
+PASS structured tool allowlist, payload-bound confirmation, duplicate confirmation and cancellation
+PASS speech free-tier/key/consent/budget/429/fallback policy, bounded PCM/WAV and phrasing
+Built TLS and HTTP pool diagnostics; no network connection or certificate trust performed
+Built native Windows companion; no service started

@@ -1,9 +1,13 @@
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=227af12a6c379d08';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=227af12a6c379d08';
-import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=227af12a6c379d08';
-import { ActivityDetail } from '../../shared/ActivityDetail/ActivityDetail.js?v=227af12a6c379d08';
-import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=227af12a6c379d08';
-import { formatShortDateTime } from '../../shared/TimeFormat/TimeFormat.js?v=227af12a6c379d08';
+import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=dc39cdb5489c964d";
+import { profilesApi } from "../ProfilesApi/ProfilesApi.js?v=dc39cdb5489c964d";
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=dc39cdb5489c964d";
+import { accountsApi } from "../../accounts/AccountsApi/AccountsApi.js?v=dc39cdb5489c964d";
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=dc39cdb5489c964d';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=dc39cdb5489c964d';
+import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=dc39cdb5489c964d';
+import { ActivityDetail } from '../../shared/ActivityDetail/ActivityDetail.js?v=dc39cdb5489c964d';
+import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=dc39cdb5489c964d';
+import { formatShortDateTime } from '../../shared/TimeFormat/TimeFormat.js?v=dc39cdb5489c964d';
 mountNavigation('profile');
 const $=s=>document.querySelector(s),api=new BusinessApi();
 const state={owner:'',channel:'all',section:'timeline',before:'0',rows:[],busy:false};
@@ -29,8 +33,8 @@ let version=0;
 async function load(older=false) {
   const current=++version;$('#profile-status').textContent='';
   const before=older?state.before:'0';let rows,next;
-  if(state.section==='favorites'){const result=await api.request(`/api/activities/favorites?before=${before}`);rows=result.items;next=result.nextCursor;}
-  else{rows=await api.request(`/api/activities?author=${state.owner}&before=${before}&channel=${state.channel}`);next=rows.length===24?rows.at(-1).id:'0';}
+  if(state.section==='favorites'){const result=await api.request(activitiesApi.getActivitiesFavorites({}, "before=" + String(before)));rows=result.items;next=result.nextCursor;}
+  else{rows=await api.request(activitiesApi.getActivities({}, "author=" + String(state.owner) + "&before=" + String(before) + "&channel=" + String(state.channel)));next=rows.length===24?rows.at(-1).id:'0';}
   if(version!==current)return;
   state.rows=older?[...state.rows,...rows]:rows;state.before=String(next);$('#older-activities').hidden=!next||String(next)==='0';render();
 }
@@ -42,16 +46,16 @@ document.querySelectorAll('[data-close-publisher]').forEach(b=>b.onclick=()=>$('
 new ActivityPublisher($('#profile-publish-form'),api,{files:()=>[...$('#profile-media-files').files],status:$('#profile-publish-status'),onPublished:async()=>{$('#profile-publish-dialog').close();await load();}});
 $('#profile-edit-form').onsubmit=async event=>{
   event.preventDefault();const form=event.currentTarget,button=form.querySelector('[type=submit]');button.disabled=true;
-  try{await api.request('/api/me',{method:'PATCH',data:{displayName:form.elements.displayName.value.trim(),biography:form.elements.biography.value.trim()}});
-    await api.request('/api/me/profile-display',{method:'PATCH',data:{showBiography:String(form.elements.showBiography.checked),showAvatar:String(form.elements.showAvatar.checked),allowTreeFriendRequests:String(form.elements.allowTreeFriendRequests.checked)}});await profile();$('#profile-status').textContent='资料已更新';
+  try{await api.request(accountsApi.patchMe({}),{method:'PATCH',data:{displayName:form.elements.displayName.value.trim(),biography:form.elements.biography.value.trim()}});
+    await api.request(profilesApi.patchMeProfileDisplay({}),{method:'PATCH',data:{showBiography:String(form.elements.showBiography.checked),showAvatar:String(form.elements.showAvatar.checked),allowTreeFriendRequests:String(form.elements.allowTreeFriendRequests.checked)}});await profile();$('#profile-status').textContent='资料已更新';
   }catch(e){error(e);}finally{button.disabled=false;}
 };
 async function profile() {
-  const p=await api.request('/api/profiles/'+state.owner);$('#public-name').textContent=p.displayName;$('#public-handle').textContent='@'+p.username;$('#public-biography').textContent=p.biography||'这个人留了一点神秘感。';
+  const p=await api.request(profilesApi.getProfilesUser({"user":(state.owner)}));$('#public-name').textContent=p.displayName;$('#public-handle').textContent='@'+p.username;$('#public-biography').textContent=p.biography||'这个人留了一点神秘感。';
   const avatar=$('#public-avatar');avatar.replaceChildren();if(p.avatarUrl){const img=element('img');img.src=p.avatarUrl;img.alt=p.displayName;avatar.append(img);}else avatar.textContent=[...p.displayName][0]||'N';
   $('.timeline-filters').hidden=p.audience==='tree-only';if(p.audience==='tree-only'){state.channel='tree';$('#section-title').textContent='公开的树上故事';$('#profile-status').textContent='你们尚未成为好友，仅展示公开到神树的故事。';}$('#favorites-tab').hidden=!p.self;$('#publish-activity').hidden=!p.self;$('#profile-edit-form').hidden=!p.self;
   const list=$('#public-information');list.replaceChildren();for(const [label,value] of [['显示名称',p.displayName],['用户名','@'+p.username],['简介',p.biography||'未公开']])list.append(element('dt',label),element('dd',value));
   if(p.self){const form=$('#profile-edit-form');for(const key of ['username','displayName','biography'])form.elements[key].value=p[key]||'';form.elements.showBiography.checked=p.showBiography;form.elements.showAvatar.checked=p.showAvatar;form.elements.allowTreeFriendRequests.checked=p.allowTreeFriendRequests;}
 }
-async function start(){try{const me=await api.restore();state.owner=new URL(location.href).searchParams.get('user')||String(me.id);if(!/^\d+$/.test(state.owner))throw new Error('无效用户');await profile();const categories=await api.request('/api/tree/categories');for(const c of categories){const option=element('option',c.name);option.value=c.id;$('#profile-publish-category').append(option);}await load();const post=new URL(location.href).searchParams.get('post');if(post)await detail.open(post);new AnnouncementPlayer(api,$('#profile-announcements')).start();}catch(e){error(e);}}
+async function start(){try{const me=await api.restore();state.owner=new URL(location.href).searchParams.get('user')||String(me.id);if(!/^\d+$/.test(state.owner))throw new Error('无效用户');await profile();const categories=await api.request(treeApi.getTreeCategories({}));for(const c of categories){const option=element('option',c.name);option.value=c.id;$('#profile-publish-category').append(option);}await load();const post=new URL(location.href).searchParams.get('post');if(post)await detail.open(post);new AnnouncementPlayer(api,$('#profile-announcements')).start();}catch(e){error(e);}}
 start();

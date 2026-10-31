@@ -135,7 +135,7 @@ flowchart TD
 | [index.html](../../../frontend/phase11/index.html) / [styles.css](../../../frontend/phase11/styles.css) | 脚本版本与历史工具条/待确认状态样式 |
 | [main.cpp](../../../main.cpp) | 注册两个新 ES Module 的静态资源路由 |
 | [BusinessInterfaces.h](../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) | 增加 `historyBefore/ownMessage` 业务接口 |
-| [ChatService.h](../../../backend/application/business/ChatService/ChatService.h) / [ChatService.cpp](../../../backend/application/business/ChatService/ChatService.cpp) | 成员权限、分页参数与当前发送者作用域 |
+| [ChatService.h](../../../backend/application/modules/chat/application/ChatService/ChatService.h) / [ChatService.cpp](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp) | 成员权限、分页参数与当前发送者作用域 |
 | [Ports.h](../../../backend/application/ports/Ports/Ports.h) | `messagesBefore/findOwnMessage` 仓储端口 |
 | [InMemoryStore.h](../../../backend/application/storage/InMemoryStore/InMemoryStore.h) / [InMemoryStore.cpp](../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) | 不依赖数据库的同语义实现 |
 | [PostgresStore.h](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.h) / [PostgresStore.cpp](../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) | 利用已有索引查询旧页与自己的幂等记录 |

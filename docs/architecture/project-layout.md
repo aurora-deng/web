@@ -7,6 +7,7 @@
 ├─ backend/
 │  ├─ server/                  Linux通信内核：Reactor、Connection、HTTP、WS、SSE、H2、TLS、gRPC
 │  ├─ application/             共享业务：账号、社交、聊天、文件、动态、神树、榜单、管理与Outbox
+│  │  ├─ bootstrap/            进程与领域资源装配、生命周期
 │  │  ├─ business/             既有业务服务及兼容接口
 │  │  ├─ modules/              Tree / Activities / Assistant / Admin / Messaging 等隔离模块
 │  │  ├─ ports/ domain/        既有领域与Repository端口
@@ -26,6 +27,8 @@
 ├─ frontend/phase11/
 │  ├─ shared/                 导航、主题、会话、统一发布器、私人助手、语音设置
 │  ├─ chat/                   聊天列表、可靠发送、历史恢复
+│  ├─ accounts/ contacts/     账号、联系人及领域API绑定
+│  ├─ ai/ knowledge/ files/   AI、资料、文件控制器与绑定
 │  ├─ tree/                   3D场景、广场、榜单、果实详情
 │  ├─ profile/                个人资料与统一动态
 │  ├─ assistant/              好友式私人助手独立页
@@ -42,7 +45,7 @@
 ├─ tools/                     显式运行的管理、评测、数据与模型工具
 ├─ artifacts/                 经筛选可分享的历史验证证据
 ├─ CMakeLists.txt             Linux装配与可选依赖开关
-└─ main.cpp                   Linux装配根，只创建组件、连接接口和注册路由
+└─ main.cpp                   进程入口；ApplicationRuntime及领域Runtime装配/注册/停止
 ```
 
 ## 依赖方向

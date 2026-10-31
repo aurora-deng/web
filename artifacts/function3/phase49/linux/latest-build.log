@@ -1,0 +1,137 @@
+[  0%] Built target webserver_security
+[  1%] Built target webserver_application_support
+[  1%] Building CXX object CMakeFiles/webserver_chat_workspace.dir/backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.cpp.o
+[ 15%] Built target webserver_core
+[ 16%] Built target webserver_runtime_config
+[ 17%] Built target function3_tree
+[ 17%] Stamping public source fingerprint (no runtime secrets)
+[ 17%] Built target project_build_stamp
+[ 17%] Syncing Phase 11 frontend assets
+[ 17%] Built target phase11_frontend_assets
+[ 18%] Built target webserver_grpc
+[ 18%] Built target function3_activities
+[ 19%] Built target function3_private_archive
+[ 20%] Built target function3_ranking
+[ 21%] Built target function3_admin
+[ 21%] Built target function3_moderation
+[ 21%] Built target function3_messaging
+[ 22%] Built target nebula_speech_core
+[ 23%] Built target function3_cache
+[ 24%] Built target function3_runtime_config
+[ 24%] Built target function3_business_shutdown
+[ 24%] Built target webserver-grpc
+[ 24%] Built target function3_commit_wakeup
+[ 25%] Built target phase9_foundation_tests
+[ 26%] Built target grpc_message_codec_tests
+[ 26%] Built target grpc_integration
+[ 27%] Built target http2_stream_coroutine_lifecycle
+[ 28%] Built target http2_codec_roundtrip
+[ 30%] Built target webserver_unit_tests
+[ 30%] Built target function3_tree_memory
+[ 31%] Built target function3_speech_policy
+[ 32%] Built target function3-tts-worker
+[ 32%] Built target function3_tree_contract
+[ 33%] Built target function3_activities_contract
+[ 33%] Built target function3_redis_contract
+[ 37%] Built target webserver_ai
+[ 38%] Built target function3_assets
+[ 39%] Built target function3_rocketmq
+[ 40%] Built target function3_announcement
+[ 41%] Built target function3_speech
+[ 42%] Built target phase39_private_generation_tests
+[ 42%] Built target function3_rocketmq_roundtrip
+[ 42%] Linking CXX static library libwebserver_chat_workspace.a
+[ 43%] Built target webserver_chat_workspace
+[ 55%] Built target webserver_phase11
+[ 56%] Linking CXX executable phase11-training-admin
+[ 56%] Linking CXX executable phase11-model-admin
+[ 56%] Built target phase11-training-admin
+[ 57%] Built target phase11-model-admin
+[ 58%] Building CXX object CMakeFiles/webserver_phase11_http.dir/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp.o
+[ 58%] Built target webserver_phase11_grpc_onnx
+[ 59%] Built target function3_media
+[ 60%] Built target function3_shared_driver
+[ 61%] Linking CXX executable webserver-onnx-worker
+/home/pikachu/function3-src/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp: 在 lambda 函数中:
+/home/pikachu/function3-src/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp:48:44: 警告：ignoring return value of ‘webserver::phase11::RestoredSession webserver::phase11::transport::Phase11AuthHttp::authorizeRequest(const RequestContext&, bool)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+   48 |                 auth_.authorizeRequest(ctx);using F=phase11::FileService;using P=webserver::function3::TreeContentPolicy;
+      |                                            ^
+In file included from /home/pikachu/function3-src/backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h:3,
+                 from /home/pikachu/function3-src/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.h:3,
+                 from /home/pikachu/function3-src/backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp:2:
+/home/pikachu/function3-src/backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h:50:35: 附注：在此声明
+   50 |     [[nodiscard]] RestoredSession authorizeRequest(
+      |                                   ^~~~~~~~~~~~~~~~
+[ 61%] Built target webserver-onnx-worker
+[ 61%] Linking CXX executable phase11_core_tests
+[ 62%] Built target phase11_core_tests
+[ 63%] Building CXX object CMakeFiles/function3_workspace_contract.dir/tests/function3/unit/workspace.cpp.o
+[ 64%] Linking CXX static library libwebserver_phase11_http.a
+[ 68%] Built target webserver_phase11_http
+[ 68%] Linking CXX executable phase11_chat_reliability_tests
+[ 68%] Built target phase11_chat_reliability_tests
+[ 68%] Linking CXX executable phase11_ai_chat_tests
+[ 68%] Built target phase11_ai_chat_tests
+[ 69%] Linking CXX executable phase11_ai_resilience_tests
+[ 69%] Built target phase11_ai_resilience_tests
+[ 69%] Linking CXX executable phase11_rag_tests
+[ 70%] Built target phase11_rag_tests
+[ 70%] Linking CXX executable phase11_training_tests
+[ 70%] Built target phase11_training_tests
+[ 71%] Linking CXX executable phase11_file_tests
+[ 71%] Built target phase11_file_tests
+[ 71%] Building CXX object CMakeFiles/phase11_postgres_contract_tests.dir/tests/phase11/unit/postgres_contract.cpp.o
+[ 71%] Linking CXX executable function3_workspace_contract
+[ 71%] Built target function3_workspace_contract
+[ 72%] Linking CXX executable phase11_sodium_credentials_tests
+[ 72%] Built target phase11_sodium_credentials_tests
+[ 73%] Linking CXX executable phase11_ollama_provider_tests
+[ 73%] Built target phase11_ollama_provider_tests
+[ 73%] Linking CXX executable phase11_onnx_provider_tests
+[ 74%] Built target phase11_onnx_provider_tests
+[ 74%] Linking CXX executable phase11_onnx_model_smoke
+[ 74%] Built target phase11_onnx_model_smoke
+[ 74%] Linking CXX executable phase11_grpc_onnx_provider_tests
+[ 74%] Built target phase11_grpc_onnx_provider_tests
+[ 75%] Linking CXX executable function3_process_contract
+[ 75%] Built target function3_process_contract
+[ 76%] Linking CXX executable function3_model_admin_contract
+[ 76%] Linking CXX executable phase11_postgres_contract_tests
+[ 76%] Built target function3_model_admin_contract
+[ 77%] Linking CXX executable function3_recovery_contract
+[ 77%] Built target phase11_postgres_contract_tests
+[ 77%] Built target webserver_private_http
+[ 78%] Built target function3_activity_views
+[ 79%] Built target function3_messaging_driver
+[ 79%] Built target function3_recovery_contract
+[ 81%] Built target function3_tree_driver
+[ 81%] Built target function3_rank_driver
+[ 82%] Built target function3_announcement_driver
+[ 82%] Built target function3_admin_driver
+[ 83%] Built target function3_moderation_driver
+[ 85%] Built target function3_speech_driver
+[ 86%] Built target function3_activity_json
+[ 86%] Built target function3_speech_http
+[ 87%] Built target function3_messaging_http
+[ 88%] Built target function3_admin_http
+[ 88%] Built target function3_announcement_http
+[ 88%] Linking CXX executable phase11_http_auth_tests
+[ 88%] Linking CXX executable function3-site-admin
+[ 88%] Built target function3-site-admin
+[ 88%] Linking CXX executable function3_postgres_contract
+[ 89%] Built target phase11_http_auth_tests
+[ 90%] Linking CXX executable function3_capacity
+[ 90%] Built target function3_postgres_contract
+[ 91%] Built target function3_private_archive_driver
+[ 92%] Built target function3_tree_http
+[ 92%] Built target function3_capacity
+[ 92%] Built target function3_activity_http
+[ 93%] Built target function3_private_archive_http
+[ 94%] Built target function3_http
+[ 94%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp.o
+[ 94%] Building CXX object CMakeFiles/webserver_application_runtime.dir/backend/application/bootstrap/ChatRuntime/ChatRuntime.cpp.o
+[ 94%] Linking CXX static library libwebserver_application_runtime.a
+[ 99%] Built target webserver_application_runtime
+[100%] Linking CXX executable webserver
+Copying static assets next to webserver
+[100%] Built target webserver

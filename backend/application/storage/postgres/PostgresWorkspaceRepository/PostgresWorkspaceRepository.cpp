@@ -1,5 +1,7 @@
 #include "PostgresWorkspaceRepository.h"
+#include "WorkspaceRows.h"
 #include "backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.h"
+#include <utility>
 namespace webserver::phase11 {
     std::vector<chat::UserCard>PostgresWorkspaceRepository::users(PGconn*c,UserId viewer,std::string_view prefix,UserId after,std::size_t limit){
         // Directory cards deliberately omit profile media: profile display consent belongs to its own module.
@@ -13,13 +15,13 @@ namespace webserver::phase11 {
         }
         );
         std::vector<chat::UserCard>result;
-        for(int i=0;i<rows.rows();i++)result.push_back({
-            std::stoull(rows.value(i,0)),rows.value(i,1),rows.value(i,2),rows.isNull(i,3)?std::nullopt:std::optional<FileId>{
-                std::stoull(rows.value(i,3))
-            }
-            ,rows.value(i,4)=="t",rows.value(i,5)=="t",rows.value(i,6)=="t"
+        for(int i=0;i<rows.rows();i++){
+            workspace_rows::DirectoryRow row{std::stoull(rows.value(i,0)),rows.value(i,1),rows.value(i,2),
+                rows.isNull(i,3)?std::nullopt:std::optional<std::uint64_t>{std::stoull(rows.value(i,3))},
+                rows.value(i,4)=="t",rows.value(i,5)=="t",rows.value(i,6)=="t"};
+            // Cross the DAO/view boundary explicitly without copying owned text again.
+            result.push_back({row.id,std::move(row.username),std::move(row.displayName),row.avatar,row.ai,row.friendship,row.pending});
         }
-        );
         return result;
     }
     std::vector<Message>PostgresWorkspaceRepository::search(PGconn*c,UserId user,ConversationId conversation,std::string_view query,MessageId before,std::size_t limit){

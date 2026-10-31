@@ -1,15 +1,15 @@
-# 当前开发状态（2026-10-30）
+# 当前开发状态（2026-10-31）
 
-Phase48继续补齐Phase43–47当前计划中的配色、领域仓储和前端事件依赖拆分。**功能回归通过，严格性能门槛仍未全部通过。**
+Phase49完成本轮接口对齐、领域资源装配与数据库对象分层。**功能回归通过，严格性能门槛仍未通过。**
 
-- 分支`feature/function3-tree`；本轮变更前检查点`1c3c7e6`，更早基线`6dafe1e`保留。
-- 通信核心152份文件不变；PostgresStore 2586→862行、InMemoryStore 1506→809行，SQL/状态操作归入对应领域驱动，事务连接及内存整体快照保留。
-- Domain/Ports改为兼容聚合；HTTP入口拆成4个适配器，ChatBindings拆成8组事件绑定并声明各自依赖。
-- 深浅主题、16份组件样式和动态弹窗统一语义色；删除叠加补丁Theme.css。三种尺寸及抽样文字对比度通过，树形与3D材质保留。
-- Outbox成功前缀批量确认；新增提交通知/批次观测，修正后台线程先于计数器初始化的顺序风险。
-- Linux Release/Debug/ASan-LSan-UBSan各115/115；前端28项、工程12项、七组浏览器、Windows两种构建各5项通过；真实业务、模型、Worker故障、语音回退及原生代理另有记录。
-- 最终对最初Phase43基线：/fast中位+0.43%、混合吞吐中位+19.05%、错误0；ACK第3轮+23.51%超标。对直接上一版的最终测量也有两轮ACK超标，全部失败记录保留，不能采用前序较好测量替代。
-- 远程CI、真实云Key、语音自然度及逐消息commit→wire关联仍有明确验证限制；不宣称生产就绪。
-- 未下载依赖、未推送GitHub、未部署日常服务、未写原业务库；只复用现有隔离环境。
+- 本地分支 `feature/function3-tree`；本轮前检查点 `42b3f8f`，Phase48与更早历史报告保留。
+- 通信核心152份文件不变；main由964行/37个unique_ptr缩成14行进程入口，资源归各领域Runtime管理，显式幂等停止。
+- 119项HTTP方法/路径、18个领域绑定；106处前端字面路径迁移。字段、权限、WS/SSE和Windows本地接口仍有各自契约，路由目录不冒充完整Schema。
+- 账号、联系人、聊天、文件服务与前端控制器按领域归类；旧头文件与少数兼容委托保留。用户搜索独立归联系人目录。
+- 数据库明确Query/Command、业务对象、驱动内部行、公开投影；复用原事务和连接，不新增数据库或迁移（仍024）。
+- Linux三种矩阵各115项；前端33项、工程14项、七组浏览器、Windows两种构建各5项通过。10组真实业务、真实Windows代理、独立Worker故障与12项装配失败检查通过。
+- 完整三轮：/fast中位-3.89%，混合吞吐中位-16.93%，错误0；ACK第3轮8.710→15.545ms（+78.47%）超标。中断的一轮单独保留，未采用较好记录替代。
+- 聚合指标指向该轮SQL与投递同时变慢，没有队列满/连接池超时；逐消息COMMIT→ACK发送因果定位仍待补齐，不据此宣称重构提速。
+- 未安装新依赖、未写原业务库、未替换日常服务、未推送GitHub。云Key、语音自然度、远程CI与生产容量的历史限制保留。
 
-入口：[本轮改动与验收](docs/architecture/business/phase48.md)、[教学讲义](docs/architecture/business/phase48-teaching.md)、[组件索引](docs/architecture/business/phase48-code-index.md)、[验证与回退](docs/ops/phase48-validation-and-rollback.md)、[完整架构图](docs/architecture/business/phase43-47-end-to-end.md)。网页状态入口`/phase11/status/`。
+入口：[改动与验收](docs/architecture/business/phase49.md)、[接口接入教学](docs/architecture/business/phase49-teaching.md)、[数据库分层](docs/database/domain-layering.md)、[代码索引](docs/architecture/business/phase49-code-index.md)、[整体调用图](docs/architecture/business/phase49-end-to-end.md)、[验证与回退](docs/ops/phase49-validation-and-rollback.md)。

@@ -1,0 +1,2 @@
+PASS real browser HTTP login restore, WebSocket persisted ACK, SSE open, responsive navigation and private sidebar
+PASS native loopback/TLS/storage/import/account integration

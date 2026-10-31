@@ -1,0 +1,3 @@
+// Generated domain contract bindings; transport and page state are injected separately.
+import { defineEndpoints } from "../../shared/ApiContracts/ApiContracts.js?v=dc39cdb5489c964d";
+export const privateAiApi=defineEndpoints("privateAi",[["postAiPrivateGenerations","POST","/api/ai/private/generations"],["deleteAiPrivateGenerationsGeneration","DELETE","/api/ai/private/generations/:generation"],["getAiPrivateGenerationsGeneration","GET","/api/ai/private/generations/:generation"],["getAiPrivateLegacy","GET","/api/ai/private/legacy"],["getAiPrivateLegacyKindResource","GET","/api/ai/private/legacy/:kind/:resource"],["postAiPrivateLegacyKindResourcePurge","POST","/api/ai/private/legacy/:kind/:resource/purge"],["getAiPrivateModels","GET","/api/ai/private/models"]]);

@@ -14,10 +14,14 @@ def main():
             for include in re.findall(r'#include\s*"(backend/[^"\n]+)"',p.read_text(encoding='utf-8')):
                 assert (ROOT/include).is_file(),f'Missing project header: {p}: {include}'
     for layer in ('domain','ports','application'):
-        for p in (ROOT/'backend/application/modules/chat'/layer).rglob('*'):
+      for module in ('accounts','contacts','chat','files'):
+        for p in (ROOT/'backend/application/modules'/module/layer).rglob('*'):
             if p.suffix not in ('.h','.cpp'):continue
             for include in re.findall(r'#include\s*[<"]([^>"\n]+)',p.read_text(encoding='utf-8')):
                 assert not any(x in include for x in ('backend/server/','libpq','onnxruntime','grpcpp','boost/')),f'illegal chat {layer} dependency: {p}: {include}'
+    main=(ROOT/'main.cpp').read_text(encoding='utf-8')
+    assert len(main.splitlines())<=40 and 'unique_ptr' not in main and '.router(' not in main,'Process entry owns domain resources/routes again'
+    assert not any(word in main for word in ('PostgresStore','AuthService','ChatService','AiChatService')),'Process entry leaked concrete domain assembly'
     for layer in ('domain','ports'):
         for p in (ROOT/'backend/application'/layer).rglob('*.h'):
             for include in re.findall(r'#include\s*[<"]([^>"\n]+)',p.read_text(encoding='utf-8')):
