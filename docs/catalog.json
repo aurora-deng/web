@@ -1,0 +1,1123 @@
+{
+  "schema": 1,
+  "generated": "2026-11-03",
+  "scope": "public human-readable documents; raw evidence and local account files excluded",
+  "documents": [
+    {
+      "path": "docs/README.md",
+      "title": "项目文档分类",
+      "category": "navigation",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/README.md",
+      "title": "系统架构入口",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/README.md",
+      "title": "业务功能分类",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/accounts-chat/README.md",
+      "title": "账号、联系人与聊天",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/accounts-chat/phase11.md",
+      "title": "Phase 11：账号、社交聊天与 AI 推理平台",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/accounts-chat/phase12.md",
+      "title": "Phase 12：持久消息生命周期",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/accounts-chat/phase13.md",
+      "title": "Phase 13：群聊治理与权限闭环",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/accounts-chat/phase14.md",
+      "title": "Phase 14：联系人、黑名单与多设备在线状态",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/accounts-chat/phase17.md",
+      "title": "Phase 17：头像、图片与文件消息",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/accounts-chat/phase27.md",
+      "title": "Phase 27：聊天历史、断线恢复与发送确认闭环",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/accounts-chat/phase45.md",
+      "title": "Phase45：聊天领域边界、批量读取与社交接口",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/ai/README.md",
+      "title": "AI、RAG与模型生命周期",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/ai/phase18.md",
+      "title": "Phase 18：AI 生成韧性与资源治理",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/ai/phase19.md",
+      "title": "Phase 19：模型变更审计与 AI 生成追踪",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/ai/phase20.md",
+      "title": "Phase 20：模型评测集、结果对比与激活质量门禁",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/ai/phase21.md",
+      "title": "Phase 21：RAG 知识检索、权限隔离与回答引用链",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/ai/phase22.md",
+      "title": "Phase 22：授权数据集与真实 LoRA 微调闭环",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/ai/phase23.md",
+      "title": "Phase 23：候选模型真实评测、人工发布与长稳证据",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/ai/phase24.md",
+      "title": "Phase 24：训练数据、模型制品与候选版本不可变血缘",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/ai/phase39.md",
+      "title": "Phase39：三种AI入口、私人推理、确认行动与旧资料迁移",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/ai/phase40.md",
+      "title": "Phase40：语音表达、个人设置与免费云适配",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/client-ui/README.md",
+      "title": "Windows客户端与前端交互",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/client-ui/phase35.md",
+      "title": "Phase35：复用原业务库、语音修复、Redis 与界面重构",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/client-ui/phase36.md",
+      "title": "Phase36：聊天布局与后端边界",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/client-ui/phase38.md",
+      "title": "Phase38：Windows 本机入口与私人知识空间",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/client-ui/phase46.md",
+      "title": "Phase46：前端单一上下文与真实业务交互",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/community/README.md",
+      "title": "社区、个人动态与站点管理",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/community/phase30.md",
+      "title": "Phase 30：站点管理与模型控制入口",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/community/phase31.md",
+      "title": "Phase 31：苦情树动态、媒体与内容处置",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/community/phase32.md",
+      "title": "Phase 32：三维苦情树与有界浏览",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/community/phase33.md",
+      "title": "Phase 33：七日热度、全服公告和本地语音",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/community/phase37.md",
+      "title": "Phase37：统一动态、个人主页与精致神树",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/community/phase42.md",
+      "title": "Phase42：保持架构方向，优化响应与神树外观",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/engineering/README.md",
+      "title": "业务分层与工程重整",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/engineering/phase43.md",
+      "title": "Phase43：可恢复基线与验收分级",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/engineering/phase44.md",
+      "title": "Phase44：可执行的工程检查",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/engineering/phase48.md",
+      "title": "Phase48：补齐配色、领域拆分与 Outbox 提交优化",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/engineering/phase49.md",
+      "title": "Phase49：业务契约对齐、领域装配与数据库对象分层",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/flows/README.md",
+      "title": "整体架构与调用图",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/flows/business-call-flows.md",
+      "title": "业务功能实现与调用关系",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/flows/function3-end-to-end.md",
+      "title": "Function3 从协议到业务、模型与公告的整体架构",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/flows/phase36-41-end-to-end.md",
+      "title": "从 Windows 私人助手到 Linux 共享业务与 AI 的总图",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/flows/phase43-47-end-to-end.md",
+      "title": "Phase43–47端到端：通信核心固定，业务逐领域演进",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/flows/phase49-end-to-end.md",
+      "title": "Phase49：三端、业务契约、事务与模型的整体调用图",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/guides/README.md",
+      "title": "业务接入教学",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/guides/function3-walkthrough.md",
+      "title": "Function3 学习路线：一枚果实怎样穿过服务器",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/guides/phase43-47-teaching.md",
+      "title": "业务如何接进服务器：沿三次用户操作读代码",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/guides/phase48-teaching.md",
+      "title": "Phase48 学习讲义：拆分以后，为什么事务和页面仍能连起来",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/guides/phase49-teaching.md",
+      "title": "Phase49 教学：接口怎样对齐，模块怎样独立而又能协作",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/guides/server-business-integration-tutorial.md",
+      "title": "教学：业务怎样接入这台 C++ 服务器",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/indexes/README.md",
+      "title": "代码组件索引",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/indexes/function3-code-index.md",
+      "title": "Function3 代码组件索引",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/indexes/phase36-41-code-index.md",
+      "title": "Phase36–41组件与文件索引",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/indexes/phase43-47-code-index.md",
+      "title": "Phase43–47组件与改动索引",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/indexes/phase48-code-index.md",
+      "title": "Phase48 组件索引",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/indexes/phase49-code-index.md",
+      "title": "Phase49 组件索引",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/messaging/README.md",
+      "title": "业务事件与可靠投递",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/messaging/phase29.md",
+      "title": "Phase 29：RocketMQ、Outbox、Inbox 与失败恢复",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/runtime/README.md",
+      "title": "业务运行、性能与可观测性",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/business/runtime/phase15.md",
+      "title": "Phase 15：真实业务性能基线",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/runtime/phase16.md",
+      "title": "Phase 16：可观测性、Outbox 主动唤醒与运维闭环",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/runtime/phase25.md",
+      "title": "Phase 25：用户态进程监督与异常恢复",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/runtime/phase26.md",
+      "title": "Phase 26：长连接容量、AI 并发与混合负载证据",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/runtime/phase28.md",
+      "title": "Phase 28：业务执行器、长会话与重连",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/README.md",
+      "title": "底层通信架构",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/grpc/README.md",
+      "title": "gRPC",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/grpc/phase8.md",
+      "title": "Phase 8：在现有 Web 服务器旁接入 gRPC C++",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/http/README.md",
+      "title": "HTTP请求处理",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/http/request_flow.md",
+      "title": "HTTP 请求处理完整流程",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/http2/README.md",
+      "title": "HTTP/2",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/http2/phase6.md",
+      "title": "Phase 6：HTTP/2 生产接入、教学版与完整流程核对",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/performance/README.md",
+      "title": "通信性能",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/performance/phase10.md",
+      "title": "Phase 10：HTTP/gRPC 性能路径与架构拆分",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/protocol-call-flows.md",
+      "title": "底层协议逻辑与调用关系",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/README.md",
+      "title": "Reactor、协程与连接生命周期",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/01_reactor_thread_model.md",
+      "title": "第三阶段重要知识点 · 01 Reactor 线程模型",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/02_runtime_lifecycle.md",
+      "title": "第三阶段重要知识点 · 02 ServerRuntime 生命周期",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/03_async_runtime.md",
+      "title": "第三阶段重要知识点 · 03 Async Runtime（异步运行时）思想",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/04_session_lifecycle.md",
+      "title": "第三阶段重要知识点 · 04 Session 生命周期与 Keep-Alive",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/05_pipeline_response_order.md",
+      "title": "第三阶段重要知识点 · 05 HTTP Pipeline 与响应顺序",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/06_backpressure.md",
+      "title": "第三阶段重要知识点 · 06 BackPressure（背压）",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/07_ownership_and_zombie.md",
+      "title": "第三阶段重要知识点 · 07 Connection / Session / Coroutine 所有权",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/08_completion_model.md",
+      "title": "第三阶段重要知识点 · 08 Completion 回传模型",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/09_acceptance_checklist.md",
+      "title": "第三阶段重要知识点 · 09 验收清单",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/10_bridge_to_phase4.md",
+      "title": "第三阶段重要知识点 · 10 通向到第四阶段（只讲桥）",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/lessons/README.md",
+      "title": "第三阶段重要知识点 · 目录",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/reactor/phase3_architecture_upgrade.md",
+      "title": "第三阶段：Server Framework Architecture Upgrade",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/reliability/README.md",
+      "title": "通信可靠性与生产护栏",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/reliability/phase9.md",
+      "title": "Phase 9：从“协议能跑”到“可控、可观测、可恢复”",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/sse/README.md",
+      "title": "SSE服务端事件流",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/sse/phase5.md",
+      "title": "Phase 5：在 2.0 架构上接入 SSE",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/tls/README.md",
+      "title": "TLS与ALPN",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/tls/phase7.md",
+      "title": "Phase 7：在现有 HTTP/1.1 与 HTTP/2 服务器中接入 TLS/ALPN",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/README.md",
+      "title": "WebSocket",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/README.md",
+      "title": "WebSocket 架构演进课程",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson05_connection_identity_and_root_coroutine.md",
+      "title": "第五阶段：连接身份与唯一根协程",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson06_websocket_frame_and_message_state.md",
+      "title": "第六阶段：WebSocket 帧状态机与消息状态机",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson07_websocket_utf8_and_close.md",
+      "title": "第七阶段：WebSocket UTF-8 与 Close 语义",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson08_websocket_backpressure.md",
+      "title": "第八阶段：WebSocket 背压、慢客户端与跨线程邮箱",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson09_outbound_completion_and_fairness.md",
+      "title": "第九阶段：发送完成语义与 Writer 公平性",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson10_websocket_application_delivery.md",
+      "title": "第十阶段：WebSocket 应用信封、ACK 与幂等窗口",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson11_websocket_retry_runtime.md",
+      "title": "第十一阶段：自动重试驱动、最终写回执与停机生命周期",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson12_websocket_receiver_idempotency.md",
+      "title": "第十二阶段：接收端幂等、ACK 顺序与可靠消费边界",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson13_websocket_backoff_and_metrics.md",
+      "title": "第十三阶段：指数退避、确定性抖动与投递指标",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson14_websocket_executor_boundary.md",
+      "title": "第十四阶段：WebSocket 业务线程边界与安全停机",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/lessons/lesson15_handler_cancellation_and_executor_isolation.md",
+      "title": "第十五阶段：handler 协作式取消、截止时间与执行容量隔离",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/phase4_upgrade.md",
+      "title": "第四阶段升级文档 · WebSocket 介入与跨 Reactor 出站体系",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/communication/websocket/第四阶段升级文档.md",
+      "title": "第四阶段升级文档",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/overview/ARCHITECTURE.md",
+      "title": "架构说明",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/overview/README.md",
+      "title": "系统总览",
+      "category": "architecture",
+      "kind": "index"
+    },
+    {
+      "path": "docs/architecture/overview/project-layout.md",
+      "title": "项目目录与构建边界",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/archive/README.md",
+      "title": "历史归档",
+      "category": "archive",
+      "kind": "index"
+    },
+    {
+      "path": "docs/archive/navigation/README.md",
+      "title": "历史导航快照",
+      "category": "archive",
+      "kind": "index"
+    },
+    {
+      "path": "docs/archive/navigation/business-index-2026-10.md",
+      "title": "业务功能架构",
+      "category": "archive",
+      "kind": "document"
+    },
+    {
+      "path": "docs/archive/navigation/docs-index-2026-10.md",
+      "title": "文档导航",
+      "category": "archive",
+      "kind": "document"
+    },
+    {
+      "path": "docs/contracts/README.md",
+      "title": "接口契约",
+      "category": "contracts",
+      "kind": "index"
+    },
+    {
+      "path": "docs/database/README.md",
+      "title": "Phase 11 PostgreSQL 表结构学习指南",
+      "category": "database",
+      "kind": "index"
+    },
+    {
+      "path": "docs/database/domain-layering.md",
+      "title": "数据库领域分层：从页面请求到持久化行",
+      "category": "database",
+      "kind": "document"
+    },
+    {
+      "path": "docs/database/function3-tables.md",
+      "title": "Function3 数据表与事务边界",
+      "category": "database",
+      "kind": "document"
+    },
+    {
+      "path": "docs/database/phase43-47-chat-workspace.md",
+      "title": "迁移024：会话提醒偏好与读取索引",
+      "category": "database",
+      "kind": "document"
+    },
+    {
+      "path": "docs/database/phase48-outbox.md",
+      "title": "Phase48 数据库兼容说明",
+      "category": "database",
+      "kind": "document"
+    },
+    {
+      "path": "docs/learning/README.md",
+      "title": "学习入口",
+      "category": "learning",
+      "kind": "index"
+    },
+    {
+      "path": "docs/learning/exercises/README.md",
+      "title": "架构习题卡（学习项目）",
+      "category": "learning",
+      "kind": "index"
+    },
+    {
+      "path": "docs/ops/README.md",
+      "title": "运行维护分类",
+      "category": "ops",
+      "kind": "index"
+    },
+    {
+      "path": "docs/ops/closeout/CLOSEOUT.md",
+      "title": "Web 收口清单",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/closeout/CLOSEOUT_NARRATIVE.md",
+      "title": "Web 项目收尾总述（CLOSEOUT Narrative）",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/closeout/README.md",
+      "title": "历史收口与停机设计",
+      "category": "ops",
+      "kind": "index"
+    },
+    {
+      "path": "docs/ops/closeout/closeout-A_tcp_nodelay_graceful_shutdown.md",
+      "title": "收口阶段 A：TCP_NODELAY、优雅退出与连接背压",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/dependencies/README.md",
+      "title": "依赖管理与审批",
+      "category": "ops",
+      "kind": "index"
+    },
+    {
+      "path": "docs/ops/dependencies/function3-dependencies.md",
+      "title": "Function3：优先复用已有 Linux 安装",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/dependencies/phase11-dependency-gates.md",
+      "title": "Phase 11 依赖审批",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/runtime/README.md",
+      "title": "启动、停止与本地预览",
+      "category": "ops",
+      "kind": "index"
+    },
+    {
+      "path": "docs/ops/runtime/function3-runtime.md",
+      "title": "Function3 日常启动：原账号库、18090 与语音",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/runtime/phase36-41-local-preview.md",
+      "title": "Phase36–41本地成果如何复现",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/setup/README.md",
+      "title": "环境配置",
+      "category": "ops",
+      "kind": "index"
+    },
+    {
+      "path": "docs/ops/setup/environment.md",
+      "title": "CentOS Stream 9 C\\+\\+开发测试环境部署指南",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/troubleshooting/CHEATSHEET.md",
+      "title": "排错手册（症状 → 文件）",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/troubleshooting/README.md",
+      "title": "故障排查",
+      "category": "ops",
+      "kind": "index"
+    },
+    {
+      "path": "docs/ops/validation/README.md",
+      "title": "验证、部署与回退",
+      "category": "ops",
+      "kind": "index"
+    },
+    {
+      "path": "docs/ops/validation/phase43-47-validation-and-rollback.md",
+      "title": "Phase43–47验证、部署审批与回退",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/validation/phase48-validation-and-rollback.md",
+      "title": "Phase48 验证与回退",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/validation/phase49-validation-and-rollback.md",
+      "title": "Phase49 验证与回退",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/performance/BENCHMARK.md",
+      "title": "可复现性能实验",
+      "category": "performance",
+      "kind": "document"
+    },
+    {
+      "path": "docs/performance/README.md",
+      "title": "性能文档",
+      "category": "performance",
+      "kind": "index"
+    },
+    {
+      "path": "docs/releases/README.md",
+      "title": "版本差异与演进",
+      "category": "releases",
+      "kind": "index"
+    },
+    {
+      "path": "docs/releases/code_diff_comparison.md",
+      "title": "原型 vs 最新版本：代码差异对比文档",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/function1.0-vs-test9.1.md",
+      "title": "Function1.0 与 test9.1 对比",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/function2-vs-function1.0.md",
+      "title": "Function2 与 Function1.0 对比",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/function2.1-vs-function2.md",
+      "title": "Function2.1 与 Function2 对比，以及下一步演进建议",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/test9.1.md",
+      "title": "test9.1 版本差异：HTTP/gRPC 架构与性能升级",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/reports/README.md",
+      "title": "报告分类",
+      "category": "reports",
+      "kind": "index"
+    },
+    {
+      "path": "docs/reports/history/2026-07-30-full-test-report.md",
+      "title": "HTTP 服务器完整测试报告",
+      "category": "reports",
+      "kind": "document"
+    },
+    {
+      "path": "docs/reports/history/README.md",
+      "title": "历史测试报告",
+      "category": "reports",
+      "kind": "index"
+    },
+    {
+      "path": "docs/reports/stages/README.md",
+      "title": "阶段验收报告",
+      "category": "reports",
+      "kind": "index"
+    },
+    {
+      "path": "docs/reports/stages/phase34.md",
+      "title": "Phase 34：Function3 验收记录",
+      "category": "reports",
+      "kind": "document"
+    },
+    {
+      "path": "docs/reports/stages/phase41.md",
+      "title": "Phase41：完整回归、真实链路与性能验收",
+      "category": "reports",
+      "kind": "document"
+    },
+    {
+      "path": "docs/reports/stages/phase47.md",
+      "title": "Phase47：综合验收、性能结果与交付限制",
+      "category": "reports",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/README.md",
+      "title": "计划、阶段与扩展学习",
+      "category": "roadmap",
+      "kind": "index"
+    },
+    {
+      "path": "docs/roadmap/function3-progress.md",
+      "title": "Function3 实施与验收台账",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/learning/ROBOTICS_ROADMAP.md",
+      "title": "机器人 C++ 系统软件 9–12 个月路线图",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/phase43-47-progress.md",
+      "title": "Phase43–47 实施台账",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/stage-index.md",
+      "title": "Phase阶段时间线",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/LEARNING_SCOPE.md",
+      "title": "测试学习：范围把关",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/README.md",
+      "title": "测试文档",
+      "category": "testing",
+      "kind": "index"
+    },
+    {
+      "path": "docs/testing/TESTING.md",
+      "title": "Testing and runtime verification",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/CLOSED_LOOP_MAP.md",
+      "title": "稳定性闭环 ↔ 本仓库现状（配套讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/README.md",
+      "title": "测试学习资料",
+      "category": "testing",
+      "kind": "index"
+    },
+    {
+      "path": "docs/testing/learning/ROUND1_ANSWERS.md",
+      "title": "测试学习 · 第一轮配套答案",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/ROUND1_INVARIANTS.md",
+      "title": "测试学习 · 第一轮：不变量 ↔ 用例",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/ROUND2_INVARIANTS.md",
+      "title": "测试学习 · 第二轮：口述「想有的」不变量",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/legacy-guide/测试学习指南/学习笔记速查.md",
+      "title": "Web 服务器测试体系 - 学习笔记速查",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/学习笔记速查.md",
+      "title": "Web 服务器测试体系 - 学习笔记速查",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/00_总览与测试分层.md",
+      "title": "00 · 总览与测试分层（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/01_GoogleTest单元测试.md",
+      "title": "01 · GoogleTest 单元测试（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/02_EventLoop与生命周期测试.md",
+      "title": "02 · EventLoop / Reactor / Connection 单元测试（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/03_HTTP黑盒测试.md",
+      "title": "03 · HTTP 黑盒测试（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/04_Benchmark压测.md",
+      "title": "04 · Benchmark 压测（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/05_Sanitizer.md",
+      "title": "05 · Sanitizer（ASan / UBSan / TSan）（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/06_故障注入.md",
+      "title": "06 · 故障注入（Fault Injection）（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/07_Fuzz模糊测试.md",
+      "title": "07 · Fuzz 模糊测试（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/08_Metrics监控.md",
+      "title": "08 · Metrics 监控（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/09_火焰图.md",
+      "title": "09 · 火焰图 Flame Graph（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/10_工程化流水线与验收.md",
+      "title": "10 · 工程化流水线与验收（详细讲义）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/README.md",
+      "title": "测试学习综合讲义和笔记",
+      "category": "testing",
+      "kind": "index"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/我对各层测试的理解.md",
+      "title": "我对各层测试的理解（学员笔记汇总）",
+      "category": "testing",
+      "kind": "document"
+    },
+    {
+      "path": "docs/testing/learning/测试学习综合讲义和笔记/火焰图生成命令流与读图教学.md",
+      "title": "火焰图：生成命令流 + 读图教学 + 本机实战解读",
+      "category": "testing",
+      "kind": "document"
+    }
+  ]
+}

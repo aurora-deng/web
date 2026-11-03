@@ -1,17 +1,17 @@
 # 可复现性能实验
 
 > Phase 15 已把本方法扩展到账号、PostgreSQL、WebSocket、SSE、Outbox、私聊和群聊。真实业务
-> 三轮结果、脚本和原始 JSON 见 [Phase 15：真实业务性能基线](../architecture/business/phase15.md)。本页后续
+> 三轮结果、脚本和原始 JSON 见 [Phase 15：真实业务性能基线](../architecture/business/runtime/phase15.md)。本页后续
 > 的 `/fast`/wrk 方法用于网络热路径和容量曲线，不能代替业务端到端结果。
 >
 > Phase 16 使用同一业务脚本完成固定轮询与主动唤醒的同二进制 A/B，并采集执行器、连接池和 Outbox
-> 内部指标，见 [Phase 16：可观测性与运维闭环](../architecture/business/phase16.md)。
+> 内部指标，见 [Phase 16：可观测性与运维闭环](../architecture/business/runtime/phase16.md)。
 >
 > 长驻 WebSocket、真实 AI 并发以及 AI/普通聊天隔离矩阵见
-> [Phase 26：长连接容量、AI 并发与混合负载证据](../architecture/business/phase26.md)。工具已就绪，正式三轮
+> [Phase 26：长连接容量、AI 并发与混合负载证据](../architecture/business/runtime/phase26.md)。工具已就绪，正式三轮
 > 结果等待当前 24 小时长稳结束后采集。
 
-本文给出实验协议和结果模板。虚拟机上一次 `GET /` 快照见 [../closeout/CLOSEOUT.md](../closeout/CLOSEOUT.md)；
+本文给出实验协议和结果模板。虚拟机上一次 `GET /` 快照见 [../closeout/CLOSEOUT.md](../ops/closeout/CLOSEOUT.md)；
 **不能**外推为物理机上限或与 nginx 的正式对比结论。
 
 ## 阅读目标与设计动机
@@ -21,7 +21,7 @@
 原始输出留存和固定到达率场景，是为了隔离环境漂移、错误流量及 coordinated omission，避免把偶然峰值
 误写成框架能力。
 
-它与 [../architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md) 和 [../testing/TESTING.md](../testing/TESTING.md) 形成“设计假设—正确性门禁—
+它与 [../architecture/ARCHITECTURE.md](../architecture/overview/ARCHITECTURE.md) 和 [../testing/TESTING.md](../testing/TESTING.md) 形成“设计假设—正确性门禁—
 性能证据”的闭环：架构文档提出 Reactor、协程、背压和发送路径的取舍，测试先确认行为未被破坏，
 本实验再判断取舍是否值得。这个闭环让 Web 项目可以依据数据完成收口和有限优化，也可直接迁移到
 ROS 2/DDS 通信、实时周期与设备网关的延迟、抖动、丢包和 CPU 评估，为机器人方向保留同一套
@@ -326,5 +326,5 @@ cat "/proc/${SERVER_PID}/status"
 - 火焰图的宽度代表采样占比，不直接等于“函数很慢”。结合调用次数、perf stat 和 A/B 复测定位。
 - 发现热点后一次只改一个变量，至少重复 5 次；优化收益小于环境波动时结论应为“不显著”。
 - 所有结论限定到具体硬件、内核、编译器、响应路径和负载。
-- 虚拟机快照（约 2.3 万～3 万 QPS）见 [../closeout/CLOSEOUT.md](../closeout/CLOSEOUT.md)；未做同机 nginx/muduo 正式对比前，
+- 虚拟机快照（约 2.3 万～3 万 QPS）见 [../closeout/CLOSEOUT.md](../ops/closeout/CLOSEOUT.md)；未做同机 nginx/muduo 正式对比前，
   不得宣称优于竞品。c1000 延迟升高若符合 Little 定律（连接数/QPS），应解释为排队而非回归。

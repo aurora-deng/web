@@ -1,0 +1,71 @@
+PASS frozen communication core (152 files) and chat domain/port/application dependency boundaries
+{"version": "dc39cdb5489c964d", "nativeFiles": 100, "vendor": "three-r186 (unchanged)", "includesDynamicReferences": true, "updatedFiles": 0}
+PASS 16 component stylesheets and HTML style blocks use the shared semantic palette
+{"businessHttpContracts": 119, "domains": 18, "updated": 0}
+{"passed": true, "markdownPages": 196, "checkedLocalLinks": 2000, "catalogPages": 186, "movedDocuments": 111, "compatibilityRedirects": 6, "excluded": ["raw evidence", "frozen backend/server", "private *.local.md"], "fragments": "retained; heading slug rendering not checked", "errors": []}
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.480s
+
+OK
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.047s
+
+OK
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.053s
+
+OK
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.092s
+
+OK
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.020s
+
+OK
+✔ domain bindings encode parameter values and retain decimal strings without precision loss (1.7296ms)
+✔ literal collection resources resolve ahead of generic identifier routes (0.6946ms)
+✔ method, route and domain mismatch fail before network access (2.5456ms)
+✔ descriptor method drives CSRF while body and cancellation are preserved (34.2448ms)
+✔ operational reads and legacy request aliases retain their registered contracts (0.3472ms)
+✔ controller sees declared ports only and resolves cooperating commands lazily (2.1803ms)
+✔ missing required dependencies fail at assembly instead of a later button click (0.3668ms)
+✔ completed composition rejects a declared command with no installed provider (0.5104ms)
+✔ all module subscriptions are revoked by the same page lifecycle (1.5609ms)
+✔ 一万条历史全部可达，缓存上限不阻断前后翻页 (66.9433ms)
+✔ 阅读旧页时新消息不挤走窗口，随后可追赶，撤回终态保留 (2.5522ms)
+✔ 恢复闸机限制并发、速率、排队，切会话取消旧请求 (1.5462ms)
+✔ 重连随机退避有上下界和最大值 (0.3815ms)
+✔ 十万条记录的渲染窗口始终有界，临界滚动位置不返回空窗口 (13.2453ms)
+✔ 10 snapshot plus two concurrent messages is 12; duplicate/old snapshots do not lose data (1.4547ms)
+✔ read arrives first, exact decimal strings, account reset and removed memberships (0.351ms)
+✔ old list/event cannot reverse a newer per-member preference; logout drops previous account (1.43ms)
+✔ grouping uses data and five-minute/system/day boundaries, keeps one row per message (5.4094ms)
+✔ search window preserves synchronized cursor and recall terminal state (0.8624ms)
+✔ request errors distinguish definitive failure, abort and uncertain writes without retry (40.3428ms)
+✔ 最新页与两页旧历史无遗漏、无重叠，结果保持升序 (4.3514ms)
+✔ 较高乱序广播不跳过缺口；重连分页补齐并刷新旧消息撤回 (1.2307ms)
+✔ 撤回终态不能被较晚到达的旧 HTTP 响应覆盖 (0.2778ms)
+✔ 切换会话后忽略上一会话迟到页面 (0.3181ms)
+✔ 空会话随后出现新消息也能恢复；无进展页面不会无限循环 (0.9414ms)
+✔ 合并同步目标；同一旧页同时点击只请求一次 (0.5372ms)
+✔ ACK 丢失但已落库：查询确认，不再发送 (0.8363ms)
+✔ 未落库的 ACK 超时：原载荷有限重试，保留未知结果并允许手动重试 (0.5353ms)
+✔ 断线和页面恢复保留原幂等键；后台会话回执也能结束队列 (0.9047ms)
+✔ 广播先到、accepted 后到不会重复收敛或丢失完整消息 (0.3269ms)
+✔ 查询失败仍为未知；显式服务器拒绝先核对再显示失败 (0.4634ms)
+✔ ACK 校验会话、队列有上限、退出后迟到查询不再写状态 (0.6713ms)
+✔ 群管理撤回按钮符合角色、时间窗和撤回终态 (0.5598ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 323.164

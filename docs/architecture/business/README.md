@@ -1,101 +1,34 @@
-# 业务功能架构
+# 业务功能分类
 
-Phase49新增：[接口与装配重整](phase49.md)、[教学](phase49-teaching.md)、[代码索引](phase49-code-index.md)、[数据库分层](../../database/domain-layering.md)、[当前总图](phase49-end-to-end.md)。
+业务服务判断“能不能做、写什么、通知谁”；通信层负责安全传递请求和结果。按领域查正文，按Phase时间线查演进过程。
 
-上一补齐阶段：[Phase48 配色、领域拆分与 Outbox](phase48.md)、[代码索引](phase48-code-index.md)、[教学](phase48-teaching.md)。原Phase36–47文档作为历史阶段保留。
-
-
-本目录集中说明“用户能做什么，以及这些操作如何落到业务服务、Repository、数据库、实时通知和模型系统”。
-通信层负责送货，业务层负责判断这件货能不能收、应该写入哪些状态、之后通知谁。
-
-底层 HTTP/WebSocket/SSE/gRPC 不在这里重复，见 [底层通信架构](../communication/README.md)。
-
-学习“业务如何接到服务器接口”请从 [接入教学讲义](server-business-integration-tutorial.md) 开始：按六课跟踪真实登录、消息提交、Outbox、未读/撤回和 AI 链路，附代码索引、自检题以及当前仍需补齐的验收与交互边界。
-
-## 1. 当前功能入口
-
-| 业务域 | 主要能力 | 详细流程 |
-|---|---|---|
-| 账号与会话 | 注册、登录、退出、资料、Cookie Session、CSRF、限流 | [业务调用流程](business-call-flows.md#2-账号注册与登录) |
-| 社交关系 | 好友申请、接受/拒绝、好友列表、备注、免打扰、黑名单 | [业务调用流程](business-call-flows.md#3-好友与联系人) |
-| 聊天 | 私聊、群聊、离线消息、幂等、未读、送达/已读、撤回、搜索 | [业务调用流程](business-call-flows.md#4-消息发送与离线接收) |
-| 群治理 | 创建群、邀请、角色、禁言、移除、退出、解散 | [业务调用流程](business-call-flows.md#5-群聊治理) |
-| 文件 | 头像、分片上传、完整性校验、文件消息、授权下载 | [业务调用流程](business-call-flows.md#6-文件与头像) |
-| 实时事件 | WebSocket 命令、SSE 通知、Outbox、Presence | [业务调用流程](business-call-flows.md#7-outbox-与实时通知) |
-| AI 对话 | 模型路由、流式 token、取消、超时、配额、熔断、备用端点 | [业务调用流程](business-call-flows.md#8-ai-生成与-rag) |
-| RAG | 知识登记、切片、权限过滤、检索、引用追踪 | [业务调用流程](business-call-flows.md#8-ai-生成与-rag) |
-| 模型生命周期 | 训练授权、数据集、LoRA、候选版本、评测、门禁、激活/回滚、审计 | [业务调用流程](business-call-flows.md#9-训练评测发布与回滚) |
-| 运行保障 | 指标、健康检查、性能基线、监督与异常恢复 | Phase 15、16、25、26 |
-
-## 2. 分层
-
-```mermaid
-flowchart TB
-    UI[frontend/phase11] --> Adapters[HTTP / WebSocket / SSE 业务适配器]
-    Adapters --> Interfaces[BusinessInterfaces]
-    Interfaces --> Services[Auth / Social / Chat / File / AiChat]
-    Services --> Domain[Domain 实体与状态机]
-    Services --> Ports[Repository / Transaction / Provider ports]
-    Ports --> Memory[InMemoryStore]
-    Ports --> PG[PostgresStore]
-    Ports --> Files[LocalFileStorage]
-    Services --> AI[RAG / ModelRegistry / Evaluation / Providers]
-    AI --> Ollama[Ollama API]
-    AI --> ONNX[进程内 ONNX]
-    AI --> Worker[独立 gRPC ONNX Worker]
-```
-
-上层只依赖接口，PostgreSQL、Ollama、ONNX 和 gRPC Worker 都是可替换的适配器。这样测试可以使用内存实现，
-正式运行再切换真实依赖，而业务规则不会复制两份。
-
-## 3. Phase 11–27
-
-| 阶段 | 内容 |
+|领域/用途|入口与内容|
 |---|---|
-| [Phase 11](phase11.md) | 账号、社交聊天、AI Provider 与模型治理地基 |
-| [依赖审批](phase11-dependency-gates.md) | PostgreSQL、libsodium、curl、ONNX、训练工具链 |
-| [Phase 12](phase12.md) | 持久消息、未读、送达/已读和撤回 |
-| [Phase 13](phase13.md) | 群聊治理与权限 |
-| [Phase 14](phase14.md) | 联系人、黑名单和多设备 Presence |
-| [Phase 15](phase15.md) | 真实业务性能基线 |
-| [Phase 16](phase16.md) | 可观测性、Outbox 主动唤醒和运维闭环 |
-| [Phase 17](phase17.md) | 头像、图片与文件消息 |
-| [Phase 18](phase18.md) | AI 生成韧性与资源治理 |
-| [Phase 19](phase19.md) | 模型审计与生成追踪 |
-| [Phase 20](phase20.md) | 评测集和激活质量门禁 |
-| [Phase 21](phase21.md) | RAG 权限隔离与引用链 |
-| [Phase 22](phase22.md) | 授权数据集与 LoRA 闭环 |
-| [Phase 23](phase23.md) | 候选模型真实评测与人工发布 |
-| [Phase 24](phase24.md) | 数据、制品和模型版本血缘 |
-| [Phase 25](phase25.md) | 用户态进程监督与恢复 |
-| [Phase 26](phase26.md) | 长连接、AI 并发和混合负载容量 |
-| [Phase 27](phase27.md) | 历史分页、断线补齐、ACK 超时幂等重试与管理员撤回入口 |
+|[账号与聊天社交](accounts-chat/README.md)|认证、好友、私聊群聊、文件、未读/ACK/撤回、恢复与搜索|
+|[AI与模型治理](ai/README.md)|Provider、RAG、评测、授权训练、血缘、三种助手与语音|
+|[社区与管理](community/README.md)|苦情树、动态、媒体、榜单、公告、个人主页、站点权限|
+|[客户端与前端](client-ui/README.md)|Windows本地资料、浏览器布局、交互与模块化|
+|[MQ与事件投递](messaging/README.md)|Outbox、RocketMQ、Inbox、重试和人工重放|
+|[业务运行与性能](runtime/README.md)|业务执行器、运行维护、指标、性能与容量|
+|[业务分层与工程重整](engineering/README.md)|基线、检查机制、领域拆分、装配和接口对齐|
+|[教学讲义](guides/README.md)|一次用户操作怎样走过接口、服务、事务和实时通知|
+|[架构与调用图](flows/README.md)|完整链路与各阶段总图|
+|[实现索引](indexes/README.md)|组件职责和源码文件位置|
 
-## 4. 代码区域
+当前优先阅读：[Phase49改动与限制](engineering/phase49.md) → [接口教学](guides/phase49-teaching.md) → [数据库分层](../../database/domain-layering.md)。
+
+[阶段时间线](../../roadmap/stage-index.md) · [进度台账](../../roadmap/function3-progress.md) · [阶段验收](../../reports/stages/README.md) · [回到文档分类](../../README.md)
+
+## 固定边界
 
 ```text
-backend/application/
-├─ domain/          用户、会话、消息、文件、知识、训练与模型实体
-├─ ports/           Repository、事务、安全、索引和模型端口
-├─ business/        Auth、Social、Chat、File、AiChat、Outbox 用例
-├─ transport/       HTTP 路由、实时命令/事件、序列化契约
-├─ storage/         内存、PostgreSQL、文件正文
-├─ security/        密码哈希与登录限流
-└─ runtime/         数据库等慢任务的有界执行器
+前端页面 → 领域API契约 → HTTP/WS适配器 → Application Service
+                                         ↓
+                          领域规则 / Repository Port
+                                         ↓
+                       PostgreSQL / 文件 / 模型等实现
+                                         ↓
+                          同事务Outbox → WS/SSE/MQ
 ```
 
-## Function3：模块隔离与苦情树社区
-
-[Phase28](phase28.md) → [Phase29](phase29.md) → [Phase30](phase30.md) → [Phase31](phase31.md) → [Phase32](phase32.md) → [Phase33](phase33.md) → [Phase34 验收](phase34.md)。
-
-参见 [总图](function3-end-to-end.md)、[组件索引](function3-code-index.md)、[实际进度](function3-progress.md)。
-
-Function3逐步教学：[从浏览器发布到事务、MQ与语音](function3-walkthrough.md)。
-
-当前增量：[Phase35：原业务库复用、语音修复、Redis与界面重构](phase35.md)。日常实例使用原 `phase11` 和18090，操作见[启动与停止](../../ops/function3-runtime.md)；Phase34旧性能未达标项仍保留。
-
-本地新轮次：[Phase36 聊天布局](phase36.md) → [Phase37 统一动态/主页](phase37.md) → [Phase38 Windows客户端](phase38.md) → [Phase39 三形态AI/确认操作](phase39.md) → [Phase40 语音](phase40.md)。[新端到端架构图](phase36-41-end-to-end.md)、[Phase41验收与未达标项](phase41.md)、[组件索引](phase36-41-code-index.md)、[本地预览](../../ops/phase36-41-local-preview.md)。模型、训练和语音代码位于 `backend/ai`，不再放在 `backend/application` 内。
-
-保持上述架构方向的后续改进：[Phase42：TLS复用、神树批量读取与绘制/外观优化](phase42.md)。
-
-本轮冻结通信核心后的业务演进见[Phase43–47](phase43-47-progress.md)，[代码索引](phase43-47-code-index.md)、[业务接入教学](phase43-47-teaching.md)与[总图](phase43-47-end-to-end.md)。
+Linux保存共享业务的权威状态；Windows保存账号隔离的私人助手资料；浏览器负责交互。领域之间通过明确接口和事件协作，不靠直接访问对方表来复制规则。目录拆分不等于性能提升，历史未达标结果继续保留。

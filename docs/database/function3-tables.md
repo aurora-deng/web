@@ -2,7 +2,7 @@
 
 Function3新增迁移 `013_function3_tree.sql`、`014_function3_media_audio.sql`、`015_function3_speech_jobs.sql`、`016_function3_queue_indexes.sql`、`017_function3_delivery_failures.sql`，Phase35再新增 `018_tree_reply_links.sql`，不改已应用的旧迁移。数据库连接信息、密码、音频和模型不提交 Git。
 
-日常环境复用原 `phase11 / 5432`，新功能在原库增加具名表。升级前备份并比较账号摘要；此次68个原账号保留。[启动、备份与停止](../ops/function3-runtime.md)解释日常入口与已有测试库的区别。
+日常环境复用原 `phase11 / 5432`，新功能在原库增加具名表。升级前备份并比较账号摘要；此次68个原账号保留。[启动、备份与停止](../ops/runtime/function3-runtime.md)解释日常入口与已有测试库的区别。
 
 ## 1. 新表分别是什么
 

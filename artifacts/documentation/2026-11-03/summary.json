@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-03",
+  "change": "documentation classification and link checks only",
+  "baselineCommit": "8da8611",
+  "moves": 111,
+  "phaseTimelineEntries": 47,
+  "publicCatalogPages": 186,
+  "newTopicIndexes": 30,
+  "compatibilityRedirects": 6,
+  "legacyBrokenSourceLinksFixed": 8,
+  "protectedFileByteChecks": {
+    "files": 903,
+    "unchanged": true
+  },
+  "runtimeSourceFingerprint": "73eb4608d746053f0056c5139e93b0bfcdb2c8ddf9a21f059f2358f29d1c705c",
+  "runtimeImplementationChanged": false,
+  "newDependencyInstalled": false,
+  "dailyServiceChanged": false,
+  "originalDatabaseChanged": false,
+  "validation": {
+    "documentation": {
+      "passed": true,
+      "markdownPages": 196,
+      "checkedLocalLinks": 2000,
+      "catalogPages": 186,
+      "movedDocuments": 111,
+      "compatibilityRedirects": 6,
+      "excluded": [
+        "raw evidence",
+        "frozen backend/server",
+        "private *.local.md"
+      ],
+      "fragments": "retained; heading slug rendering not checked",
+      "errors": []
+    },
+    "frontendLogicPassed": 33,
+    "engineeringPassed": 14,
+    "sourceCiPassed": true,
+    "movedBodyVerified": 110,
+    "layoutGuideIntentionallyUpdated": true
+  },
+  "limits": [
+    "Original performance failures retained; no runtime benchmark rerun for this document-only change",
+    "Heading fragments retained; Markdown heading slug rendering not checked",
+    "Raw evidence and frozen source Markdown are preserved, not rewritten",
+    "Initial restricted run could not write a temporary test directory; same unchanged tests passed in the authorized project environment"
+  ]
+}

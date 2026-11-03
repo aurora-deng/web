@@ -1,6 +1,6 @@
 # 测试分层（学习目标）
 
-Phase 27 聊天可靠性验证见 [阶段记录](../docs/architecture/business/phase27.md)：
+Phase 27 聊天可靠性验证见 [阶段记录](../docs/architecture/business/accounts-chat/phase27.md)：
 
 - `phase11/unit/chat_reliability.cpp`：C++ 业务与内存仓储；CMake 登记为 `phase11_chat_reliability_tests`。
 - `phase11/frontend/chat_reliability.test.mjs`：标准 Node 单元测试，不需安装依赖。
@@ -21,11 +21,11 @@ Phase 27 聊天可靠性验证见 [阶段记录](../docs/architecture/business/p
 
 事实源与排错：
 
-- SSE 接入：`docs/architecture/communication/phase5.md`
-- Phase 9 生产化护栏与新增验证：`docs/architecture/communication/phase9.md`
-- 架构：`docs/architecture/communication/websocket-lessons/lesson05_connection_identity_and_root_coroutine.md`、`docs/architecture/communication/websocket-lessons/lesson06_websocket_frame_and_message_state.md`、`docs/architecture/communication/websocket-lessons/lesson07_websocket_utf8_and_close.md`、`docs/architecture/communication/websocket-lessons/lesson08_websocket_backpressure.md`、`docs/architecture/communication/websocket-lessons/lesson09_outbound_completion_and_fairness.md`、`docs/architecture/communication/websocket-lessons/lesson10_websocket_application_delivery.md`、`docs/architecture/communication/websocket-lessons/lesson11_websocket_retry_runtime.md`、`docs/architecture/communication/websocket-lessons/lesson12_websocket_receiver_idempotency.md`、`docs/architecture/communication/websocket-lessons/lesson13_websocket_backoff_and_metrics.md`、`docs/architecture/communication/websocket-lessons/lesson14_websocket_executor_boundary.md`、`docs/architecture/communication/websocket-lessons/lesson15_handler_cancellation_and_executor_isolation.md`
-- 排错：`docs/debugging/CHEATSHEET.md`
-- 习题：`docs/exercises/README.md`
+- SSE 接入：`docs/architecture/communication/sse/phase5.md`
+- Phase 9 生产化护栏与新增验证：`docs/architecture/communication/reliability/phase9.md`
+- 架构：`docs/architecture/communication/websocket/lessons/lesson05_connection_identity_and_root_coroutine.md`、`docs/architecture/communication/websocket/lessons/lesson06_websocket_frame_and_message_state.md`、`docs/architecture/communication/websocket/lessons/lesson07_websocket_utf8_and_close.md`、`docs/architecture/communication/websocket/lessons/lesson08_websocket_backpressure.md`、`docs/architecture/communication/websocket/lessons/lesson09_outbound_completion_and_fairness.md`、`docs/architecture/communication/websocket/lessons/lesson10_websocket_application_delivery.md`、`docs/architecture/communication/websocket/lessons/lesson11_websocket_retry_runtime.md`、`docs/architecture/communication/websocket/lessons/lesson12_websocket_receiver_idempotency.md`、`docs/architecture/communication/websocket/lessons/lesson13_websocket_backoff_and_metrics.md`、`docs/architecture/communication/websocket/lessons/lesson14_websocket_executor_boundary.md`、`docs/architecture/communication/websocket/lessons/lesson15_handler_cancellation_and_executor_isolation.md`
+- 排错：`docs/ops/troubleshooting/CHEATSHEET.md`
+- 习题：`docs/learning/exercises/README.md`
 
 本地（Linux）建议：
 

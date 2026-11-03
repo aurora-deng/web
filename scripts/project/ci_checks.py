@@ -38,6 +38,7 @@ def main():
             run(['python3' if os.name!='nt' else os.sys.executable,'scripts/project/frontend_release.py','--check'])
             run([os.sys.executable,'scripts/project/check_presentation.py'])
             run([os.sys.executable,'scripts/project/sync_api_contracts.py','--check'])
+            run([os.sys.executable,'scripts/project/check_doc_links.py'])
             run([os.sys.executable,'tests/project/test_api_contracts.py'])
             run([os.sys.executable,'tests/project/test_ci_gates.py'])
             run([os.sys.executable,'tests/project/test_process_identity.py'])

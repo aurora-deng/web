@@ -1,29 +1,31 @@
 # 底层通信架构
 
+按协议查找：[Reactor](reactor/README.md) · [HTTP](http/README.md) · [WebSocket](websocket/README.md) · [SSE](sse/README.md) · [HTTP/2](http2/README.md) · [TLS](tls/README.md) · [gRPC](grpc/README.md) · [可靠性](reliability/README.md) · [性能](performance/README.md)。按顺序复习可用 [阶段时间线](../../roadmap/stage-index.md)。
+
 本目录只回答一个问题：**字节怎样从客户端进入服务器，经过协议解析、调度和背压控制，再安全地写回网络。**
 可以把这一层看成物流系统：Reactor 是分拣中心，Session 是某一种货物的处理规则，Codec 是拆箱/装箱器，
 Executor 是后场工位，OutboundQueue 是待发货区，TransportWriter 是最后装车的人。
 
 业务层不应直接操作 `epoll`、fd、TLS、HTTP 帧或 WebSocket 帧。它只接收已经解析好的请求，并返回业务结果。
-业务架构见 [业务功能架构](../business/README.md)，跨层全景见 [总架构](../ARCHITECTURE.md)。
+业务架构见 [业务功能架构](../business/README.md)，跨层全景见 [总架构](../overview/ARCHITECTURE.md)。
 
 ## 1. 阅读入口
 
 | 内容 | 文档 |
 |---|---|
 | 当前通信架构、各协议逻辑和调用关系 | [协议与调用流程](protocol-call-flows.md) |
-| 一次 HTTP 请求的逐步路径 | [request_flow.md](request_flow.md) |
-| Reactor、协程、生命周期课程 | [phase3/README.md](phase3/README.md) |
-| WebSocket 专题课程 | [websocket-lessons/README.md](websocket-lessons/README.md) |
-| Phase 3：多 Reactor 与协程架构升级 | [phase3_architecture_upgrade.md](phase3_architecture_upgrade.md) |
-| Phase 4：WebSocket 与跨 Reactor 出站 | [phase4_upgrade.md](phase4_upgrade.md) |
-| Phase 4 中文讲义 | [第四阶段升级文档.md](第四阶段升级文档.md) |
-| Phase 5：SSE | [phase5.md](phase5.md) |
-| Phase 6：HTTP/2 与教学实现 | [phase6.md](phase6.md) |
-| Phase 7：TLS 与 ALPN | [phase7.md](phase7.md) |
-| Phase 8：gRPC 接入 | [phase8.md](phase8.md) |
-| Phase 9：协议生产化护栏 | [phase9.md](phase9.md) |
-| Phase 10：HTTP/gRPC 热路径优化 | [phase10.md](phase10.md) |
+| 一次 HTTP 请求的逐步路径 | [request_flow.md](http/request_flow.md) |
+| Reactor、协程、生命周期课程 | [phase3/README.md](reactor/lessons/README.md) |
+| WebSocket 专题课程 | [websocket-lessons/README.md](websocket/lessons/README.md) |
+| Phase 3：多 Reactor 与协程架构升级 | [phase3_architecture_upgrade.md](reactor/phase3_architecture_upgrade.md) |
+| Phase 4：WebSocket 与跨 Reactor 出站 | [phase4_upgrade.md](websocket/phase4_upgrade.md) |
+| Phase 4 中文讲义 | [第四阶段升级文档.md](websocket/第四阶段升级文档.md) |
+| Phase 5：SSE | [phase5.md](sse/phase5.md) |
+| Phase 6：HTTP/2 与教学实现 | [phase6.md](http2/phase6.md) |
+| Phase 7：TLS 与 ALPN | [phase7.md](tls/phase7.md) |
+| Phase 8：gRPC 接入 | [phase8.md](grpc/phase8.md) |
+| Phase 9：协议生产化护栏 | [phase9.md](reliability/phase9.md) |
+| Phase 10：HTTP/gRPC 热路径优化 | [phase10.md](performance/phase10.md) |
 
 ## 2. 通信层总图
 
@@ -81,4 +83,4 @@ backend/server/
 ```
 
 历史阶段文档保留“当时为什么这样改”的学习价值；当前行为以
-[协议与调用流程](protocol-call-flows.md) 和 [总架构](../ARCHITECTURE.md) 为准。
+[协议与调用流程](protocol-call-flows.md) 和 [总架构](../overview/ARCHITECTURE.md) 为准。

@@ -1,7 +1,7 @@
 # 稳定性闭环 ↔ 本仓库现状（配套讲义）
 
 > 回答：「Benchmark / 故障注入 / Sanitizer / Metrics / 火焰图 —— 我现在用的是哪些？」  
-> 与收尾叙事一致：[../../closeout/CLOSEOUT_NARRATIVE.md](../../closeout/CLOSEOUT_NARRATIVE.md)  
+> 与收尾叙事一致：[../../closeout/CLOSEOUT_NARRATIVE.md](../../ops/closeout/CLOSEOUT_NARRATIVE.md)  
 > **知识点全集**：[测试学习综合讲义和笔记/README.md](测试学习综合讲义和笔记/README.md)
 
 ---

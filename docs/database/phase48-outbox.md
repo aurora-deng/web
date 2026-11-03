@@ -10,4 +10,4 @@
 - 发布失败后的事件不进入确认集合，保持原有顺序；确认前进程故障可能重投。
 - 没有改synchronous_commit、没有添加数据库触发器、没有创建新的账号库。
 
-读写实现见 [PostgresOutboxRepository](../../backend/application/storage/postgres/PostgresOutboxRepository/PostgresOutboxRepository.cpp)，业务流程见 [Phase48](../architecture/business/phase48.md)。
+读写实现见 [PostgresOutboxRepository](../../backend/application/storage/postgres/PostgresOutboxRepository/PostgresOutboxRepository.cpp)，业务流程见 [Phase48](../architecture/business/engineering/phase48.md)。

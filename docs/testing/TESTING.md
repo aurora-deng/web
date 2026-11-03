@@ -9,7 +9,7 @@ concurrency defects, and fuzzing stresses the incremental parser. The layers
 are intentionally complementary; no single green test run proves the whole
 server correct.
 
-Use [../architecture/ARCHITECTURE.md](../architecture/ARCHITECTURE.md) to identify the invariants being tested,
+Use [../architecture/ARCHITECTURE.md](../architecture/overview/ARCHITECTURE.md) to identify the invariants being tested,
 then use [../performance/BENCHMARK.md](../performance/BENCHMARK.md) only after correctness checks pass.
 This ordering helps close the Web project around stable behavior instead of
 adding features faster than they can be verified. It also establishes a

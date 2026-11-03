@@ -1,59 +1,61 @@
 # web-test 2.0 · Function3 本地开发版（Phase 28–49）
 
-> Phase49继续完成接口对齐和资源装配：[改动与验收](docs/architecture/business/phase49.md)、[教学](docs/architecture/business/phase49-teaching.md)、[数据库对象分层](docs/database/domain-layering.md)、[组件索引](docs/architecture/business/phase49-code-index.md)、[整体调用图](docs/architecture/business/phase49-end-to-end.md)。通信核心不变，main只保留进程入口，业务按领域组织；三轮性能门槛仍未通过：/fast中位-3.89%，第三轮ACK P99 +78.47%；功能回归通过。未部署日常服务、未推送远程。
+> **文档分类（2026-11-03）**：[按主题浏览](docs/README.md) · [阶段时间线](docs/roadmap/stage-index.md) · [当前架构图](docs/architecture/business/flows/phase49-end-to-end.md)。当前开发分支为 `feature/function3-tree`；本次只整理文档和链接，未部署日常服务。下列阶段记录中的“未推送/未部署”描述指各阶段完成时的状态，当前功能与性能限制见 [STATUS](STATUS.md)。
 
-> Phase48补齐配色与领域拆分：[变化与验收](docs/architecture/business/phase48.md)、[组件索引](docs/architecture/business/phase48-code-index.md)、[教学](docs/architecture/business/phase48-teaching.md)。功能回归通过，最终ACK尾延迟门槛仍未通过；旧阶段报告继续保留，当前成果尚未部署日常服务。
+> Phase49继续完成接口对齐和资源装配：[改动与验收](docs/architecture/business/engineering/phase49.md)、[教学](docs/architecture/business/guides/phase49-teaching.md)、[数据库对象分层](docs/database/domain-layering.md)、[组件索引](docs/architecture/business/indexes/phase49-code-index.md)、[整体调用图](docs/architecture/business/flows/phase49-end-to-end.md)。通信核心不变，main只保留进程入口，业务按领域组织；三轮性能门槛仍未通过：/fast中位-3.89%，第三轮ACK P99 +78.47%；功能回归通过。未部署日常服务、未推送远程。
 
-> 本轮Phase43–47：[进度与验收](docs/architecture/business/phase43-47-progress.md)、[接入教学](docs/architecture/business/phase43-47-teaching.md)、[端到端图](docs/architecture/business/phase43-47-end-to-end.md)。通信核心冻结，新增聊天搜索/上下文/会话免打扰，前端按水位与版本收敛。功能回归通过；第2轮ACK P99超过门槛，详见[Phase47](docs/architecture/business/phase47.md)。源码更新不代表日常服务已部署。
+> Phase48补齐配色与领域拆分：[变化与验收](docs/architecture/business/engineering/phase48.md)、[组件索引](docs/architecture/business/indexes/phase48-code-index.md)、[教学](docs/architecture/business/guides/phase48-teaching.md)。功能回归通过，最终ACK尾延迟门槛仍未通过；旧阶段报告继续保留，当前成果尚未部署日常服务。
 
-> 已保留的 Phase36–41 历史成果：已完成聊天布局与目录边界、统一动态/个人主页等阶段验证；Windows本地私人助手、三形态AI、个人语音设置已完成主要链路联调，功能及规定测试已执行；ACK尾延迟门槛仍有未达标项，真实云语音缺Key未验收。参见 [Phase36](docs/architecture/business/phase36.md)、[Phase37](docs/architecture/business/phase37.md) 和 [实施台账](docs/architecture/business/function3-progress.md)。这批变更尚未替换18090运行服务，也未推送远程。
+> 本轮Phase43–47：[进度与验收](docs/roadmap/phase43-47-progress.md)、[接入教学](docs/architecture/business/guides/phase43-47-teaching.md)、[端到端图](docs/architecture/business/flows/phase43-47-end-to-end.md)。通信核心冻结，新增聊天搜索/上下文/会话免打扰，前端按水位与版本收敛。功能回归通过；第2轮ACK P99超过门槛，详见[Phase47](docs/reports/stages/phase47.md)。源码更新不代表日常服务已部署。
+
+> 已保留的 Phase36–41 历史成果：已完成聊天布局与目录边界、统一动态/个人主页等阶段验证；Windows本地私人助手、三形态AI、个人语音设置已完成主要链路联调，功能及规定测试已执行；ACK尾延迟门槛仍有未达标项，真实云语音缺Key未验收。参见 [Phase36](docs/architecture/business/client-ui/phase36.md)、[Phase37](docs/architecture/business/community/phase37.md) 和 [实施台账](docs/roadmap/function3-progress.md)。这批变更尚未替换18090运行服务，也未推送远程。
 
 
 当前本地分支为 `feature/function3-tree`，在 Function2.1 上增加模块化社区神树、站点管理、RocketMQ 事件管道、七日榜与本地男女公告语音，并优化业务派发、历史列表和重连保护。
 
-Phase42保持该架构方向，优化普通TLS请求复用、神树批量查询与绘制，继续细化树的外观；三轮同配置结果与运行资源隔离说明见[Phase42](docs/architecture/business/phase42.md)。旧阶段的性能失败与真实云语音未验收记录继续保留。
+Phase42保持该架构方向，优化普通TLS请求复用、神树批量查询与绘制，继续细化树的外观；三轮同配置结果与运行资源隔离说明见[Phase42](docs/architecture/business/community/phase42.md)。旧阶段的性能失败与真实云语音未验收记录继续保留。
 
-- [Function3 进度与使用入口](docs/architecture/business/function3-progress.md)
-- [当前启动：原账号库、18090、公告语音与 Redis](docs/ops/function3-runtime.md)
-- [Phase35：语音修复、原库复用、Redis 与界面改进](docs/architecture/business/phase35.md)
-- [当前三端与AI完整架构图](docs/architecture/business/phase36-41-end-to-end.md)
-- [Windows本机入口与私人资料](docs/architecture/business/phase38.md)
-- [三形态AI、迁移与确认操作](docs/architecture/business/phase39.md)
-- [语音设置与云适配](docs/architecture/business/phase40.md)
-- [本轮完整验收与未达标项](docs/architecture/business/phase41.md)
-- [Phase42：响应优化与神树细化，保持现有架构](docs/architecture/business/phase42.md)
-- [Windows和隔离Linux预览说明](docs/ops/phase36-41-local-preview.md)
-- [Phase28–35历史架构图](docs/architecture/business/function3-end-to-end.md)
-- [实际验收结果和限制](docs/architecture/business/phase34.md)
-- [组件文件索引](docs/architecture/business/function3-code-index.md)
+- [Function3 进度与使用入口](docs/roadmap/function3-progress.md)
+- [当前启动：原账号库、18090、公告语音与 Redis](docs/ops/runtime/function3-runtime.md)
+- [Phase35：语音修复、原库复用、Redis 与界面改进](docs/architecture/business/client-ui/phase35.md)
+- [当前三端与AI完整架构图](docs/architecture/business/flows/phase36-41-end-to-end.md)
+- [Windows本机入口与私人资料](docs/architecture/business/client-ui/phase38.md)
+- [三形态AI、迁移与确认操作](docs/architecture/business/ai/phase39.md)
+- [语音设置与云适配](docs/architecture/business/ai/phase40.md)
+- [本轮完整验收与未达标项](docs/reports/stages/phase41.md)
+- [Phase42：响应优化与神树细化，保持现有架构](docs/architecture/business/community/phase42.md)
+- [Windows和隔离Linux预览说明](docs/ops/runtime/phase36-41-local-preview.md)
+- [Phase28–35历史架构图](docs/architecture/business/flows/function3-end-to-end.md)
+- [实际验收结果和限制](docs/reports/stages/phase34.md)
+- [组件文件索引](docs/architecture/business/indexes/function3-code-index.md)
 - [新增数据库表](docs/database/function3-tables.md)
-- [已有 Linux 环境复用](docs/ops/function3-dependencies.md)
+- [已有 Linux 环境复用](docs/ops/dependencies/function3-dependencies.md)
 
 本轮保存在本地，未推送 GitHub。按本轮要求，日常 Linux 实例使用原 `phase11` 账号库与18090端口；升级前备份，68个原账号密码散列校验不变。测试仍使用已有隔离库。以下是 Function2.1 的历史说明。
 
 > `Function2.1` 基于 `Function2` 提交 `f4743a5`，收录 Phase 27 聊天可靠性补齐、通信/业务文档分类、
 > 端到端架构图和业务接入讲义。版本差异、已有验证和后续建议见
-> [Function2.1 与 Function2 对比](docs/architecture/function2.1-vs-function2.md)。
+> [Function2.1 与 Function2 对比](docs/releases/function2.1-vs-function2.md)。
 
 > Phase 27 补齐最新/旧历史分页、断线期间消息与撤回恢复、ACK 超时后查询原幂等键并有限重试，
 > 以及按群角色展示的管理员撤回入口。改动目的、文件索引与测试见
-> [Phase 27：聊天交互可靠性](docs/architecture/business/phase27.md)。
+> [Phase 27：聊天交互可靠性](docs/architecture/business/accounts-chat/phase27.md)。
 
 > Function2 从远程 `Function1.0` 的 Phase 11 应用平台继续演进，补齐消息生命周期、群治理、联系人、
 > 文件、可观测性、AI 韧性与审计、模型评测、RAG、授权 LoRA、候选发布、不可变血缘、进程监督和
 > 容量测试工具。完整差异见
-> [Function2 与 Function1.0 对比](docs/architecture/function2-vs-function1.0.md)。
+> [Function2 与 Function1.0 对比](docs/releases/function2-vs-function1.0.md)。
 
 > Phase 26 补齐长驻 WebSocket 容量、每连接 RSS/FD 斜率、真实 AI 并发，以及 AI 与普通聊天同时
 > 工作时的隔离测量。基准和聚合契约已经完成并通过本地 4/4 编排测试；正式三轮数据要等当前 24 小时
 > 长稳结束后独占运行，因此尚未填写容量结论。这是 Phase 26 的历史状态；当前容量结果仍待归档，不据此推断旧测试仍在运行。详见
-> [Phase 26：长连接容量、AI 并发与混合负载证据](docs/architecture/business/phase26.md)。
+> [Phase 26：长连接容量、AI 并发与混合负载证据](docs/architecture/business/runtime/phase26.md)。
 
 > Phase 25 增加无需安装 systemd 的用户态 Supervisor：使用 PID + Linux start ticks 防止 PID 复用误判，
 > 只依据进程身份和 liveness 触发恢复，采用指数退避与时间窗重启预算阻止重启风暴。隔离 `SIGKILL`
 > 演练连续 3 轮完成旧/新 PID 替换，永久启动失败也会在预算耗尽后停止；CTest 已登记为第 98 项。
 > 当前正式服务仍由 24 小时长稳固定监控，真实 Webserver 强杀演练会在长稳结束后执行。详见
-> [Phase 25：用户态进程监督与异常恢复](docs/architecture/business/phase25.md)。
+> [Phase 25：用户态进程监督与异常恢复](docs/architecture/business/runtime/phase25.md)。
 
 > Phase 24 为每个训练得到的 ONNX Candidate 增加不可变“出生证明”：授权模式、Dataset ID/摘要/条数、
 > 基座仓库与 revision、训练配置、PEFT 权重、ONNX Adapter 和基础图摘要都会进入独立血缘表。
@@ -61,65 +63,65 @@ Phase42保持该架构方向，优化普通TLS请求复用、神树批量查询�
 > PostgreSQL DatasetVersion。Candidate 与 Lineage 在同一事务写入，文件篡改或数据不一致不会留下
 > 半条版本记录。隔离数据库的正向、错误 Dataset 和篡改反向路径已经通过；三套完整回归与正式库迁移
 > 会等待正在运行的 24 小时长稳结束，避免污染证据。详见
-> [Phase 24：训练数据、模型制品与候选版本不可变血缘](docs/architecture/business/phase24.md)。
+> [Phase 24：训练数据、模型制品与候选版本不可变血缘](docs/architecture/business/ai/phase24.md)。
 
 > Phase 23 把 Phase 22 的训练产物接入真实候选发布链：管理员工具计算 ONNX 制品摘要、登记 Candidate、
 > 用 C++ 进程内 ONNX Provider 逐题生成、以确定性规则评分并保存输出摘要/耗时，再经过 Phase 20 质量
 > 门禁和 Runtime 试装后显式激活。隔离 PostgreSQL 中的正向版本成功激活，错误预期答案的反向版本被
 > 必答题门禁拒绝；Release、Debug、ASan+LSan+UBSan 均为 **97/97**。长稳脚本同时增加固定 PID、
 > `/proc` 资源水位、延迟分位数和证据 SHA-256；24 小时运行结果生成前不计为通过。详见
-> [Phase 23：候选模型真实评测、人工发布与长稳证据](docs/architecture/business/phase23.md)。
+> [Phase 23：候选模型真实评测、人工发布与长稳证据](docs/architecture/business/ai/phase23.md)。
 
 > Phase 22 补齐用户明确授权、AI 私聊来源限制、脱敏副本、并发去重、人工审核、不可变内容寻址
 > JSONL、真实 PEFT LoRA 训练、Olive/OGA Adapter 转换和 C++ Runtime 试装。Linux CPU 使用一条
 > 合成样本完成真实梯度验证，LoRA 参数变化非零，转换后的 `.onnx_adapter` 通过 C++ 生成；这只证明
 > 流水线成立，不宣称模型质量提高。数据库授权清单与撤销门禁已做真实 PostgreSQL 验证，Release、
 > Debug、ASan+LSan+UBSan 均为 **97/97**。详见
-> [Phase 22：授权数据集与真实 LoRA 微调闭环](docs/architecture/business/phase22.md)。
+> [Phase 22：授权数据集与真实 LoRA 微调闭环](docs/architecture/business/ai/phase22.md)。
 
 > Phase 21 打通 RAG 知识链路：私人/会话资料登记、UTF-8 确定性切片、可替换检索端口、权限过滤、
 > Retrieval/Citation 持久化、AI Prompt 接入和网页引用查看。私人资料只进入本人和 AI 账号的私聊，
 > 群聊与普通双人私聊不会读取个人资料。详见
-> [Phase 21：RAG 知识检索、权限隔离与回答引用链](docs/architecture/business/phase21.md)。
+> [Phase 21：RAG 知识检索、权限隔离与回答引用链](docs/architecture/business/ai/phase21.md)。
 
 > Phase 20 新增版本化模型评测集、逐题结果、服务端加权汇总和节点级激活质量门禁。候选版本必须拥有
 > 同版本、同评测集、未过期且达到通过率/加权分的 completed Run，才会继续 Runtime 制品试装与原子切换；
 > 失败原因进入 Phase 19 审计，紧急回滚保留恢复通道。详见
-> [Phase 20：模型评测集、结果对比与激活质量门禁](docs/architecture/business/phase20.md)。
+> [Phase 20：模型评测集、结果对比与激活质量门禁](docs/architecture/business/ai/phase20.md)。
 
 > Phase 19 为模型启用/回滚增加原子审计，并为每次 AI 生成保存请求身份、Prompt/输出 SHA-256、
 > 模型节点/版本/Adapter、首 Token、终态和回复消息关联。异步快照使用 revision 防止旧状态覆盖终态，
 > `/metrics` 同时暴露首 Token 与总耗时直方图。详见
-> [Phase 19：模型变更审计与 AI 生成追踪](docs/architecture/business/phase19.md)。
+> [Phase 19：模型变更审计与 AI 生成追踪](docs/architecture/business/ai/phase19.md)。
 
 > Phase 18 为 AI 生成补上生产前必须具备的资源治理：全局/用户/AI 账号三级并发配额、统一期限、
 > 取消与停机强制回收、Provider 熔断、同 Runtime 备用端点和 Prometheus 指标。备用切换只允许发生在
 > 主端点尚未输出 Token 时，避免拼接两个模型的回答。详见
-> [Phase 18：AI 生成韧性与资源治理](docs/architecture/business/phase18.md)。
+> [Phase 18：AI 生成韧性与资源治理](docs/architecture/business/ai/phase18.md)。
 
 > Phase 17 增加头像、图片和普通文件消息：正文与 PostgreSQL 元数据分离，支持 256 KiB 有界分片、
 > 上传游标、SHA-256 封存、扩展名/MIME/魔数检查、会话权限下载和 HTTP Range。文件消息仍通过
 > `messages + message_attachments + outbox_events` 持久化，所以接收者离线也能发送并在之后恢复。
 > Release、Debug 和 ASan+LSan+UBSan 均为 **94/94**，真实网络黑盒覆盖错误 offset、离线历史、
 > 整文件/Range 下载、未授权拒绝和头像读取。详见
-> [Phase 17：头像、图片与文件消息](docs/architecture/business/phase17.md)。
+> [Phase 17：头像、图片与文件消息](docs/architecture/business/accounts-chat/phase17.md)。
 
 > Phase 15 新增真实业务性能基线：使用隔离 PostgreSQL 数据库从 HTTP、WebSocket 和 SSE 入口
 > 驱动登录、列表、私聊、8 人群发、离线历史、连接重建和混合流量。Linux 三轮总错误为 0，
 > 并将“数据库已接收”和“用户真正收到”拆开测量，定位到当前 250 ms Outbox 轮询是实时消息
 > P50 的主要优化候选。完整方法、结果和限制见
-> [Phase 15：真实业务性能基线](docs/architecture/business/phase15.md)。
+> [Phase 15：真实业务性能基线](docs/architecture/business/runtime/phase15.md)。
 
 > Phase 14 在 Phase 13 上补齐好友备注、消息免打扰、删除好友、黑名单、多设备 WebSocket 与最后活跃。
 > Release、Debug、ASan+LSan+UBSan 均为 93/93 通过，真实 PostgreSQL + HTTP + WebSocket + SSE
 > 黑盒也验证了两个设备同时收件、离线状态和服务端权限阻断。完整设计、流程、接口、文件索引和证据见
-> [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/business/phase14.md)；群聊治理见
-> [Phase 13](docs/architecture/business/phase13.md)。
+> [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/business/accounts-chat/phase14.md)；群聊治理见
+> [Phase 13](docs/architecture/business/accounts-chat/phase13.md)。
 
 > Function1.0 以 [test9.1](https://github.com/aurora-deng/web/tree/test9.1) 为基线，
 > 保留 Phase 10 的 HTTP/gRPC 性能路径，并加入完整的 Phase 11 应用层：账号、PostgreSQL、
 > 好友、私聊/群聊、离线消息、事务 Outbox、AI Provider 和响应式网页端。完整变化见
-> [Function1.0 与 test9.1 对比](docs/architecture/function1.0-vs-test9.1.md)。
+> [Function1.0 与 test9.1 对比](docs/releases/function1.0-vs-test9.1.md)。
 >
 > 当前版本已接入 PostgreSQL 18.6、libsodium 1.0.22、libcurl 8.22.0、真实账号 HTTP API、
 > 好友/私聊/群聊、WebSocket 实时消息、SSE 通知与事务 Outbox。AI Provider、模型注册以及
@@ -131,7 +133,7 @@ Phase42保持该架构方向，优化普通TLS请求复用、神树批量查询�
 > WebSocket → PostgreSQL → ONNX → SSE → 持久化整链黑盒；Qwen2.5-0.5B 的 Adapter-ready INT4 图、
 > 独立 `.onnx_adapter`、同图 logits 对照、C++ 加载和相同整链黑盒也已通过。按要求不在 Linux
 > 安装 Ollama；状态、运行方式与代码索引见
-> [Phase 11](docs/architecture/business/phase11.md)。
+> [Phase 11](docs/architecture/business/accounts-chat/phase11.md)。
 
 这是一个面向 Linux 的 C++20 高级 Web 服务器学习项目。test9.0 以
 [test8.0](https://github.com/aurora-deng/web/tree/test8.0) 的 HTTP/2、TLS/ALPN
@@ -141,7 +143,7 @@ Phase42保持该架构方向，优化普通TLS请求复用、神树批量查询�
 
 当前代码已经过 Linux 全量功能测试和 Sanitizer 检查，但仍是学习与预生产基线，不能据此
 直接宣称适合公网、多实例关键业务。具体缺口见
-[Phase 9 的生产适用性说明](docs/architecture/communication/phase9.md#10-生产适用性与仍缺少的条件)。
+[Phase 9 的生产适用性说明](docs/architecture/communication/reliability/phase9.md#10-生产适用性与仍缺少的条件)。
 
 ## 相对 test8.0 的主要更新
 
@@ -198,7 +200,7 @@ metadata、trailers、deadline 和流控状态；二者在业务与身份层汇�
 所有消息缓冲都由 Reactor 持有，至少存活到对应完成回调。OnCancel、Alarm 与读写回调可能并发，
 所以每个流式 Reactor 都保护终态并保证只执行一次 Finish()；`OnDone()` 完成协议记账，
 对象在 gRPC 与 Alarm 两个异步引用都释放后删除。
-详细说明与代码索引见 [Phase 9](docs/architecture/communication/phase9.md#6-grpc-四种调用形态)。
+详细说明与代码索引见 [Phase 9](docs/architecture/communication/reliability/phase9.md#6-grpc-四种调用形态)。
 
 ## 构建
 
@@ -305,33 +307,33 @@ gRPC C++ 1.82.0 完成了以下检查：
   对照和 C++ Runtime 试装，Sanitizer 未报告错误。
 
 最终测试数字与发现过的问题记录在
-[Phase 9 验证记录](docs/architecture/communication/phase9.md#11-验证记录)。
+[Phase 9 验证记录](docs/architecture/communication/reliability/phase9.md#11-验证记录)。
 
 ## 学习入口
 
-1. [Phase 5：SSE](docs/architecture/communication/phase5.md)
-2. [Phase 6：HTTP/2、nghttp2 与手写教学版](docs/architecture/communication/phase6.md)
-3. [Phase 7：TLS/ALPN 与教学版](docs/architecture/communication/phase7.md)
-4. [Phase 8：gRPC 协议语义与消息封装](docs/architecture/communication/phase8.md)
-5. [Phase 9：生产化护栏与 Callback Reactor](docs/architecture/communication/phase9.md)
-6. [test9.1：相对 test9.0 的版本差异](docs/architecture/test9.1.md)
-7. [Phase 10：HTTP/gRPC 性能路径与架构拆分](docs/architecture/communication/phase10.md)
+1. [Phase 5：SSE](docs/architecture/communication/sse/phase5.md)
+2. [Phase 6：HTTP/2、nghttp2 与手写教学版](docs/architecture/communication/http2/phase6.md)
+3. [Phase 7：TLS/ALPN 与教学版](docs/architecture/communication/tls/phase7.md)
+4. [Phase 8：gRPC 协议语义与消息封装](docs/architecture/communication/grpc/phase8.md)
+5. [Phase 9：生产化护栏与 Callback Reactor](docs/architecture/communication/reliability/phase9.md)
+6. [test9.1：相对 test9.0 的版本差异](docs/releases/test9.1.md)
+7. [Phase 10：HTTP/gRPC 性能路径与架构拆分](docs/architecture/communication/performance/phase10.md)
 8. [文档总导航](docs/README.md)
-9. [Phase 11：账号、社交聊天与 AI 推理平台](docs/architecture/business/phase11.md)
-10. [Phase 12：持久消息生命周期](docs/architecture/business/phase12.md)
-11. [Phase 13：群聊治理与权限闭环](docs/architecture/business/phase13.md)
-12. [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/business/phase14.md)
-13. [Phase 15：真实业务性能基线](docs/architecture/business/phase15.md)
-14. [Phase 16：可观测性、Outbox 主动唤醒与运维闭环](docs/architecture/business/phase16.md)
-15. [Phase 17：头像、图片与文件消息](docs/architecture/business/phase17.md)
-16. [Phase 18：AI 生成韧性与资源治理](docs/architecture/business/phase18.md)
-17. [Phase 19：模型变更审计与 AI 生成追踪](docs/architecture/business/phase19.md)
-18. [Phase 20：模型评测与激活质量门禁](docs/architecture/business/phase20.md)
-19. [Phase 21：RAG 知识检索与回答引用链](docs/architecture/business/phase21.md)
-20. [Phase 22：授权数据集与真实 LoRA 微调闭环](docs/architecture/business/phase22.md)
-21. [Phase 23：候选模型真实评测与人工发布](docs/architecture/business/phase23.md)
-22. [Phase 24：训练到候选模型的不可变血缘](docs/architecture/business/phase24.md)
-23. [Phase 25：用户态进程监督与异常恢复](docs/architecture/business/phase25.md)
-24. [Phase 26：长连接容量、AI 并发与混合负载证据](docs/architecture/business/phase26.md)
-25. [项目目录分层与文件放置规则](docs/architecture/project-layout.md)
-26. [Function1.0：相对 test9.1 的完整差异](docs/architecture/function1.0-vs-test9.1.md)
+9. [Phase 11：账号、社交聊天与 AI 推理平台](docs/architecture/business/accounts-chat/phase11.md)
+10. [Phase 12：持久消息生命周期](docs/architecture/business/accounts-chat/phase12.md)
+11. [Phase 13：群聊治理与权限闭环](docs/architecture/business/accounts-chat/phase13.md)
+12. [Phase 14：联系人、黑名单与多设备在线状态](docs/architecture/business/accounts-chat/phase14.md)
+13. [Phase 15：真实业务性能基线](docs/architecture/business/runtime/phase15.md)
+14. [Phase 16：可观测性、Outbox 主动唤醒与运维闭环](docs/architecture/business/runtime/phase16.md)
+15. [Phase 17：头像、图片与文件消息](docs/architecture/business/accounts-chat/phase17.md)
+16. [Phase 18：AI 生成韧性与资源治理](docs/architecture/business/ai/phase18.md)
+17. [Phase 19：模型变更审计与 AI 生成追踪](docs/architecture/business/ai/phase19.md)
+18. [Phase 20：模型评测与激活质量门禁](docs/architecture/business/ai/phase20.md)
+19. [Phase 21：RAG 知识检索与回答引用链](docs/architecture/business/ai/phase21.md)
+20. [Phase 22：授权数据集与真实 LoRA 微调闭环](docs/architecture/business/ai/phase22.md)
+21. [Phase 23：候选模型真实评测与人工发布](docs/architecture/business/ai/phase23.md)
+22. [Phase 24：训练到候选模型的不可变血缘](docs/architecture/business/ai/phase24.md)
+23. [Phase 25：用户态进程监督与异常恢复](docs/architecture/business/runtime/phase25.md)
+24. [Phase 26：长连接容量、AI 并发与混合负载证据](docs/architecture/business/runtime/phase26.md)
+25. [项目目录分层与文件放置规则](docs/architecture/overview/project-layout.md)
+26. [Function1.0：相对 test9.1 的完整差异](docs/releases/function1.0-vs-test9.1.md)

@@ -1,7 +1,7 @@
 # 底层协议逻辑与调用关系
 
 本文按当前代码说明每个通信功能。图中的“业务 handler”是通信层边界，具体账号、聊天和 AI 逻辑在
-[业务调用流程](../business/business-call-flows.md) 中展开。
+[业务调用流程](../business/flows/business-call-flows.md) 中展开。
 
 ## 1. Reactor、Connection 与协程
 

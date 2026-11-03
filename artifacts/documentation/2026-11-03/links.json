@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "markdownPages": 196,
+  "checkedLocalLinks": 2000,
+  "catalogPages": 186,
+  "movedDocuments": 111,
+  "compatibilityRedirects": 6,
+  "excluded": [
+    "raw evidence",
+    "frozen backend/server",
+    "private *.local.md"
+  ],
+  "fragments": "retained; heading slug rendering not checked",
+  "errors": []
+}

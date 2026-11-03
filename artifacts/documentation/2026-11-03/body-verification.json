@@ -1,0 +1,8 @@
+{
+  "restoredExampleFiles": [
+    "docs/testing/learning/测试学习综合讲义和笔记/08_Metrics监控.md"
+  ],
+  "movedDocumentsExactProseAndCodeVerified": 110,
+  "onlyException": "project-layout.md intentionally adds current navigation and diagram captions",
+  "rules": "Only Markdown link destinations and known documentation path literals change; fenced/inline code otherwise retained"
+}
