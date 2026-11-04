@@ -1,5 +1,6 @@
 # 计划、阶段与扩展学习
 
+- [下一阶段建议（Phase50–53，未实施）](next-steps.md)：先定位ACK尾延迟，再完善真实用户稳定性、AI治理和受控试运行。
 - [Phase阶段时间线](stage-index.md)：按顺序找到每阶段正文；按主题阅读则从[文档分类](../README.md)进入。
 - [Function3实施与验收台账](function3-progress.md)：阶段目标、已有证据及限制。
 - [Phase43–47实施台账](phase43-47-progress.md)：四周业务重整计划与当时结论。

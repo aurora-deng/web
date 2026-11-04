@@ -8,7 +8,8 @@
 |---|---|
 |了解当前功能、实现边界和未通过项|[当前状态](../STATUS.md)、[Phase49验收](architecture/business/engineering/phase49.md)|
 |启动/停止与客户端入口|[运行文档](ops/runtime/README.md)|
-|看从通信到业务、模型的完整图|[当前端到端总图](architecture/business/flows/phase49-end-to-end.md)|
+|看从通信到业务、模型的完整图|[当前端到端总图](architecture/business/flows/current-end-to-end.md)、[系统总览](architecture/overview/ARCHITECTURE.md)|
+|了解后续优先级与验收标准|[Phase50–53建议（未实施）](roadmap/next-steps.md)|
 |学习业务如何接到服务器|[接口与装配讲义](architecture/business/guides/phase49-teaching.md)、[业务教学目录](architecture/business/guides/README.md)|
 |找真实实现文件|[当前代码索引](architecture/business/indexes/phase49-code-index.md)|
 

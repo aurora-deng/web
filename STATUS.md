@@ -1,4 +1,6 @@
-# 当前开发状态（文档整理：2026-11-03；功能验收：2026-10-31）
+# 当前开发状态（架构与路线：2026-11-04；功能验收：2026-10-31）
+
+架构总览和 [完整调用图](docs/architecture/business/flows/current-end-to-end.md) 已按现有实现核对；[Phase50–53](docs/roadmap/next-steps.md)仅为后续建议，尚未验收为完成阶段；未提交实验不自动算入已完成能力。
 
 文档已按主题分类，入口见 [文档导航](docs/README.md)、[Phase时间线](docs/roadmap/stage-index.md)。本次不改变功能和既有验收结果；源码与文档在 `feature/function3-tree` 分支维护，GitHub同步不代表部署日常服务。
 
@@ -15,3 +17,12 @@ Phase49完成本轮接口对齐、领域资源装配与数据库对象分层。*
 - 未安装新依赖、未写原业务库、未替换日常服务；本次同步源码与文档不改变这些运行边界。云Key、语音自然度、远程CI与生产容量的历史限制保留。
 
 入口：[改动与验收](docs/architecture/business/engineering/phase49.md)、[接口接入教学](docs/architecture/business/guides/phase49-teaching.md)、[数据库分层](docs/database/domain-layering.md)、[代码索引](docs/architecture/business/indexes/phase49-code-index.md)、[整体调用图](docs/architecture/business/flows/phase49-end-to-end.md)、[验证与回退](docs/ops/validation/phase49-validation-and-rollback.md)。
+
+## 后续建议（计划，不是新增完成项）
+
+1. Phase50：先做逐消息耗时关联与性能修复，维持原三轮门槛，未通过不推进验收。
+2. Phase51：真实多用户/多端闭环、字段/事件契约、稳定性和恢复演练。
+3. Phase52：AI取消回收、模型资源/切换、知识授权、质量评估和语音试听。
+4. Phase53：功能/性能门槛通过后再做限定容量的受控试运行与部署回退。
+
+本次仅更新文档，应用源码、数据库迁移、依赖与日常运行服务未改动。原115项等历史结果的日期和范围保持不变。

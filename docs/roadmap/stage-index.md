@@ -52,4 +52,6 @@
 |48|[Phase48：补齐配色、领域拆分与 Outbox 提交优化](../architecture/business/engineering/phase48.md)|architecture|
 |49|[Phase49：业务契约对齐、领域装配与数据库对象分层](../architecture/business/engineering/phase49.md)|architecture|
 
+Phase50–53目前仅是 [后续建议](next-steps.md)，不计入上表已形成实现记录的阶段。
+
 [按主题查找](../README.md) · [综合报告](../reports/README.md) · [整体图](../architecture/business/flows/README.md)

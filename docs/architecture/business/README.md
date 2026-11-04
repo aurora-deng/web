@@ -15,6 +15,8 @@
 |[架构与调用图](flows/README.md)|完整链路与各阶段总图|
 |[实现索引](indexes/README.md)|组件职责和源码文件位置|
 
+当前总图见 [完整链路](flows/current-end-to-end.md)，下一阶段见 [建议路线](../../roadmap/next-steps.md)；两者分别描述已实现和待实施内容。
+
 当前优先阅读：[Phase49改动与限制](engineering/phase49.md) → [接口教学](guides/phase49-teaching.md) → [数据库分层](../../database/domain-layering.md)。
 
 [阶段时间线](../../roadmap/stage-index.md) · [进度台账](../../roadmap/function3-progress.md) · [阶段验收](../../reports/stages/README.md) · [回到文档分类](../../README.md)

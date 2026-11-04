@@ -2,7 +2,7 @@
 
 文档主题与阶段时间线见 [文档导航](../../README.md)；移动记录见 [document-moves.json](../../document-moves.json)。本次文档位置调整不改变这里描述的源码和部署边界。
 
-当前源码按运行位置和职责分类；Phase36–41仍在本地验收，日常实例没有切换。历史移动记录保存在 [移动清单](../source-layout-migration.json)，不要重新执行一次性迁移脚本。
+当前源码按运行位置和职责分类，运行实现为Phase49；历史本地验收与日常部署应分别核对，本文不证明日常实例已经切换。历史移动记录保存在 [移动清单](../source-layout-migration.json)，不要重新执行一次性迁移脚本。
 
 ```text
 项目根目录
@@ -18,6 +18,7 @@
 │  │  ├─ runtime/              有界业务/数据库执行器
 │  │  └─ transport/            HTTP/WS/SSE业务DTO、适配与路由注册
 │  └─ ai/
+│     ├─ bootstrap/            AI/知识/Provider装配，业务规则仍在相应服务
 │     ├─ models/               Provider、模型注册、RAG、评测、gRPC推理Worker
 │     ├─ private/              无正文落库的限时私人推理编排与端口
 │     ├─ speech/               语音策略、协议、云适配、独立Kokoro Worker
@@ -66,4 +67,4 @@ C++组件使用同名目录，`.h`和`.cpp`放在一起；纯接口不制造空�
 
 Linux原业务库保持权威；Windows仅新增账号隔离的私人SQLite，不创建另一份公共聊天库。数据库升级只追加迁移文件。启动、备份、切换日常服务需要按运维文档显式执行，本轮不自动替换。
 
-相关文档：[端到端总图](../business/flows/phase36-41-end-to-end.md)、[Phase38本机入口](../business/client-ui/phase38.md)、[Phase39私人AI与确认操作](../business/ai/phase39.md)、[Phase40语音](../business/ai/phase40.md)。
+相关文档：[当前端到端图](../business/flows/current-end-to-end.md)、[下一阶段建议](../../roadmap/next-steps.md)、[Phase36–41历史图](../business/flows/phase36-41-end-to-end.md)、[Phase38本机入口](../business/client-ui/phase38.md)、[Phase39私人AI与确认操作](../business/ai/phase39.md)、[Phase40语音](../business/ai/phase40.md)。

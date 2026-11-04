@@ -1,5 +1,7 @@
 # 底层通信架构
 
+当前跨层架构见 [系统总览](../overview/ARCHITECTURE.md)；原总览中的详细通信讲义已保留为 [历史基线](runtime-baseline.md)，其早期数据模型/参数不能代替当前配置。
+
 按协议查找：[Reactor](reactor/README.md) · [HTTP](http/README.md) · [WebSocket](websocket/README.md) · [SSE](sse/README.md) · [HTTP/2](http2/README.md) · [TLS](tls/README.md) · [gRPC](grpc/README.md) · [可靠性](reliability/README.md) · [性能](performance/README.md)。按顺序复习可用 [阶段时间线](../../roadmap/stage-index.md)。
 
 本目录只回答一个问题：**字节怎样从客户端进入服务器，经过协议解析、调度和背压控制，再安全地写回网络。**

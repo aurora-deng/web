@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-03",
+  "generated": "2026-11-04",
   "scope": "public human-readable documents; raw evidence and local account files excluded",
   "documents": [
     {
@@ -240,6 +240,12 @@
     {
       "path": "docs/architecture/business/flows/business-call-flows.md",
       "title": "业务功能实现与调用关系",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/flows/current-end-to-end.md",
+      "title": "当前系统完整架构与消息流",
       "category": "architecture",
       "kind": "document"
     },
@@ -538,6 +544,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/architecture/communication/runtime-baseline.md",
+      "title": "通信内核详细讲义：历史基线",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
       "path": "docs/architecture/communication/sse/README.md",
       "title": "SSE服务端事件流",
       "category": "architecture",
@@ -653,7 +665,7 @@
     },
     {
       "path": "docs/architecture/overview/ARCHITECTURE.md",
-      "title": "架构说明",
+      "title": "当前系统架构总览",
       "category": "architecture",
       "kind": "document"
     },
@@ -960,6 +972,12 @@
     {
       "path": "docs/roadmap/learning/ROBOTICS_ROADMAP.md",
       "title": "机器人 C++ 系统软件 9–12 个月路线图",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/next-steps.md",
+      "title": "后续演进建议：先完成性能闭环，再验收已有能力",
       "category": "roadmap",
       "kind": "document"
     },
