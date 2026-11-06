@@ -7,6 +7,7 @@
 |内容|文件|
 |---|---|
 |[从干净目录构建和验证](reproduce.md)|reproduce.md|
+|[Function3.1 发布说明](function3.1.md)|function3.1.md|
 |[Phase43–47验证、部署审批与回退](phase43-47-validation-and-rollback.md)|phase43-47-validation-and-rollback.md|
 |[Phase48 验证与回退](phase48-validation-and-rollback.md)|phase48-validation-and-rollback.md|
 |[Phase49 验证与回退](phase49-validation-and-rollback.md)|phase49-validation-and-rollback.md|

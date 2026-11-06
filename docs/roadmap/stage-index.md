@@ -1,6 +1,6 @@
 # Phase阶段时间线
 
-每阶段只有一份主题正文。本表保留顺序视图；最新阶段是Phase49，功能与性能结论分别判断。Phase1旧文本见 [历史归档](../archive/README.md)，原文档没有独立Phase2页面。
+每阶段只有一份主题正文。本表列至 Phase49。Function3.1 后的[社区拆分](../architecture/business/engineering/community-runtime-modules.md)与[两档复现](../ops/validation/reproduce.md)另有记录。Phase1旧文本见[历史归档](../archive/README.md)，原文档没有独立Phase2页面。
 
 |Phase|正文|大类|
 |---|---|---|

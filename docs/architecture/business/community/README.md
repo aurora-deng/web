@@ -6,6 +6,7 @@
 
 |内容|文件|
 |---|---|
+|[当前社区内容装配与事件边界](../engineering/community-runtime-modules.md)|community-runtime-modules.md|
 |[Phase 30：站点管理与模型控制入口](phase30.md)|phase30.md|
 |[Phase 31：苦情树动态、媒体与内容处置](phase31.md)|phase31.md|
 |[Phase 32：三维苦情树与有界浏览](phase32.md)|phase32.md|

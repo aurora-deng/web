@@ -13,6 +13,7 @@
 #include "backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.h"
 #include "backend/application/storage/postgres/PostgresWorkspaceRepository/PostgresWorkspaceRepository.h"
 #include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
+#include "backend/application/observability/ChatAckTrace/ChatAckTrace.h"
 
 #include <algorithm>
 #include <chrono>
@@ -76,7 +77,10 @@ private:
             throw std::logic_error("transaction completed on a different thread");
         try
         {
+            const auto started = action == "COMMIT" ? application::ChatAckTrace::committing()
+                                                   : std::chrono::steady_clock::time_point{};
             command(lease_.get(), action);
+            application::ChatAckTrace::committed(started);
         }
         catch (...)
         {

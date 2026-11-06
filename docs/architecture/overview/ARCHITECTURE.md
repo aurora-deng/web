@@ -1,14 +1,12 @@
 # 当前系统架构总览
 
-本轮语音更新：[免绑卡方案](../../ops/runtime/free-speech.md)复用现有C++ Kokoro，并以独立BrowserSpeech封装设备中文朗读；停用代理已移除。设备模式只在浏览器内运行，全站公告仍由原Worker合成；通信核心、数据库和三端分工不变。
+当前源码为 `Function3.2`，包含社区内容与投递拆分、Linux 两档复现、数据库连接恢复和业务 ACK 分段采样。共享数据库要求迁移 001–024。日常部署记录和本地验证分别见[当前状态](../../../STATUS.md)与[复现验收](../../ops/validation/reproduce.md)。
 
-核对日期：2026-11-05。当前源码为Phase49加语音/神树交互修复与Azure目录补充；日常程序cb18d796、最新免Key语音页面9f3342acc65db2d7已更新，无关并发源码另行记账，不表示完成Phase50。原库结构未升级。
+Phase49 第三轮聊天 ACK P99 从 8.710 ms 升至 15.545 ms（+78.47%），未达到当时的严格性能门槛。社区拆分后的验证覆盖功能与构建，十轮 A/A 校准和逐消息追踪仍待完成。[Phase49 验收](../business/engineering/phase49.md) · [下一阶段](../../roadmap/next-steps.md)
 
-当前判断：**功能与结构已有阶段验证，严格性能门槛未通过**。第三轮ACK P99 8.710→15.545ms（+78.47%），不能以/fast的QPS代替真实聊天表现。[验收原文](../business/engineering/phase49.md)和[原始证据](../../../artifacts/function3/phase49/README.md)保持不变。
+[目录树](project-layout.md) · [完整端到端图](../business/flows/current-end-to-end.md) · [代码索引](../business/indexes/README.md)
 
-阅读入口：[完整端到端图](../business/flows/current-end-to-end.md) · [下一阶段建议](../../roadmap/next-steps.md) · [代码索引](../business/indexes/phase49-code-index.md) · [通信详细基线](../communication/runtime-baseline.md)。
-
-2026-11-05：[语音/神树修复](../../ops/runtime/speech-settings-and-playback.md)已验证并获准恢复18090，详见[历史验收摘要](../../ops/validation/function3.1.md#历史补丁)；后续[可选Azure目录与免Key语音](../../ops/runtime/free-speech.md)直接查询官方区域接口，不增加服务器组件。[工程测量计划](../../roadmap/engineering-credibility.md)落实首批离线工具防护。校准脚本不属于线上请求链路，逐消息追踪尚未实现；三端职责与通信核心不变。
+网页个人语音可使用浏览器设备朗读，全站公告由独立语音 Worker 合成。网页、Windows 和站点的配置边界见[语音说明](../../ops/runtime/free-speech.md)。
 
 页面输入与呈现分开：[TreePageNavigation/TreePageTransition](../../ops/runtime/speech-and-scroll-polish.md)分别处理边界手势与动画/阅读位置，不改变业务接口或3D模型。语音设置保持统一请求入口，切换选择后清理旧播放器，连接试听显式触发，不自动重复调用云API。
 
@@ -61,7 +59,7 @@ flowchart TB
 |推理 / 语音 / 训练Worker|重计算与可取消任务|把普通聊天绑定到模型成功与否|
 |浏览器 / Windows客户端|渲染、用户输入、本机检索与代理|擅自决定共享业务权限|
 
-停止顺序为：网络任务排空 → RPC停止 → Presence回调解除 → 私人生成取消 → AI任务停止 → 文件/知识/DB任务排空 → Outbox与社区后台停止 → 反向销毁资源。重复stop安全；部分构造、TLS和监听失败的清理已有三种构建各4项验证。
+停止顺序为：网络任务排空 → RPC 停止 → Presence 回调解除 → 私人生成取消 → AI、文件、知识和数据库任务收尾 → 聊天 Outbox 与社区后台停止。社区投递先停发布并结束 Broker 回调，再释放语音和借用的实时 Sink。实时装配异常时，同样先结束可能使用该 Sink 的回调。[停机边界](../business/engineering/community-runtime-modules.md)
 
 HTTP/2的每Stream业务协程用于表达等待完成与恢复，不意味着SQL或模型代码自动变成非阻塞I/O。fd可复用，HTTP/2 Stream可重置，异步完成必须继续核验当前连接/Stream身份。
 

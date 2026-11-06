@@ -1,8 +1,8 @@
 # Function3 实施与验收台账
 
-当前补齐阶段：[Phase49](../architecture/business/engineering/phase49.md)，接口与领域装配/数据库分层的功能回归通过，严格ACK尾延迟门槛未通过；详见该阶段原始结果与限制。
+编号阶段的最近验收为 [Phase49](../architecture/business/engineering/phase49.md)。在 Function3.1 之后，本地分支又完成了[社区装配拆分](../architecture/business/engineering/community-runtime-modules.md)与[两档复现](../ops/validation/reproduce.md)。Phase49 的 ACK 尾延迟门槛仍未通过。
 
-基线：Function2.1 `ffc0e14`。开发分支：`feature/function3-tree`。
+Function3 初始基线为 Function2.1 `ffc0e14`，早期开发分支为 `feature/function3-tree`。最新开发快照见 [Function3.2](../releases/function3.2.md)。
 
 ## 现场核对（2026-10-23）
 
@@ -33,7 +33,7 @@ Phase28–34历史验收见 [Phase34](../reports/stages/phase34.md)；当前增�
 
 业务数据与 Outbox 必须在同一事务提交，MQ 不替代客户端 ACK；媒体不扩大原聊天附件权限，树内容不自动进入训练数据。
 
-## 当前日常使用入口（Phase35）
+## Phase35 建立的日常使用入口
 
 - 聊天：`/phase11/`；社区：`/phase11/tree/`；后台：`/phase11/admin/`。
 - 三者复用账号 Cookie；普通用户不因成为群主而获得站点管理员权限。

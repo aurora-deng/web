@@ -6,12 +6,13 @@
 
 |要做什么|入口|
 |---|---|
-|了解当前功能、实现边界和未通过项|[当前状态](../STATUS.md)、[Phase49验收](architecture/business/engineering/phase49.md)|
-|启动/停止与客户端入口|[运行文档](ops/runtime/README.md)|
+|了解当前功能、实现边界和未通过项|[当前状态](../STATUS.md)、[复现验收](ops/validation/reproduce.md#这次的验证记录)、[Phase49 历史验收](architecture/business/engineering/phase49.md)|
+|从空目录构建和启动|[两档复现指南](ops/validation/reproduce.md)|
+|日常启动/停止与客户端入口|[运行文档](ops/runtime/README.md)|
 |看从通信到业务、模型的完整图|[当前端到端总图](architecture/business/flows/current-end-to-end.md)、[系统总览](architecture/overview/ARCHITECTURE.md)|
 |了解后续优先级与验收标准|[近期工程计划](roadmap/engineering-credibility.md)、[Phase50–53建议](roadmap/next-steps.md)|
 |学习业务如何接到服务器|[接口与装配讲义](architecture/business/guides/phase49-teaching.md)、[业务教学目录](architecture/business/guides/README.md)|
-|找真实实现文件|[当前代码索引](architecture/business/indexes/phase49-code-index.md)|
+|找项目文件与实现组件|[项目目录树](architecture/overview/project-layout.md)、[组件索引](architecture/business/indexes/README.md)|
 
 ## 按用途分类
 
@@ -38,8 +39,8 @@
 2. 历史验收不改成当前通过；Phase49功能回归通过，严格ACK尾延迟门槛未通过。
 3. 原始日志和摘要保持字节不变；少数旧入口仅用于兼容证据中的历史链接。
 4. 本机账号清单位于被Git忽略的`database/*.local.md`，不上传GitHub；模型、数据库、私钥和私人资料也不属于公开文档。
-5. 目录移动记录见 [迁移清单](document-moves.json)，机器可读正文索引见 [catalog.json](catalog.json)。本次只整理文档与链接，不改变服务器行为或部署日常服务。
+5. 目录移动记录见 [迁移清单](document-moves.json)，机器可读正文索引见 [catalog.json](catalog.json)。源码和日常部署状态见[状态页](../STATUS.md)。
 
 新增公开页面后，显式运行 `python scripts/project/check_doc_links.py --refresh-catalog` 更新索引；普通校验运行 `python scripts/project/check_doc_links.py`，不会修改文件。目录存在性会检查，页内标题锚点保留原值，不冒充完整Markdown渲染验收。
 
-本轮修复：[语音 API 与音色配置、试听播放和神树滚动切页](ops/runtime/speech-settings-and-playback.md)。
+近期业务装配变更见[社区内容与投递](architecture/business/engineering/community-runtime-modules.md)。上线记录见[变更流水](ops/changelog.md)。

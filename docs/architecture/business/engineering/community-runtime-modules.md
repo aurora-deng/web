@@ -2,6 +2,8 @@
 
 [Function3Runtime](../../../../backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.cpp) 连接共享 SQL、权限桥、内容、投递、榜单、管理和语音。内容与投递分别成为可独立编译的目标；HTTP 路由、数据库模式、WebSocket 和 SSE 协议保持兼容。
 
+启用 PostgreSQL 后，CMake 构建 `function3_community_content` 与 `function3_community_delivery`，并将二者链接到 `function3_http`。可选 RocketMQ 驱动链接到投递目标。内容与投递共享当前服务进程。[目标定义](../../../../backend/application/modules/CMakeLists.txt)
+
 | 组件 | 拥有的资源 | 对外边界 |
 |---|---|---|
 | [CommunityContentRuntime](../../../../backend/application/modules/bootstrap/CommunityContentRuntime/CommunityContentRuntime.cpp) | 树、动态、举报、媒体的服务/仓储/HTTP 适配，媒体执行器 | 注册内容路由，提供树和举报服务供管理接口使用 |
@@ -15,7 +17,7 @@ flowchart LR
     T --> P[保存果实及 Outbox]
     P -->|提交后唤醒| D[事件投递模块]
     D --> B[本地 Broker 或可选 RocketMQ]
-    B --> I[Inbox 与耐久任务]
+    B --> I[Inbox 去重与持久任务]
     I --> S[SSE 广播]
     I --> V[语音任务入口]
 ```

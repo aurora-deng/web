@@ -1,6 +1,13 @@
 # 开发与运行变更记录
 
-当前工作见[状态页](../../STATUS.md)。以下为 Function3.1 保存时的阶段和上线记录。
+当前工作见[状态页](../../STATUS.md)。
+
+## Function3.1 之后的本地开发
+
+- `4b183f5` 把社区内容装配和事件投递装配拆成独立目标，明确发布、Broker 回调、语音和实时 Sink 的释放顺序。[模块说明](../architecture/business/engineering/community-runtime-modules.md)
+- `62544ac` 加入 Linux 通信档和临时 PostgreSQL 业务档。两档均从空目录构建启动。业务档 112 项 CTest 通过，跳过 1 项可选 Redis 契约，真实发布、通知与重启恢复通过。[复现记录](validation/reproduce.md)
+
+## Function3.1 及此前记录
 
 最新页面更新（2026-11-06）：聊天、苦情树和账号页面共用水岸背景，登录和注册已同步更新。18090 资源 `366b63e5aaf26c0b`，就绪检查通过。见[版本说明](validation/function3.1.md)。以下保留此前补丁与 Phase49 历史验收。
 

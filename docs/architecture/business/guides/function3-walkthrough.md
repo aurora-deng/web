@@ -35,7 +35,7 @@ sequenceDiagram
  S-->>U: 核验连接/Stream 身份后发送
 ```
 
-装配从 `main.cpp` 进入 `Function3Runtime`，再由 `TreeHttp::registerRoutes` 注册 URL。Router 保存执行器归属；Session 提交任务后继续处理网络事件，不坐在 Reactor 中等待数据库。
+当前装配从 `main.cpp` 经 `ApplicationRuntime` 和 `BusinessRuntime` 到 `Function3Runtime`，由 `CommunityContentRuntime` 组合 `TreeHttp` 并注册 URL。Router 保存执行器归属，Session 提交任务后继续处理网络事件。[当前社区装配](../engineering/community-runtime-modules.md)
 
 这里仍使用阻塞 libpq。异步的是网络任务交付和完成通知，数据库查询在专用 Worker 中执行，不是把同步驱动改称协程驱动。
 

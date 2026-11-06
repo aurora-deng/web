@@ -35,7 +35,7 @@ python3 scripts/function3/validation/build_checks.py asan \
 
 ## 3. 远程CI的边界
 
-Workflow源码覆盖所有分支push/PR；全业务job需要经批准的 `webserver-isolated-ci` runner、`isolated-ci`环境，以及 `WEB_CI_POSTGRES_CONNECTION` Secret。Redis端口可通过 `WEB_CI_REDIS_PORT`设置。构建缓存必须属于runner当前checkout，并显式启用所需功能。
+Phase43–47 当时的全业务 job 使用预配置的 PostgreSQL 连接与 Redis 端口。当前业务 CI 改用手动 `run_business` 和临时 PostgreSQL，依赖路径由隔离 runner 提供。[当前 CI 与复现配置](reproduce.md#容器与-ci)
 
 本轮不安装runner、不创建Secret、不启用云资源、不推送Workflow。远程运行结果因此不能填“已通过”。缺环境或功能时full入口直接失败；source成功不等价于后端成功。
 

@@ -1,6 +1,6 @@
 # Function3 日常启动：原账号库、18090 与语音
 
-> 本页保留Phase35日常实例说明。Phase36–41尚未替换该实例；新功能先按[本机与隔离预览](phase36-41-local-preview.md)验证，新二进制明确要求追加迁移至022。
+> 本页说明日常实例。最近一次记录在 [Function3.1 发布说明](../validation/function3.1.md)，当前业务二进制要求迁移 001–024。本地社区拆分分支通过[独立复现](../validation/reproduce.md)验证。日常版本和测试范围见[当前状态](../../../STATUS.md)。
 
 本入口用于当前 Linux 学习环境，复用已经安装的依赖。代码位于 `/home/pikachu/function3-src`；不下载软件、不新建数据库，不改变 Redis、数据库监听地址或防火墙。
 
@@ -84,6 +84,8 @@ python3 scripts/function3/runtime/service.py start --mq-endpoint 127.0.0.1:8081
 ## 5. 测试入口与日常入口要分清
 
 `scripts/function3/validation/run_server.py` 和 `isolated_postgres.py` **仅用于已有 `_test` 库的隔离验证**，仍保留 18094 等测试端口。原先按 `run_server.py start --ai` 启动时，既不是原账号库，也没有自动开启 TTS，这正是前面账号不一致和语音无输出的重要原因。
+
+从完整源码检出开始做干净构建时，使用 `scripts/project/reproduce.py`。它会选择临时 HTTP 端口，业务档会初始化一次性 PostgreSQL，并在结束后清理自身资源。[复现指南](../validation/reproduce.md)
 
 日常用本页的 `runtime/service.py`；测试继续使用已有测试库，避免将合成账号、坏媒体、举报隐藏夹具写入你的真实业务数据。此次没有新建数据库。
 

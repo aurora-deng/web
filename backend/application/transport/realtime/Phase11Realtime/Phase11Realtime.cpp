@@ -1,4 +1,5 @@
 #include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
+#include "backend/application/observability/ChatAckTrace/ChatAckTrace.h"
 #include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 
 #include "backend/application/transport/FlatJson/FlatJson.h"
@@ -127,18 +128,21 @@ void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
             if (context.uid == 0 || context.inbound.conversationId == 0)
                 throw ApplicationError(ErrorCode::InvalidArgument,
                                        "authenticated conversation is required");
+            application::ChatAckTrace trace;
             const auto result = runDatabase(
-                [this, sender = static_cast<UserId>(context.uid),
+                [this, &trace, sender = static_cast<UserId>(context.uid),
                  conversation = context.inbound.conversationId,
                  id = context.inbound.messageId,
                  body = context.inbound.text]
                 {
+                    const application::ChatAckTrace::DatabaseScope scope(trace);
                     return chat_.sendText(sender, conversation, id, body, now());
                 });
             if (outboxCommitted_) outboxCommitted_();
             setReply(context, "chat.accepted",
                      result.inserted ? "inserted" : "duplicate",
                      &result.message);
+            trace.ackReady(result.message.id);
         });
     });
 

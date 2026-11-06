@@ -2,6 +2,8 @@
 
 当前业务版本要求 001–024 都存在。024 是当前功能所需的最后一份迁移，不是永久冻结线。只修改代码组织、界面或测试时，保持原表结构和版本。
 
+本地复现已在一次性 PostgreSQL 从空库应用 001–024，并验证应用启动与重启后的数据读取。[复现记录](../ops/validation/reproduce.md#这次的验证记录)
+
 ## 增加迁移
 
 1. 在[迁移目录](../../backend/application/storage/postgres/migrations)追加下一编号，如 `025_feature_name.sql`。已经发布的 SQL 不改写、不复用编号。先核对 `phase11_schema_migrations`，不要以文件总数代替版本检查。

@@ -2,6 +2,8 @@
 
 复现分为两个级别。两者都从源码配置、构建、启动，再访问真实 HTTP 服务。源码检查仍可以单独在 Windows 运行。
 
+请使用 `Function3.2` 的完整检出，从项目根目录执行下方命令。[项目文件架构](../../architecture/overview/project-layout.md) · [附加故障演练与 ACK 性能定位](../../releases/function3.2.md)
+
 | 级别 | 已有工具要求 | 能证明什么 |
 |---|---|---|
 | `transport` | Linux、支持 C++20 的编译器、CMake/CTest 3.21+、Make 或 Ninja、Python 3.9+、匹配的 OpenSSL 与 nghttp2 开发库 | 最小服务能启动、响应、提供正确静态资源、正常退出；账号 API 在未配置时明确返回 503 |

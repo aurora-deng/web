@@ -1,12 +1,12 @@
-# Nebula Chat · C++ Web Server / Function3.1
+# Nebula Chat · C++ Web Server / Function3.2
 
 一个以 Linux C++ 服务器为核心的学习与验证项目，包含聊天、苦情树社区、个人主页、三种 AI 助手入口，以及可选的 Windows 私人客户端。
 
-**Function3.1** 基于 Phase49，收录三分钟撤回、免绑卡语音、神树滚动切页和登录到各工作区的统一水岸主题。本版是开发快照；正式容量和聊天 ACK 尾延迟仍待验收。详情见[版本说明与验证范围](docs/ops/validation/function3.1.md)。
+**Function3.2** 增加社区模块拆分、两档 Linux 复现、PostgreSQL 断连恢复及聊天 ACK 分段定位。日常运行版本、通信核心和原库保持不变。详见[版本差异与测试结果](docs/releases/function3.2.md)。
 
 [文档分类](docs/README.md) · [当前架构](docs/architecture/overview/ARCHITECTURE.md) · [完整调用图](docs/architecture/business/flows/current-end-to-end.md) · [当前状态](STATUS.md) · [后续计划](docs/roadmap/next-steps.md)
 
-第一次运行可按[从干净目录复现](docs/ops/validation/reproduce.md)选择通信演示或真实 PostgreSQL 业务验证。日常服务的升级入口与独立验证分开。
+[项目文件架构](docs/architecture/overview/project-layout.md) · [从干净目录复现](docs/ops/validation/reproduce.md) · [Obsidian 学习计划与助教提示词](docs/learning/nebula-performance-and-reliability.md)
 
 ## 当前功能与边界
 
@@ -19,7 +19,7 @@
 |RAG与模型治理|授权词法检索/引用、记忆、数据集/制品版本、评测门禁、训练转换及人工发布回滚工具|训练流水线验证不等于模型质量提高；不自动训练发布所有模型|
 |语音与运行保障|独立TTS、公告与试听/回退、指标/健康、持久事件、Redis/MQ可选集成|真实云Key、主观自然度和正式容量有未验收项|
 
-功能、替身、真实服务和性能分开记账。最新原始报告见 [Phase49](docs/architecture/business/engineering/phase49.md) 与 [证据目录](artifacts/function3/phase49/README.md)。
+功能、替身、真实服务和性能分别记录。复现结果见[当前验收](docs/ops/validation/reproduce.md#这次的验证记录)，性能基线见 [Phase49 原始证据](artifacts/function3/phase49/README.md)。
 
 ## 架构分工
 
@@ -35,7 +35,7 @@ Windows client
   → 只把必要且获授权的片段与上下文发给推理服务
 ```
 
-整体方向保持模块化单体加独立推理/语音/训练Worker。通信核心152份文件冻结，main只有14行入口；资源由各领域Runtime拥有。目录独立不是微服务，也不自动提速。[目录与依赖规则](docs/architecture/overview/project-layout.md)说明文件归属。
+服务采用模块化单体，推理、语音与显式训练任务各有独立进程边界。社区内容装配负责神树、动态、举报和媒体，社区投递装配负责 Outbox、Broker、重放和通知。[目录与依赖规则](docs/architecture/overview/project-layout.md) · [社区模块说明](docs/architecture/business/engineering/community-runtime-modules.md)
 
 ## 数据、接口与隐私
 
@@ -52,12 +52,13 @@ Windows client
 |需要做什么|入口|
 |---|---|
 |Linux日常启动/停止，原账号库与端口|[运行说明](docs/ops/runtime/function3-runtime.md)|
-|Windows本机入口、Linux隔离验证|[本地预览说明](docs/ops/runtime/phase36-41-local-preview.md)|
+|Linux 从源码复现通信档、业务档|[复现命令和验证结果](docs/ops/validation/reproduce.md)|
+|Windows本机入口、既有 Linux 隔离实例|[本地预览说明](docs/ops/runtime/phase36-41-local-preview.md)|
 |已有环境、依赖位置与审批|[依赖目录](docs/ops/dependencies/README.md)|
 |测试矩阵、源码检查与故障验证|[测试入口](docs/testing/README.md)|
 |部署前核对、回退与证据口径|[验证与回退](docs/ops/validation/phase49-validation-and-rollback.md)|
 
-日常18090/18443与隔离18094/18444用途不同。源码分支更新不代表虚拟机日常实例已升级。安装、证书信任、原库写入与正式部署继续遵守既有审批规则，不自动下载依赖或修改全局环境。
+日常实例使用 18090/18443，既有隔离预览使用 18094/18444。新的复现脚本选择临时 HTTP 端口，业务档使用独立的临时 PostgreSQL。[运行状态](STATUS.md)
 
 文档检查可运行：
 
@@ -70,7 +71,9 @@ python scripts/project/ci_checks.py source
 
 ## 验收状态
 
-Phase49在2026-10-31归档：Linux Release/Debug/ASan-LSan-UBSan各115项，前端33项、工程14项、七组浏览器、10组真实业务、Windows构建/真实代理及Worker故障等有相应通过证据。2026-11-03文档分类又执行了源码与链接检查；这些日期与范围不能混成今天全部重跑。
+复现分支的两个 Linux Release 档位均从空构建目录完成构建与启动。业务档 112 项 CTest 通过，跳过 1 项可选 Redis 契约。注册登录、WebSocket、果实幂等发布、Outbox/SSE 和重启恢复均通过。干净 Git 检出通过 79 项前端测试和 23 项 Python 工程检查。[复现记录](docs/ops/validation/reproduce.md#这次的验证记录)
+
+Phase49 于 2026-10-31 归档，其 Release、Debug 和 ASan/LSan/UBSan 各 115 项及其他验证属于当时的配置。[Phase49 验收](docs/architecture/business/engineering/phase49.md)
 
 **严格性能门槛仍未通过。** Phase49三轮/fast中位约-3.89%，混合吞吐中位约-16.93%；第三轮聊天ACK P99 8.710→15.545ms（+78.47%），业务错误0。原始不利结果与中断记录保留，不宣称生产就绪。
 
@@ -86,5 +89,5 @@ Phase49在2026-10-31归档：Linux Release/Debug/ASan-LSan-UBSan各115项，前�
 ## 学习与历史
 
 - [按主题阅读](docs/README.md)、[Phase3–49时间线](docs/roadmap/stage-index.md)、[业务教学](docs/architecture/business/guides/README.md)。
-- [当前代码索引](docs/architecture/business/indexes/phase49-code-index.md)、[历史通信详细讲义](docs/architecture/communication/runtime-baseline.md)。
+- [组件索引](docs/architecture/business/indexes/README.md)、[历史通信详细讲义](docs/architecture/communication/runtime-baseline.md)。
 - [版本差异](docs/releases/README.md)、[原始验收证据](docs/evidence/README.md)。较早README和当时未推送/未部署的叙述可在Git历史检查点`5f18761`查看。

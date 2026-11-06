@@ -1,5 +1,10 @@
 # Testing and runtime verification
 
+For a fresh checkout, use the transport or disposable PostgreSQL profile in
+[Clean Linux reproduction](../ops/validation/reproduce.md). Both profiles were
+built and started from empty build directories. Use
+`python scripts/project/ci_checks.py source` for source and frontend checks.
+
 ## Reading goal and design rationale
 
 This document explains how to turn the framework's architectural claims into
@@ -32,7 +37,7 @@ installation hint. Production-only builds can use `-DBUILD_TESTING=OFF`.
 
 ## Unit and integration tests
 
-Run the complete suite:
+Run the tests for the selected build options:
 
 ```sh
 bash scripts/run_tests.sh
@@ -48,8 +53,9 @@ ctest --test-dir build-tests --output-on-failure
 
 CTest registers the GoogleTest cases and, on Linux with Python 3 available, the
 `http_blackbox` and `websocket_blackbox` integration tests. Each integration script starts the built
-server in its own process group, waits for port 8080, checks the HTTP behavior,
-and always terminates the process group. Port 8080 must be free.
+server in its own process group, checks HTTP or WebSocket behavior,
+and terminates its process group. These scripts default to port 8080.
+Set `WEB_TEST_PORT` to a free test port when running them on a shared host.
 
 To run only the black-box test against an existing build:
 

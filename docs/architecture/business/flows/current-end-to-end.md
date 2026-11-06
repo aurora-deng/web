@@ -1,6 +1,6 @@
 # 当前系统完整架构与消息流
 
-核对：2026-11-04。运行实现仍为Phase49，数据库迁移要求024；本页补充语音配置与播放边界，没有实现Phase50追踪或替换日常服务。阶段图 [Phase49](phase49-end-to-end.md) 保留原验收上下文。
+本图对应 `Function3.2` 的源码，数据库要求迁移 001–024。聊天 ACK 的分段与故障恢复见[发布说明](../../../releases/function3.2.md)；日常实例见[当前状态](../../../../STATUS.md)，旧版对照见 [Phase49 阶段图](phase49-end-to-end.md)。
 
 ## 1. 从用户界面到共享业务、私人资料和模型更新
 
@@ -32,7 +32,7 @@ flowchart TB
         Store[兼容Store / 领域DAO / 同一个事务连接]
         PG[(既有PostgreSQL：业务与事件)]
         Ack[提交后的业务ACK或HTTP响应]
-        Delivery[Outbox发布 / 本地持久投递或RocketMQ / Inbox去重]
+        Delivery[聊天 Outbox 与社区投递 / 本地 Broker 或 RocketMQ / Inbox 去重]
         Output[既有异步输出 / 身份核验 / 背压]
         Model[模型路由 / 并发预算 / 取消 / 评测与版本]
         Infer[独立ONNX gRPC Worker / 教学进程内ONNX / Ollama API]
@@ -105,6 +105,8 @@ ACK不是等对方在线才生成，也不等于对方已读。Outbox、MQ和客
 
 2026-11-05 的[撤回修复](../client-ui/chat-recall-and-tree-background.md)沿用上述事务与双路返回：三分钟内的新撤回由服务端授权；页面核对持久化 ACK 的命令、消息、会话和序号后进入撤回终态，不再必须等待另一条广播才能清除正文。
 
+发布果实走社区链路。内容模块在同一事务写入果实和事件，提交后唤醒社区投递。投递通过本地 Broker 或已配置的 RocketMQ 处理事件，再广播 SSE 或交给语音任务入口。这个链路与聊天持久化 ACK 的时机分别定义。[社区投递图](../engineering/community-runtime-modules.md)
+
 ## 3. 私人助手与训练边界
 
 1. 好友式私人助手和全局侧栏有独立线程历史，共享Windows账号内的授权知识、记忆和设置；群AI只读群可见历史与共享资料。
@@ -118,7 +120,7 @@ ACK不是等对方在线才生成，也不等于对方已读。Outbox、MQ和客
 
 入口为 `main → ApplicationRuntime`，由 `BusinessRuntime` 组合Storage、Identity、Contacts、Chat、File、Knowledge、AI、Realtime与社区装配。各模块拥有自己的资源，使用其他模块的接口；兼容Store和聚合头仍保留。
 
-网络Reactor负责连接/协议与发送，慢SQL由DB执行器处理，文件/知识/推理/语音有各自任务边界。网络任务排空后，再停止RPC、解除Presence、取消私人/AI任务、排空文件/知识/DB任务、停止投递与社区后台，最后反向销毁依赖资源。
+网络 Reactor 负责连接、协议与发送，SQL 由数据库执行器处理，文件、知识、推理、语音各有任务边界。网络任务排空后，停止 RPC、解除 Presence、取消私人和 AI 任务，排空文件、知识和数据库任务，再停止投递与社区后台。Broker 回调结束后，语音和实时 Sink 才能释放。
 
 语音设置和播放的入口、权限及组件详见[修复讲义](../../../ops/runtime/speech-settings-and-playback.md)。个人试听配置与全站广播配置分开；短语音在业务适配层使用有界 WAV 响应，没有改动通信核心。
 
@@ -126,4 +128,4 @@ ACK不是等对方在线才生成，也不等于对方已读。Outbox、MQ和客
 
 建议的逐消息追踪、修复与后续验收只在 [下一阶段路线图](../../../roadmap/next-steps.md) 中描述。本页没有新增“已完成的分布式追踪”或“已经达标的生产部署”。当前严格性能门槛仍失败；业务形成ACK或交给队列不等于已观察到socket写完成。
 
-[架构总览](../../overview/ARCHITECTURE.md) · [目录边界](../../overview/project-layout.md) · [当前代码索引](../indexes/phase49-code-index.md) · [数据库分层](../../../database/domain-layering.md)
+[架构总览](../../overview/ARCHITECTURE.md) · [目录边界](../../overview/project-layout.md) · [组件索引](../indexes/README.md) · [数据库分层](../../../database/domain-layering.md) · [复现验收](../../../ops/validation/reproduce.md)

@@ -1,4 +1,5 @@
 #include "backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.h"
+#include "backend/application/observability/ChatAckTrace/ChatAckTrace.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -113,6 +114,19 @@ PostgresConnectionPool::Lease PostgresConnectionPool::acquire()
         std::max<std::int64_t>(0, wait));
     inUseHighWatermark_ = std::max(
         inUseHighWatermark_, all_.size() - available_.size());
+    lock.unlock();
+    // Repair a known broken connection before handing it to a new request.
+    // The slot is exclusively borrowed. Other leases and returns can proceed.
+    if (PQstatus(connection) != CONNECTION_OK)
+    {
+        PQreset(connection);
+        if (PQstatus(connection) != CONNECTION_OK)
+        {
+            release(connection);
+            throw std::runtime_error("PostgreSQL connection unavailable");
+        }
+    }
+    application::ChatAckTrace::acquired(started);
     return Lease(this, connection);
 }
 
@@ -126,8 +140,6 @@ PostgresConnectionPool::Snapshot PostgresConnectionPool::snapshot() const noexce
 
 void PostgresConnectionPool::restoreIdleConnection(PGconn *connection) noexcept
 {
-    if (PQstatus(connection) != CONNECTION_OK)
-        PQreset(connection);
     if (PQstatus(connection) == CONNECTION_OK &&
         PQtransactionStatus(connection) != PQTRANS_IDLE)
     {

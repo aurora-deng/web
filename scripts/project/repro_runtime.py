@@ -90,7 +90,7 @@ def get_json(port, route):
 
 
 @contextmanager
-def owned_server(binary, root, env, log_path):
+def owned_server_process(binary, root, env, log_path, expected_exit=0):
     # The frozen server binds all interfaces. Run in a trusted VM or network namespace.
     with closing(socket.socket()) as reserved:
         reserved.bind(("", 0))
@@ -112,7 +112,7 @@ def owned_server(binary, root, env, log_path):
                 time.sleep(0.1)
             else:
                 raise RuntimeError(f"Server not ready; see {log_path.name}")
-            yield port
+            yield port, child
         finally:
             already_failed = sys.exc_info()[0] is not None
             if child.poll() is None:
@@ -123,7 +123,13 @@ def owned_server(binary, root, env, log_path):
                 child.kill()
                 status = child.wait()
             if not already_failed:
-                require(status == 0, f"Server exited with {status}; see {log_path.name}")
+                require(status == expected_exit, f"Server exited with {status}; see {log_path.name}")
+
+
+@contextmanager
+def owned_server(binary, root, env, log_path):
+    with owned_server_process(binary, root, env, log_path) as (port, _):
+        yield port
 
 
 def http_smoke(root, port, expect_business):

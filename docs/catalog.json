@@ -784,6 +784,12 @@
       "kind": "index"
     },
     {
+      "path": "docs/learning/nebula-performance-and-reliability.md",
+      "title": "NEBULA 实战学习：性能定位与故障恢复",
+      "category": "learning",
+      "kind": "document"
+    },
+    {
       "path": "docs/ops/README.md",
       "title": "运行维护分类",
       "category": "ops",
@@ -972,6 +978,12 @@
     {
       "path": "docs/releases/function2.1-vs-function2.md",
       "title": "Function2.1 与 Function2 对比，以及下一步演进建议",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/function3.2.md",
+      "title": "Function3.2：可复现构建、故障恢复与 ACK 性能定位",
       "category": "releases",
       "kind": "document"
     },
