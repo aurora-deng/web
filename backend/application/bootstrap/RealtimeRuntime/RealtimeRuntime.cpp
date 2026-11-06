@@ -14,14 +14,21 @@
 #include "backend/server/Runtime/ServerRuntime.h"
 namespace webserver::bootstrap {
 struct RealtimeRuntime::Impl {
+    struct DeliveryLifetime {
+        function3::Function3Runtime* runtime;
+        ~DeliveryLifetime(){if(runtime)runtime->stopMessaging();}
+    };
     phase11::transport::Phase11RealtimeOutboxSink sink;
+    // Members are destroyed in reverse order, including on partial construction:
+    // stop the outbox pump, then broker callbacks, then destroy the borrowed sink.
+    DeliveryLifetime deliveryLifetime;
     std::unique_ptr<phase11::transport::Phase11OutboxPump> pump;
     std::unique_ptr<phase11::transport::Phase11Realtime> commands;
     std::unique_ptr<phase11::transport::Phase11PresenceBridge> presence;
     bool notifyEnabled=!flag("WEB_PHASE11_OUTBOX_POLL_ONLY");
     std::function<void()> notifier(){return [this]{if(notifyEnabled)pump->notifyCommitted();};}
     Impl(StorageRuntime&s,ContactsRuntime&contacts,ChatRuntime&c,AiRuntime&a,ServerRuntime&net,function3::Function3Runtime*community)
-    :sink(s.delivery(),s.delivery(),s.delivery(),net.wsManager(),net.sseManager()){
+    :sink(s.delivery(),s.delivery(),s.delivery(),net.wsManager(),net.sseManager()),deliveryLifetime{community}{
         const char* endpoint=std::getenv("WEB_FUNCTION3_MQ_ENDPOINT");
         if(community&&endpoint&&*endpoint)s.store().setOutboxWriter(std::make_shared<function3::ChatOutboxWriter>(community->commitNotifier()));
         auto& destination=community?community->startMessaging(sink,s.delivery()):static_cast<phase11::IOutboxEventSink&>(sink);

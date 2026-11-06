@@ -1,6 +1,4 @@
 #pragma once
-#include "backend/application/ports/IMessageRepository/IMessageRepository.h"
-#include "backend/application/ports/IModelRepository/IModelRepository.h"
 #include <memory>
 #include <string>
 #include <functional>
@@ -24,6 +22,8 @@ public:
     Function3Runtime&operator=(const Function3Runtime&)=delete;
     void registerRoutes(Router &router);
     phase11::IOutboxEventSink &startMessaging(phase11::IOutboxEventSink &realtime,phase11::IMessageRepository &messages);
+    /** Stop broker callbacks before the borrowed realtime sink is destroyed. */
+    void stopMessaging() noexcept;
     /** 仅捕获独立通知状态，允许存储组件比 Runtime 更晚析构。 */
     std::function<void()> commitNotifier()const;
 private:struct Impl;std::unique_ptr<Impl> impl_;
