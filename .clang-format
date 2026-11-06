@@ -1,0 +1,70 @@
+# STATUS: DRAFT — not yet verified against the installed clang-format.
+# NEBULA C++ 格式化基准
+#
+# 重要：这份文件的作用是"锁住现有风格"，不是"改风格"。
+# 加进来之后不要对全仓跑 clang-format -i，那会重排 5 万行、制造一个无法 review 的提交。
+# 正确用法：
+#   1. 只对你正在改的文件执行：clang-format -i <file>
+#   2. 提交前检查差异：git diff --stat 应当只涉及你改过的文件
+#   3. 想全仓格式化时，单独一个提交，标题写 chore: apply clang-format (no functional change)
+#
+# 风格依据（从现有代码反推，不是拍脑袋）：
+#   - Allman 大括号：class / 函数的大括号另起一行
+#   - `if (` 带空格出现 2351 次，`if(` 587 次 → 采用 ControlStatements
+#   - 4 空格缩进，成员名带 `_` 后缀，类型 PascalCase，函数 camelCase
+#   - 中文注释密度极高 → 关闭 ReflowComments，避免破坏排版
+
+BasedOnStyle: LLVM
+
+Language: Cpp
+Standard: c++20
+
+# ---- 缩进与大括号 ----
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+BreakBeforeBraces: Allman
+AccessModifierOffset: -4
+IndentAccessModifiers: false
+NamespaceIndentation: None
+
+# ---- 行宽 ----
+ColumnLimit: 120
+
+# ---- 空格 ----
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: false
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyBlock: false
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+
+# ---- 短语句 ----
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+
+# ---- 换行策略 ----
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BinPackArguments: true
+BinPackParameters: true
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AllowAllParametersOfDeclarationOnNextLine: true
+PenaltyReturnTypeOnItsOwnLine: 200
+ConstructorInitializerIndentWidth: 4
+BreakConstructorInitializers: BeforeColon
+
+# ---- 注释 ----
+ReflowComments: false
+SpacesBeforeTrailingComments: 2
+
+# ---- 其他 ----
+DerivePointerAlignment: false
+FixNamespaceComments: true
+SortIncludes: Never
+IncludeBlocks: Preserve
+MaxEmptyLinesToKeep: 2

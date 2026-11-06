@@ -1,5 +1,7 @@
 # Phase 11 PostgreSQL 表结构学习指南
 
+增加表或字段前，先看[数据库迁移规则](migration-policy.md)：已应用版本只保留，后续变更追加。
+
 Phase49按领域明确 Query/Command、业务对象、DAO 行与公开返回投影；规范及真实调用链见 [数据库领域分层](domain-layering.md)。没有新增数据库或迁移，仍兼容024。
 
 Phase48没有新增迁移；Outbox批量确认与版本024兼容说明见 [本轮数据库说明](phase48-outbox.md)。

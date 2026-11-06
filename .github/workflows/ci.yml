@@ -5,6 +5,11 @@ on:
     branches: ['**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_business:
+        description: 'Run the provisioned Linux business reproduction on the isolated runner'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,20 +32,33 @@ jobs:
           name: source-evidence
           path: build-function3/ci-report.json
   business:
-    # An isolated, explicitly approved runner label is required. Never attach
-    # an untrusted PR to the daily learning VM or install dependencies silently.
-    if: github.event_name != 'pull_request'
+    # Opt-in only: a green source job is not evidence that this runner exists
+    # or that real PostgreSQL and WebSocket checks ran.
+    if: github.event_name == 'workflow_dispatch' && inputs.run_business
     runs-on: [self-hosted, linux, webserver-isolated-ci]
     environment: isolated-ci
+    timeout-minutes: 30
     env:
-      PHASE11_POSTGRES_CONNECTION: ${{ secrets.WEB_CI_POSTGRES_CONNECTION }}
-      FUNCTION3_REDIS_TEST_PORT: ${{ vars.WEB_CI_REDIS_PORT || '6379' }}
+      PG_PREFIX: ${{ vars.WEB_CI_POSTGRES_PREFIX }}
+      SODIUM_PREFIX: ${{ vars.WEB_CI_SODIUM_PREFIX }}
+      GTEST_DIR: ${{ vars.WEB_CI_GTEST_DIR }}
+      SSL_INCLUDE: ${{ vars.WEB_CI_OPENSSL_INCLUDE }}
+      SSL_LIB_DIR: ${{ vars.WEB_CI_OPENSSL_LIB_DIR }}
     steps:
       - uses: actions/checkout@v4
-      - name: Full configured business matrix and real isolated PostgreSQL
-        run: python3 scripts/project/ci_checks.py full
+      - name: Clean Release build and real disposable PostgreSQL
+        shell: bash
+        run: |
+          args=(--postgres-prefix "${PG_PREFIX:?Configure WEB_CI_POSTGRES_PREFIX on the isolated runner}")
+          if [[ -n "$SODIUM_PREFIX" ]]; then args+=(--sodium-prefix "$SODIUM_PREFIX"); fi
+          if [[ -n "$GTEST_DIR" ]]; then args+=(--gtest-dir "$GTEST_DIR"); fi
+          if [[ -n "$SSL_INCLUDE" || -n "$SSL_LIB_DIR" ]]; then
+            args+=(--openssl-include "${SSL_INCLUDE:?}" --openssl-lib-dir "${SSL_LIB_DIR:?}")
+          fi
+          python3 scripts/project/reproduce.py business \
+            --build-dir "build/ci-business-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" "${args[@]}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: business-evidence
-          path: build-function3/ci-report.json
+          path: build/ci-business-*/reproduction.json

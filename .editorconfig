@@ -1,0 +1,41 @@
+# STATUS: DRAFT — editor coverage has not been verified.
+# 编辑器统一基线。作用只有一个：让不同机器上的 diff 不掺杂格式噪音。
+# 不覆盖 .clang-format（C++ 的实际格式由它决定），这里只管换行符、缩进、末尾空行这类基础项。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+# C++ 源码：4 空格（与 .clang-format 的 IndentWidth 一致）
+[*.{c,cc,cpp,cxx,h,hh,hpp,hxx,inl,ipp}]
+indent_size = 4
+
+[*.{cmake,txt}]
+indent_size = 2
+
+[CMakeLists.txt]
+indent_size = 4
+
+# 前端为原生 ES Module，无构建步骤，统一 2 空格
+[*.{js,mjs,cjs,ts,json,jsonc,html,css,yml,yaml}]
+indent_size = 2
+
+[*.py]
+indent_size = 4
+
+# Markdown 的表格与中文段落依赖行尾空格，不能裁
+[*.{md,markdown}]
+trim_trailing_whitespace = false
+
+# 证据文件与日志保持原样，避免大文件产生无意义 diff
+[artifacts/**]
+insert_final_newline = false
+trim_trailing_whitespace = false
+
+[*.{log,txt}]
+insert_final_newline = false

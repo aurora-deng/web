@@ -35,6 +35,7 @@ def main():
     try:
         if a.profile=='source':
             run(['python3' if os.name!='nt' else os.sys.executable,'scripts/project/check_boundaries.py'])
+            run([os.sys.executable,'tests/function3/architecture/check_boundaries.py'])
             run([os.sys.executable,'scripts/project/chat_backdrop_artwork.py','--check'])
             run(['python3' if os.name!='nt' else os.sys.executable,'scripts/project/frontend_release.py','--check'])
             run([os.sys.executable,'scripts/project/check_presentation.py'])

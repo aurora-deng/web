@@ -6,6 +6,7 @@
 
 |内容|文件|
 |---|---|
+|[社区内容与事件投递模块](community-runtime-modules.md)|community-runtime-modules.md|
 |[Phase43：可恢复基线与验收分级](phase43.md)|phase43.md|
 |[Phase44：可执行的工程检查](phase44.md)|phase44.md|
 |[Phase48：补齐配色、领域拆分与 Outbox 提交优化](phase48.md)|phase48.md|

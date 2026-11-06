@@ -1,0 +1,62 @@
+# STATUS: DRAFT — not yet verified against the installed clang-tidy.
+# NEBULA C++ 静态分析配置
+#
+# 设计原则：第一版只开"高置信度、低误报"的检查项。
+# 5 万行代码一次性打开 cppcoreguidelines-* 会产出上千条警告，结果是没人看，
+# 反而失去了接入的意义。先把下面这批清到 0，再按季度追加规则。
+#
+# 运行：
+#   clang-tidy -p build/debug backend/server/**/*.cpp
+#   或只查改动的文件（CI 推荐）：
+#   clang-tidy -p build/debug $(git diff --name-only origin/main... | grep -E '\.(cpp|h)$')
+
+Checks: >
+  -*,
+  bugprone-use-after-move,
+  bugprone-dangling-handle,
+  bugprone-sizeof-expression,
+  bugprone-string-constructor,
+  bugprone-suspicious-memset-usage,
+  bugprone-macro-parentheses,
+  bugprone-unhandled-self-assignment,
+  bugprone-undefined-memory-manipulation,
+  bugprone-exception-escape,
+  bugprone-infinite-loop,
+  bugprone-move-forwarding-reference,
+  bugprone-string-integer-assignment,
+  bugprone-suspicious-semicolon,
+  bugprone-terminating-continue,
+  bugprone-unused-return-value,
+  performance-for-range-copy,
+  performance-move-const-arg,
+  performance-unnecessary-copy-initialization,
+  performance-unnecessary-value-param,
+  performance-move-constructor-init,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-emplace,
+  modernize-make-unique,
+  modernize-make-shared,
+  cert-err60-cpp,
+  cert-oop54-cpp,
+  cert-err34-c,
+  cppcoreguidelines-pro-type-const-cast,
+  cppcoreguidelines-pro-type-reinterpret-cast,
+  cppcoreguidelines-owning-memory
+
+# 先不把警告变成错误。等上面这批清零后，改成 'bugprone-*,cert-*' 再逐步收紧。
+WarningsAsErrors: ''
+
+# 只分析项目自己的头文件，避免第三方头文件噪音
+HeaderFilterRegex: '^(backend|client)/.*\.(h|hpp)$'
+
+# 用仓库里的 .clang-format 生成修复建议，保证 tidy --fix 的结果与手工格式化一致
+FormatStyle: file
+
+CheckOptions:
+  # 协程帧与连接对象必须整体移动，拷贝会带来隐性开销
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: 'std::shared_ptr;std::unique_ptr'
+
+# 系统头文件与第三方库不产生诊断
+SystemHeaders: false

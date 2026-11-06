@@ -6,6 +6,8 @@
 
 [文档分类](docs/README.md) · [当前架构](docs/architecture/overview/ARCHITECTURE.md) · [完整调用图](docs/architecture/business/flows/current-end-to-end.md) · [当前状态](STATUS.md) · [后续计划](docs/roadmap/next-steps.md)
 
+第一次运行可按[从干净目录复现](docs/ops/validation/reproduce.md)选择通信演示或真实 PostgreSQL 业务验证。日常服务的升级入口与独立验证分开。
+
 ## 当前功能与边界
 
 |区域|已有能力|需要区分的边界|

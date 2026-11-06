@@ -220,6 +220,12 @@
       "kind": "index"
     },
     {
+      "path": "docs/architecture/business/engineering/community-runtime-modules.md",
+      "title": "社区内容与事件投递模块",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
       "path": "docs/architecture/business/engineering/phase43.md",
       "title": "Phase43：可恢复基线与验收分级",
       "category": "architecture",
@@ -748,6 +754,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/database/migration-policy.md",
+      "title": "PostgreSQL 迁移规则",
+      "category": "database",
+      "kind": "document"
+    },
+    {
       "path": "docs/database/phase43-47-chat-workspace.md",
       "title": "迁移024：会话提醒偏好与读取索引",
       "category": "database",
@@ -776,6 +788,12 @@
       "title": "运行维护分类",
       "category": "ops",
       "kind": "index"
+    },
+    {
+      "path": "docs/ops/changelog.md",
+      "title": "开发与运行变更记录",
+      "category": "ops",
+      "kind": "document"
     },
     {
       "path": "docs/ops/closeout/CLOSEOUT.md",
@@ -906,6 +924,12 @@
     {
       "path": "docs/ops/validation/phase49-validation-and-rollback.md",
       "title": "Phase49 验证与回退",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/validation/reproduce.md",
+      "title": "从干净目录复现 Nebula",
       "category": "ops",
       "kind": "document"
     },

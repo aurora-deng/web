@@ -41,12 +41,14 @@ flowchart TB
     Business --> Knowledge[KnowledgeRuntime：知识及训练服务装配]
     Business --> AI[AiRuntime：模型、评测、共享/私人生成]
     Business --> Realtime[RealtimeRuntime：WS命令、Presence、Outbox]
-    Business --> Community[Function3Runtime：社区、管理、事件、语音装配]
+    Business --> Community[Function3Runtime：社区装配]
+    Community --> Content[CommunityContentRuntime：动态、树、举报与媒体]
+    Community --> Delivery[CommunityDeliveryRuntime：Outbox、Broker 与重放]
 ```
 
 `unique_ptr`仍用于明确独占所有权；改进是main不再亲自管理37个跨领域资源。各Runtime拥有本领域组件，其他领域通过明确接口借用。装配层可看到具体驱动；领域服务不能反向依赖装配入口。
 
-旧Store、聚合头、少数旧方法和社区装配保留兼容，未宣称所有遗留耦合已经消失。KnowledgeRuntime组合已有知识/训练服务，不把两者规则混成一个服务。实际修改哪个领域，再逐块收窄接口，避免再次大搬家。
+旧 Store、聚合头和少数旧方法保留兼容。社区内容与投递分别拥有自己的执行资源，继续共用事务；投递用回调连接语音与实时会话，详见[模块边界](../business/engineering/community-runtime-modules.md)。KnowledgeRuntime 组合已有知识与训练服务，两者的规则仍各自维护。
 
 ## 3. 线程、异步和关闭顺序
 
