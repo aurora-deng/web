@@ -10,7 +10,7 @@ void CloudSpeechPolicy::validate(const SpeechProfile&p){
     if(p.voice!="zf_001"&&p.voice!="zm_009")throw std::invalid_argument("unsupported speech voice alias");
     if(!std::isfinite(p.speed)||p.speed<.75||p.speed>1.25||p.pitchPercent<-6||p.pitchPercent>3)throw std::invalid_argument("speech prosody exceeds range");
     if(p.region.empty()||p.region.size()>32||p.region.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-")!=std::string::npos)throw std::invalid_argument("invalid Azure region");
-    if(p.model!="gemini-2.5-flash-preview-tts")throw std::invalid_argument("only the explicitly free-configured Gemini model is allowed");
+    if(p.model!="gemini-2.5-flash-preview-tts"&&p.model!="gemini-3.1-flash-tts-preview")throw std::invalid_argument("only the explicitly free-configured Gemini model is allowed");
     const bool male=p.voice=="zm_009";
     if(p.style!="calm"&&p.style!="gentle"&&p.style!="serious"&&p.style!="chat"&&p.style!="narration-relaxed")throw std::invalid_argument("unsupported voice style");
     if(p.provider==Provider::Azure&&((male&&(p.style=="calm"||p.style=="gentle"))||(!male&&(p.style=="chat"||p.style=="narration-relaxed"))))throw std::invalid_argument("this Azure voice does not support the selected style");

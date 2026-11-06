@@ -1,8 +1,10 @@
-# Nebula Chat · C++ Web Server / Function3
+# Nebula Chat · C++ Web Server / Function3.1
 
-一个以Linux C++服务器为核心的学习与验证项目，包含浏览器聊天、苦情树社区、个人主页、三形态AI助手，以及可选Windows私人客户端。当前运行实现为 **Phase49**；2026-11-04同步架构总览与后续路线，**本次仅更新文档，不实施Phase50–53或部署日常服务**。
+一个以 Linux C++ 服务器为核心的学习与验证项目，包含聊天、苦情树社区、个人主页、三种 AI 助手入口，以及可选的 Windows 私人客户端。
 
-[文档分类](docs/README.md) · [当前架构](docs/architecture/overview/ARCHITECTURE.md) · [完整调用图](docs/architecture/business/flows/current-end-to-end.md) · [下一步建议](docs/roadmap/next-steps.md) · [当前状态](STATUS.md)
+**Function3.1** 基于 Phase49，收录三分钟撤回、免绑卡语音、神树滚动切页和登录到各工作区的统一水岸主题。本版是开发快照；正式容量和聊天 ACK 尾延迟仍待验收。详情见[版本说明与验证范围](docs/ops/validation/function3.1.md)。
+
+[文档分类](docs/README.md) · [当前架构](docs/architecture/overview/ARCHITECTURE.md) · [完整调用图](docs/architecture/business/flows/current-end-to-end.md) · [当前状态](STATUS.md) · [后续计划](docs/roadmap/next-steps.md)
 
 ## 当前功能与边界
 
@@ -37,7 +39,7 @@ Windows client
 
 - Linux复用既有PostgreSQL业务库；当前迁移要求024，不随新功能另建公共账号库。
 - 消息与Outbox同任务、同连接事务提交，之后分别形成持久化ACK和实时通知。
-- 119项HTTP方法/路径、18个领域绑定不等于全量字段Schema；WS/SSE、Windows本地接口、外部模型调用仍有各自契约。
+- 120项HTTP方法/路径、18个领域绑定不等于全量字段Schema；WS/SSE、Windows本地接口、外部模型调用仍有各自契约。
 - Windows私人资料/索引在本机，授权片段可能上传推理；DPAPI保护凭据，未宣称正文整库加密或全部离线。
 - 网页助手要求非保密上传提示；群AI不能读取个人私人知识。Key、模型、数据库、私人资料和本机账号文件不提交Git。
 

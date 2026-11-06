@@ -1,5 +1,6 @@
-import { contactsApi } from "../../contacts/ContactsApi/ContactsApi.js?v=dc39cdb5489c964d";
-import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
+import { contactsApi } from "../../contacts/ContactsApi/ContactsApi.js?v=144f1e6009a3d461";
+import { chatApi } from "../ChatApi/ChatApi.js?v=144f1e6009a3d461";
+import { matchesRecallReceipt, recalledFromReceipt } from '../MessageRecall/MessageRecall.js?v=144f1e6009a3d461';
 export const dependencies={"resources":["$","unreadWatermarks","wsBackoff","sseBackoff","elements","state","history","sender","runtime"],"commands":["setStatus","toast","createClientId","rememberMessageId","advanceConversationSequence","bumpUnread","clearConversationView","api","renderConversations","loadConversations","openConversation","renderConversationMembers","renderGroupGovernance","createMessageElement","renderCurrentMessages","scrollMessages","refreshMessageReceipts","generationElement","appendMessage","applyRecall","refreshCancelButton","renderContactLists","renderFriendPreview","loadFriendsPreview","loadContacts"],"types":[]};
 /** RealtimeController: explicit use cases; shared state/other controllers arrive through context. */
 export function createRealtimeController(context) {
@@ -283,12 +284,17 @@ function onRealtimeMessage(message) {
     }
     setStatus(elements.chatStatus, message.status || '消息发送失败', 'error');
   } else if (message.type === 'chat.recall.accepted') {
-    clearTimeout(state.pendingRecalls.get(message.replyTo)?.timer);
+    const pending=state.pendingRecalls.get(message.replyTo);
+    if(!pending)return; // Late replies from an old account/operation cannot change this view.
+    if(!matchesRecallReceipt(message,pending))return; // Keep waiting; a mismatched ACK proves nothing.
+    clearTimeout(pending.timer);
     state.pendingRecalls.delete(message.replyTo);
+    const recalled=recalledFromReceipt(message,pending,history.records.get(pending.id));
+    if(recalled)onRealtimeMessage({...recalled,type:'chat.message-recalled'});
     renderCurrentMessages();
     scheduleCatchup();
     setStatus(elements.chatStatus,
-      message.status === 'already_recalled' ? '该消息已经撤回。' : '撤回请求已提交。',
+      message.status === 'already_recalled' ? '该消息已经撤回。' : '服务器已确认撤回。',
       'success');
   } else if (message.type === 'ai.error') {
     state.activeGenerations.delete(message.replyTo);

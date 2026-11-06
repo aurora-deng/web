@@ -198,42 +198,6 @@
   --shadow-3: 0 24px 64px -18px rgba(16, 32, 56, .24);
 }
 
-/* ---- 工作区层：只允许覆盖「表面色」和「强调色」两项 ------------------- */
-/* 深色 */
-body[data-workspace=chat]   { --bg: #0E1219; --surface: #161A21; --surface-2: #1D222B; --surface-3: #242B36; }
-body[data-workspace=tree]   { --bg: #141822; --surface: #1A1F2B; --surface-2: #232936; --surface-3: #2B3243; }
-body[data-workspace=profile]{ --bg: #111519; --surface: #181D24; --surface-2: #202731; --surface-3: #27303C; }
-body[data-workspace=admin]  { --bg: #0C1017; --surface: #141A24; --surface-2: #1B2431; --surface-3: #222C3B; }
-body[data-workspace=assistant]{ --bg: #111620; --surface: #181F2B; --surface-2: #202836; --surface-3: #283142; }
-
-/* 苦情树是唯一保留独立「世界色」的工作区：玫瑰只作强调，不改变导航品牌色 */
-body[data-workspace=tree] {
-  --accent: var(--n-rose-400);
-  --accent-hover: var(--n-rose-300);
-  --accent-text: var(--n-rose-300);
-  --accent-soft: rgba(217, 167, 196, .16);
-  --accent-softer: rgba(217, 167, 196, .08);
-  --on-accent: #2B1C26;
-  --focus: var(--n-rose-300);
-}
-
-/* 浅色 */
-:root[data-theme=light] body[data-workspace=chat]   { --bg: #F4F6F9; --surface: #FFFFFF; --surface-2: #EEF1F6; --surface-3: #E3E8EF; }
-:root[data-theme=light] body[data-workspace=tree]   { --bg: #F7F3F8; --surface: #FFFFFF; --surface-2: #F3ECF4; --surface-3: #EAE1EC; }
-:root[data-theme=light] body[data-workspace=profile]{ --bg: #F5F7FA; --surface: #FFFFFF; --surface-2: #EFF2F7; --surface-3: #E6EBF2; }
-:root[data-theme=light] body[data-workspace=admin]  { --bg: #F2F4F8; --surface: #FFFFFF; --surface-2: #EBEFF5; --surface-3: #E1E7EF; }
-:root[data-theme=light] body[data-workspace=assistant]{ --bg: #F6F7FB; --surface: #FFFFFF; --surface-2: #EEF1F7; --surface-3: #E4E9F1; }
-
-:root[data-theme=light] body[data-workspace=tree] {
-  --accent: var(--n-rose-600);
-  --accent-hover: var(--n-rose-700);
-  --accent-text: var(--n-rose-700);
-  --accent-soft: rgba(169, 104, 138, .12);
-  --accent-softer: rgba(169, 104, 138, .06);
-  --on-accent: #FFFFFF;
-  --focus: var(--n-rose-700);
-}
-
 /* Shared component roles. No component owns a private hard-coded palette. */
 :root {
   --field-bg: var(--surface-2);
@@ -245,6 +209,13 @@ body[data-workspace=tree] {
   --scene-bg: #171D2D;
   --scene-haze: #313044;
   --scene-glow: #A9688A;
+  --chat-tree-flower: #CE8FAF;
+  --chat-tree-flower-light: #F8D8E7;
+  --chat-tree-leaf: #94B3A3;
+  --landscape-opacity: .57;
+  --landscape-edge: color-mix(in srgb, var(--bg) 35%, transparent);
+  --workspace-glass: color-mix(in srgb, var(--surface) 80%, transparent);
+  --workspace-tint: color-mix(in srgb, var(--bg) 31%, transparent);
 }
 :root[data-theme=light] {
   --shadow-color: #102038;
@@ -254,4 +225,11 @@ body[data-workspace=tree] {
   --scene-bg: #ECE5F1;
   --scene-haze: #FEF6F5;
   --scene-glow: #C58BAB;
+  --chat-tree-flower: #DF9DBE;
+  --chat-tree-flower-light: #FFF0F6;
+  --chat-tree-leaf: #759C87;
+  --landscape-opacity: .72;
+  --landscape-edge: color-mix(in srgb, var(--bg) 37%, transparent);
+  --workspace-glass: color-mix(in srgb, var(--surface) 83%, transparent);
+  --workspace-tint: color-mix(in srgb, var(--bg) 27%, transparent);
 }

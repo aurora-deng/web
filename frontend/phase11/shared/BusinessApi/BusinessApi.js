@@ -1,5 +1,5 @@
-import { accountsApi } from "../../accounts/AccountsApi/AccountsApi.js?v=dc39cdb5489c964d";
-import { normalizeApplicationRequest } from '../ApiContracts/ApiContracts.js?v=dc39cdb5489c964d';
+import { accountsApi } from "../../accounts/AccountsApi/AccountsApi.js?v=144f1e6009a3d461";
+import { normalizeApplicationRequest } from '../ApiContracts/ApiContracts.js?v=144f1e6009a3d461';
 /** Cookie 仍由浏览器保管；这里只缓存当前页面的 CSRF，不持久化密码和 Session。 */
 export class BusinessApi {
   constructor({validateContracts=true}={}) { this.csrf = ''; this.user = null; this.validateContracts=validateContracts; }

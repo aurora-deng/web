@@ -69,9 +69,17 @@ int main()
     const auto adminMessage = chat.sendText(admin.id, group.id, "admin-message", "admin body", now);
     error(ErrorCode::Forbidden, [&] { chat.recallMessage(member.id, adminMessage.message.id, now); });
     error(ErrorCode::Conflict, [&] { chat.recallMessage(owner.id, adminMessage.message.id,
-                                                     now + std::chrono::minutes(3)); });
-    require(chat.recallMessage(owner.id, adminMessage.message.id, now).changed,
+                                                     now + std::chrono::minutes(3)+std::chrono::milliseconds(1)); });
+    require(chat.recallMessage(owner.id, adminMessage.message.id, now+std::chrono::minutes(3)).changed,
             "owner could not recall admin message");
+    require(!chat.recallMessage(owner.id, adminMessage.message.id, now+std::chrono::minutes(10)).changed,
+            "a confirmed recall retry must remain idempotent after expiry");
+    const auto thirdMinute=chat.sendText(member.id,group.id,"third-minute","within three minutes",now);
+    require(chat.recallMessage(member.id,thirdMinute.message.id,now+std::chrono::seconds(150)).changed,
+            "own message in the third minute could not be recalled");
+    const auto beyond=chat.sendText(member.id,group.id,"expired-recall","expired",now);
+    error(ErrorCode::Conflict,[&]{chat.recallMessage(member.id,beyond.message.id,now+std::chrono::milliseconds(180001));});
+    error(ErrorCode::Forbidden,[&]{chat.recallMessage(outsider.id,beyond.message.id,now);});
     chat.markRead(admin.id, group.id, 233, now);
     chat.markRead(admin.id, group.id, 100, now);
     require(store.findMember(group.id, admin.id)->lastReadSequence == 233, "late read regressed cursor");

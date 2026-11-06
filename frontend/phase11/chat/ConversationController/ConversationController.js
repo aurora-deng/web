@@ -1,5 +1,5 @@
-import { sharedApi } from "../../shared/SharedApi/SharedApi.js?v=dc39cdb5489c964d";
-import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
+import { sharedApi } from "../../shared/SharedApi/SharedApi.js?v=144f1e6009a3d461";
+import { chatApi } from "../ChatApi/ChatApi.js?v=144f1e6009a3d461";
 export const dependencies={"resources":["$","userPickers","unreadWatermarks","elements","state","messageView","history","sender","runtime"],"commands":["savePendingMessages","settleHistoryPending","setStatus","toast","initials","api","paintAvatar","renderConversationMembers","renderGroupGovernance","renderCurrentMessages","acknowledge","applyAiModels","loadAiModels","refreshCancelButton","connectRealtime","refreshPendingBadge","loadFriendsPreview"],"types":["UserPicker","BusinessApi","AnnouncementPlayer","formatChatTime"]};
 /** ConversationController: explicit use cases; shared state/other controllers arrive through context. */
 export function createConversationController(context) {
@@ -193,11 +193,10 @@ function renderConversations() {
       time.textContent = formatChatTime(conversation.lastMessageAt);
       button.append(time);
     }
-    // notificationsMuted 对私聊来自 contact_preferences（真实值），对群聊恒为 false
-    // （PostgresStore.cpp:1318 无对端联系人）。会话级免打扰又没有写接口
-    // （PATCH /api/conversations/:id 只收 title + announcement），
-    // 所以群聊里宁可不画，也不给用户一个「看起来能设」的假象。
-    if (conversation.kind !== 'group' && conversation.notificationsMuted) {
+    // 私聊读 contact_preferences，群聊读 conversation_preferences（024 表按 member 维度，
+    // 不区分 kind）；写入口是 PATCH /api/conversations/:id/preferences，
+    // 由 ConversationBindings 的 #conversation-muted 触发。两者都能落库，所以按真实值画。
+    if (conversation.notificationsMuted) {
       const muted = document.createElement('span');
       muted.className = 'muted-mark';
       muted.textContent = '♩';

@@ -1,6 +1,6 @@
-import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=dc39cdb5489c964d";
-import { filesApi } from "../../files/FilesApi/FilesApi.js?v=dc39cdb5489c964d";
-import { uploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=dc39cdb5489c964d';
+import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=144f1e6009a3d461";
+import { filesApi } from "../../files/FilesApi/FilesApi.js?v=144f1e6009a3d461";
+import { uploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=144f1e6009a3d461';
 /** 业务媒体复用原上传/校验协议；WeakMap 保留同一 File 的成功结果以便幂等重试。 */
 export class MediaUploader {
   constructor(api) { this.api=api;this.uploads=new WeakMap(); }

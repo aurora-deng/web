@@ -1,10 +1,16 @@
 # 当前系统架构总览
 
-核对日期：2026-11-04。当前运行实现仍为Phase49，最新文档分类为2026-11-03；本页按源码更新说明，不表示今天启动了服务、升级了原库或完成了Phase50。
+本轮语音更新：[免绑卡方案](../../ops/runtime/free-speech.md)复用现有C++ Kokoro，并以独立BrowserSpeech封装设备中文朗读；停用代理已移除。设备模式只在浏览器内运行，全站公告仍由原Worker合成；通信核心、数据库和三端分工不变。
+
+核对日期：2026-11-05。当前源码为Phase49加语音/神树交互修复与Azure目录补充；日常程序cb18d796、最新免Key语音页面9f3342acc65db2d7已更新，无关并发源码另行记账，不表示完成Phase50。原库结构未升级。
 
 当前判断：**功能与结构已有阶段验证，严格性能门槛未通过**。第三轮ACK P99 8.710→15.545ms（+78.47%），不能以/fast的QPS代替真实聊天表现。[验收原文](../business/engineering/phase49.md)和[原始证据](../../../artifacts/function3/phase49/README.md)保持不变。
 
 阅读入口：[完整端到端图](../business/flows/current-end-to-end.md) · [下一阶段建议](../../roadmap/next-steps.md) · [代码索引](../business/indexes/phase49-code-index.md) · [通信详细基线](../communication/runtime-baseline.md)。
+
+2026-11-05：[语音/神树修复](../../ops/runtime/speech-settings-and-playback.md)已验证并获准恢复18090，详见[历史验收摘要](../../ops/validation/function3.1.md#历史补丁)；后续[可选Azure目录与免Key语音](../../ops/runtime/free-speech.md)直接查询官方区域接口，不增加服务器组件。[工程测量计划](../../roadmap/engineering-credibility.md)落实首批离线工具防护。校准脚本不属于线上请求链路，逐消息追踪尚未实现；三端职责与通信核心不变。
+
+页面输入与呈现分开：[TreePageNavigation/TreePageTransition](../../ops/runtime/speech-and-scroll-polish.md)分别处理边界手势与动画/阅读位置，不改变业务接口或3D模型。语音设置保持统一请求入口，切换选择后清理旧播放器，连接试听显式触发，不自动重复调用云API。
 
 ## 1. 三端职责与实际运行位置
 
@@ -71,7 +77,7 @@ HTTP/2的每Stream业务协程用于表达等待完成与恢复，不意味着SQ
   → 公开投影 / HTTP结果 / WS状态 / SSE通知
 ```
 
-当前[HTTP路由目录](../../contracts/business-routes.json)包含119项方法/路径，分属18个逻辑领域，其中3项是健康接口。它不是119个业务功能，也不是所有字段的完整Schema；Windows本地接口和外部模型API有独立边界。字段、错误、权限、事件顺序和分页仍靠契约与真实用例测试约束。
+当前[HTTP路由目录](../../contracts/business-routes.json)包含120项方法/路径，分属18个逻辑领域，其中3项是健康接口。它不是120个业务功能，也不是所有字段的完整Schema；Windows本地接口和外部模型API有独立边界。字段、错误、权限、事件顺序和分页仍靠契约与真实用例测试约束。
 
 账号、联系人、聊天、文件服务及相应前端控制器按领域组织；共享导航、请求层、上传和助手栏继续复用。对应的是用例与协议合同，不强制一个按钮、一个源文件、一个数据库表一一对应。
 
@@ -115,6 +121,8 @@ DPAPI保护凭据，私人正文保存于受本机访问权限保护的SQLite，
 |AI gRPC Worker|独立推理服务，是另一条Provider通信路径，与通用gRPC示例监听区分|
 
 这些是源码与已有阶段证据的范围，不是通用生产认证。`/health/live`表示进程存活，当前业务ready主要检查存储健康；通信最小模式也可能返回ready，应同时核对功能开关与版本信息的`schemaVerifiedAtStartup`。不能仅凭健康200推断完整业务、外部模型、MQ或云语音都已就绪。
+
+语音补充：[设置与播放说明](../../ops/runtime/speech-settings-and-playback.md)。网页个人 Key 仅在当前页面内存，直接访问固定官方语音 API；Windows 继续 DPAPI。站点管理员通过 HTTPS 更新 Linux 私有 Key 文件，音色仍在原库，不新增数据库。短语音改用有界 PCM WAV 内存响应，兼容既有 HTTP/1 与 HTTP/2 输出。
 
 ## 8. 还缺什么与后续重点
 

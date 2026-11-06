@@ -1,5 +1,5 @@
-import { filesApi } from "../../files/FilesApi/FilesApi.js?v=dc39cdb5489c964d";
-import { createChatScope } from '../ChatScope/ChatScope.js?v=dc39cdb5489c964d';
+import { filesApi } from "../../files/FilesApi/FilesApi.js?v=144f1e6009a3d461";
+import { createChatScope } from '../ChatScope/ChatScope.js?v=144f1e6009a3d461';
 export const dependencies={"resources":["$","elements","state","sender"],"commands":["setStatus","toast","createClientId","setButtonBusy","api","declaredMediaType","uploadFile","formatBytes","appendMessage","failPendingMessage","sendSocket","readAiTarget","refreshCancelButton","showSelectedFile"],"types":[],"events":true};
 /** Composer UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindComposer(context) {

@@ -154,6 +154,18 @@ def main():
             audio=response.read();assert audio[:4]==b'RIFF' and audio[8:12]==b'WAVE' and len(audio)>1000
             report['speech']={'fallback':preview['fallbackReason'],'waveBytes':len(audio),'cloudCalls':0,'realCloudVerified':False}
             report['checks'].append('personal DPAPI key redaction/removal, real missing-key fallback to Linux Kokoro, native audio retrieval')
+            # The shared browser player uses byte ranges for bounded H2 audio.
+            # Verify both request and Content-Range response survive the native stream bridge.
+            shared=browser.call('POST','/api/me/speech/preview',{'voice':'zf_001','speed':'0.95'})
+            deadline=time.monotonic()+115
+            while shared['state']=='pending' and time.monotonic()<deadline:
+                time.sleep(.5);shared=browser.call('GET','/api/me/speech/preview/zf_001')
+            assert shared['state']=='ready' and shared['url'].startswith('/api/me/speech/audio/')
+            ranged=browser.http.open(urllib.request.Request(browser.base+shared['url'],headers={'Origin':browser.base,'Range':'bytes=0-65535'}),timeout=20)
+            chunk=ranged.read();assert ranged.status==206 and len(chunk)==65536 and chunk.startswith(b'RIFF')
+            assert ranged.headers['Content-Range'].startswith('bytes 0-65535/')
+            report['speech']['nativeProxyByteRanges']=True
+            report['checks'].append('native audio stream forwards Range and preserves 206/Content-Range')
         old_headers={'X-Nebula-Account':account_a};browser.login_new(prefix+'_b')
         browser.local('GET','/threads?surface=friend',extra=old_headers,expected=409)
         assert browser.local('GET','/capabilities')['accountId']==browser.account

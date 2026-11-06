@@ -6,50 +6,42 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#07101f">
   <title>Nebula Chat · 星云聊天</title>
-  <link rel="stylesheet" href="/phase11/styles.css?v=dc39cdb5489c964d">
-<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/ChatWorkbench.css?v=dc39cdb5489c964d">
+  <link rel="stylesheet" href="/phase11/styles.css?v=144f1e6009a3d461">
+<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/ChatWorkbench.css?v=144f1e6009a3d461">
 <!-- NEBULA DS v1：token → 基础层 → 工作区桥接。必须放在本页样式之后。 -->
-<link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=dc39cdb5489c964d">
-<link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css?v=dc39cdb5489c964d">
-<link rel="stylesheet" href="/phase11/shared/DesignSystem/workspaces.css?v=dc39cdb5489c964d">
+<link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=144f1e6009a3d461">
+<link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css?v=144f1e6009a3d461">
+<link rel="stylesheet" href="/phase11/shared/DesignSystem/workspaces.css?v=144f1e6009a3d461">
 <!-- 业务层样式：必须排在 workspaces.css 之后，否则压不住 DS 桥接层。回滚 = 删这一行。 -->
-<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/BusinessLayer.css?v=dc39cdb5489c964d">
-<link rel="stylesheet" href="/phase11/chat/WorkspaceUi/WorkspaceUi.css?v=dc39cdb5489c964d">
+<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/BusinessLayer.css?v=144f1e6009a3d461">
+<link rel="stylesheet" href="/phase11/chat/WorkspaceUi/WorkspaceUi.css?v=144f1e6009a3d461">
+<link rel="stylesheet" href="/phase11/chat/ChatBackdrop/ChatBackdrop.css?v=144f1e6009a3d461">
 </head>
 <body data-workspace="chat">
-  <div class="space-backdrop" aria-hidden="true"><i></i><i></i><i></i></div>
-
   <main id="auth-panel" class="auth-view">
     <section class="auth-hero" aria-labelledby="hero-title">
-      <a class="brand" href="/phase11/" aria-label="Nebula Chat 首页">
-        <span class="brand-cube" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span><strong>NEBULA CHAT</strong><small>星云聊天</small></span>
-      </a>
       <div class="hero-copy">
-        <p class="eyebrow"><span></span> WEB-TEST 2.0 · PHASE 11</p>
-        <h1 id="hero-title">让连接穿过星云，<br><em>让消息不会错过。</em></h1>
-        <p class="hero-description">支持实时聊天、离线持久化与 AI 流式回答的高性能通信学习平台。</p>
-        <div class="protocol-grid" aria-label="已接入能力">
-          <article><span class="protocol-icon http">H</span><div><strong>HTTP API</strong><small>账号、好友与历史查询</small></div></article>
-          <article><span class="protocol-icon websocket">W</span><div><strong>WebSocket</strong><small>低延迟双向消息</small></div></article>
-          <article><span class="protocol-icon sse">S</span><div><strong>SSE</strong><small>通知与 AI Token 流</small></div></article>
-        </div>
-        <div class="nebula-orbit" aria-hidden="true"><span class="planet-core">✦</span><span class="orbit orbit-a"></span><span class="orbit orbit-b"></span><i class="satellite satellite-a">⌁</i><i class="satellite satellite-b">AI</i><i class="satellite satellite-c">DB</i></div>
+        <p class="eyebrow"><span></span> NEBULA · 星云</p>
+        <h1 id="hero-title">人与故事，<br><em>在这里相遇。</em></h1>
+        <p class="hero-description">和朋友聊聊，在苦情树下留下一段故事，也可以请 AI 助手帮个忙。</p>
+        <ul class="hero-proof" aria-label="星云功能"><li>实时聊天</li><li>苦情树</li><li>AI 助手</li></ul>
       </div>
-      <div class="hero-proof"><span>✓ 消息可靠保存</span><span>✓ 离线成员可接收</span><span>✓ AI 流式回答</span></div>
     </section>
 
-    <section class="auth-side">
+    <section class="auth-side" aria-labelledby="login-title">
       <div class="auth-card">
-        <div class="auth-tabs" role="tablist" aria-label="账号入口"><button class="active" type="button" role="tab" aria-selected="true">登录</button><button id="show-register" type="button" role="tab" aria-selected="false">注册</button></div>
-        <div class="auth-card-head"><span class="welcome-icon" aria-hidden="true">✦</span><h2>欢迎回来</h2><p>登录后继续实时协作与 AI 对话。</p></div>
+        <div class="auth-card-head">
+          <p class="eyebrow"><span></span> 账号登录</p>
+          <h2 id="login-title">欢迎回来</h2>
+          <p>使用你的星云账号继续。</p>
+        </div>
         <form id="login-form" class="stack-form">
-          <label><span>用户名</span><span class="input-shell"><b aria-hidden="true">◎</b><input name="username" autocomplete="username" placeholder="输入用户名" required minlength="3" maxlength="32"></span></label>
-          <label><span>密码</span><span class="input-shell"><b aria-hidden="true">◇</b><input name="password" type="password" autocomplete="current-password" placeholder="至少 8 位" required minlength="8"></span></label>
+          <label><span>用户名</span><input name="username" autocomplete="username" placeholder="输入用户名" required minlength="3" maxlength="32"></label>
+          <label><span>密码</span><input name="password" type="password" autocomplete="current-password" placeholder="输入密码" required minlength="8"></label>
           <button class="primary-button auth-submit" type="submit"><span>登录并进入</span><span aria-hidden="true">→</span></button>
         </form>
         <p class="form-status" id="auth-status" role="status" aria-live="polite"></p>
-        <div class="security-note"><span aria-hidden="true">♢</span><span>登录状态由 HttpOnly Cookie 与 CSRF 双重保护</span></div>
+        <div class="auth-register"><span>还没有账号？</span><button id="show-register" class="ghost-button" type="button" aria-haspopup="dialog" aria-controls="register-dialog">创建账号</button></div>
       </div>
     </section>
   </main>
@@ -117,7 +109,7 @@
     </aside>
   </main>
 
-  <dialog id="register-dialog"><form id="register-form" class="dialog-card auth-dialog"><header><div><p class="eyebrow">CREATE ACCOUNT</p><h2>创建您的账号</h2><p>加入 Nebula Chat，开始可靠的实时交流。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>用户名<input name="username" autocomplete="username" placeholder="3–32 个字符" required minlength="3" maxlength="32"><small>用于登录，创建后不可随意修改</small></label><label>显示名称<input name="displayName" placeholder="其他用户看到的名字" required maxlength="64"></label><label>密码<input name="password" type="password" autocomplete="new-password" placeholder="至少 8 位" required minlength="8"></label><p class="form-status" id="register-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>返回登录</button><button type="submit" class="primary-button">创建账号 →</button></footer></form></dialog>
+  <dialog id="register-dialog" aria-labelledby="register-title"><form id="register-form" class="dialog-card auth-dialog"><header><div><p class="eyebrow"><span></span> 账号注册</p><h2 id="register-title">创建你的星云账号</h2><p>加入聊天，也把你的故事留在苦情树下。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>用户名<input name="username" autocomplete="username" placeholder="3–32 个字符" required minlength="3" maxlength="32"><small>用于登录，创建后不可随意修改</small></label><label>显示名称<input name="displayName" placeholder="其他用户看到的名字" required maxlength="64"></label><label>密码<input name="password" type="password" autocomplete="new-password" placeholder="至少 8 位" required minlength="8"></label><p class="form-status" id="register-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>返回登录</button><button type="submit" class="primary-button">创建账号 →</button></footer></form></dialog>
 
   <dialog id="friend-dialog"><section class="dialog-card dialog-wide contacts-dialog"><header><div><p class="eyebrow">CONTACTS</p><h2>好友与联系人</h2><p>管理备注、免打扰、黑名单和实时在线状态；好友离线时仍可持久化发送消息。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="dialog-columns friend-columns"><section class="dialog-section"><span class="step-number">1</span><h3>发送好友申请</h3><form id="friend-request-form" class="stack-form compact"><label>对方用户 ID<input name="receiverId" inputmode="numeric" placeholder="输入正整数用户 ID" required></label><button type="submit" class="primary-button">发送好友申请</button></form><p class="form-status" id="friend-status" role="status"></p><div class="blocked-panel"><h3>黑名单 <span id="blocked-count">0</span></h3><ul class="action-list compact-list" id="blocked-list"><li class="list-empty">黑名单为空</li></ul></div></section><section class="dialog-section"><span class="step-number">2</span><h3>待处理申请 <span id="request-count">0</span></h3><ul class="action-list" id="friend-request-list"></ul></section><section class="dialog-section contacts-main"><span class="step-number">3</span><h3>联系人 <span id="friend-count">0</span></h3><ul class="action-list" id="friend-list"></ul></section></div></section></dialog>
 
@@ -141,6 +133,6 @@
 
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <!-- 版本参数让已经打开过旧页面的浏览器重新获取修复后的 ES Module。 -->
-  <script type="module" src="/phase11/app.js?v=dc39cdb5489c964d"></script>
+  <script type="module" src="/phase11/app.js?v=144f1e6009a3d461"></script>
 </body>
 </html>

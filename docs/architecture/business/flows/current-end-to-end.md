@@ -1,6 +1,6 @@
 # 当前系统完整架构与消息流
 
-核对：2026-11-04。运行实现仍为Phase49，数据库迁移要求024；本页更新架构说明，没有实现Phase50追踪或重新部署服务。阶段图 [Phase49](phase49-end-to-end.md) 保留原验收上下文。
+核对：2026-11-04。运行实现仍为Phase49，数据库迁移要求024；本页补充语音配置与播放边界，没有实现Phase50追踪或替换日常服务。阶段图 [Phase49](phase49-end-to-end.md) 保留原验收上下文。
 
 ## 1. 从用户界面到共享业务、私人资料和模型更新
 
@@ -8,6 +8,7 @@
 flowchart TB
     subgraph Browser[浏览器：frontend/phase11]
         UI[聊天 / 神树 / 主页 / 管理 / 助手]
+        Voice[个人语音设置 / 试听播放器]
         API[领域XxxApi + BusinessApi]
         Render[HTTP结果 / WS状态 / SSE通知与token]
         UI --> API
@@ -16,6 +17,7 @@ flowchart TB
     subgraph Client[Windows可选客户端：client]
         Entry[localhost入口 / 固定目标HTTPS代理]
         Personal[私人线程 / 记忆 / 词法检索 / 确认操作]
+        LocalSpeech[个人语音 / DPAPI凭据]
         SQLite[(账号隔离SQLite + DPAPI凭据)]
         Personal --> SQLite
     end
@@ -54,6 +56,11 @@ flowchart TB
         Infer -->|私人任务结果：限时状态| PrivateTask
         PrivateTask --> Output
     end
+    CloudSpeech[固定官方 Azure / Gemini 语音 API]
+    UI --> Voice
+    Voice -->|网页个人测试，Key仅页内存| CloudSpeech
+    Voice -->|Windows本机接口| LocalSpeech --> CloudSpeech
+    Speech -->|站点配置，Key为Linux私有文件| CloudSpeech
     API -->|直接访问Linux| Net
     API -->|从本机入口访问| Entry -->|HTTPS / WSS / SSE| Net
     UI -->|本机助手接口| Personal
@@ -96,6 +103,8 @@ sequenceDiagram
 
 ACK不是等对方在线才生成，也不等于对方已读。Outbox、MQ和客户端均可能重试，靠原事件/消息身份去重；MQ消费确认不能代替客户端ACK。离线用户通过持久化历史和序号恢复，不依赖“当时正好有一条在线连接”。图中ACK和Outbox两支不承诺网络到达先后顺序。
 
+2026-11-05 的[撤回修复](../client-ui/chat-recall-and-tree-background.md)沿用上述事务与双路返回：三分钟内的新撤回由服务端授权；页面核对持久化 ACK 的命令、消息、会话和序号后进入撤回终态，不再必须等待另一条广播才能清除正文。
+
 ## 3. 私人助手与训练边界
 
 1. 好友式私人助手和全局侧栏有独立线程历史，共享Windows账号内的授权知识、记忆和设置；群AI只读群可见历史与共享资料。
@@ -110,6 +119,8 @@ ACK不是等对方在线才生成，也不等于对方已读。Outbox、MQ和客
 入口为 `main → ApplicationRuntime`，由 `BusinessRuntime` 组合Storage、Identity、Contacts、Chat、File、Knowledge、AI、Realtime与社区装配。各模块拥有自己的资源，使用其他模块的接口；兼容Store和聚合头仍保留。
 
 网络Reactor负责连接/协议与发送，慢SQL由DB执行器处理，文件/知识/推理/语音有各自任务边界。网络任务排空后，再停止RPC、解除Presence、取消私人/AI任务、排空文件/知识/DB任务、停止投递与社区后台，最后反向销毁依赖资源。
+
+语音设置和播放的入口、权限及组件详见[修复讲义](../../../ops/runtime/speech-settings-and-playback.md)。个人试听配置与全站广播配置分开；短语音在业务适配层使用有界 WAV 响应，没有改动通信核心。
 
 ## 5. 计划不混进现有图
 

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-04",
+  "generated": "2026-11-06",
   "scope": "public human-readable documents; raw evidence and local account files excluded",
   "documents": [
     {
@@ -136,6 +136,12 @@
       "kind": "index"
     },
     {
+      "path": "docs/architecture/business/client-ui/chat-recall-and-tree-background.md",
+      "title": "三分钟撤回修复与神树聊天背景",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
       "path": "docs/architecture/business/client-ui/phase35.md",
       "title": "Phase35：复用原业务库、语音修复、Redis 与界面重构",
       "category": "architecture",
@@ -156,6 +162,12 @@
     {
       "path": "docs/architecture/business/client-ui/phase46.md",
       "title": "Phase46：前端单一上下文与真实业务交互",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/client-ui/sakura-lake-background.md",
+      "title": "聊天背景：镜像樱花水岸",
       "category": "architecture",
       "kind": "document"
     },
@@ -306,6 +318,12 @@
     {
       "path": "docs/architecture/business/guides/server-business-integration-tutorial.md",
       "title": "教学：业务怎样接入这台 C++ 服务器",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/business/guides/speech-integration.md",
+      "title": "语音怎样嵌入现有服务器",
       "category": "architecture",
       "kind": "document"
     },
@@ -808,6 +826,12 @@
       "kind": "index"
     },
     {
+      "path": "docs/ops/runtime/free-speech.md",
+      "title": "免绑卡语音：本地 Kokoro 与浏览器中文朗读",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
       "path": "docs/ops/runtime/function3-runtime.md",
       "title": "Function3 日常启动：原账号库、18090 与语音",
       "category": "ops",
@@ -816,6 +840,18 @@
     {
       "path": "docs/ops/runtime/phase36-41-local-preview.md",
       "title": "Phase36–41本地成果如何复现",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/runtime/speech-and-scroll-polish.md",
+      "title": "语音切换试听与柔和滚轮切页",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/runtime/speech-settings-and-playback.md",
+      "title": "语音配置、试听与神树滚动：使用和修复说明",
       "category": "ops",
       "kind": "document"
     },
@@ -848,6 +884,12 @@
       "title": "验证、部署与回退",
       "category": "ops",
       "kind": "index"
+    },
+    {
+      "path": "docs/ops/validation/function3.1.md",
+      "title": "Function3.1 · 开发快照",
+      "category": "ops",
+      "kind": "document"
     },
     {
       "path": "docs/ops/validation/phase43-47-validation-and-rollback.md",
@@ -962,6 +1004,12 @@
       "title": "计划、阶段与扩展学习",
       "category": "roadmap",
       "kind": "index"
+    },
+    {
+      "path": "docs/roadmap/engineering-credibility.md",
+      "title": "近期工程改进计划：先修使用问题，再让测量与交付可信",
+      "category": "roadmap",
+      "kind": "document"
     },
     {
       "path": "docs/roadmap/function3-progress.md",

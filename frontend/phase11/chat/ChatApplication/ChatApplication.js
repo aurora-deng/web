@@ -1,15 +1,16 @@
-import { createChatScope, assertChatAssembly } from '../ChatScope/ChatScope.js?v=dc39cdb5489c964d';
-import { createChatContext } from '../ChatContext/ChatContext.js?v=dc39cdb5489c964d';
-import { bindChat } from '../ChatBindings/ChatBindings.js?v=dc39cdb5489c964d';
-import { createFeedbackController, dependencies as createFeedbackControllerDependencies } from '../FeedbackController/FeedbackController.js?v=dc39cdb5489c964d';
-import { createConversationController, dependencies as createConversationControllerDependencies } from '../ConversationController/ConversationController.js?v=dc39cdb5489c964d';
-import { createGroupController, dependencies as createGroupControllerDependencies } from '../GroupController/GroupController.js?v=dc39cdb5489c964d';
-import { createAttachmentController, dependencies as createAttachmentControllerDependencies } from '../../files/AttachmentController/AttachmentController.js?v=dc39cdb5489c964d';
-import { createMessageController, dependencies as createMessageControllerDependencies } from '../MessageController/MessageController.js?v=dc39cdb5489c964d';
-import { createRealtimeController, dependencies as createRealtimeControllerDependencies } from '../RealtimeController/RealtimeController.js?v=dc39cdb5489c964d';
-import { createContactsController, dependencies as createContactsControllerDependencies } from '../../contacts/ContactsController/ContactsController.js?v=dc39cdb5489c964d';
-import { createAiController, dependencies as createAiControllerDependencies } from '../../ai/AiController/AiController.js?v=dc39cdb5489c964d';
-import { createKnowledgeController, dependencies as createKnowledgeControllerDependencies } from '../../knowledge/KnowledgeController/KnowledgeController.js?v=dc39cdb5489c964d';
+import { createChatScope, assertChatAssembly } from '../ChatScope/ChatScope.js?v=144f1e6009a3d461';
+import { createChatContext } from '../ChatContext/ChatContext.js?v=144f1e6009a3d461';
+import { bindChat } from '../ChatBindings/ChatBindings.js?v=144f1e6009a3d461';
+import { createFeedbackController, dependencies as createFeedbackControllerDependencies } from '../FeedbackController/FeedbackController.js?v=144f1e6009a3d461';
+import { createConversationController, dependencies as createConversationControllerDependencies } from '../ConversationController/ConversationController.js?v=144f1e6009a3d461';
+import { createGroupController, dependencies as createGroupControllerDependencies } from '../GroupController/GroupController.js?v=144f1e6009a3d461';
+import { createAttachmentController, dependencies as createAttachmentControllerDependencies } from '../../files/AttachmentController/AttachmentController.js?v=144f1e6009a3d461';
+import { createMessageController, dependencies as createMessageControllerDependencies } from '../MessageController/MessageController.js?v=144f1e6009a3d461';
+import { createRealtimeController, dependencies as createRealtimeControllerDependencies } from '../RealtimeController/RealtimeController.js?v=144f1e6009a3d461';
+import { createContactsController, dependencies as createContactsControllerDependencies } from '../../contacts/ContactsController/ContactsController.js?v=144f1e6009a3d461';
+import { createAiController, dependencies as createAiControllerDependencies } from '../../ai/AiController/AiController.js?v=144f1e6009a3d461';
+import { createKnowledgeController, dependencies as createKnowledgeControllerDependencies } from '../../knowledge/KnowledgeController/KnowledgeController.js?v=144f1e6009a3d461';
+import { watchRecallExpiry } from '../MessageRecall/MessageRecall.js?v=144f1e6009a3d461';
 let active;
 /** Composition only: domain controllers own behavior, context owns mutable resources. */
 export function startChatApplication() {
@@ -31,6 +32,7 @@ export function startChatApplication() {
     createContactsControllerDependencies,createAiControllerDependencies,createKnowledgeControllerDependencies,
   ]);
   context.types.mountNavigation('chat');
+  watchRecallExpiry(context.elements.messageList,{signal:context.runtime.lifecycle.signal});
   bindChat(context);
   const dispose=()=>{
     if(active?.context!==context)return;

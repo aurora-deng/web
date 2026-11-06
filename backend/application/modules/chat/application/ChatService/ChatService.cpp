@@ -443,7 +443,9 @@ RecallMessageResult ChatService::recallMessage(UserId actor,
         transaction->commit();
         return {*existing, false};
     }
-    constexpr auto recallWindow = std::chrono::minutes(2);
+    // Product rule: the sender/moderator has an inclusive 180-second window.
+    // The repository still retains the row and the transaction emits one event.
+    constexpr auto recallWindow = std::chrono::minutes(3);
     if (now < existing->createdAt || now - existing->createdAt > recallWindow)
         throw ApplicationError(ErrorCode::Conflict,
                                "message recall window has expired");

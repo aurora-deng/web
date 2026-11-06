@@ -1,0 +1,29 @@
+/* Panels reveal the same landscape at different strengths, including the input row. */
+body[data-workspace=chat] .chat-app,
+body[data-workspace=chat] .chat-app > .conversation-pane {
+  background: transparent;
+}
+body[data-workspace=chat] .chat-app > .workbench-rail,
+body[data-workspace=chat] .chat-app .composer {
+  background: var(--workspace-glass);
+}
+body[data-workspace=chat] .chat-app > .sidebar {
+  background: linear-gradient(90deg, var(--workspace-glass), color-mix(in srgb, var(--surface) 69%, transparent));
+}
+body[data-workspace=chat] .chat-app .conversation-header {
+  background: linear-gradient(180deg, var(--workspace-glass), var(--workspace-tint));
+}
+body[data-workspace=chat] .chat-app .message-list,
+body[data-workspace=chat] .chat-app .welcome-state {
+  background: var(--workspace-tint);
+}
+body[data-workspace=chat] .chat-app > :is(.workbench-rail, .sidebar),
+body[data-workspace=chat] .chat-app .conversation-header,
+body[data-workspace=chat] .chat-app .composer {
+  border-color: var(--line);
+}
+
+/* Sender/time captions also need their own readable surface over blossom detail. */
+.conversation-pane .message-author {width:fit-content;padding:2px 6px;border-radius:5px;background:color-mix(in srgb,var(--surface) 90%,transparent);color:var(--text-2);}
+.conversation-pane .message.mine .message-author {margin-left:auto;}
+.conversation-pane .message-footer {color:var(--text-2);}

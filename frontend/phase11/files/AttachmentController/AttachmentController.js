@@ -1,4 +1,4 @@
-import { filesApi } from "../FilesApi/FilesApi.js?v=dc39cdb5489c964d";
+import { filesApi } from "../FilesApi/FilesApi.js?v=144f1e6009a3d461";
 export const dependencies={"resources":["$","state"],"commands":["api","formatBytes"],"types":[]};
 /** AttachmentController: explicit use cases; shared state/other controllers arrive through context. */
 export function createAttachmentController(context) {

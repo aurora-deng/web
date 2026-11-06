@@ -27,6 +27,87 @@ body {
   -moz-osx-font-smoothing:grayscale;
 }
 
+/* A single viewport-sized landscape sits behind the entire workspace. */
+body:has(> .chat-backdrop) {
+  min-height: 100dvh;
+  isolation: isolate;
+}
+.chat-backdrop {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  z-index: -1;
+}
+.chat-tree-landscape {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left center;
+  opacity: var(--landscape-opacity);
+}
+.chat-tree-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, var(--landscape-edge), transparent 38%, var(--landscape-edge)),
+    linear-gradient(0deg, var(--landscape-edge), transparent 30%, transparent 74%, var(--landscape-edge));
+}
+/* Dense screens need a quieter landscape behind small labels and tables. */
+body:is([data-workspace=admin], [data-workspace=status]) .chat-tree-veil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--workspace-tint);
+}
+.chat-tree-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.chat-tree-drift {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--size);
+  height: calc(var(--size) * 1.5);
+  opacity: 0;
+  background: var(--chat-tree-flower);
+  border-radius: 75% 15% 65% 30%;
+  animation: chat-tree-fall var(--duration) linear var(--delay) infinite;
+}
+.chat-tree-drift.leaf {
+  background: var(--chat-tree-leaf);
+  width: calc(var(--size) * .7);
+  border-radius: 90% 0 90% 0;
+}
+.chat-tree-drift.catkin {
+  background: var(--chat-tree-flower-light);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  box-shadow: 0 0 5px 2px color-mix(in srgb, var(--chat-tree-flower-light) 35%, transparent);
+}
+.chat-backdrop.is-paused .chat-tree-drift { animation-play-state: paused; }
+@keyframes chat-tree-fall {
+  0% { transform: translate3d(-28px,-100px,0) rotate(var(--turn)); opacity: 0; }
+  14% { opacity: .38; }
+  65% { opacity: .3; }
+  100% { transform: translate3d(110px,360px,0) rotate(calc(var(--turn) + 180deg)); opacity: 0; }
+}
+@media (max-width: 760px) {
+  .chat-tree-landscape {
+    object-position: 18% center;
+    opacity: calc(var(--landscape-opacity) * .84);
+  }
+  .chat-tree-drift:nth-child(n+9) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-tree-drift { display: none; }
+}
+
 /* ---- 焦点环：全站唯一形态，永远用 --focus，不允许各页自造 ------------- */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline:2px solid var(--focus);

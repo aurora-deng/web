@@ -1,6 +1,6 @@
-import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=dc39cdb5489c964d";
-import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=dc39cdb5489c964d";
-import { openTreeAuthor } from '../TreeAuthorCard/TreeAuthorCard.js?v=dc39cdb5489c964d';
+import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=144f1e6009a3d461";
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=144f1e6009a3d461";
+import { openTreeAuthor } from '../TreeAuthorCard/TreeAuthorCard.js?v=144f1e6009a3d461';
 const node=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
 const key=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');
 export class ActivityDetail {

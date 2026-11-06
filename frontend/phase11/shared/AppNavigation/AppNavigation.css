@@ -7,7 +7,7 @@ body[data-workspace]{padding-top:64px;}
 @media(max-width:760px){body[data-workspace]{padding-top:56px;padding-bottom:64px;}#nebula-navigation{height:56px;padding:0 16px;gap:10px;}#nebula-navigation .workspace-brand{font-size:14px;}#nebula-navigation .workspace-brand small{display:none;}#nebula-navigation nav{position:fixed;top:calc(100dvh - 64px);left:0;right:0;height:64px;justify-content:space-around;background:color-mix(in srgb, var(--surface) 96.08%, transparent);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);backdrop-filter:blur(16px);}#nebula-navigation nav a{display:flex;flex-direction:column;justify-content:center;gap:2px;font-size:12px;padding:4px 18px;height:52px;}#nebula-navigation nav svg{width:20px;height:20px;}#nebula-navigation .workspace-tools{gap:8px;}#nebula-navigation summary>span{display:none;}#nebula-navigation .workspace-account{font-size:12px;max-width:82px;}#global-audio-panel{position:fixed;top:64px;right:12px;width:min(310px,calc(100vw - 24px));}}
 
 /* Theme → personal assistant → notifications: one stable tool group on every page. */
-#nebula-navigation{background:var(--panel-glass);color:var(--text);border-color:var(--line);}
+#nebula-navigation{background:var(--workspace-glass);color:var(--text);border-color:var(--line);}
 #nebula-navigation nav a,#nebula-navigation summary{color:var(--text-3);}
 #nebula-navigation nav a:hover,#nebula-navigation summary:hover{background:var(--brand-soft);color:var(--text);}
 #nebula-navigation nav a[aria-current]{color:var(--text);}
@@ -29,3 +29,5 @@ body[data-workspace]{padding-top:64px;}
 /* Global navigation retains the brand palette in every workspace. */
 #nebula-navigation nav a[aria-current]{background:var(--brand-soft);color:var(--brand-text);}
 #nebula-navigation .workspace-mark{background:var(--brand);color:var(--on-brand);}
+
+#nebula-navigation .workspace-speech{border:1px solid var(--line);border-radius:9px;background:var(--brand-soft);color:var(--accent-text);padding:7px 10px;font:13px/1.4 system-ui;white-space:nowrap;cursor:pointer}@media(max-width:760px){#nebula-navigation .workspace-brand{font-size:12px}#nebula-navigation .workspace-tools{gap:5px}#nebula-navigation .workspace-speech{font-size:12px;padding:7px 6px}#nebula-navigation .workspace-account{max-width:48px}}

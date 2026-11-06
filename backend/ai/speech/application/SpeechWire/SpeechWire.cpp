@@ -2,6 +2,9 @@
 #include "backend/ai/speech/application/CloudSpeechPolicy/CloudSpeechPolicy.h"
 #include "backend/ai/speech/application/WaveCodec/WaveCodec.h"
 #include <stdexcept>
+#include <algorithm>
+#include <cctype>
+#include <set>
 namespace nebula::speech {
 namespace {
 std::string xml(const std::string&s){std::string out;for(char c:s){switch(c){case '&':out+="&amp;";break;case '<':out+="&lt;";break;case '>':out+="&gt;";break;case '\"':out+="&quot;";break;case '\'':out+="&apos;";break;default:out+=c;}}return out;}
@@ -19,8 +22,14 @@ CloudRequest SpeechWire::request(const SpeechProfile&p,const std::string&text){
     }else throw std::invalid_argument("local speech has no cloud request");return r;
 }
 std::vector<unsigned char>SpeechWire::geminiAudio(const std::string&data,const std::string&mime){
-    // 固定 2.5 TTS 的原始 PCM 契约；拒绝未知采样率或格式，防止把错误 JSON 当 WAV 播放。
-    if(mime!="audio/L16;codec=pcm;rate=24000"&&mime!="audio/pcm;rate=24000"&&mime!="audio/L16;rate=24000")throw std::invalid_argument("unsupported Gemini audio format");
+    // 2.5 / 3.1 预览 TTS 的原始 PCM 契约；拒绝未知采样率或格式，防止把错误 JSON 当 WAV 播放。
+    if(mime.size()>128)throw std::invalid_argument("unsupported Gemini audio format");
+    std::string normalized;for(unsigned char c:mime)if(c!=' '&&c!='\t')normalized+=static_cast<char>(std::tolower(c));
+    const auto separator=normalized.find(';');const auto format=normalized.substr(0,separator);
+    if(format!="audio/l16"&&format!="audio/pcm")throw std::invalid_argument("unsupported Gemini audio format");
+    std::set<std::string>parameters;std::size_t at=separator;
+    while(at!=std::string::npos){const auto next=normalized.find(';',at+1);auto value=normalized.substr(at+1,next==std::string::npos?next:next-at-1);if((value!="rate=24000"&&value!="codec=pcm"&&value!="channels=1")||!parameters.insert(value).second)throw std::invalid_argument("unsupported Gemini audio parameter");at=next;}
+    if(!parameters.contains("rate=24000"))throw std::invalid_argument("unsupported Gemini sample rate");
     return WaveCodec::pcm24k(WaveCodec::base64(data));
 }
 }

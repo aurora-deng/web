@@ -9,7 +9,7 @@
 |了解当前功能、实现边界和未通过项|[当前状态](../STATUS.md)、[Phase49验收](architecture/business/engineering/phase49.md)|
 |启动/停止与客户端入口|[运行文档](ops/runtime/README.md)|
 |看从通信到业务、模型的完整图|[当前端到端总图](architecture/business/flows/current-end-to-end.md)、[系统总览](architecture/overview/ARCHITECTURE.md)|
-|了解后续优先级与验收标准|[Phase50–53建议（未实施）](roadmap/next-steps.md)|
+|了解后续优先级与验收标准|[近期工程计划](roadmap/engineering-credibility.md)、[Phase50–53建议](roadmap/next-steps.md)|
 |学习业务如何接到服务器|[接口与装配讲义](architecture/business/guides/phase49-teaching.md)、[业务教学目录](architecture/business/guides/README.md)|
 |找真实实现文件|[当前代码索引](architecture/business/indexes/phase49-code-index.md)|
 
@@ -41,3 +41,5 @@
 5. 目录移动记录见 [迁移清单](document-moves.json)，机器可读正文索引见 [catalog.json](catalog.json)。本次只整理文档与链接，不改变服务器行为或部署日常服务。
 
 新增公开页面后，显式运行 `python scripts/project/check_doc_links.py --refresh-catalog` 更新索引；普通校验运行 `python scripts/project/check_doc_links.py`，不会修改文件。目录存在性会检查，页内标题锚点保留原值，不冒充完整Markdown渲染验收。
+
+本轮修复：[语音 API 与音色配置、试听播放和神树滚动切页](ops/runtime/speech-settings-and-playback.md)。

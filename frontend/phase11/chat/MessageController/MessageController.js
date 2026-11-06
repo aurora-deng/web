@@ -1,4 +1,5 @@
-import { chatApi } from "../ChatApi/ChatApi.js?v=dc39cdb5489c964d";
+import { chatApi } from "../ChatApi/ChatApi.js?v=144f1e6009a3d461";
+import { CHAT_RECALL_WINDOW_MS } from '../ChatHistory.js?v=144f1e6009a3d461';
 export const dependencies={"resources":["$","elements","state","messageView","history","sender","runtime"],"commands":["settleHistoryPending","recoverRealtime","setStatus","initials","createClientId","conversationTitle","api","formatBytes","paintAvatar","openConversation","openCitationDetails","openTrainingConsent","sendSocket","selectAiTarget","applyAiModels","loadAiModels"],"types":["groupMessages","canRecallMessage","formatChatTime","formatDateDivider"]};
 /** MessageController: explicit use cases; shared state/other controllers arrive through context. */
 export function createMessageController(context) {
@@ -56,7 +57,8 @@ function canRecall(message) {
 }
 
 function requestRecall(message, button) {
-  if (!canRecall(message)) { renderCurrentMessages(); return; }
+  if (!canRecall(message)) { renderCurrentMessages();setStatus(elements.chatStatus,Date.now()-Number(message.createdAt)>CHAT_RECALL_WINDOW_MS?'消息已超过3分钟，无法撤回。':'当前没有权限撤回这条消息。','error');return; }
+  if([...state.pendingRecalls.values()].some(p=>p.id===String(message.id)))return;
   if (Number(message.senderId) !== Number(state.me?.id) &&
       !window.confirm('以群管理权限撤回这条消息？撤回后所有成员看到撤回占位。')) return;
   const commandId = createClientId();
@@ -71,7 +73,7 @@ function requestRecall(message, button) {
     setStatus(elements.chatStatus, '消息撤回失败：实时连接当前不可写。', 'error');
     return;
   }
-  const pending = { id: String(message.id), timer: setTimeout(() => {
+  const pending = { commandId, id: String(message.id), conversationId:String(message.conversationId), sequence:String(message.sequence), timer: setTimeout(() => {
     state.pendingRecalls.delete(commandId);
     renderCurrentMessages();
     setStatus(elements.chatStatus, '撤回结果暂未确认，正在同步服务器状态。');
@@ -209,6 +211,8 @@ function createMessageElement(message, options = {}) {
     const recall = document.createElement('button');
     recall.type = 'button';
     recall.className = 'message-recall';
+    recall.dataset.expiresAt=String(Number(message.createdAt)+CHAT_RECALL_WINDOW_MS);
+    recall.title='发送后3分钟内可撤回，以服务器校验为准';
     const pending = [...state.pendingRecalls.values()].some(entry => entry.id === String(message.id));
     recall.disabled = pending;
     recall.textContent = pending ? '撤回中…' : mine ? '撤回' : '管理撤回';

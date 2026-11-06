@@ -1,3 +1,4 @@
+#include "backend/ai/speech/infrastructure/SpeechCredentialStore/SpeechCredentialStore.h"
 #include "SiteSpeechRenderer.h"
 #include "backend/ai/speech/application/WaveCodec/WaveCodec.h"
 #include "backend/application/transport/FlatJson/FlatJson.h"
@@ -11,12 +12,21 @@ namespace webserver::function3 {
 using namespace nebula::speech;
 namespace {std::string quote(std::string_view s){return phase11::transport::quoteJson(s);}std::string digest(const std::vector<unsigned char>&bytes){unsigned char raw[32];unsigned n{};if(!EVP_Digest(bytes.data(),bytes.size(),raw,&n,EVP_sha256(),nullptr))throw std::runtime_error("speech cache digest failed");std::string out;for(auto c:raw){out+="0123456789abcdef"[c>>4];out+="0123456789abcdef"[c&15];}return out;}}
 SiteSpeechRenderer::SiteSpeechRenderer(SqlContext&s,SpeechProcessRenderer&local):sql_(s),local_(local),cloud_(key),policy_(cloud_,*this){}
-std::string SiteSpeechRenderer::key(Provider p){
-    const auto*path=std::getenv(p==Provider::Azure?"WEB_SPEECH_AZURE_KEY_FILE":"WEB_SPEECH_GEMINI_KEY_FILE");if(!path||!*path)return{};
-    // 拒绝符号链接、公共可读文件和非本用户文件。读取上限防止误把模型/配置正文当 Key。
-    const int fd=open(path,O_RDONLY|O_NOFOLLOW|O_CLOEXEC);if(fd<0)return{};struct stat info{};
-    if(fstat(fd,&info)||!S_ISREG(info.st_mode)||info.st_uid!=geteuid()||(info.st_mode&0077)||info.st_size<=0||info.st_size>513){close(fd);return{};}
-    char bytes[514];auto n=read(fd,bytes,sizeof(bytes));close(fd);if(n<=0||n>513)return{};std::string result(bytes,n);while(!result.empty()&&(result.back()=='\n'||result.back()=='\r'))result.pop_back();if(result.find_first_of("\r\n")!=std::string::npos)return{};return result;
+namespace {
+std::filesystem::path credentialPath(Provider p){
+    if(p!=Provider::Azure&&p!=Provider::Gemini)throw std::invalid_argument("cloud provider required");
+    const auto*configured=std::getenv(p==Provider::Azure?"WEB_SPEECH_AZURE_KEY_FILE":"WEB_SPEECH_GEMINI_KEY_FILE");
+    return configured&&*configured?std::filesystem::path(configured):std::filesystem::path("/home/pikachu/phase11-data/function3/speech-secrets")/(providerName(p)+".key");
+}
+}
+std::string SiteSpeechRenderer::key(Provider p){try{return SpeechCredentialStore::read(credentialPath(p));}catch(...){return{};}}
+void SiteSpeechRenderer::configureCredential(Provider p,const std::string&value,bool remove,unsigned long long actor){
+    if(p!=Provider::Azure&&p!=Provider::Gemini)throw BusinessError(Failure::Invalid,"cloud provider required");
+    if(!remove&&(value.empty()||value.size()>512||value.find_first_of("\r\n")!=std::string::npos))throw BusinessError(Failure::Invalid,"invalid speech key");
+    // Audit only the provider and operation. No credentials or request payloads go to SQL.
+    sql_.query("INSERT INTO site_audit(actor_id,action,resource,reason) VALUES($1,'speech.credential.requested',$2,$3)",{std::to_string(actor),"speech:"+providerName(p),remove?"remove":"replace"});
+    try{SpeechCredentialStore::write(credentialPath(p),value,remove);}catch(const std::invalid_argument&){throw BusinessError(Failure::Invalid,"invalid speech key");}catch(...){throw BusinessError(Failure::Busy,"cannot save private speech key; check configured file permissions");}
+    sql_.query("INSERT INTO site_audit(actor_id,action,resource,reason) VALUES($1,'speech.credential.saved',$2,$3)",{std::to_string(actor),"speech:"+providerName(p),remove?"removed":"replaced"});
 }
 SpeechProfile SiteSpeechRenderer::profile(const std::string&voice)const{
     auto rows=sql_.query("SELECT provider,style,region,speed::text,pitch::text,free_confirmed,data_consent FROM speech_profiles WHERE voice=$1",{voice});
@@ -40,7 +50,7 @@ std::string SiteSpeechRenderer::render(const SpeechJob&job){
     auto p=profile(job.voice);if(job.speed>0)p.speed=job.speed;
     const auto descriptor="cloud-speech-v1:"+providerName(p.provider)+":"+p.model+":"+p.voice+":"+p.style+":"+p.region+":"+std::to_string(p.speed)+":"+std::to_string(p.pitchPercent)+":"+(p.freeTierConfirmed?"yes":"no")+":"+(p.dataUseConsent?"yes":"no")+":"+job.text;
     const auto cloudKey=digest({descriptor.begin(),descriptor.end()});const auto cached=local_.path(cloudKey);
-    if(p.provider!=Provider::Local&&std::filesystem::is_regular_file(cached)&&std::filesystem::file_size(cached)<=6*1024*1024&&std::filesystem::last_write_time(cached)>std::filesystem::file_time_type::clock::now()-std::chrono::hours(24)){
+    if(job.announcement!=0&&p.provider!=Provider::Local&&std::filesystem::is_regular_file(cached)&&std::filesystem::file_size(cached)<=6*1024*1024&&std::filesystem::last_write_time(cached)>std::filesystem::file_time_type::clock::now()-std::chrono::hours(24)){
         std::ifstream file(cached,std::ios::binary);std::vector<unsigned char>wave(std::istreambuf_iterator<char>(file),{});
         if(WaveCodec::valid(wave)){std::lock_guard lock(mutex_);lastProvider_=providerName(p.provider);lastFallback_="";return cloudKey;}
     }

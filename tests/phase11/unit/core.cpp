@@ -539,7 +539,7 @@ Message verifyChatFlow(Fixture &fixture, TimePoint now,
         alice.id, direct.id, "client-expired-recall", "too old", now);
     expectError(ErrorCode::Conflict, [&] {
         fixture.chat.recallMessage(
-            alice.id, tooOld.message.id, now + std::chrono::minutes(3));
+            alice.id, tooOld.message.id, now + std::chrono::minutes(3) + std::chrono::milliseconds(1));
     });
 
     fixture.social.removeFriend(alice.id, bob.id, now);

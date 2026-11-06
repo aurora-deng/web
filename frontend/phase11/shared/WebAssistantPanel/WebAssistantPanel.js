@@ -1,6 +1,6 @@
-import { webAiApi } from "../../ai/WebAiApi/WebAiApi.js?v=dc39cdb5489c964d";
-import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=dc39cdb5489c964d';
-import { modelConnection,openModelConnection,requestOwnModel,resetModelConnection } from '../ModelConnection/ModelConnection.js?v=dc39cdb5489c964d';
+import { webAiApi } from "../../ai/WebAiApi/WebAiApi.js?v=144f1e6009a3d461";
+import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=144f1e6009a3d461';
+import { modelConnection,openModelConnection,requestOwnModel,resetModelConnection } from '../ModelConnection/ModelConnection.js?v=144f1e6009a3d461';
 const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
 const id=()=>Array.from(crypto.getRandomValues(new Uint8Array(20)),n=>n.toString(16).padStart(2,'0')).join('');
 

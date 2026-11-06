@@ -13,6 +13,7 @@ public:
     std::string path(std::string key)const override{return local_.path(std::move(key));}
     nebula::speech::SpeechProfile profile(const std::string&)const override;
     void configure(const nebula::speech::SpeechProfile&,unsigned long long actor)override;
+    void configureCredential(nebula::speech::Provider,const std::string&,bool,unsigned long long actor)override;
     std::string status()const override;
 private:
     bool reserve(nebula::speech::Provider,std::size_t)override;

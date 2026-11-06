@@ -7,6 +7,7 @@ public:
     virtual ~ISpeechControl()=default;
     virtual nebula::speech::SpeechProfile profile(const std::string&voice)const=0;
     virtual void configure(const nebula::speech::SpeechProfile&,unsigned long long actor)=0;
+    virtual void configureCredential(nebula::speech::Provider,const std::string&key,bool remove,unsigned long long actor)=0;
     virtual std::string status()const=0;
 };
 }

@@ -1,14 +1,16 @@
-import { treeApi } from "../TreeApi/TreeApi.js?v=dc39cdb5489c964d";
-import { adminApi } from "../../admin/AdminApi/AdminApi.js?v=dc39cdb5489c964d";
-import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=dc39cdb5489c964d";
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=dc39cdb5489c964d';
-import { openTreeAuthor } from '../../shared/TreeAuthorCard/TreeAuthorCard.js?v=dc39cdb5489c964d';
-import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=dc39cdb5489c964d';
+import { TreePageNavigation } from '../TreePageNavigation/TreePageNavigation.js?v=144f1e6009a3d461';
+import { TreePageTransition } from '../TreePageTransition/TreePageTransition.js?v=144f1e6009a3d461';
+import { treeApi } from "../TreeApi/TreeApi.js?v=144f1e6009a3d461";
+import { adminApi } from "../../admin/AdminApi/AdminApi.js?v=144f1e6009a3d461";
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=144f1e6009a3d461";
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=144f1e6009a3d461';
+import { openTreeAuthor } from '../../shared/TreeAuthorCard/TreeAuthorCard.js?v=144f1e6009a3d461';
+import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=144f1e6009a3d461';
 mountNavigation('tree');
-import { VoiceRecorder } from '../VoiceRecorder/VoiceRecorder.js?v=dc39cdb5489c964d';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=dc39cdb5489c964d';
-import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=dc39cdb5489c964d';
-import { formatShortDateTime, formatChatTime } from '../../shared/TimeFormat/TimeFormat.js?v=dc39cdb5489c964d';
+import { VoiceRecorder } from '../VoiceRecorder/VoiceRecorder.js?v=144f1e6009a3d461';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=144f1e6009a3d461';
+import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=144f1e6009a3d461';
+import { formatShortDateTime, formatChatTime } from '../../shared/TimeFormat/TimeFormat.js?v=144f1e6009a3d461';
 
 const randomId = () => globalThis.crypto?.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2,'0')).join('');
 const $ = selector => document.querySelector(selector);
@@ -123,7 +125,7 @@ $('#show-publish').onclick=()=>{if(!api.user)return location.assign('/phase11/')
 new ActivityPublisher($('#publish-form'),api,{initialDestination:'tree',files:()=>[...$('#media-files').files,...(state.recorded?[state.recorded]:[])],status:$('#publish-status'),onPublished:async()=>{state.recorded=null;$('#record-state').textContent='';$('#publish-dialog').close();state.before='';state.previous=[];await load();await ranking();}});
 const recorder = new VoiceRecorder($('#record-voice'),$('#record-state'),file=>{state.recorded=file;});
 $('#publish-dialog').addEventListener('close',()=>recorder.stop());
-function switchView(view){
+function applyView(view){
   if(!['tree','feed','rank'].includes(view))view='tree';document.body.dataset.treeView=view;document.body.classList.remove('list-mode');
   const copy={tree:['一树花开，万种相逢','转动视角，轻触一枚果实，听见藏在花间的故事。'],feed:['树下的故事','分享生活的片刻，也认真回应每一次相遇。'],rank:['七日心动榜','过去七天里，那些被大家温柔点亮的故事。']}[view];
   $('#view-title').textContent=copy[0];$('#view-description').textContent=copy[1];
@@ -131,6 +133,9 @@ function switchView(view){
   scene?.setVisible(view==='tree');
   if(view==='tree')requestAnimationFrame(()=>scene?.resize());history.replaceState(null,'','#'+view);
 }
+const pageTransition=new TreePageTransition({surface:$('.community-main'),current:()=>document.body.dataset.treeView,apply:applyView});
+$('#view-title').tabIndex=-1;
+function switchView(view,options){return pageTransition.navigate(view,options);}
 document.querySelectorAll('[data-tree-tab]').forEach(button=>button.onclick=()=>switchView(button.dataset.treeTab));
 function firstPage(){state.before='';state.previous=[];const hours=Number($('#time-filter')?.value||0);state.since=hours?String(Date.now()-hours*3600000):'';return load();}
 $('#apply-filter').onclick=()=>{switchView('feed');$('#filter-dialog').close();firstPage();};$('#open-filter').onclick=()=>$('#filter-dialog').showModal();$('#refresh').onclick=()=>load();
@@ -138,6 +143,9 @@ $('#next-page').onclick=()=>{state.previous.push(state.before);state.before=stat
 $('#previous-page').onclick=()=>{state.before=state.previous.pop()||'';load();};
 $('#view-toggle').onclick=()=>{const list=document.body.classList.toggle('list-mode');$('#view-toggle').textContent=list?'✧ 三维模式':'☷ 列表模式';$('#view-toggle').setAttribute('aria-pressed',String(list));scene?.setVisible(!list);if(!list)scene?.resize();};
 $('#scene-reset').onclick=()=>scene?.reset();
+$('#scene-zoom-in').onclick=()=>scene?.zoom(.84);$('#scene-zoom-out').onclick=()=>scene?.zoom(1.18);
+const pageNavigation=new TreePageNavigation({current:()=>document.body.dataset.treeView,change:switchView,progress:value=>pageTransition.progress(value)});
+addEventListener('pagehide',()=>{pageNavigation.dispose();pageTransition.dispose();},{once:true});
 async function start(){
   try{const user=await api.restore();$('#identity').textContent=user.displayName;
     const [role,categories]=await Promise.all([api.request(adminApi.getAdminMe({})),api.request(treeApi.getTreeCategories({}))]);$('#admin-link').hidden=role.role==='user';
@@ -145,9 +153,9 @@ async function start(){
     for(const category of state.categories){const b=button(category.name,()=>{document.querySelector('#category-filter').value=category.id;document.querySelectorAll('[data-category]').forEach(n=>n.classList.toggle('active',n.dataset.category===category.id));return firstPage();});b.dataset.category=category.id;$('#category-tabs').append(b);}
     $('#category-tabs [data-category=""]').onclick=()=>{document.querySelector('#category-filter').value='';document.querySelectorAll('[data-category]').forEach(n=>n.classList.toggle('active',n.dataset.category===''));firstPage();};
     for(const category of state.categories){for(const selector of ['#category-filter','#publish-category']){const option=el('option',category.name);option.value=category.id;$(selector).append(option);}}
-    switchView(location.hash.slice(1)||'tree');
+    applyView(location.hash.slice(1)||'tree');
     // 网络读取与3D模块加载并行，树形无需等待榜单的全部数据才能出现。
-    const sceneReady=import('../TreeScene/TreeScene.js?v=dc39cdb5489c964d').then(({TreeScene})=>{scene=new TreeScene($('#scene'),openPost);scene.setVisible(document.body.dataset.treeView==='tree');updateScene();}).catch(()=>{document.body.classList.add('list-mode');$('#view-toggle').disabled=true;$('#status').textContent='此设备无法使用三维场景，已切换完整列表模式。';});
+    const sceneReady=import('../TreeScene/TreeScene.js?v=144f1e6009a3d461').then(({TreeScene})=>{scene=new TreeScene($('#scene'),openPost);scene.setVisible(document.body.dataset.treeView==='tree');updateScene();}).catch(()=>{document.body.classList.add('list-mode');$('#view-toggle').disabled=true;$('#status').textContent='此设备无法使用三维场景，已切换完整列表模式。';});
     await Promise.all([load(),ranking(),sceneReady]);
     const selectedPost=new URL(location.href).searchParams.get('post');if(selectedPost)openPost(selectedPost);
     new AnnouncementPlayer(api,$('#announcements'),{connectEvents:true}).start();

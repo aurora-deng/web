@@ -252,6 +252,15 @@
       ]
     },
     {
+      "method": "PATCH",
+      "path": "/api/admin/speech/credentials",
+      "domain": "admin",
+      "operation": "patchAdminSpeechCredentials",
+      "sources": [
+        "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.cpp"
+      ]
+    },
+    {
       "method": "POST",
       "path": "/api/admin/speech/preview",
       "domain": "admin",

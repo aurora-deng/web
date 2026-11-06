@@ -199,7 +199,10 @@ test('群管理撤回按钮符合角色、时间窗和撤回终态', () => {
   assert.equal(canRecallMessage({ ...m, senderId: 4 }, 2, group, members, 2000), false);
   assert.equal(canRecallMessage({ ...m, senderId: 2 }, 1, group, members, 2000), true);
   assert.equal(canRecallMessage({ ...m, senderId: 1 }, 3, group, members, 2000), false);
-  assert.equal(canRecallMessage(m, 2, group, members, 122000), false);
+  assert.equal(canRecallMessage(m, 2, group, members, 151000), true);
+  assert.equal(canRecallMessage(m, 2, group, members, 181000), true);
+  assert.equal(canRecallMessage(m, 2, group, members, 181001), false);
+  assert.equal(canRecallMessage({...m,createdAt:'not-a-time'}, 2, group, members, 2000), false);
   assert.equal(canRecallMessage(m, 2, group, members, 999), false);
   assert.equal(canRecallMessage({ ...m, state: 'recalled' }, 2, group, members, 2000), false);
   assert.equal(canRecallMessage(m, 2, { kind: 'direct' }, members, 2000), false);

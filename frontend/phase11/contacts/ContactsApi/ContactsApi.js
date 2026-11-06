@@ -1,3 +1,3 @@
 // Generated domain contract bindings; transport and page state are injected separately.
-import { defineEndpoints } from "../../shared/ApiContracts/ApiContracts.js?v=dc39cdb5489c964d";
+import { defineEndpoints } from "../../shared/ApiContracts/ApiContracts.js?v=144f1e6009a3d461";
 export const contactsApi=defineEndpoints("contacts",[["getBlocks","GET","/api/blocks"],["deleteBlocksId","DELETE","/api/blocks/:id"],["postBlocksId","POST","/api/blocks/:id"],["getFriendRequests","GET","/api/friend-requests"],["postFriendRequests","POST","/api/friend-requests"],["postFriendRequestsId","POST","/api/friend-requests/:id"],["getFriends","GET","/api/friends"],["postFriends","POST","/api/friends"],["deleteFriendsId","DELETE","/api/friends/:id"],["patchFriendsId","PATCH","/api/friends/:id"],["getUsersSearch","GET","/api/users/search"]]);

@@ -1,6 +1,6 @@
-import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=dc39cdb5489c964d";
-import { MediaUploader } from '../MediaUploader/MediaUploader.js?v=dc39cdb5489c964d';
-import { paintUploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=dc39cdb5489c964d';
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=144f1e6009a3d461";
+import { MediaUploader } from '../MediaUploader/MediaUploader.js?v=144f1e6009a3d461';
+import { paintUploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=144f1e6009a3d461';
 /** 树和主页共用一条发布链路；公开范围确认进入服务器契约，不能只改 UI 提示。 */
 export class ActivityPublisher {
   constructor(form,api,{initialDestination='profile',files=()=>[],status,onPublished}) {

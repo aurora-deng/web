@@ -1,9 +1,9 @@
-import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=dc39cdb5489c964d";
+import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=144f1e6009a3d461";
 const node=(tag,text)=>{const n=document.createElement(tag);if(text)n.textContent=text;return n;};
 /** 果实只提供作者入口；是否允许申请、是否已是好友都由服务端返回。 */
 export async function openTreeAuthor(api,post){
   const author=await api.request(treeApi.getTreePostsPostAuthor({"post":(post.id)}));
-  if(!document.querySelector('[data-author-card-css]')){const css=node('link');css.rel='stylesheet';css.href='/phase11/shared/TreeAuthorCard/TreeAuthorCard.css?v=dc39cdb5489c964d';css.dataset.authorCardCss='';document.head.append(css);}
+  if(!document.querySelector('[data-author-card-css]')){const css=node('link');css.rel='stylesheet';css.href='/phase11/shared/TreeAuthorCard/TreeAuthorCard.css?v=144f1e6009a3d461';css.dataset.authorCardCss='';document.head.append(css);}
   const dialog=node('dialog');dialog.className='tree-author-card';
   const close=node('button','×');close.type='button';close.className='author-close';close.setAttribute('aria-label','关闭作者卡');close.onclick=()=>dialog.close();
   const avatar=node('div',[...author.displayName][0]||'友');avatar.className='author-avatar';

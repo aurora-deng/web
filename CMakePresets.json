@@ -1,0 +1,184 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "WEBSERVER_ENABLE_PHASE11": "ON",
+        "WEBSERVER_ENABLE_POSTGRES": "OFF",
+        "WEBSERVER_ENABLE_SODIUM": "OFF",
+        "WEBSERVER_ENABLE_CURL_CLIENT": "OFF",
+        "WEBSERVER_ENABLE_ONNX_GENAI": "OFF",
+        "WEBSERVER_ENABLE_GRPC": "OFF",
+        "WEBSERVER_ENABLE_ASAN": "OFF",
+        "WEBSERVER_ENABLE_UBSAN": "OFF",
+        "WEBSERVER_ENABLE_TSAN": "OFF",
+        "WEBSERVER_BUILD_BENCHMARKS": "OFF",
+        "WEBSERVER_BUILD_FUZZER": "OFF"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Linux Debug：通信与内存业务测试",
+      "description": "必须事先提供 OpenSSL、nghttp2、GoogleTest；不下载依赖，不含真实数据库或模型适配器。",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Linux Release：通信与内存业务",
+      "description": "不含 PG/凭据适配器，不能作为完整聊天性能对照；输出 build/release，不覆盖既有 build-release。",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "release-full",
+      "displayName": "Release + PostgreSQL + Sodium + libcurl",
+      "description": "带数据库与凭证适配器。gRPC 仍关闭，需要时用 release-grpc。",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF",
+        "WEBSERVER_ENABLE_POSTGRES": "ON",
+        "WEBSERVER_ENABLE_SODIUM": "ON",
+        "WEBSERVER_ENABLE_CURL_CLIENT": "ON"
+      }
+    },
+    {
+      "name": "release-grpc",
+      "displayName": "Release + 全部适配器 + gRPC",
+      "description": "需显式提供已有兼容 gRPC C++ / Protobuf；不自动获取。ONNX 与 MQ 不由本预设启用。",
+      "inherits": "release-full",
+      "cacheVariables": {
+        "WEBSERVER_ENABLE_GRPC": "ON"
+      }
+    },
+    {
+      "name": "docker",
+      "displayName": "Docker 构建目标",
+      "description": "容器候选配置：Release、无测试、无数据库适配器。实际镜像构建与启动尚未验收。",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "docker-full",
+      "displayName": "Docker 构建目标 + 数据库适配器",
+      "description": "需要外部 PostgreSQL 时使用。容器自身不启动数据库。",
+      "inherits": "docker",
+      "cacheVariables": {
+        "WEBSERVER_ENABLE_POSTGRES": "ON",
+        "WEBSERVER_ENABLE_SODIUM": "ON"
+      }
+    },
+    {
+      "name": "asan",
+      "displayName": "Debug + AddressSanitizer",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON",
+        "WEBSERVER_ENABLE_ASAN": "ON"
+      }
+    },
+    {
+      "name": "ubsan",
+      "displayName": "Debug + UndefinedBehaviorSanitizer",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON",
+        "WEBSERVER_ENABLE_UBSAN": "ON"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "Debug + ThreadSanitizer",
+      "description": "与 ASan/UBSan 互斥，CMakeLists 会拒绝同时开启。",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "ON",
+        "WEBSERVER_ENABLE_TSAN": "ON"
+      }
+    },
+    {
+      "name": "fuzzer",
+      "displayName": "Clang + libFuzzer",
+      "description": "仅 Clang 支持。GCC 环境下配置会失败，这是 libFuzzer 的限制，不是项目问题。",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_TESTING": "OFF",
+        "WEBSERVER_BUILD_FUZZER": "ON",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "release-full", "configurePreset": "release-full" },
+    { "name": "release-grpc", "configurePreset": "release-grpc" },
+    { "name": "docker", "configurePreset": "docker" },
+    { "name": "docker-full", "configurePreset": "docker-full" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "ubsan", "configurePreset": "ubsan" },
+    { "name": "tsan", "configurePreset": "tsan" }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 1, "timeout": 300, "noTestsAction": "error" }
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 1, "timeout": 600, "noTestsAction": "error" },
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:abort_on_error=1:strict_string_checks=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      }
+    },
+    {
+      "name": "ubsan",
+      "configurePreset": "ubsan",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 1, "timeout": 600, "noTestsAction": "error" },
+      "environment": {
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      }
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 1, "timeout": 600, "noTestsAction": "error" },
+      "environment": {
+        "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1"
+      }
+    }
+  ]
+}

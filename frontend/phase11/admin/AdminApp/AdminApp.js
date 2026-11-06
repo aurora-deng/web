@@ -1,13 +1,17 @@
-import { operationsApi } from "../../shared/OperationsApi/OperationsApi.js?v=dc39cdb5489c964d";
-import { notificationsApi } from "../../announcements/NotificationsApi/NotificationsApi.js?v=dc39cdb5489c964d";
-import { adminApi } from "../AdminApi/AdminApi.js?v=dc39cdb5489c964d";
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=dc39cdb5489c964d';
+import {fetchWave,playSpeech} from '../../shared/SpeechPlayback/SpeechPlayback.js?v=144f1e6009a3d461';
+import { operationsApi } from "../../shared/OperationsApi/OperationsApi.js?v=144f1e6009a3d461";
+import { notificationsApi } from "../../announcements/NotificationsApi/NotificationsApi.js?v=144f1e6009a3d461";
+import { adminApi } from "../AdminApi/AdminApi.js?v=144f1e6009a3d461";
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=144f1e6009a3d461';
 mountNavigation('admin');
-import {BusinessApi} from '../../shared/BusinessApi/BusinessApi.js?v=dc39cdb5489c964d';
-import {AnnouncementPlayer} from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=dc39cdb5489c964d';
-import {openSpeechSettings} from '../../shared/SpeechSettings/SpeechSettings.js?v=dc39cdb5489c964d';
+import {BusinessApi} from '../../shared/BusinessApi/BusinessApi.js?v=144f1e6009a3d461';
+import {AnnouncementPlayer} from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=144f1e6009a3d461';
+import {openSpeechSettings} from '../../shared/SpeechSettings/SpeechSettings.js?v=144f1e6009a3d461';
 const api=new BusinessApi(),$=s=>document.querySelector(s);let view=['users','reports','audits','messaging','categories','models','runtime','speech'].includes(location.hash.slice(1))?location.hash.slice(1):'users',cursor='',rows=[],role,pageToken='',pageTrail=[];
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
+let previewController=new AbortController();const previewUrls=new Set();
+function stopPreviews(){previewController.abort();previewController=new AbortController();for(const audio of document.querySelectorAll('#content audio'))audio.pause();for(const url of previewUrls)URL.revokeObjectURL(url);previewUrls.clear();}
+addEventListener('pagehide',stopPreviews,{once:true});
 const names={users:'用户与权限',reports:'内容举报',audits:'操作审计',messaging:'消息队列',categories:'内容分类',models:'模型治理',runtime:'运行状态',speech:'公告音色'};
 function failure(error){$('#status').textContent=error.status===401?'请先返回聊天页登录。':error.message;}
 function action(text,run){const b=el('button',text);b.onclick=async()=>{b.disabled=true;try{await run();}catch(e){failure(e);}finally{b.disabled=false;}};return b;}
@@ -43,6 +47,7 @@ async function reloadPages(){
   kept.forEach(({node,top})=>{if(top&&node.scrollTop!==top)node.scrollTop=top;});
 }
 async function load(append=false){
+  stopPreviews();
   $('#content').replaceChildren(el('div','正在加载…','loading'));
   try{return await renderView(append);}
   catch(error){
@@ -61,7 +66,15 @@ async function renderView(append=false){$('#status').textContent='';$('#title').
     const box=el('div');box.append(el('h2','本地公告音色'),el('p','试听采用固定文案，不上传语音。首次生成需要加载本地模型；文字公告独立于语音服务。'));
     if(role==='administrator')box.append(action('设置云语音、表达与回退',()=>openSpeechSettings(api,{site:true})));
     for(const [voice,label]of[['zf_001','成熟女声'],['zm_009','青年沉稳男声']]){
-      const row=el('section');row.append(el('h3',label+' · '+voice),action('试听预置音色',async()=>{let result=await api.request(adminApi.postAdminSpeechPreview({}),{method:'POST',data:{voice}});const deadline=Date.now()+110000;while(result.state==='pending'&&Date.now()<deadline){$('#status').textContent='正在后台准备试听音频…';await new Promise(resolve=>setTimeout(resolve,1000));result=await api.request(adminApi.getAdminSpeechPreviewVoice({"voice":(voice)}));}if(result.state!=='ready')throw new Error('试听暂未就绪，请稍后重试。');$('#status').textContent='试听已就绪。';let player=row.querySelector('audio');if(!player){player=el('audio');player.controls=true;row.append(player);}player.src=result.url;try{await player.play();}catch{$('#status').textContent='音频已就绪，可点击播放器试听。';}}),action('作为我的公告音色',async()=>{const settings=await api.request(notificationsApi.getMeNotificationSettings({}));await api.request(notificationsApi.patchMeNotificationSettings({}),{method:'PATCH',data:{sound:String(settings.sound),voice}});$('#status').textContent='已替换当前账号的公告音色，重新进入页面后生效。';}));box.append(row);
+      const row=el('section');row.append(el('h3',label+' · '+voice),action('试听预置音色',async()=>{const signal=previewController.signal;
+        try{let result=await api.request(adminApi.postAdminSpeechPreview({}),{method:'POST',data:{voice},signal});const deadline=Date.now()+125000;
+          while(result.state==='pending'&&Date.now()<deadline&&!signal.aborted){$('#status').textContent='正在后台准备试听音频…';await new Promise(resolve=>setTimeout(resolve,700));if(!row.isConnected||signal.aborted)return;result=await api.request(adminApi.getAdminSpeechPreviewVoice({voice}),{signal});}
+          if(!row.isConnected||signal.aborted)return;if(result.state!=='ready')throw new Error('试听暂未就绪，请稍后重试。');
+          const blob=await fetchWave(result.url,{signal});if(!row.isConnected||signal.aborted)return;
+          let player=row.querySelector('audio');if(!player){player=el('audio');player.controls=true;row.append(player);}player.pause();if(player.dataset.blob){URL.revokeObjectURL(player.dataset.blob);previewUrls.delete(player.dataset.blob);}const url=URL.createObjectURL(blob);previewUrls.add(url);player.dataset.blob=url;player.src=url;
+          $('#status').textContent=(await playSpeech(player)).message;
+        }catch(error){if(row.isConnected&&!signal.aborted)throw error;}
+      }),action('作为我的公告音色',async()=>{const settings=await api.request(notificationsApi.getMeNotificationSettings({}));await api.request(notificationsApi.patchMeNotificationSettings({}),{method:'PATCH',data:{sound:String(settings.sound),voice}});$('#status').textContent='已替换当前账号的公告音色，重新进入页面后生效。';}));box.append(row);
     }$('#content').replaceChildren(box);return;
   }
   if(view==='models'){

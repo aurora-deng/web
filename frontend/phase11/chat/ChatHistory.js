@@ -166,12 +166,13 @@ export class ChatHistory {
   }
 }
 
-/** 只控制按钮展示，最终授权仍由 ChatService 执行。与后端两分钟时间窗/角色规则对应。 */
+/** 只控制按钮展示，最终授权仍由 ChatService 执行。与后端三分钟时间窗/角色规则对应。 */
+export const CHAT_RECALL_WINDOW_MS = 180000;
 export function canRecallMessage(message, userId, conversation, members, now = Date.now()) {
   const actor = members.find(member => Number(member.userId) === Number(userId));
   const created = Number(message.createdAt);
   if (!actor || !message.id || message.state === 'recalled' || !created ||
-      now < created || now - created > 120000 ||
+      !Number.isFinite(created) || !Number.isFinite(now) || now < created || now - created > CHAT_RECALL_WINDOW_MS ||
       (conversation?.state && conversation.state !== 'active')) return false;
   if (Number(message.senderId) === Number(userId)) return true;
   if (conversation?.kind !== 'group') return false;

@@ -302,38 +302,123 @@ body[data-workspace=chat] .citation-list li:not(.list-empty) {
 }
 body[data-workspace=chat] .toast { background:var(--surface-2); border-color:var(--line-strong); }
 
-/* ⑬ 登录 / 注册视图：保留星云渐变，只统一文字与强调色 */
-body[data-workspace=chat] .eyebrow { color:var(--accent-text); }
-body[data-workspace=chat] .hero-description { color:var(--text-2); }
-body[data-workspace=chat] .protocol-grid article {
-  border-color:var(--line);
-  background:var(--surface);
+/* ⑬ 登录 / 注册：与登录后的工作区共用水岸，不单独绘制一层背景图。 */
+body[data-workspace=chat]:has(#auth-panel:not(.hidden)) .chat-tree-veil::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  background:radial-gradient(ellipse at 24% 51%, color-mix(in srgb, var(--bg) 82%, transparent), transparent 67%);
 }
-body[data-workspace=chat] .protocol-grid small { color:var(--text-3); }
-body[data-workspace=chat] .protocol-icon { color:var(--accent-text); background:var(--accent-soft); }
-body[data-workspace=chat] .hero-proof { color:var(--text-2); }
-body[data-workspace=chat] .hero-proof span { border-color:var(--line); background:var(--surface); }
-body[data-workspace=chat] .auth-card { background:var(--surface); border-color:var(--line-strong); }
-body[data-workspace=chat] .auth-tabs button { color:var(--text-3); }
-body[data-workspace=chat] .auth-tabs button.active { color:var(--text); }
-body[data-workspace=chat] .auth-tabs button.active::after {
-  background:var(--accent);
-  box-shadow:none;
+body[data-workspace=chat] .auth-view {
+  max-width:1440px;
+  min-height:calc(100dvh - 64px);
+  margin-inline:auto;
+  grid-template-columns:minmax(0, 1.18fr) minmax(0, .82fr);
+  align-items:center;
+  gap:clamp(24px, 5vw, 84px);
+  padding:clamp(32px, 6vw, 96px);
 }
-body[data-workspace=chat] .welcome-icon {
-  background:var(--accent-soft);
+body[data-workspace=chat] .auth-hero,
+body[data-workspace=chat] .auth-side { min-height:0; padding:0; border:0; overflow:visible; }
+body[data-workspace=chat] .auth-hero::after { content:none; }
+body[data-workspace=chat] .hero-copy { margin:0; }
+body[data-workspace=chat] :is(.auth-view, .auth-dialog) .eyebrow {
+  margin:0 0 10px;
   color:var(--accent-text);
-  border-color:var(--accent-soft);
 }
-body[data-workspace=chat] .security-note { color:var(--text-3); }
+body[data-workspace=chat] :is(.auth-view, .auth-dialog) .eyebrow > span {
+  width:22px;
+  background:var(--accent);
+}
+body[data-workspace=chat] .hero-copy h1 {
+  font-family:var(--font-display);
+  font-size:clamp(42px, 5.3vw, 80px);
+  line-height:1.16;
+  letter-spacing:.015em;
+}
+body[data-workspace=chat] .hero-copy h1 em {
+  background:none;
+  color:var(--accent-text);
+}
+body[data-workspace=chat] .hero-description {
+  max-width:27em;
+  margin:18px 0 22px;
+  color:var(--text-2);
+  font-size:clamp(15px, 1.25vw, 19px);
+  line-height:1.65;
+}
+body[data-workspace=chat] .hero-proof { display:flex; padding:0; margin:0; gap:8px; list-style:none; }
+body[data-workspace=chat] .hero-proof li {
+  padding:5px 12px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:var(--workspace-glass);
+  color:var(--text-2);
+  font-size:13px;
+}
+body[data-workspace=chat] .auth-card {
+  padding:clamp(24px, 3.4vw, 46px);
+  border-color:var(--line-strong);
+  border-radius:24px;
+  background:color-mix(in srgb, var(--workspace-glass) 65%, var(--surface));
+  box-shadow:var(--shadow-3);
+  backdrop-filter:blur(16px);
+}
+body[data-workspace=chat] .auth-card-head { margin-bottom:24px; }
+body[data-workspace=chat] .auth-card-head h2 { margin:0 0 4px; }
+body[data-workspace=chat] .auth-card-head > p:last-child { color:var(--text-2); }
+body[data-workspace=chat] .auth-card input,
+body[data-workspace=chat] .auth-dialog input {
+  border-color:var(--line-strong);
+  background:color-mix(in srgb, var(--bg) 64%, var(--surface));
+}
+body[data-workspace=chat] .auth-card input::placeholder,
+body[data-workspace=chat] .auth-dialog input::placeholder { color:var(--text-3); }
 body[data-workspace=chat] .auth-submit {
   background:var(--accent);
   border-color:var(--accent);
   color:var(--on-accent);
-  box-shadow:0 10px 24px -8px color-mix(in srgb, var(--accent) 50.0%, transparent);
+  box-shadow:0 10px 24px -8px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 body[data-workspace=chat] .auth-submit:hover:not(:disabled) { background:var(--accent-hover); }
-
+body[data-workspace=chat] #auth-status { min-height:0; margin:0; }
+body[data-workspace=chat] #auth-status:not(:empty) { margin-top:12px; }
+body[data-workspace=chat] .auth-register {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:20px;
+  padding-top:14px;
+  border-top:1px solid var(--line);
+  color:var(--text-2);
+}
+body[data-workspace=chat] .auth-register button { min-height:44px; color:var(--accent-text); }
+body[data-workspace=chat] #register-dialog { border-color:var(--line-strong); border-radius:24px; }
+body[data-workspace=chat] #register-dialog::backdrop {
+  background:color-mix(in srgb, var(--bg) 64%, transparent);
+  backdrop-filter:blur(4px);
+}
+@media (max-width:760px) {
+  body[data-workspace=chat] .auth-view {
+    min-height:calc(100dvh - 120px);
+    grid-template-columns:minmax(0, 1fr);
+    align-content:center;
+    gap:20px;
+    padding:22px 16px 24px;
+  }
+  body[data-workspace=chat] .auth-hero { width:min(100%, 520px); margin-inline:auto; }
+  body[data-workspace=chat] .hero-copy h1 { font-size:clamp(25px, 6.4vw, 44px); }
+  body[data-workspace=chat] .hero-copy h1 br { display:none; }
+  body[data-workspace=chat] .hero-description { margin:8px 0 0; font-size:14px; }
+  body[data-workspace=chat] .hero-proof { display:none; }
+  body[data-workspace=chat] .auth-card { padding:20px; }
+  body[data-workspace=chat] .auth-card-head { margin-bottom:16px; }
+  body[data-workspace=chat] .auth-card-head h2 { font-size:26px; }
+  body[data-workspace=chat] #login-form { gap:12px; }
+  body[data-workspace=chat] .auth-register { margin-top:14px; padding-top:10px; }
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    C. 苦情树社区
@@ -379,7 +464,7 @@ body[data-workspace=tree] select {
 }
 
 body[data-workspace=tree] .community-sidebar {
-  background:var(--surface);
+  background:var(--workspace-glass);
   border-color:var(--line);
 }
 body[data-workspace=tree] .community-logo { color:var(--accent-text); }
@@ -400,12 +485,26 @@ body[data-workspace=tree] .community-sidebar footer { color:var(--text-3); }
 
 body[data-workspace=tree] .eyebrow { color:var(--text-3); }
 body[data-workspace=tree] .community-heading > div > p:last-child { color:var(--text-3); }
+body[data-workspace=tree] .community-heading {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: linear-gradient(90deg, var(--workspace-glass), transparent);
+}
 
-/* 首屏文案安全区：原遮罩到 37% 就透明，而标题在 1440px 下宽过 40%，
-   于是樱花会穿过文字。这里把遮罩延长到 68% 并把标题列硬性限宽。 */
+/* Keep the copy legible while opening the scene to the shared shoreline. */
+body[data-workspace=tree] .tree-stage {
+  background: linear-gradient(105deg, var(--workspace-glass), var(--workspace-tint) 65%);
+  border-radius: var(--r-lg);
+}
 body[data-workspace=tree] .scene-vignette {
-  background:linear-gradient(90deg, var(--scene-bg) 0%, color-mix(in srgb, var(--scene-bg) 94.9%, transparent) 30%, color-mix(in srgb, var(--scene-bg) 85.1%, transparent) 48%, transparent 70%),
-    linear-gradient(0deg, color-mix(in srgb, var(--scene-bg) 85.88%, transparent) 0%, transparent 26%);
+  background:
+    linear-gradient(90deg, var(--workspace-glass), transparent 43%),
+    linear-gradient(0deg, var(--workspace-glass), transparent 24%);
+}
+@media (max-width: 760px) {
+  body[data-workspace=tree] .scene-vignette {
+    background: linear-gradient(0deg, var(--workspace-glass), transparent 24%);
+  }
 }
 body[data-workspace=tree] .scene-heading { max-width:min(44%, 480px); }
 body[data-workspace=tree] .scene-heading h2 {
@@ -524,7 +623,7 @@ body[data-workspace=admin] {
   background:var(--bg);
   color:var(--text);
 }
-body[data-workspace=admin] > aside { background:var(--surface); border-color:var(--line); }
+body[data-workspace=admin] > aside { background:var(--workspace-glass); border-color:var(--line); }
 body[data-workspace=admin] .brand { color:var(--accent-text); }
 body[data-workspace=admin] .brand small,
 body[data-workspace=admin] .section-label { color:var(--text-3); }
@@ -536,7 +635,7 @@ body[data-workspace=admin] .selected {
 }
 body[data-workspace=admin] aside footer { color:var(--text-3); }
 body[data-workspace=admin] .notice {
-  background:var(--accent-softer);
+  background:var(--workspace-glass);
   border-color:var(--line);
 }
 body[data-workspace=admin] .notice > span { color:var(--accent-text); }
