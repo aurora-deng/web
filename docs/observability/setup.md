@@ -20,6 +20,14 @@ python3 -m tools.observability.lab \
 
 脚本先检查已配置的可执行文件，再新建自己的 PostgreSQL 和业务端口。工具目录需要包含 `prometheus-3.13.5`（含 promtool）、`node_exporter-1.12.1`、`otelcol-0.165.0`、`tempo-3.0.3`、`echarts-6.1.0/echarts.min.js`。使用经批准的官方制品。服务退出会停止本次管理的进程，保留输出目录。用启动终端的 Ctrl+C 停止。长稳使用 `--duration 86400 --exercise`，以临时账号每分钟查询一次真实会话。脚本守护监控目录总量，默认达到 1 GiB 或可用空间不足 1 GiB 时停止。新一轮使用新目录，旧目录留作复盘。
 
+| Linux x86_64 制品 | 官方校验 |
+|---|---|
+| prometheus-3.13.5.linux-amd64.tar.gz | SHA-256 `0388822ace519c5a3a8ef556a541ce1b536e21d872f82deded465bd27a5a0699` · [Prometheus](https://prometheus.io/download/) |
+| node_exporter-1.12.1.linux-amd64.tar.gz | SHA-256 `b51d8a76aa2a9156a55d501aca6276fae09e262259a5e4e831d2c2222f084e63` · [Node Exporter](https://prometheus.io/download/#node_exporter) |
+| otelcol_0.165.0_linux_amd64.tar.gz | SHA-256 `78570dd4bd6570bc41eb327869ef913bbf91b87dd8170ebebbf43bec71f6370d` · [Collector](https://github.com/open-telemetry/opentelemetry-collector-releases/releases/expanded_assets/v0.165.0) |
+| tempo_3.0.3_linux_amd64.tar.gz | SHA-256 `7ac4f095dfaee3ba77dbdbb23ebd9f8a021cb6895c3602244ee3bf2787d8ceba` · [Tempo](https://github.com/grafana/tempo/releases/expanded_assets/v3.0.3) |
+| echarts 6.1.0 | 发布包 `dist.integrity` 校验后提取 `dist/echarts.min.js`、LICENSE、NOTICE · [ECharts 官方分发说明](https://echarts.apache.org/handbook/en/basics/download/) |
+
 Windows PowerShell 中建立隧道，再打开本机浏览器的 `http://127.0.0.1:18785/`。
 
 ```powershell
