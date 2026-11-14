@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-06",
+  "generated": "2026-11-14",
   "scope": "public human-readable documents; raw evidence and local account files excluded",
   "documents": [
     {
@@ -787,6 +787,42 @@
       "path": "docs/learning/nebula-performance-and-reliability.md",
       "title": "NEBULA 实战学习：性能定位与故障恢复",
       "category": "learning",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/README.md",
+      "title": "NEBULA 可观测性",
+      "category": "observability",
+      "kind": "index"
+    },
+    {
+      "path": "docs/observability/architecture.md",
+      "title": "架构、指标与事件契约",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/learning.md",
+      "title": "NEBULA 可观测性实战",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/setup.md",
+      "title": "隔离启动与验收",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/sources.md",
+      "title": "11 月 14 日研讨资料核对",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/validation.md",
+      "title": "验证记录",
+      "category": "observability",
       "kind": "document"
     },
     {

@@ -26,6 +26,7 @@
 |[运行维护](ops/README.md)|环境、依赖、启动停止、验证回退、排错和历史收口|
 |[测试](testing/README.md)|测试入口、学习讲义、工具和笔记|
 |[性能](performance/README.md)|测量方法、真实业务基线、容量和未达标记录|
+|[可观测性](observability/README.md)|中文监控、链路追踪、研发实验和扩展遥测|
 |[验收报告](reports/README.md)|阶段验收与历史报告|
 |[原始证据](evidence/README.md)|受摘要保护的原始记录，以及artifacts中的较新阶段证据|
 |[版本对比](releases/README.md)|test/Function版本差异|

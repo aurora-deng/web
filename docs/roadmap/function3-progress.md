@@ -4,6 +4,8 @@
 
 Function3 初始基线为 Function2.1 `ffc0e14`，早期开发分支为 `feature/function3-tree`。最新开发快照见 [Function3.2](../releases/function3.2.md)。
 
+研发诊断平台从 Function3.2 独立开发。阶段交付为[可观测性工作区](../observability/README.md)，逐项验收与未覆盖事项见[验证记录](../observability/validation.md)。
+
 ## 现场核对（2026-10-23）
 
 - 本地最初工作区干净。

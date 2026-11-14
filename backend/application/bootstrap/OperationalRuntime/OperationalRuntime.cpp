@@ -1,4 +1,5 @@
 #include "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.h"
+#include "backend/application/observability/Telemetry/Telemetry.h"
 #include "backend/application/bootstrap/BootstrapSettings/BootstrapSettings.h"
 
 #include "ProjectBuild.h"
@@ -295,6 +296,7 @@ void OperationalRuntime::install(ServerRuntime&server,phase11::transport::Phase1
                         std::to_string(sse.replayGaps) + "\n";
                 body += phase11MetricsText();
                 body += webserver::business_metrics::text();
+                body += webserver::telemetry::metrics();
                 ctx.response->text(body);
                 ctx.response->setHeader(
                     "Content-Type", "text/plain; version=0.0.4; charset=utf-8");

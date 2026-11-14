@@ -1,0 +1,56 @@
+*{box-sizing:border-box}
+:root{color-scheme:dark;--bg:#0e141e;--nav:#131b28;--surface:#182332;--line:#2a3b50;--text:#e8eef7;--muted:#a9bacd;--accent:#64d8be;--blue:#8cb8ff;--danger:#ff9e9e}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:15px/1.55 Inter,"Microsoft YaHei UI",system-ui,sans-serif;display:grid;grid-template-columns:210px minmax(0,1fr)}
+aside{border-right:1px solid var(--line);background:var(--nav);padding:25px 16px;display:flex;flex-direction:column;min-height:100vh}
+.brand{display:flex;align-items:center;gap:11px;padding:0 8px;margin-bottom:37px;letter-spacing:1px}
+.mark{border:1px solid #397e76;background:#1c4142;color:var(--accent);border-radius:10px;padding:4px 10px;font-size:21px;font-weight:750}
+small,.muted{display:block;color:var(--muted);letter-spacing:0}
+nav{display:grid;gap:7px;min-width:0;max-width:100%}
+button,select,input{font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px 10px}
+button{cursor:pointer}
+button:hover,button[aria-current],button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+nav button{text-align:left;background:transparent;border-color:transparent;padding:11px 14px}
+nav button[aria-current]{background:#203338}
+.env{margin:30px 8px 0;color:var(--muted)}
+main{padding:26px 30px 48px;min-width:0}
+header,.controls,#custom{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+header{border-bottom:1px solid var(--line);padding-bottom:17px}
+#custom{justify-content:flex-end;margin:12px 0}
+[hidden]{display:none!important}
+h1,h2,h3,p{margin:0}
+h1{font-size:29px}
+h2{font-size:19px;margin:16px 0 10px}
+h3{font-size:15px}
+.eyebrow{color:var(--accent);font-size:13px;letter-spacing:1.5px}
+#status{color:var(--muted);padding:12px 0;min-height:44px}
+.cards,.panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.cards{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px}
+.card,.panel,.list,.trace-info{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:15px;min-width:0}
+.card strong{display:block;font-size:23px;margin-top:4px}
+.card small{white-space:normal;overflow-wrap:anywhere}
+.ok{color:var(--accent)}.bad{color:var(--danger)}
+.chart{height:225px}
+.basic-chart{width:100%;height:100%;font-size:13px}
+.notice,.empty{padding:18px;color:var(--muted)}
+details{color:var(--muted)}
+summary{cursor:pointer}
+code{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--blue);font-family:"IBM Plex Mono",Consolas,monospace}
+.row{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row span:first-child{flex:1;min-width:140px}
+.strip{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.strip label{display:flex;gap:8px;align-items:center}
+#traceId{width:min(76vw,340px);font-family:Consolas,monospace}
+.timeline{padding:8px 0}
+.span-row{display:grid;grid-template-columns:minmax(145px,34%) minmax(110px,1fr) 78px;gap:10px;margin:7px 0;align-items:center;font-size:13px}
+.span-label{overflow-wrap:anywhere}
+.span-track{position:relative;height:16px;background:#101a28;border-radius:4px}
+.span-bar{position:absolute;height:100%;border-radius:4px;background:#408ca9;padding:0;border:0;min-width:3px}
+.span-bar.bad{background:#ab5c73}.span-bar.active{outline:2px solid var(--accent)}
+.edge{display:inline-block;margin:5px 7px 5px 0;padding:5px 9px;background:#213746;border-radius:6px}
+.topology{display:flex;align-items:center;gap:12px;overflow:auto;padding:10px 2px}
+.topology svg{overflow:visible;min-width:330px}
+.trace-info{margin-top:12px}
+@media(max-width:1050px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:750px){body{display:block;max-width:100vw;overflow-x:hidden}aside{min-height:0;padding:12px;overflow:hidden}nav{display:flex;overflow:auto;margin-top:8px;white-space:nowrap}.brand{margin:0}.env{display:none}main{padding:16px;width:100%;max-width:100vw}.panels{grid-template-columns:minmax(0,1fr)}.card small{overflow-wrap:anywhere}.span-row{grid-template-columns:110px minmax(60px,1fr) 55px}}
+@media(max-width:500px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.card,.panel{padding:11px}.cards,.panels{gap:9px}main{width:min(100%,100vw)}.chart{height:180px}}

@@ -1,5 +1,7 @@
 # 学习入口
 
+结合真实服务学习指标、链路、事件和故障演练，请从 [NEBULA 可观测性实战](../observability/learning.md) 开始。
+
 |学习目标|建议主线|
 |---|---|
 |理解底层通信|[Reactor课程](../architecture/communication/reactor/lessons/README.md) → [WebSocket课程](../architecture/communication/websocket/lessons/README.md) → SSE/HTTP2/TLS/gRPC|

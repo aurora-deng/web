@@ -7,3 +7,5 @@
 - **剩余门槛**：容器草案、远端业务 runner 和十轮 A/A 校准尚未验收。Phase49 的 ACK P99 历史超标结论保留。
 
 [变更流水](docs/ops/changelog.md) · [文档导航](docs/README.md) · [下一阶段](docs/roadmap/next-steps.md)
+
+独立分支 `feature/observability` 已加入中文监控、真实业务追踪与模拟遥测，详见[验证证据与待验范围](docs/observability/validation.md)。

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NEBULA · 研发监控</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/echarts.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <aside>
+    <div class="brand"><span class="mark">N</span><div><strong>NEBULA</strong><small>研发监控</small></div></div>
+    <nav aria-label="监控导航">
+      <button data-view="overview" aria-current="page">运行总览</button>
+      <button data-view="service">业务性能</button>
+      <button data-view="traces">链路追踪</button>
+      <button data-view="runs">研发实验</button>
+      <button data-view="extensions">扩展遥测</button>
+    </nav>
+    <div class="env" id="environment">隔离开发环境</div>
+  </aside>
+  <main>
+    <header>
+      <div><p class="eyebrow">可观测性工作区</p><h1 id="title">运行总览</h1></div>
+      <div class="controls">
+        <label>时间范围 <select id="range">
+          <option value="900">最近 15 分钟</option><option value="3600">最近 1 小时</option>
+          <option value="21600">最近 6 小时</option><option value="custom">自定义</option>
+        </select></label>
+        <button id="refresh">刷新</button><button id="pause" aria-pressed="false">暂停刷新</button>
+      </div>
+    </header>
+    <form id="custom" hidden><label>起始 <input type="datetime-local" id="from" required></label>
+      <label>结束 <input type="datetime-local" id="to" required></label><button type="submit">应用</button></form>
+    <section id="status" role="status" aria-live="polite"></section>
+    <div id="body"></div>
+  </main>
+</body>
+</html>

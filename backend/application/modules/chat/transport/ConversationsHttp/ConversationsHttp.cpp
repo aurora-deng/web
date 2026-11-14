@@ -1,4 +1,5 @@
 #include "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.h"
+#include "backend/application/observability/Telemetry/Telemetry.h"
 #include "backend/application/transport/http/BusinessHttpCodec/BusinessHttpCodec.h"
 #include "backend/server/Route/Router.h"
 #include "backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
@@ -8,7 +9,11 @@ void ConversationsHttp::registerRoutes(Router &router) {
     auto execution=router.withExecutor([this](auto task){return databaseExecutor_.submit(std::move(task));});
     router.GET("/api/conversations", [this](RequestContext &context)
     {
-        return guarded(context, [&]
+        const telemetry::Latency latency(telemetry::Series::Conversations);
+        const auto parent = context.request.headers.find("traceparent");
+        telemetry::Span span("GET /api/conversations",
+                             parent == context.request.headers.end() ? std::string_view{} : parent->second, true);
+        const bool handled = guarded(context, [&]
         {
             const auto identity = authentication_.authorizeRequest(context);
             const auto conversations = runDatabase(
@@ -17,6 +22,9 @@ void ConversationsHttp::registerRoutes(Router &router) {
             reply(context, 200,
                   arrayJson(conversations, conversationSummaryJson));
         });
+        if (context.response->status >= 400)
+            span.error();
+        return handled;
     });
 
     router.POST("/api/conversations", [this](RequestContext &context)

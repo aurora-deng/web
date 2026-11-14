@@ -153,13 +153,16 @@ target_link_libraries(webserver_security PUBLIC OpenSSL::Crypto webserver_saniti
 # 构建和验证领域规则。四个外部适配器必须由用户显式打开；CMake 只查找指定环境中
 # 已存在的库，绝不使用 FetchContent 或在配置时联网下载。
 # ==============================================================================
+add_library(webserver_telemetry backend/application/observability/Telemetry/Telemetry.cpp)
+target_include_directories(webserver_telemetry PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(webserver_telemetry PUBLIC Threads::Threads OpenSSL::Crypto webserver_sanitizers)
 if(WEBSERVER_ENABLE_PHASE11)
     # 可移植任务队列与 JSON 工具不依赖 Reactor；AI Worker 和业务共享这两个小组件。
     add_library(webserver_application_support
         backend/application/runtime/BoundedExecutor/BoundedExecutor.cpp
         backend/application/transport/FlatJson/FlatJson.cpp)
     target_include_directories(webserver_application_support PUBLIC ${PROJECT_SOURCE_DIR})
-    target_link_libraries(webserver_application_support PUBLIC Threads::Threads webserver_sanitizers)
+    target_link_libraries(webserver_application_support PUBLIC Threads::Threads webserver_sanitizers webserver_telemetry)
 
     # AI 核心可独立构建；只依赖领域/Repository 契约，不链接网络核心。
     add_library(webserver_ai
@@ -284,6 +287,8 @@ if(WEBSERVER_ENABLE_PHASE11)
             backend/ai/models/OllamaStreamDecoder/OllamaStreamDecoder.cpp
             backend/ai/models/OllamaModelProvider/OllamaModelProvider.cpp)
         target_link_libraries(webserver_ai PUBLIC CURL::libcurl)
+        target_link_libraries(webserver_telemetry PRIVATE CURL::libcurl)
+        target_compile_definitions(webserver_telemetry PRIVATE NEBULA_HAS_OTLP_CURL=1)
         target_compile_definitions(webserver_ai PUBLIC WEBSERVER_HAS_CURL_CLIENT=1)
     endif()
 
@@ -956,7 +961,7 @@ add_library(webserver_application_runtime
     backend/application/transport/learning/LearningRoutes/LearningRoutes.cpp)
 target_include_directories(webserver_application_runtime PUBLIC ${PROJECT_SOURCE_DIR} PRIVATE ${PROJECT_BINARY_DIR}/generated)
 add_dependencies(webserver_application_runtime project_build_stamp)
-target_link_libraries(webserver_application_runtime PUBLIC webserver_core webserver_runtime_config function3_assets)
+target_link_libraries(webserver_application_runtime PUBLIC webserver_core webserver_runtime_config function3_assets webserver_telemetry)
 if(WEBSERVER_ENABLE_PHASE11)
     target_link_libraries(webserver_application_runtime PUBLIC webserver_phase11_http webserver_private_http)
 endif()

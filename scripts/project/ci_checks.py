@@ -47,10 +47,13 @@ def main():
             run([os.sys.executable,'tests/project/test_source_inventory.py'])
             run([os.sys.executable,'tests/project/test_snapshot_pruning.py'])
             run([os.sys.executable,'tests/project/test_measurement_evidence.py'])
-            for folder in ['scripts','tests']:
+            if os.name != 'nt':
+                run([os.sys.executable,'tests/project/test_observability.py'])
+            for folder in ['scripts','tests','tools/observability']:
                 for path in (ROOT/folder).rglob('*.py'):ast.parse(path.read_text(encoding='utf-8-sig'),filename=str(path))
             for path in (ROOT/'frontend/phase11').rglob('*.js'):
                 if 'vendor' not in path.parts:run(['node','--check',str(path)],stdout=subprocess.DEVNULL)
+            run(['node','--check','frontend/observability/app.js'])
             run(['node','--test','tests/function3/frontend/history_capacity.test.mjs','tests/function3/frontend/chat_recall_backdrop.test.mjs','tests/phase11/frontend/chat_reliability.test.mjs','tests/function3/frontend/unread_watermarks.test.mjs','tests/function3/frontend/workspace_logic.test.mjs','tests/function3/frontend/chat_scope.test.mjs','tests/function3/frontend/api_contracts.test.mjs','tests/function3/frontend/speech_navigation.test.mjs','tests/function3/frontend/announcement_playback.test.mjs','tests/function3/frontend/azure_speech.test.mjs','tests/function3/frontend/browser_speech.test.mjs','tests/function3/frontend/tree_navigation_motion.test.mjs'])
         else:
             build=a.build.resolve();cache=build/'CMakeCache.txt'

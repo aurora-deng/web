@@ -1,5 +1,6 @@
 #include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
 #include "backend/application/runtime/BoundedExecutor/BoundedExecutor.h"
+#include "backend/application/observability/Telemetry/Telemetry.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -53,7 +54,15 @@ bool BoundedExecutor::submit(Task task)
         }
         const auto queued=std::chrono::steady_clock::now();
         tasks_.push_back([task=std::move(task),queued]()mutable{
-            business_metrics::observe(business_metrics::Queue,std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-queued).count());task();
+            const auto wait = telemetry::elapsedUs(queued);
+            business_metrics::observe(business_metrics::Queue, wait);
+            if (telemetry::metricsEnabled())
+            {
+                const telemetry::QueueWait measure(wait);
+                task();
+            }
+            else
+                task();
         });
         ++submitted_;
         queueHighWatermark_ = std::max(queueHighWatermark_, tasks_.size());

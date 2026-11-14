@@ -115,7 +115,8 @@ def benchmark(binary, env, out, workers, operations, name, traced=False):
     output = out / (name + ".json")
     log = out / (name + "-server.log")
     trace_budget = (operations * 3 + 9) // 10 + workers
-    with owned_server_process(binary, ROOT, {**env, "WEB_CHAT_ACK_TRACE_LIMIT":
+    trace_env = {**env, **({"WEB_OBSERVABILITY": "1"} if traced else {})}
+    with owned_server_process(binary, ROOT, {**trace_env, "WEB_CHAT_ACK_TRACE_LIMIT":
                               str(trace_budget if traced else 0)}, log) as (port, child):
         command = [sys.executable, str(ROOT / "benchmarks/function3_mixed.py"), "--port", str(port),
                    "--server-pid", str(child.pid), "--operations", str(operations),
@@ -143,10 +144,12 @@ def benchmark(binary, env, out, workers, operations, name, traced=False):
         slow = sorted(paired, key=lambda pair: pair[0]["rttMs"], reverse=True)
         tail = slow[:max(1, (len(paired) + 99) // 100)]
         summary["trace"] = {"paired": len(paired), "serverUnits": "microseconds",
-            "serverQuantiles": {field: quantiles([row[field] for _, row in paired])
-                                for field in ("poolAcquireUs", "commitStartUs", "commitUs", "ackReadyUs")},
+            "serverQuantiles": {field: quantiles([row[field] for _, row in paired if row[field] >= 0])
+                                for field in ("queueUs", "poolAcquireUs", "commitStartUs", "commitUs", "ackReadyUs")
+                                if all(field in row for _, row in paired) and any(row[field] >= 0 for _, row in paired)},
             "slowestOnePercent": [{"rttMs": round(sample["rttMs"], 3), **{
                 k: row[k] for k in ("poolAcquireUs", "commitStartUs", "commitUs", "ackReadyUs")}}
+                                  | ({"queueUs": row["queueUs"]} if "queueUs" in row else {})
                                   for sample, row in tail]}
     return summary
 

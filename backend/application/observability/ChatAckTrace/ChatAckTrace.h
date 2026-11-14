@@ -1,4 +1,5 @@
 #pragma once
+#include "backend/application/observability/Telemetry/Telemetry.h"
 
 #include <atomic>
 #include <charconv>
@@ -20,12 +21,17 @@ class ChatAckTrace final
 public:
     ChatAckTrace() noexcept
     {
+        queueUs_ = telemetry::QueueWait::current();
+        if (telemetry::metricsEnabled())
+            started_ = Clock::now();
         auto remaining = budget_.load(std::memory_order_relaxed);
         while (remaining != 0)
         {
             if (budget_.compare_exchange_weak(remaining, remaining - 1, std::memory_order_relaxed))
             {
-                started_ = Clock::now();
+                sampled_ = true;
+                if (started_ == Clock::time_point{})
+                    started_ = Clock::now();
                 break;
             }
         }
@@ -72,10 +78,18 @@ public:
         if (started_ == Clock::time_point{})
             return;
         const auto elapsed = micros(Clock::now() - started_);
+        telemetry::observe(telemetry::Series::Queue, queueUs_);
+        telemetry::observe(telemetry::Series::Pool, poolUs_);
+        telemetry::observe(telemetry::Series::BeforeCommit, commitStartUs_);
+        telemetry::observe(telemetry::Series::Commit, commitUs_);
+        telemetry::observe(telemetry::Series::AckReady, elapsed);
+        if (!sampled_)
+            return;
         try
         {
             std::osyncstream(std::clog)
                 << "NEBULA_CHAT_ACK_TRACE {\"messageId\":" << messageId
+                << ",\"queueUs\":" << queueUs_
                 << ",\"poolAcquireUs\":" << poolUs_
                 << ",\"commitStartUs\":" << commitStartUs_
                 << ",\"commitUs\":" << commitUs_
@@ -107,6 +121,8 @@ private:
     inline static std::atomic<unsigned> budget_{sampleLimit()};
 
     Clock::time_point started_{};
+    bool sampled_ = false;
+    std::int64_t queueUs_ = -1;
     std::int64_t poolUs_ = 0;
     std::int64_t commitStartUs_ = -1;
     std::int64_t commitUs_ = -1;

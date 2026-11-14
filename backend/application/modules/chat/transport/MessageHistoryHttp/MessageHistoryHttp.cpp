@@ -1,4 +1,5 @@
 #include "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.h"
+#include "backend/application/observability/Telemetry/Telemetry.h"
 #include "backend/application/transport/http/BusinessHttpCodec/BusinessHttpCodec.h"
 #include "backend/server/Route/Router.h"
 #include "backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
@@ -20,6 +21,7 @@ void MessageHistoryHttp::registerRoutes(Router &router) {
     });
     router.GET("/api/conversations/:id/messages", [this](RequestContext &context)
     {
+        const telemetry::Latency latency(telemetry::Series::History);
         return guarded(context, [&]
         {
             const auto identity = authentication_.authorizeRequest(context);
