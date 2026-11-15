@@ -1,0 +1,38 @@
+{
+  "schema": "nebula-observer/1",
+  "title": "NEBULA · 延迟与错误诊断",
+  "panels": [
+    {
+      "title": "HTTP 总请求速率",
+      "source": "nebula",
+      "view": "area",
+      "color": "blue",
+      "unit": "次/秒",
+      "queries": [{"expr": "http", "alias": "入口请求"}]
+    },
+    {
+      "title": "业务 HTTP 5xx 比例",
+      "source": "nebula",
+      "view": "line",
+      "color": "orange",
+      "unit": "%",
+      "queries": [{"expr": "http_5xx_pct", "alias": "5 分钟响应错误率"}]
+    },
+    {
+      "title": "会话列表耗时 P99",
+      "source": "nebula",
+      "view": "line",
+      "color": "green",
+      "unit": "ms",
+      "queries": [{"expr": "http_p99", "alias": "会话路由 P99"}, {"expr": "function_conversations_p99", "alias": "业务函数 P99"}]
+    },
+    {
+      "title": "数据库进程最大耗时",
+      "source": "nebula",
+      "view": "line",
+      "color": "pink",
+      "unit": "ms",
+      "queries": [{"expr": "db_lifetime_max", "alias": "进程启动以来最大值"}]
+    }
+  ]
+}
