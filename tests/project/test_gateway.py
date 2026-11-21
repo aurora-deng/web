@@ -1,5 +1,7 @@
 """Regression checks for the gateway log boundary and dashboard provisioning."""
 
+from argparse import Namespace
+from ipaddress import IPv4Address
 import json
 from pathlib import Path
 import sys
@@ -11,6 +13,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+from backend.study.AccountWorkspace import LabRunner
 from tools.observability.gateway import render
 from tools.observability.observer.events import Invalid
 from tools.observability.observer.gateway_logs import GatewayTelemetry, normalize_access
@@ -94,6 +97,24 @@ class GatewayContract(unittest.TestCase):
             self.assertEqual(routes[-1]["direct_response"]["status"], 403)
         boards = provision_files(ROOT / "config/observability/dashboards", Workspace(Store(self.root / "events.sqlite")))
         self.assertTrue(any(item["file"] == "nebula-gateway.json" for item in boards))
+
+    def test_study_gateway_checks_daily_authority_without_binding_its_port(self):
+        options = Namespace(https_port=None, certificate=None, private_key=None, listen=IPv4Address('127.0.0.1'),
+                            public_origin=[], study_port=18772, gateway_port=18095, admin_port=19097,
+                            upstream_port=18090, accounts_dir=self.root/'accounts', daily_authority=True)
+        with patch.object(LabRunner, 'probe', return_value=(503, b'')) as probe:
+            with self.assertRaisesRegex(RuntimeError, '尚未完成当前数据库迁移检查'):
+                LabRunner.start(options)
+            probe.assert_called_once_with(18090, '/health/version', limit=8192)
+            probe.reset_mock()
+            options.daily_authority = False
+            with self.assertRaisesRegex(ValueError, 'distinct unprivileged lab ports'):
+                LabRunner.start(options)
+            options.daily_authority = True
+            options.study_port = 18090
+            with self.assertRaisesRegex(ValueError, 'distinct unprivileged lab ports'):
+                LabRunner.start(options)
+            probe.assert_not_called()
 
     def test_dual_gateway_health_policy_uses_only_distinct_owned_endpoints(self):
         path = self.root / "access.jsonl"

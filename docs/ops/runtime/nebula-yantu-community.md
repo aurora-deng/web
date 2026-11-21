@@ -24,6 +24,19 @@ Windows 通过 SSH 转发打开 [新版 NEBULA](http://127.0.0.1:18095/phase11/)
 
 使用与现有 NEBULA 相同的站点地址。Envoy 将 `/api/study/` 转到本机研途服务，聊天、WS、SSE 和其余 API 继续走原 NEBULA 上游。研途服务仅监听回环，并通过固定上游的 `/api/me` 核验登录及 CSRF。在已有网关部署中可以合并生成的 `study` 路由及 `nebula_study` 上游。
 
+### 网关配置入口
+
+端口和 TLS 从 Linux 的 `LabRunner` 启动参数配置。启动器根据 [Envoy 模板](../../../config/gateway/envoy.json)生成 `<工作目录>/envoy.json`，启动前调用 Envoy 做配置校验。Observer 网关面板用于查看请求、状态码、延迟和日志。
+
+| 要调整的内容 | 配置入口 |
+|---|---|
+| 网关的回环 HTTP 端口 | `--gateway-port`。日常入口使用 `18095` |
+| 应用和研途上游 | 日常模式固定使用 `--upstream-port 18090`。研途进程由 `--study-port` 指定，日常使用 `18772` |
+| 域名和 HTTPS | `--https-port`、`--listen`、`--certificate`、`--private-key`、`--public-origin` |
+| 路由、限流和代理超时 | [Envoy 模板](../../../config/gateway/envoy.json)、[网关生成器](../../../tools/observability/gateway.py)和[研途路由生成器](../../../backend/study/AccountWorkspace/GatewayConfig.py) |
+
+在 Linux 源码目录用 `python3 -B -m backend.study.AccountWorkspace.LabRunner --help` 查看参数。参数或路由变更先用独立工作目录、空闲端口和 `--check-only` 验证。恢复既有部署时，`--resume` 会根据启动参数重新生成配置并核对原 `envoy.json`。
+
 ### Function3.3 首次绑定与切号
 
 1. 在启用了研途的网关中登录任一 NEBULA 注册账号，打开「研途」。`GET /api/study/session` 使用当前会话核验账号，返回十进制 `accountId`、稳定作用域和同源工作区路径。响应标记 `Cache-Control: no-store`。
@@ -217,6 +230,12 @@ flowchart LR
 | 7 | 第一次切换发现直连缺少 PNG 路由，自动恢复旧版程序和页面。补齐业务层静态资源 MIME 后，重新隔离核对小研 PNG 完整摘要、故事广场和小研页面，再切换 `18090` 与 `18095`。两入口均为 `d7a3142ac64b5ae6` |
 
 ### 日常发布与回退
+
+2026-11-21，Function3.3 网页和研途会话服务已启用到 `18095`，资源版本 `7f8c7f1b31e4435c`。隔离端口启动验证通过后切换。Edge 通过 Windows 原地址看到「缘续-聊天」「缘生-广场」「研途」，就绪检查返回 200，研途匿名请求返回 401。网关沿用 `18090` 上游、`phase11` 业务库和现有研途账号工作区。`18090` 直连的静态页面版本仍为 `d7a3142ac64b5ae6`。
+
+当前网关工作目录为 `/home/pikachu/phase11-data/function3/runtime/backups/xiaoyan-jdjkz1z2/gateway-work`。其中的 `envoy.json` 已核对监听 `18095`、管理端口 `19097`、聊天上游 `18090` 和研途上游 `18772`。本轮发布与回退收据位于 `/home/pikachu/phase11-data/function3/runtime/backups/function33-gateway-gxj07vsd` 下的 `deployed.json` 和 `previous.json`。
+
+#### 上一轮社区发布
 
 2026-11-21 完成日常发布。两个入口均使用原业务库 `phase11` 和迁移 026。发布后比对全部 68 个原账号的凭据摘要。原库导入了 5 篇考研示例、12 条评论，其中 5 条为楼中回复。示例署名的两个账号均为停用状态，训练授权计数为零。考研榜最新快照 `14250` 收录了这 5 篇。Observer 在 Linux `18791` 重新采集到业务进程 `179092` 的资源样本。
 

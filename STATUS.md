@@ -2,9 +2,11 @@
 
 **Function3.3 开发快照**汇集 Observer、研途和小研。缘续-聊天在会话检查完成后才呈现登录，缘生-广场增加滚轮换页过渡，研途按当前 NEBULA 账号打开工作区。日常入口的部署版本见下方。[本版验收](docs/releases/function3.3.md) · [后续路线](docs/roadmap/next-steps.md)
 
+**当前日常网页**。`18095` 已启用 Function3.3 的网页和研途账号服务，资源版本 `7f8c7f1b31e4435c`。Windows 原地址已通过 Edge 核对新名称。直连 `18090` 继续提供上一轮资源版本 `d7a3142ac64b5ae6`，仍是网关的业务与身份上游。[当前网关与回退](docs/ops/runtime/nebula-yantu-community.md#日常发布与回退)
+
 Linux 双实例隔离验收通过。25 条消息跨实例送达，A 在最后一次持久化 ACK 后强杀，B 仍可接收、查历史并按原键去重。Prometheus 双实例查询、Tempo 链路回读、Collector 中断恢复和本机 Alertmanager 通知均通过实测。[双实例验收](docs/observability/validation.md#双实例实时投递与告警验收)
 
-故事广场、七日心动榜和统一小研已发布至 `18090` 与 `18095`，同为 `d7a3142ac64b5ae6`。真实 PostgreSQL、社区 HTTP 和 Envoy 隔离测试通过，原业务库已记录 5 篇示例和 12 条评论。87 项前端测试与 Edge 三尺寸旅程通过，模型使用合成回应验证。Observer 已采集新业务进程。[发布与回退记录](docs/ops/runtime/nebula-yantu-community.md#日常发布与回退)
+上一轮 `d7a3142ac64b5ae6` 部署了故事广场、七日心动榜与统一小研。真实 PostgreSQL、社区 HTTP 和 Envoy 隔离测试通过，原业务库已记录 5 篇示例和 12 条评论。87 项前端测试与 Edge 三尺寸旅程通过，模型使用合成回应验证。Observer 已采集业务进程。[上一轮发布记录](docs/ops/runtime/nebula-yantu-community.md#上一轮社区发布)
 
 2026-11-21，Windows 转发的新版 `18095` 与日常 `18090` 已共用原业务库 `phase11`。原库 68 个账号的登录凭据已逐个核对，隔离库中经确认的 3 条树下回复已迁入本人可见的个人动态。Observer `18791` 已采到切换后的 NEBULA 进程数据。[账号合并与验收](docs/ops/runtime/nebula-yantu-community.md#账号与数据归属)
 
@@ -14,7 +16,7 @@ Linux 双实例隔离验收通过。25 条消息跨实例送达，A 在最后一
 
 - **开发基线**。`Function3.2` 包含社区模块拆分、Linux 复现、连接池恢复和 ACK 分段采样。`Function3.3` 在这个基线之上扩展研途、Observer 与入口体验。[项目目录](docs/architecture/overview/project-layout.md) · [历史基线](docs/releases/function3.2.md)
 - **复现已验证**：通信档与业务档均从空目录完成 Release 构建和启动。业务档使用临时 PostgreSQL 应用 001–024，112 项 CTest 通过，1 项可选 Redis 契约跳过。注册登录、WebSocket、幂等发布、SSE 与重启恢复通过。干净 Git 检出通过 79 项前端测试和 23 项 Python 工程检查。[复现记录](docs/ops/validation/reproduce.md)
-- **日常服务**已通过 Release 构建，原库启动核验迁移 001 至 026。`18090` 与 `18095` 提供同版社区及小研，研途账号工作区使用 `18095`。业务日志和进程采样由 Observer 采集。[日常启动](docs/ops/runtime/function3-runtime.md) · [启用与回退记录](docs/observability/daily-rollout.md)
+- **日常业务服务**已通过 Release 构建，原库启动核验迁移 001 至 026。研途账号工作区经 `18095` 使用。业务日志和进程采样由 Observer 采集。[日常启动](docs/ops/runtime/function3-runtime.md) · [启用与回退记录](docs/observability/daily-rollout.md)
 - **隔离定位**：数据库会话被终止和 ACK 后进程被强杀的恢复演练通过。16 工作端压测尾部显著增加，下一步拆查业务执行器排队及事务提交前路径。[测量结果](docs/releases/function3.2.md#性能定位当前证据指向哪里)
 - **下一步**：先固定同配置的 ACK 基线，再验收 Envoy 单上游、同机双上游、24 小时长稳和跨主机故障。隔离十对 A/A 已完成、噪声偏高，Phase49 的 ACK P99 历史超标结论保留。容器复现和远端业务 runner 各有独立验收项。[实施顺序和门槛](docs/roadmap/next-steps.md) · [技术版本与接入](docs/observability/sources.md)
 

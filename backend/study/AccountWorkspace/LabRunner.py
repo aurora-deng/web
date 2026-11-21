@@ -88,7 +88,7 @@ def start(args):
         raise ValueError('HTTPS 需要已有的证书及私钥')
     if args.https_port is not None and not any(value.startswith('https://') for value in args.public_origin):
         raise ValueError('请将客户端使用的 HTTPS 地址列入 --public-origin')
-    check_ports([args.upstream_port, *ports])
+    check_ports(ports if args.daily_authority else [args.upstream_port, *ports])
     if args.daily_authority:
         if args.upstream_port != 18090 or args.accounts_dir is None:
             raise ValueError('日常账号模式需要 18090 上游和单独的持久化账号目录')
