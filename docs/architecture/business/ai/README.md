@@ -15,3 +15,4 @@
 |[Phase 24：训练数据、模型制品与候选版本不可变血缘](phase24.md)|phase24.md|
 |[Phase39：三种AI入口、私人推理、确认行动与旧资料迁移](phase39.md)|phase39.md|
 |[Phase40：语音表达、个人设置与免费云适配](phase40.md)|phase40.md|
+|[AI 应用 DAG 与具身多 Agent 协作基础](agent-workflow-runtime.md)|agent-workflow-runtime.md|

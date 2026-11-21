@@ -53,3 +53,13 @@ test('Stories preserve their authentic title and mark built-in samples without f
   assert.equal(storyText({body:'【站内示例】普通用户发布的内容'}).example, false);
   assert.equal(storyText({body:'',media:[{kind:'audio'}]}).title, '语音故事');
 });
+
+test('compatible connections surface explicit context overflow codes for one bounded retry', async context => {
+  const api = { provider:'custom', endpoint:'https://provider.invalid/v1/chat/completions', model:'fixture', key:'' };
+  const request = context.mock.method(globalThis, 'fetch', async () =>
+    Response.json({ error: { code: 'context_length_exceeded' } }, { status: 400 }));
+  const history = [{ role:'user', content:'test' }];
+  await assert.rejects(requestOwnModel(api, history), { code: 'context_length_exceeded' });
+  request.mock.mockImplementation(async () => Response.json({ error: { code: 'invalid_api_key' } }, { status: 401 }));
+  await assert.rejects(requestOwnModel(api, history), error => error.code === undefined && /401/.test(error.message));
+});

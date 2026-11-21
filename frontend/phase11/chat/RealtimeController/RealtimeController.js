@@ -1,6 +1,6 @@
-import { contactsApi } from "../../contacts/ContactsApi/ContactsApi.js?v=7f8c7f1b31e4435c";
-import { chatApi } from "../ChatApi/ChatApi.js?v=7f8c7f1b31e4435c";
-import { matchesRecallReceipt, recalledFromReceipt } from '../MessageRecall/MessageRecall.js?v=7f8c7f1b31e4435c';
+import { contactsApi } from "../../contacts/ContactsApi/ContactsApi.js?v=4364119c78f60e44";
+import { chatApi } from "../ChatApi/ChatApi.js?v=4364119c78f60e44";
+import { matchesRecallReceipt, recalledFromReceipt } from '../MessageRecall/MessageRecall.js?v=4364119c78f60e44';
 export const dependencies={"resources":["$","unreadWatermarks","wsBackoff","sseBackoff","elements","state","history","sender","runtime"],"commands":["setStatus","toast","createClientId","rememberMessageId","advanceConversationSequence","bumpUnread","clearConversationView","api","renderConversations","loadConversations","openConversation","renderConversationMembers","renderGroupGovernance","createMessageElement","renderCurrentMessages","scrollMessages","refreshMessageReceipts","generationElement","appendMessage","applyRecall","refreshCancelButton","renderContactLists","renderFriendPreview","loadFriendsPreview","loadContacts"],"types":[]};
 /** RealtimeController: explicit use cases; shared state/other controllers arrive through context. */
 export function createRealtimeController(context) {

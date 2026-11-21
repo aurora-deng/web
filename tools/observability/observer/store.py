@@ -61,6 +61,12 @@ class Store:
             db.execute("PRAGMA max_page_count=" + str(self.max_bytes // page_size))
             yield db
 
+    @contextmanager
+    def read(self):
+        with closing(sqlite3.connect(self.path.resolve().as_uri() + "?mode=ro", uri=True, timeout=1)) as db:
+            db.row_factory = sqlite3.Row
+            yield db
+
     def append(self, source, domain, simulated, batch, now=None):
         now = now if now is not None else time.time_ns()
         if not isinstance(batch, list) or not 1 <= len(batch) <= 256:

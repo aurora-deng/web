@@ -33,6 +33,7 @@ add_library(companion_proxy companion/ProxyServer/ProxyServer.cpp companion/Loop
 target_link_libraries(companion_proxy PUBLIC companion_upstream)
 add_library(companion_assistant assistant/LocalAssistantService/LocalAssistantService.cpp storage/CredentialVault/CredentialVault.cpp)
 target_sources(companion_assistant PRIVATE assistant/PrivateMigration/PrivateMigration.cpp)
+target_sources(companion_assistant PRIVATE assistant/PreferenceInference/PreferenceInference.cpp)
 target_sources(companion_assistant PRIVATE assistant/PersonalSpeech/PersonalSpeech.cpp assistant/WindowsCloudSpeech/WindowsCloudSpeech.cpp
     ../backend/ai/speech/application/SpeechText/SpeechText.cpp
     ../backend/ai/speech/application/WaveCodec/WaveCodec.cpp

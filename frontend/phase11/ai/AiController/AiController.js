@@ -1,6 +1,6 @@
-import { webAiApi } from "../WebAiApi/WebAiApi.js?v=7f8c7f1b31e4435c";
-import { trainingApi } from "../../training/TrainingApi/TrainingApi.js?v=7f8c7f1b31e4435c";
-import { aiApi } from "../AiApi/AiApi.js?v=7f8c7f1b31e4435c";
+import { webAiApi } from "../WebAiApi/WebAiApi.js?v=4364119c78f60e44";
+import { trainingApi } from "../../training/TrainingApi/TrainingApi.js?v=4364119c78f60e44";
+import { aiApi } from "../AiApi/AiApi.js?v=4364119c78f60e44";
 export const dependencies={"resources":["$","elements","state","trainingStateLabels","runtime"],"commands":["setStatus","toast","api","existingMessage","actionListEmpty"],"types":[]};
 /** AiController: explicit use cases; shared state/other controllers arrive through context. */
 export function createAiController(context) {

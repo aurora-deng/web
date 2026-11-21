@@ -76,6 +76,12 @@
       "kind": "index"
     },
     {
+      "path": "docs/architecture/business/ai/agent-workflow-runtime.md",
+      "title": "Agent 工作流与具身协作基础",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
       "path": "docs/architecture/business/ai/phase18.md",
       "title": "Phase 18：AI 生成韧性与资源治理",
       "category": "architecture",
@@ -1102,6 +1108,18 @@
       "kind": "document"
     },
     {
+      "path": "docs/releases/function3.5-files.md",
+      "title": "Function3.5 更新文件清单",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/function3.5.md",
+      "title": "Function3.5 · 小研记忆、DAG 与网关映射",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
       "path": "docs/releases/test9.1.md",
       "title": "test9.1 版本差异：HTTP/gRPC 架构与性能升级",
       "category": "releases",
@@ -1146,6 +1164,12 @@
     {
       "path": "docs/reports/stages/phase47.md",
       "title": "Phase47：综合验收、性能结果与交付限制",
+      "category": "reports",
+      "kind": "document"
+    },
+    {
+      "path": "docs/reports/xiaoyan-personalization-progress.md",
+      "title": "小研个性化记忆进度报告",
       "category": "reports",
       "kind": "document"
     },

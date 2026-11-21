@@ -1,6 +1,7 @@
 #include "ProxyServer.h"
 #include "client/companion/LoopbackPolicy/LoopbackPolicy.h"
 #include "client/companion/BoundedPool/BoundedPool.h"
+#include "client/storage/WindowsProtection/WindowsProtection.h"
 #include <boost/beast.hpp>
 #include <boost/json.hpp>
 #include <atomic>
@@ -21,11 +22,12 @@ void startWebSocket(const std::shared_ptr<ProxyServer::State>&state,beast::tcp_s
 }
 struct ProxyServer::State:std::enable_shared_from_this<State>{
     net::io_context io;tcp::acceptor listener,listener6;ProxyServerConfig config;UpstreamTransport&upstream;LocalAssistantHandler local;LoopbackPolicy policy;
+    const std::string siteScope;
     BoundedPool work{4,24},reads{8,8},writes{2,16};
     std::atomic<std::size_t>connections{},streams{},bodyBytes{};std::atomic_bool stopping{};
     std::vector<std::weak_ptr<Closeable>>open;
     std::map<std::string,std::pair<std::filesystem::path,std::string>>assets;
-    State(ProxyServerConfig c,UpstreamTransport&u,LocalAssistantHandler l):listener(io),listener6(io),config(std::move(c)),upstream(u),local(std::move(l)),policy(config.port){
+    State(ProxyServerConfig c,UpstreamTransport&u,LocalAssistantHandler l):listener(io),listener6(io),config(std::move(c)),upstream(u),local(std::move(l)),policy(config.port),siteScope(sha256(u.origin())){
         if(!config.port||!config.connections||config.connections>32||!config.streams||config.streams>8)throw std::runtime_error("Invalid loopback limits");
         const auto root=std::filesystem::canonical(config.frontend);
         for(const auto&entry:std::filesystem::recursive_directory_iterator(root)){
@@ -93,7 +95,7 @@ public:
         if(path=="/api/local/session/info"){
             const bool authenticated=s->policy.authenticated(request);const auto session=s->upstream.session();
             boost::json::object info{{"available",true},{"authenticated",authenticated}};
-            if(authenticated){info["csrfToken"]=s->policy.csrfToken();info["accountId"]=session.account;info["sessionVersion"]=session.epoch;
+            if(authenticated){info["csrfToken"]=s->policy.csrfToken();info["accountId"]=session.account;info["sessionVersion"]=session.epoch;info["siteScope"]=s->siteScope;
                 const auto pool=s->upstream.httpStatistics();info["httpPool"]=boost::json::object{{"connected",pool.connected},{"reused",pool.reused},{"discarded",pool.discarded},{"readRetries",pool.readRetries},{"failures",pool.failures},{"active",pool.active},{"idle",pool.idle}};}
             return reply(localJson(200,std::move(info)));
         }

@@ -2,6 +2,7 @@
 import argparse
 from contextlib import ExitStack
 from concurrent.futures import ThreadPoolExecutor
+import gzip
 from hmac import compare_digest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
@@ -38,6 +39,24 @@ from .gateway_logs import GatewayTelemetry, SOURCE as GATEWAY_LOG_SOURCE
 ROOT = Path(__file__).resolve().parents[3]
 DOMAINS = {"dag", "agent", "device", "service", "experiment", "function", "log"}
 BODY_LIMIT = 256 * 1024
+GZIP_ROUTES = frozenset({"/api/v1/series", "/api/v1/series/batch", "/api/v1/service-levels",
+                         "/api/v1/resources", "/api/v1/workspace/query"})
+
+
+def accepts_gzip(header):
+    weights = {}
+    for entry in header.lower().split(","):
+        encoding, *parameters = entry.split(";")
+        weight = 1.0
+        for parameter in parameters:
+            name, separator, value = parameter.strip().partition("=")
+            if name == "q" and separator:
+                try:
+                    weight = float(value)
+                except ValueError:
+                    weight = 0.0
+        weights[encoding.strip()] = weight
+    return 0 < weights.get("gzip", weights.get("*", 0.0)) <= 1
 
 
 def stop_requested(*_):
@@ -205,7 +224,17 @@ class Handler(BaseHTTPRequestHandler):
                     else "observer.internal_error" if status>=500 else "observer.invalid_request")
             self.server.logger.emit(code,"ERROR" if status>=500 else "WARN",status=status,requestId=request_id)
         body = payload if isinstance(payload, bytes) else encode(payload).encode()
+        compressed = False
+        varies = status == 200 and len(body) >= 4096 and self.path.split("?", 1)[0] in GZIP_ROUTES
+        if varies and accepts_gzip(self.headers.get("Accept-Encoding", "")):
+            encoded = gzip.compress(body, compresslevel=1, mtime=0)
+            if len(encoded) < len(body):
+                body, compressed = encoded, True
         self.send_response(status)
+        if varies:
+            self.send_header("Vary", "Accept-Encoding")
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")

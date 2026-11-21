@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 from backend.study.AccountWorkspace.AccountWorkspace import PREFIX, origin, origin_key
 from backend.study.AccountWorkspace.FrontendSnapshot import FRONTEND_PREFIX
-from tools.observability.gateway import address, check_ports, proxy_route, render
+from tools.observability.gateway import add_upstream_tls_arguments, address, check_ports, proxy_route, render, upstream_tls_arguments
 
 
 def add_workspace(config, study_port, origins, *, serve_frontend=False):
@@ -32,13 +32,20 @@ def add_workspace(config, study_port, origins, *, serve_frontend=False):
         manager = listener['filter_chains'][0]['filters'][0]['typed_config']
         for vhost in manager['route_config']['virtual_hosts']:
             vhost['domains'] = list(dict.fromkeys([*vhost['domains'], *sorted(hosts)]))
-            routes = [proxy_route('study', {'prefix': PREFIX}, '45s')]
+            study = proxy_route('study', {'prefix': PREFIX}, '45s')
+            study['route']['cluster'] = 'nebula_study'
+            routes = vhost['routes']
+            api = next(index for index, route in enumerate(routes) if route['name'] == 'api')
+            routes.insert(api, study)
             if serve_frontend:
-                routes.extend((proxy_route('study_page_root', {'path': FRONTEND_PREFIX.rstrip('/')}),
-                               proxy_route('study_page', {'prefix': FRONTEND_PREFIX})))
-            for route in routes:
-                route['route']['cluster'] = 'nebula_study'
-            vhost['routes'][:0] = routes
+                for route in routes:
+                    if route['name'] in ('assistant_page', 'assistant_assets', 'agent_runtime', 'page'):
+                        route['route']['cluster'] = 'nebula_study'
+                        if route['name'] == 'page':
+                            route['name'] = 'study_page'
+                root = proxy_route('study_page_root', {'path': FRONTEND_PREFIX.rstrip('/')})
+                root['route']['cluster'] = 'nebula_study'
+                routes.insert(-1, root)
     return config
 
 
@@ -56,6 +63,7 @@ def main():
                         help='HTTPS interface; the plain HTTP listener always stays on loopback')
     parser.add_argument('--certificate', type=Path)
     parser.add_argument('--private-key', type=Path)
+    add_upstream_tls_arguments(parser)
     parser.add_argument('--serve-frontend', action='store_true', help='Serve the isolated frontend snapshot without replacing the upstream webroot')
     args = parser.parse_args()
     ports = [args.http_port, args.admin_port, args.study_port]
@@ -69,7 +77,8 @@ def main():
     if args.https_port and not all(path and path.is_file() for path in (args.certificate, args.private_key)):
         parser.error('请选择已有的 TLS 证书及私钥')
     config = render(args.http_port, args.admin_port, args.upstream_port, args.access_log,
-                    https_port=args.https_port, cert=args.certificate, key=args.private_key, owns_upstream=False)
+                    https_port=args.https_port, cert=args.certificate, key=args.private_key, owns_upstream=False,
+                    **upstream_tls_arguments(args))
     config = add_workspace(config, args.study_port, args.public_origin, serve_frontend=args.serve_frontend)
     for listener in config['static_resources']['listeners']:
         if listener['name'] == 'nebula_https':

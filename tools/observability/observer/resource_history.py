@@ -86,7 +86,7 @@ class ResourceHistory:
         start=max(start,int(time.time())-self.store.retention_seconds)
         span=max(1,end-start)
         step=max(1,(span+179)//180)
-        with self.store.connect() as db:
+        with self.store.read() as db:
             rows=db.execute("SELECT body FROM resource_snapshots WHERE stamp IN ("
                             "SELECT max(stamp) FROM resource_snapshots WHERE stamp BETWEEN ? AND ? "
                             "GROUP BY (stamp-?)/?) ORDER BY stamp",(start,end,start,step)).fetchall()

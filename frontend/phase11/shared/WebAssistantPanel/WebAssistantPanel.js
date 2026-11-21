@@ -1,8 +1,12 @@
-import { webAiApi } from '../../ai/WebAiApi/WebAiApi.js?v=7f8c7f1b31e4435c';
-import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=7f8c7f1b31e4435c';
-import { modelConnection, openModelConnection, requestOwnModel, resetModelConnection, restoreModelMode } from '../ModelConnection/ModelConnection.js?v=7f8c7f1b31e4435c';
-import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=7f8c7f1b31e4435c';
-import { WebAssistantHistory } from './WebAssistantHistory.js?v=7f8c7f1b31e4435c';
+import { webAiApi } from '../../ai/WebAiApi/WebAiApi.js?v=4364119c78f60e44';
+import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=4364119c78f60e44';
+import { modelConnection, openModelConnection, requestOwnModel, resetModelConnection, restoreModelMode } from '../ModelConnection/ModelConnection.js?v=4364119c78f60e44';
+import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=4364119c78f60e44';
+import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=4364119c78f60e44';
+import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=4364119c78f60e44';
+import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=4364119c78f60e44';
+import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=4364119c78f60e44';
+import { WebAssistantHistory } from './WebAssistantHistory.js?v=4364119c78f60e44';
 
 const make = (tag, content, className) => {
   const element = document.createElement(tag);
@@ -12,20 +16,12 @@ const make = (tag, content, className) => {
 };
 const id = () => Array.from(crypto.getRandomValues(new Uint8Array(20)), number => number.toString(16).padStart(2, '0')).join('');
 
-function waitForUpdate(signal) {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) return reject(signal.reason);
-    const abort = () => { clearTimeout(timer); reject(signal.reason); };
-    const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, 450);
-    signal.addEventListener('abort', abort, { once: true });
-  });
-}
-
 export class WebAssistantPanel {
-  constructor(host, { close, hasPrivateSpace = false } = {}) {
+  constructor(host, { close, hasPrivateSpace = false, site = 'origin' } = {}) {
     this.host = host;
     this.api = new BusinessApi();
     this.models = [];
+    this.site = site;
     host.innerHTML = `
       <header class="assistant-heading">
         <div><strong>小研</strong><small>网页对话</small></div>
@@ -38,6 +34,7 @@ export class WebAssistantPanel {
         <select data-web-thread aria-label="小研网页会话"></select>
         <button type="button" data-new>新对话</button>
         <button type="button" data-connection>模型连接</button>
+        <button type="button" data-personalization>个性化记忆</button>
       </div>
       <details class="web-assistant-notice" open>
         <summary>对话的发送范围</summary>
@@ -60,9 +57,15 @@ export class WebAssistantPanel {
     this.threads = host.querySelector('[data-web-thread]');
     this.form = host.querySelector('form');
     this.consent = host.querySelector('[data-web-consent]');
+    this.consent.onchange = () => { if (!this.consent.checked) this.agent?.cancelAnalysis(); };
     this.threads.onchange = () => { this.history?.select(this.threads.value); this.paint(); };
     host.querySelector('[data-new]').onclick = () => { if (!this.controller && this.history) { this.history.create(id()); this.paint(); this.input.focus(); } };
     host.querySelector('[data-connection]').onclick = () => this.connections();
+    host.querySelector('[data-personalization]').onclick = async () => {
+      await this.start();
+      if (this.agent && !this.preferenceDialog?.open) this.preferenceDialog = openPreferenceSettings(this.agent);
+    };
+    host.querySelector('[data-personalization]').hidden = !site;
     host.querySelector('[data-stop]').onclick = () => this.stop();
     this.form.onsubmit = event => { event.preventDefault(); this.send(); };
     this.input.onkeydown = event => {
@@ -81,7 +84,8 @@ export class WebAssistantPanel {
     try {
       this.owner = String((await this.api.restore()).id);
       if (this.disposed) return;
-      this.history = new WebAssistantHistory(this.owner);
+      this.history = new WebAssistantHistory(this.owner, this.site ? sessionStorage : null, this.site);
+      if (this.site) this.agent = new PersonalAgent(this.owner, 'web', { site: this.site });
       restoreModelMode(this.history.mode,this.history.ollama);
       let modelError = false;
       try { this.models = await this.api.request(webAiApi.getAiWebModels({})); }
@@ -106,6 +110,7 @@ export class WebAssistantPanel {
       testServer: (signal, model) => this.generateServer([{ role: 'user', content: 'Reply briefly with OK.' }], signal, { model, maxTokens: 8 }),
       onChange: value => {
         this.history.setConnection(value);
+        this.agent?.cancelAnalysis();
         this.consent.checked = false;
         this.provider();
       },
@@ -144,36 +149,17 @@ export class WebAssistantPanel {
   }
 
   async generateServer(messages, signal, { model = this.history?.model, maxTokens = 512, onText = () => {} } = {}) {
-    if (!model) throw new Error('先在模型连接中选择一个可用模型。');
-    const requestId = id();
-    const payload = { requestId, aiUserId: model, nonConfidentialConsent: 'true', messageCount: String(messages.length), maxOutputTokens: String(maxTokens) };
-    messages.forEach((message, index) => { payload[`role${index}`] = message.role; payload[`content${index}`] = message.content; });
-    let created = false;
-    let answer = '';
-    let after = 0;
-    try {
-      await this.api.request(webAiApi.postAiWebGenerations({}), { method: 'POST', data: payload, signal });
-      created = true;
-      while (!signal.aborted) {
-        const result = await this.api.request(webAiApi.getAiWebGenerationsGeneration({ generation: requestId }, `after=${after}`), { signal });
-        answer += result.pieces.join('');
-        after = result.next;
-        onText(answer);
-        if (!['queued', 'running'].includes(result.state) && result.pieces.length < 64) {
-          if (result.state !== 'completed') throw new Error(result.state === 'cancelled' ? '生成已停止' : '本站模型未完成回答，请测试连接。');
-          return answer;
-        }
-        await waitForUpdate(signal);
-      }
-      throw signal.reason;
-    } finally {
-      if (created) this.api.request(webAiApi.deleteAiWebGenerationsGeneration({ generation: requestId }), { method: 'DELETE' }).catch(() => {});
-    }
+    return assistantInference({
+      start: (data, signal) => this.api.request(webAiApi.postAiWebGenerations({}), { data, signal }),
+      poll: (generation, after, signal) => this.api.request(webAiApi.getAiWebGenerationsGeneration({ generation }, `after=${after}`), { signal }),
+      stop: generation => this.api.request(webAiApi.deleteAiWebGenerationsGeneration({ generation })),
+    }, messages, { model, maxTokens, signal, onText, web: true });
   }
 
   busy(running) {
     this.threads.disabled = running;
-    this.host.querySelectorAll('[data-new],[data-connection],button[type=submit]').forEach(button => { button.disabled = running; });
+    this.host.querySelectorAll('[data-new],[data-connection],[data-personalization],button[type=submit]').forEach(button => { button.disabled = running; });
+    this.consent.disabled = running;
     this.host.querySelector('[data-stop]').disabled = !running;
   }
 
@@ -183,16 +169,12 @@ export class WebAssistantPanel {
     if (!content) return;
     if (!this.consent.checked) { this.status.textContent = '请先确认当前模型的发送范围。'; return; }
     await this.start();
-    if (!this.history || this.controller || this.disposed) return;
+    if (!this.history || !this.consent.checked || this.controller || this.disposed) return;
     const connection = modelConnection();
     if (connection.provider === 'custom' && !connection.endpoint) { this.status.textContent = '请在模型连接中重新填写外部地址与 Key。'; return; }
     const thread = this.history.current || this.history.create(id());
     const message = { role: 'user', content };
-    const context = [...thread.messages.slice(-12), message];
-    if (context.reduce((length, item) => length + new TextEncoder().encode(item.content).length, 0) > 30000) {
-      this.status.textContent = '这段对话的上下文太长，请新建对话。';
-      return;
-    }
+    const recent = thread.messages;
     this.history.append(thread, message);
     this.input.value = '';
     this.paint();
@@ -206,14 +188,28 @@ export class WebAssistantPanel {
     this.status.textContent = '小研正在回答…';
     const output = bubble.querySelector('p');
     try {
-      const answer = connection.provider === 'server'
-        ? await this.generateServer(context, signal, { onText: text => { if (text) output.textContent = text; } })
-        : await requestOwnModel(connection, context, { signal });
+      const model = this.history.model;
+      const predict = (messages, { signal, maxTokens, onText }) => connection.provider === 'server'
+        ? this.generateServer(messages, signal, { model, maxTokens, onText })
+        : requestOwnModel(connection, messages, { signal, maxTokens });
+      const result = await runAgentTurn({
+        agent: this.agent, text: content, id: id(), mode: 'web', infer: predict,
+        readHistory: () => recent, readCheckpoint: () => thread.checkpoint,
+        saveCheckpoint: checkpoint => this.history.checkpoint(thread, checkpoint),
+        onStage: stage => {
+          if (stage === 'compacting') this.status.textContent = '小研正在压缩旧对话…';
+          if (stage === 'answering') this.status.textContent = '小研正在回答…';
+        },
+        generate: async ({ messages, maxTokens }, generationSignal) => {
+          const answer = await predict(messages, { signal: generationSignal, maxTokens, onText: text => { if (text) output.textContent = text; } });
+          if (!answer.trim()) throw new Error('模型没有返回可显示的文字。');
+          return { state: 'completed', answer };
+        },
+      }, signal);
       if (this.disposed) return;
-      if (!answer.trim()) throw new Error('模型没有返回可显示的文字。');
-      this.history.append(thread, { role: 'assistant', content: answer });
+      this.history.append(thread, { role: 'assistant', content: result.answer });
       this.paint();
-      this.status.textContent = '回答已保存到当前标签页。';
+      this.status.textContent = (result.compacted ? '旧对话已压缩。' : '') + '回答已保存到当前标签页。';
     } catch (error) {
       if (this.disposed) return;
       output.textContent = error.name === 'AbortError' ? '已停止。' : error.name === 'TypeError' ? '连接失败，请检查模型地址和浏览器访问限制。' : error.message;
@@ -226,5 +222,8 @@ export class WebAssistantPanel {
   }
 
   stop() { this.controller?.abort(); }
-  dispose() { this.disposed = true; this.stop(); this.connectionDialog?.close(); resetModelConnection(); }
+  dispose() {
+    this.disposed = true; this.stop(); this.agent?.dispose();
+    this.connectionDialog?.close(); this.preferenceDialog?.close(); resetModelConnection();
+  }
 }

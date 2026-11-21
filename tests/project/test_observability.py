@@ -1,10 +1,13 @@
 import http.client
 import base64
+import gzip
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 import json
 from pathlib import Path
 import secrets
+import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -319,6 +322,33 @@ class ObserverContract(unittest.TestCase):
     def submit(self, records, authorization=None):
         return self.http("/ingest/v1/events", records, {
             "Authorization": authorization or "Bearer " + self.token, "Content-Type": "application/json"})
+
+    def test_executable_multi_agent_workflow_is_consumed_by_observer(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("The optional JavaScript workflow producer requires the existing Node runtime")
+        root = Path(__file__).resolve().parents[2]
+        for mode, decision in (("retry", "proposal"), ("stale", "hold")):
+            result = subprocess.run([node, "examples/agent-coordination.mjs", mode], cwd=root,
+                                    check=True, capture_output=True, encoding="utf-8", timeout=10)
+            sample = json.loads(result.stdout)
+            self.assertTrue(sample["simulated"])
+            self.assertEqual(sample["result"]["state"], decision)
+            records = sample["events"]
+            trace = records[0]["traceId"]
+            self.assertEqual(records[-1]["traceId"], trace)
+            self.assertEqual(self.submit(records)[0], 200)
+            code, observed = self.http("/api/v1/traces/" + trace)
+            self.assertEqual(code, 200)
+            self.assertEqual({row["eventId"] for row in observed["items"]}, {row["eventId"] for row in records})
+            states = {(row["fields"].get("nodeId"), row["fields"].get("state"))
+                      for row in observed["items"] if row["eventType"] == "dag.node"}
+            if mode == "retry":
+                self.assertIn(("observe", "retry"), states)
+                self.assertIn(("review", "success"), states)
+            else:
+                self.assertIn(("plan", "skipped"), states)
+                self.assertIn(("decide", "success"), states)
 
     def test_static_manifest_and_all_module_routes(self):
         digest = self.http("/health")[1]["assetVersion"]
@@ -945,6 +975,43 @@ class ObserverContract(unittest.TestCase):
         other = LocalMetrics(65535, "", None, lambda _:None, self.store)
         self.assertEqual(list(source.rows),[])
         self.assertEqual(list(other.rows),[(stamp,{"http":1.75, "auth_rejected":0})])
+
+    def test_history_joins_the_persisted_prefix_to_the_recent_snapshot(self):
+        source = LocalMetrics(65535, "", None, lambda _:None, self.store)
+        cutoff = source.dense_floor()
+        recent = {"http": 0, "_instance": "after-restart"}
+        with self.store.connect() as db:
+            db.executemany("INSERT INTO metric_samples VALUES (?,?)",
+                           [(cutoff-1, '{"http":9}'), (cutoff, '{"http":0,"_instance":"after-restart"}')])
+        source.rows.append((cutoff, recent))
+        combined = source.metric_rows(cutoff-1, cutoff)
+        self.assertEqual(combined, [(cutoff-1, {"http": 9}), (cutoff, recent)])
+        self.assertIs(combined[-1][1], recent)
+        self.assertEqual(source.metric_rows(cutoff-1, cutoff-1), combined[:1])
+
+    def test_series_compression_negotiates_without_changing_data(self):
+        now=int(time.time())
+        source=LocalMetrics(18090,"",None,lambda _:None)
+        source.rows.extend((stamp,{"http":stamp%13,"cpu":stamp%100}) for stamp in range(now-1200,now+1,5))
+        self.server.sources=source
+        route=f"/api/v1/series/batch?from={now-1200}&to={now}&panels=http,cpu"
+        baseline=self.http(route)[1]["panels"]
+        for accept,compressed in (("br, gzip", True), ("*;q=1, gzip;q=0", False)):
+            with self.subTest(encoding=accept):
+                request=http.client.HTTPConnection("127.0.0.1",self.server.server_port,timeout=3)
+                try:
+                    request.request("GET",route,headers={"Accept-Encoding":accept})
+                    response=request.getresponse()
+                    self.assertEqual(response.status,200)
+                    self.assertEqual(response.getheader("Vary"),"Accept-Encoding")
+                    self.assertEqual(response.getheader("Content-Encoding"),"gzip" if compressed else None)
+                    body=response.read()
+                    self.assertEqual(len(body),int(response.getheader("Content-Length")))
+                    panels=json.loads(gzip.decompress(body) if compressed else body)["panels"]
+                    for key in baseline:
+                        self.assertEqual(panels[key]["series"],baseline[key]["series"])
+                finally:
+                    request.close()
 
     def test_service_level_endpoint_routes_only_supported_sources(self):
         end = int(time.time())

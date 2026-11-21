@@ -6,6 +6,7 @@
 
 |内容|文件|
 |---|---|
+|[Function3.5 发布说明](function3.5.md)|小研记忆、DAG、网关和 Observer · [完整更新文件](function3.5-files.md)|
 |[Function3.3 发布说明](function3.3.md)|研途账号、跨模块切换、Observer 与本版验收|
 |[Function3.2 发布说明](function3.2.md)|架构拆分、复现、故障演练及 ACK 分段数据|
 |[Function3.1 发布说明](../ops/validation/function3.1.md)|版本与线上记录|

@@ -3,6 +3,7 @@
 from contextlib import contextmanager
 from copy import deepcopy
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -95,8 +96,20 @@ def routes():
         if name.startswith("auth_"):
             route["typed_per_filter_config"] = {"envoy.filters.http.local_ratelimit": deepcopy(RATE_LIMIT)}
         result.append(route)
-    result.extend((proxy_route("files", {"prefix": "/api/files/"}, "45s"),
-                   proxy_route("api", {"prefix": "/api/"}), proxy_route("page", {"prefix": "/phase11/"})))
+    result.extend((
+        {"name": "local_only", "match": {"path_separated_prefix": "/api/local"}, "direct_response": {"status": 404}},
+        {"name": "ai_private", "match": {"path_separated_prefix": "/api/ai/private"}, "direct_response": {"status": 403}},
+        proxy_route("ai_web_models", {"path": "/api/ai/web/models"}),
+        proxy_route("ai_web_generations", {"path_separated_prefix": "/api/ai/web/generations"}),
+        proxy_route("files", {"prefix": "/api/files/"}, "45s"),
+        proxy_route("api", {"prefix": "/api/"}),
+        {"name": "assistant_redirect", "match": {"path": "/phase11/assistant"},
+         "redirect": {"path_redirect": "/phase11/assistant/", "response_code": "TEMPORARY_REDIRECT"}},
+        proxy_route("assistant_page", {"prefix": "/phase11/assistant/"}),
+        proxy_route("assistant_assets", {"prefix": "/phase11/shared/PersonalAgent/"}),
+        proxy_route("agent_runtime", {"prefix": "/phase11/shared/AgentRuntime/"}),
+        proxy_route("page", {"prefix": "/phase11/"}),
+    ))
     result.append({"name": "deny", "match": {"prefix": "/"}, "direct_response": {"status": 403}})
     return result
 
@@ -116,6 +129,45 @@ def tls_socket(cert, key):
                                   "private_key": {"filename": str(key.resolve())}}]}}}
 
 
+def add_upstream_tls_arguments(parser):
+    parser.add_argument("--upstream-tls-port", type=int, help="Fixed loopback port of the same NEBULA TLS application")
+    parser.add_argument("--upstream-tls-ca", type=Path, help="Existing trusted CA or the approved self-signed upstream certificate")
+    parser.add_argument("--upstream-tls-name", help="Exact DNS or IP subject alternative name of the upstream certificate")
+
+
+def upstream_tls_arguments(args):
+    return {name: getattr(args, name, None) for name in ("upstream_tls_port", "upstream_tls_ca", "upstream_tls_name")}
+
+
+def verified_upstream_tls(ca, peer):
+    if not ca or not ca.is_file() or not peer:
+        raise ValueError("TLS upstream requires its trusted certificate and exact SAN")
+    try:
+        identity = str(ipaddress.ip_address(peer))
+        san_type = "IP_ADDRESS"
+    except ValueError:
+        if len(peer) > 253 or not all(re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label)
+                                      for label in peer.split(".")):
+            raise ValueError("Invalid DNS or IP SAN for TLS upstream") from None
+        identity, san_type = peer.lower(), "DNS"
+    matcher = {"exact": identity}
+    if san_type == "DNS":
+        matcher["ignore_case"] = True
+    config = {
+        "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
+        "common_tls_context": {
+            "tls_params": {"tls_minimum_protocol_version": "TLSv1_2"},
+            "validation_context": {
+                "trusted_ca": {"filename": str(ca.resolve())},
+                "match_typed_subject_alt_names": [{"san_type": san_type, "matcher": matcher}],
+            },
+        },
+    }
+    if san_type == "DNS":
+        config["sni"] = identity
+    return {"name": "envoy.transport_sockets.tls", "typed_config": config}
+
+
 def wasm_filter(path):
     return {"name": "envoy.filters.http.wasm", "typed_config": {
         "@type": "type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm",
@@ -126,7 +178,8 @@ def wasm_filter(path):
 
 
 def render(gateway_port, admin_port, upstream_port, log_path, *, https_port=None, cert=None, key=None,
-           wasm=None, owns_upstream=True, replica_port=None):
+           wasm=None, owns_upstream=True, replica_port=None, upstream_tls_port=None, upstream_tls_ca=None,
+           upstream_tls_name=None):
     ports = [gateway_port, admin_port] + ([https_port] if https_port is not None else [])
     upstreams = [upstream_port]
     if replica_port is not None:
@@ -136,6 +189,12 @@ def render(gateway_port, admin_port, upstream_port, log_path, *, https_port=None
     check_ports([*ports, *upstreams] if owns_upstream else ports)
     if not owns_upstream and (not 0 < upstream_port < 65536 or upstream_port in ports):
         raise ValueError('The existing upstream must use a separate valid port')
+    upstream_tls = None
+    if any(value is not None for value in (upstream_tls_port, upstream_tls_ca, upstream_tls_name)):
+        tls_port_ok = port_ok(upstream_tls_port) or (not owns_upstream and upstream_tls_port == 18443)
+        if not https_port or replica_port or not tls_port_ok or upstream_tls_port in [*ports, upstream_port]:
+            raise ValueError("TLS upstream requires HTTPS and a separate fixed application port")
+        upstream_tls = verified_upstream_tls(upstream_tls_ca, upstream_tls_name)
     config = json.loads(TEMPLATE.read_text(encoding="utf-8"))
     config["admin"]["address"] = address(admin_port)
     static = config["static_resources"]
@@ -154,10 +213,25 @@ def render(gateway_port, admin_port, upstream_port, log_path, *, https_port=None
         tls["name"] = "nebula_https"
         tls["address"] = address(https_port)
         tls["filter_chains"][0]["transport_socket"] = tls_socket(cert, key)
+        for route in tls["filter_chains"][0]["filters"][0]["typed_config"]["route_config"]["virtual_hosts"][0]["routes"]:
+            if route["name"] == "ai_private":
+                if upstream_tls:
+                    route.pop("direct_response")
+                    route["route"] = proxy_route("ai_private", route["match"])["route"]
+                else:
+                    route["direct_response"]["status"] = 503
+            if upstream_tls and route.get("route", {}).get("cluster") == "nebula_application":
+                route["route"]["cluster"] = "nebula_application_tls"
         static["listeners"].append(tls)
     application = static["clusters"][0]
     application["load_assignment"] = {"cluster_name": "nebula_application", "endpoints": [
         {"lb_endpoints": [{"endpoint": {"address": address(port)}} for port in upstreams]}]}
+    if upstream_tls:
+        secure = deepcopy(application)
+        secure.update(name="nebula_application_tls", transport_socket=upstream_tls,
+                      load_assignment={"cluster_name": "nebula_application_tls", "endpoints": [
+                          {"lb_endpoints": [{"endpoint": {"address": address(upstream_tls_port)}}]}]})
+        static["clusters"].append(secure)
     if replica_port is not None:
         application.update(lb_policy="ROUND_ROBIN", common_lb_config={
             "healthy_panic_threshold": {"value": 0}, "ignore_new_hosts_until_first_hc": True,

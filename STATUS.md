@@ -1,6 +1,10 @@
 # 当前状态
 
-**Function3.3 开发快照**汇集 Observer、研途和小研。缘续-聊天在会话检查完成后才呈现登录，缘生-广场增加滚轮换页过渡，研途按当前 NEBULA 账号打开工作区。日常入口的部署版本见下方。[本版验收](docs/releases/function3.3.md) · [后续路线](docs/roadmap/next-steps.md)
+**Function3.5 源码发布**涵盖小研 DAG、长会话记忆、Envoy 映射和 Observer 增量刷新。日常入口和源码分支的版本记录各自可查。[本版验收](docs/releases/function3.5.md) · [逐文件清单](docs/releases/function3.5-files.md) · [后续路线](docs/roadmap/next-steps.md)
+
+小研使用应用层 DAG、长上下文压缩、按账号的偏好记忆和词法召回。Observer 已验证历史快路径、压缩及大盘自动更新。真实模型表现和新版日常环境测量单独验收。[小研进度](docs/reports/xiaoyan-personalization-progress.md) · [Observer 测试](docs/observability/validation.md#查询速度与自动刷新)
+
+网关候选版增加小研的显式资源和业务路由，HTTPS 可使用校验证书的应用上游。DAG 执行器加入并发预算、节点时限、受控重试和标准遥测，具身协作已覆盖合成观测、规划、审核和待确认提案。[网关映射](docs/ops/runtime/nebula-yantu-community.md#小研路由与资源映射) · [工作流与协作](docs/architecture/business/ai/agent-workflow-runtime.md)
 
 **当前日常网页**。`18095` 已启用 Function3.3 的网页和研途账号服务，资源版本 `7f8c7f1b31e4435c`。Windows 原地址已通过 Edge 核对新名称。直连 `18090` 继续提供上一轮资源版本 `d7a3142ac64b5ae6`，仍是网关的业务与身份上游。[当前网关与回退](docs/ops/runtime/nebula-yantu-community.md#日常发布与回退)
 

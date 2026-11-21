@@ -20,6 +20,10 @@ function el(tag, text, cls) {
   if (cls) node.className = cls;
   return node;
 }
+
+function setText(node,text) {
+  if(node.textContent!==text)node.textContent=text;
+}
 function button(label, cls, onClick) {
   const btn = el("button",label,cls);
   btn.type = "button"; btn.onclick = onClick;
@@ -218,7 +222,7 @@ function panel(model, context) {
           buttons.set(line.id,item);
         }
         item.line=line;
-        item.button.textContent=line.name+"  "+formatValue(extrema(line).last,model.unit);
+        setText(item.button,line.name+"  "+formatValue(line.points.at(-1)?.[1],model.unit));
         item.button.style.setProperty("--series",line.color);
         item.button.setAttribute("aria-pressed",String(!line.hidden));
         if(legend.children[index]!==item.button) legend.insertBefore(item.button,legend.children[index]||null);
@@ -227,6 +231,7 @@ function panel(model, context) {
       else graph=drawChart(host,{model,bounds,series,markers,bus,zoom,
         essential:["traffic","latency","network","threads"].includes(model.id)&&visualPointers()});
     },
+    setMarkers:markers=>graph?.setMarkers(markers),
     paint:()=>graph?.paint(),
     interacting:()=>graph?.interacting(),
     dispose:()=>graph?.dispose(),
@@ -239,25 +244,35 @@ function visualPointers() {
   return matchMedia("(pointer: fine) and (min-width: 1000px)").matches;
 }
 
-// Query a few panels at a time so a browser refresh does not monopolize the Observer pool.
-function card(label, value, unit, color, note) {
+function card(label, unit, color) {
   const stats=el("article",null,"stat-card");
   stats.style.setProperty("--value-color",color);
   stats.append(el("span",label));
-  if (unit==="%" && value!=null) {
-    const gauge=el("meter",null,"stat-meter");
-    gauge.min=0; gauge.max=100; gauge.value=value;
+  const gauge=unit==="%"?el("meter",null,"stat-meter"):null;
+  if(gauge) {
+    gauge.min=0; gauge.max=100;
     gauge.setAttribute("aria-label",label);
     stats.append(gauge);
   }
-  stats.append(el("strong",formatValue(value,unit)),el("small",note));
-  return stats;
+  const value=el("strong"), note=el("small");
+  stats.append(value,note);
+  return {element:stats,update(number,description){
+    if(gauge) {
+      gauge.hidden=number==null;
+      if(number!=null&&gauge.value!==number)gauge.value=number;
+    }
+    setText(value,formatValue(number,unit));
+    setText(note,description);
+  }};
 }
 
-function healthBadge(stats) {
-  const never=el("span","数据暂不可用","stat-health unknown");
-  if(stats==null || stats[1]==null) return never;
-  return el("span",stats[1]===1?"正常":"异常","stat-health "+(stats[1]===1?"ok":"bad"));
+function showHealth(badges, report) {
+  for(const [key,badge] of badges) {
+    const value=report?.signals?.[key]?.[1];
+    setText(badge,value==null?"数据暂不可用":value===1?"正常":"异常");
+    const cls="stat-health "+(value==null?"unknown":value===1?"ok":"bad");
+    if(badge.className!==cls)badge.className=cls;
+  }
 }
 
 function summarize(model, samples, instance) {
@@ -278,8 +293,6 @@ export async function renderDashboard(root, settings) {
   const {api, view, signal, transaction, bounds, reading, alertPanel, focus, zoom, now,
     panel: selectedPanel, instance, allowed, setInstances, visuals} = settings;
   const health=await reading;
-  if (!metricsCache.has(health.source)) metricsCache.set(health.source,await api("catalog",null,signal));
-  const catalog=new Map(metricsCache.get(health.source).map(d=>[d.id,d]));
   const models=definitions(view,transaction);
   const selected=models.find(model=>model.id===selectedPanel);
   const statModels=[
@@ -292,153 +305,155 @@ export async function renderDashboard(root, settings) {
   ];
   const keys=[...new Set((selected?[selected]:models).flatMap(model=>Object.keys(model.keys))
     .concat(selected?[]:statModels.map(row=>row[1])))];
-  // A slow alert backend must not hold a ready chart hostage. These queries
-  // also survive ordinary metric refreshes, which may occur faster than 8 s.
   const queries=selected?{markers:"故障标注"}:
     {overview:"采集状态",alerts:"告警",version:"版本信息",markers:"故障标注"};
-  const samples=await readSeries(api,keys,bounds,signal,health.seriesBatch);
+  const catalogRequest=metricsCache.get(health.source)??api("catalog",null,signal).then(rows=>{
+    const catalog=new Map(rows.map(item=>[item.id,item]));
+    metricsCache.set(health.source,catalog);
+    return catalog;
+  });
+  const [samples,catalog]=await Promise.all([readSeries(api,keys,bounds,signal,health.seriesBatch),catalogRequest]);
   if(signal.aborted) return null;
   const instances=[...new Set([...samples.values()].flatMap(report=>report?.series.map(line=>line.labels.instance).filter(Boolean) || []))].sort();
   setInstances(instances);
-  if(allowed)for(const [key,report] of samples){
-    if(report)samples.set(key,{...report,series:report.series.filter(line=>allowed.has(line.labels.instance))});
+  if(allowed) for(const [name,report] of samples) {
+    if(report)samples.set(name,{...report,series:report.series.filter(line=>allowed.has(line.labels.instance))});
   }
-  let allMarkers=[];
-  const key=JSON.stringify([health.source,view,transaction,selectedPanel,instance,allowed?[...allowed].sort():null]);
-  const reused=settings.previous?.key===key && settings.previous.element.isConnected;
-  const live=reused?settings.previous:{
-    key,element:el("div",null,"dashboard-view"),metadata:el("div",null,"dashboard-meta"),
-    cards:el("div",null,"stat-grid"),panels:el("div",null,"panels"+(selected?" focus-panel":"")),
-    tail:el("div"),charts:[],
-  };
-  if(!reused) {
-    live.element.append(live.metadata,live.cards,live.panels,live.tail);
-    const context={catalog,source:health.source,instance,bus:new EventTarget(),zoom,focus,panel:selectedPanel,visuals};
-    live.charts=(selected?[selected]:models).map(model=>panel(model,context));
-    live.panels.append(...live.charts.map(chart=>chart.element));
-    root.append(live.element);
-    live.queries=new DashboardQueries(api,queries);
-    visuals.push({dispose:()=>live.queries.dispose()});
-  }
+  const key=JSON.stringify([health.source,view,transaction,selectedPanel,instance,allowed?[...allowed].sort():null,
+    bounds.to-bounds.from,settings.fixed?bounds.to:null]);
+  const reused=settings.previous?.key===key&&settings.previous.element.isConnected;
+  const live=reused?settings.previous:mountDashboard(root,{
+    key,view,selected,models,statModels,catalog,health,instance,zoom,focus,selectedPanel,visuals,api,queries,
+  });
+  live.bounds=bounds;
   const generation=Symbol();
   live.generation=generation;
   const active=()=>!signal.aborted&&live.generation===generation;
-  live.metadata.hidden=!!selected;
-  live.cards.hidden=!!selected;
-  const details=live.metadata;
-  const available=el("div",null,"status-signals");
-  const revision=el("p",sourceNames[health.source]+" · 运行版本正在查询…","muted");
-  const background=el("div",null,"dashboard-background");
-  background.setAttribute("role","status");background.setAttribute("aria-live","polite");
-  const backgroundText=el("small"),retry=button("重试失败的附加查询","minimal",()=>{
-    live.queries.retry(bounds);
+  if(!selected) statModels.forEach(([label,key,,,note],index)=>{
+    const {stats,seriesCount}=summarize({keys:{[key]:label}},samples,instance);
+    const value=note.includes("采样平均")?stats?.mean:stats?.last;
+    const missing=stats?"最新采样为空":seriesCount>1?"多条序列，请筛选实例":emptyState([samples.get(key)]).message;
+    live.stats[index].update(value,value==null?missing:note);
   });
-  background.append(backgroundText,retry);
-  details.replaceChildren(available,revision,background);
-  function showHealth(signals,pending=false){
-    available.replaceChildren();
-    for(const [key,label] of Object.entries(healthLabels)){
-      const state=el("div",null,"signal");
-      state.append(el("span",label),pending?el("span","查询中","stat-health unknown"):
-        healthBadge(signals?.signals?.[key]));available.append(state);
-    }
-  }
-  showHealth(null,true);
-  if (!selected) {
-    const cards=[];
-    for(const [label,key,unit,color,note] of statModels){
-      const {stats,seriesCount}=summarize({keys:{[key]:label}},samples,instance);
-      const value=note.includes("采样平均")?stats?.mean:stats?.last;
-      const missing=stats?"最新采样为空":seriesCount>1?"多条序列，请筛选实例":emptyState([samples.get(key)]).message;
-      cards.push(card(label,value,unit,color,value==null?missing:note));
-    }
-    live.cards.replaceChildren(...cards);
-  }
-  for(const chart of live.charts) chart.update(samples,bounds,allMarkers);
-  const tail=live.tail;
-  tail.replaceChildren();
-
-  if (!selected && view==="service"){
+  const marksInRange=()=>live.marks.filter(marker=>marker.time>=bounds.from&&marker.time<=bounds.to);
+  const visibleMarks=marksInRange();
+  for(const chart of live.charts)chart.update(samples,bounds,visibleMarks);
+  if(live.errors) {
     const errors=Object.entries(failure).flatMap(([key,name])=>buildSeries({keys:{[key]:name}},samples,instance).map(line=>{
       const values=extrema(line);
-      return [line.name, formatValue(values.last,"次/秒"),formatValue(values.max,"次/秒"),values.count];
+      return [line.name,formatValue(values.last,"次/秒"),formatValue(values.max,"次/秒"),values.count];
     }));
-    tail.append(el("h2","失败与拒绝"),el("p","这里按原因展示。业务 5xx 比例以共用业务适配器的响应为统计范围，可在告警规则中查看。","muted"));
-    if(errors.length) tail.append(makeTable(["原因","最新速率","峰值速率","采样点"],errors));
-    else tail.append(el("p","这个时间段暂无失败指标样本","empty"));
-  }
-  const alertHost=el("section",null,"dashboard-alerts"),markHost=el("section",null,"dashboard-markers");
-  if(!selected){
-    alertHost.append(el("h2","告警"),el("p","正在查询告警…","muted"));
-    markHost.hidden=true;tail.append(alertHost,markHost);
-  }
-  function showMarks(marks){
-    allMarkers=(marks||[]).map(row=>({time:Number(BigInt(row.occurredAt)/1000000000n),
-      label:row.fields.scenario+" · "+row.fields.state,fields:row.fields}))
-      .filter(marker=>marker.time>=bounds.from&&marker.time<=bounds.to);
-    for(const chart of live.charts)chart.update(samples,bounds,allMarkers);
-    if(!selected){
-      markHost.replaceChildren();markHost.hidden=!allMarkers.length;
-      if(!allMarkers.length)return;
-      markHost.append(el("h2","实验与故障标注"));
-      const list=el("section",null,"marker-list");
-      for(const entry of allMarkers) {
-        const row=el("div",null,"row");
-        row.append(el("span",timestamp(entry.time,true)+" · "+entry.label),
-          button("查看附近时段","",()=>zoom({from:Math.max(0,entry.time-120),to:Math.min(now(),entry.time+120)})));
-        if (entry.fields.recordId) {
-          const result=el("span",null,"muted");
-          row.append(button("查看实验记录","",async()=>{
-            try {
-              const record=await api("runs/"+entry.fields.recordId,null,signal);
-              if(!active())return;
-              result.textContent="ACK P99 "+formatValue(record.result.ackP99Ms,"ms")+
-                " · "+(record.result.ackSamples??"—")+" 样本";
-            } catch(error) { if(active())result.textContent=error.message; }
-          }),result);
-        }
-        list.append(row);
-      }
-      markHost.append(list);
+    const signature=JSON.stringify(errors);
+    if(signature!==live.errorRows) {
+      live.errorRows=signature;
+      live.errors.replaceChildren(errors.length?makeTable(["原因","最新速率","峰值速率","采样点"],errors):
+        el("p","这个时间段暂无失败指标样本","empty"));
     }
   }
-  let queryState=live.queries.states,marksValue;
-  function showProgress(){
-    const waiting=[...queryState].filter(([,state])=>state.pending||!state.loaded).map(([path])=>queries[path]);
-    const errors=[...queryState].filter(([,state])=>state.error);
-    details.hidden=!!selected&&!errors.length;
-    available.hidden=!!selected;revision.hidden=!!selected;
-    background.dataset.state=errors.length?"warn":waiting.length?"loading":"ready";
-    background.hidden=!waiting.length&&!errors.length;
-    backgroundText.textContent=[waiting.length?"指标查询已完成；附加查询中："+waiting.join("、"):"",
-      errors.length?errors.map(([path,state])=>queries[path]+"查询失败 · "+state.error).join("；"):""].filter(Boolean).join("。 ");
-    retry.hidden=!errors.length;
+
+  function showMarks(visible) {
+    const signature=JSON.stringify(visible);
+    if(signature===live.visibleMarks)return;
+    live.visibleMarks=signature;
+    for(const chart of live.charts)chart.setMarkers(visible);
+    if(selected)return;
+    live.markHost.hidden=!visible.length;
+    const list=el("section",null,"marker-list");
+    for(const entry of visible) {
+      const row=el("div",null,"row");
+      row.append(el("span",timestamp(entry.time,true)+" · "+entry.label),
+        button("查看附近时段","",()=>zoom({from:Math.max(0,entry.time-120),to:Math.min(now(),entry.time+120)})));
+      if(entry.fields.recordId) {
+        const result=el("span",null,"muted");
+        row.append(button("查看实验记录","",async()=>{
+          try {
+            const record=await api("runs/"+entry.fields.recordId,null,live.queries.controller.signal);
+            if(!row.isConnected)return;
+            result.textContent="ACK P99 "+formatValue(record.result.ackP99Ms,"ms")+
+              " · "+(record.result.ackSamples??"—")+" 样本";
+          } catch(error) { if(row.isConnected)result.textContent=error.message; }
+        }),result);
+      }
+      list.append(row);
+    }
+    live.markHost.replaceChildren(el("h2","实验与故障标注"),list);
   }
-  const appliedMetadata=new Map();
+
+  showMarks(visibleMarks);
   live.queries.listen(states=>{
     if(!active())return;
-    queryState=states;
-    for(const [path,state] of states){
-      const previous=appliedMetadata.get(path);
-      if(previous&&previous.loaded===state.loaded&&previous.value===state.value&&previous.error===state.error)continue;
-      appliedMetadata.set(path,{...state});
+    for(const [path,state] of states) {
+      if(!state.loaded)continue;
+      const signature=JSON.stringify([state.value,state.error]);
+      if(signature===live.applied.get(path))continue;
+      live.applied.set(path,signature);
       try {
         const value=state.value;
-        if(path==="overview")showHealth(value,!state.loaded);
-        if(path==="version")revision.textContent=sourceNames[health.source]+" · 运行版本 "+
-          (state.loaded?(value?.revision||"未知"):"正在查询…");
-        if(path==="alerts")alertHost.replaceChildren(el("h2","告警"),state.error?
-          el("p","告警查询失败；不能据此判断没有告警。","empty"):!state.loaded?
-            el("p","正在查询告警…","muted"):alertPanel(value));
-        if(path==="markers"&&state.loaded&&!state.error&&marksValue!==value){marksValue=value;showMarks(value);}
-      } catch(error){
+        if(path==="overview")showHealth(live.healthBadges,value);
+        if(path==="version")setText(live.revision,sourceNames[health.source]+" · 运行版本 "+(value?.revision||"未知"));
+        if(path==="alerts")live.alerts.replaceChildren(state.error?
+          el("p","告警查询失败；不能据此判断没有告警。","empty"):alertPanel(value));
+        if(path==="markers"&&!state.error) {
+          live.marks=(value||[]).map(row=>({time:Number(BigInt(row.occurredAt)/1000000000n),
+            label:row.fields.scenario+" · "+row.fields.state,fields:row.fields}));
+          showMarks(marksInRange());
+        }
+      } catch(error) {
         state.error=error.message||"附加数据格式无效";
-        if(path==="alerts")alertHost.replaceChildren(el("h2","告警"),
-          el("p","告警数据格式无效；不能据此判断没有告警。","empty"));
+        if(path==="alerts")live.alerts.replaceChildren(el("p","告警数据格式无效；不能据此判断没有告警。","empty"));
       }
     }
-    showProgress();
+    const waiting=[...states].filter(([,state])=>!state.loaded).map(([path])=>queries[path]);
+    const errors=[...states].filter(([,state])=>state.error);
+    live.metadata.hidden=!!selected&&!errors.length;
+    live.background.dataset.state=errors.length?"warn":waiting.length?"loading":"ready";
+    live.background.hidden=!waiting.length&&!errors.length;
+    setText(live.backgroundText,[waiting.length?"指标查询已完成；附加查询中："+waiting.join("、"):"",
+      errors.length?errors.map(([path,state])=>queries[path]+"查询失败 · "+state.error).join("；"):""].filter(Boolean).join("。 "));
+    live.retry.hidden=!errors.length;
   });
   live.queries.refresh(bounds);
   return {sampleAt:latestStamp(samples),failed:[...samples.values()].filter(queryFailed).length,live,reused};
+}
+
+function mountDashboard(root,{key,view,selected,models,statModels,catalog,health,instance,zoom,focus,selectedPanel,visuals,api,queries}) {
+  const element=el("div",null,"dashboard-view"), metadata=el("div",null,"dashboard-meta");
+  const cards=el("div",null,"stat-grid"), panels=el("div",null,"panels"+(selected?" focus-panel":"")), tail=el("div");
+  const available=el("div",null,"status-signals");
+  const healthBadges=new Map(Object.entries(healthLabels).map(([key,label])=>{
+    const row=el("div",null,"signal"), badge=el("span","查询中","stat-health unknown");
+    row.append(el("span",label),badge);available.append(row);
+    return [key,badge];
+  }));
+  const revision=el("p",sourceNames[health.source]+" · 运行版本正在查询…","muted");
+  const background=el("div",null,"dashboard-background"), backgroundText=el("small");
+  background.setAttribute("role","status");background.setAttribute("aria-live","polite");
+  const loader=new DashboardQueries(api,queries);
+  const retry=button("重试失败的附加查询","minimal",()=>loader.retry(live.bounds));
+  background.append(backgroundText,retry);
+  metadata.append(available,revision,background);
+  available.hidden=!!selected;revision.hidden=!!selected;cards.hidden=!!selected;
+  const stats=selected?[]:statModels.map(([label,,unit,color])=>card(label,unit,color));
+  cards.append(...stats.map(stat=>stat.element));
+
+  const context={catalog,source:health.source,instance,bus:new EventTarget(),zoom,focus,panel:selectedPanel,visuals};
+  const charts=(selected?[selected]:models).map(model=>panel(model,context));
+  panels.append(...charts.map(chart=>chart.element));
+  const errors=!selected&&view==="service"?el("div"):null;
+  if(errors)tail.append(el("h2","失败与拒绝"),
+    el("p","这里按原因展示。业务 5xx 比例以共用业务适配器的响应为统计范围，可在告警规则中查看。","muted"),errors);
+  const alerts=el("div"), markHost=el("section",null,"dashboard-markers");
+  markHost.hidden=true;
+  if(!selected) {
+    const section=el("section",null,"dashboard-alerts");
+    alerts.append(el("p","正在查询告警…","muted"));
+    section.append(el("h2","告警"),alerts);
+    tail.append(section,markHost);
+  }
+  element.append(metadata,cards,panels,tail);
+  root.append(element);
+  visuals.push({dispose:()=>loader.dispose()});
+  const live={key,element,metadata,healthBadges,revision,background,backgroundText,retry,stats,charts,errors,
+    alerts,markHost,marks:[],applied:new Map(),queries:loader};
+  return live;
 }

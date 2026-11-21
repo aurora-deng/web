@@ -65,6 +65,8 @@
 │     └─ shared/                      跨模块导航与会话
 │        ├─ AccountSession/、AppNavigation/
 │        ├─ ClientBootstrap/           Windows 本机账号变更处理
+│        ├─ AgentRuntime/              DAG 执行器与具身协作接口
+│        ├─ PersonalAgent/             小研偏好提取、词法召回、提示组装与档案
 │        └─ BusinessApi/ 等
 ├─ static/                            其他静态资源
 ├─ scripts/
@@ -101,6 +103,7 @@
 5. Observer 独立部署。C++ 业务负责产生指标与 span，Python 侧负责采样、保存、计算窗口和查询，浏览器负责联动呈现。[监控数据流与组件索引](../../observability/architecture.md)
 6. Envoy 是可单独启动的入口进程。Prometheus 抓取其原生指标，Observer 读取脱敏 JSON 访问记录并通过采样响应头关联业务 Trace。[隔离网关架构](../../observability/envoy-gateway.md)
 7. 研途网关转发 `/api/study/` 到账号工作区，后者向固定 NEBULA 上游验证会话，再按账号选择独立存储。浏览器导航和 Windows 客户端共用这一入口。切换账号经原登录接口处理，研途前端只装载服务端确认的新工作区。[研途运行手册](../../ops/runtime/nebula-yantu-community.md)
+8. 小研在对话发起前组装个性化上下文。Windows 的 `PreferenceInference` 使用已绑定的会话将辅助推理发送给自有 Linux AI，资料仍由本机私人空间检索。[小研数据流与验收](../../reports/xiaoyan-personalization-progress.md)
 
 ## 文件与数据位置
 

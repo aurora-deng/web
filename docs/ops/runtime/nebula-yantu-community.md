@@ -33,9 +33,24 @@ Windows 通过 SSH 转发打开 [新版 NEBULA](http://127.0.0.1:18095/phase11/)
 | 网关的回环 HTTP 端口 | `--gateway-port`。日常入口使用 `18095` |
 | 应用和研途上游 | 日常模式固定使用 `--upstream-port 18090`。研途进程由 `--study-port` 指定，日常使用 `18772` |
 | 域名和 HTTPS | `--https-port`、`--listen`、`--certificate`、`--private-key`、`--public-origin` |
+| Windows 私人推理上游 | `--upstream-tls-port`、`--upstream-tls-ca`、`--upstream-tls-name`。三项与网关的 HTTPS 监听配套，并指向当前业务的同一个实例 |
 | 路由、限流和代理超时 | [Envoy 模板](../../../config/gateway/envoy.json)、[网关生成器](../../../tools/observability/gateway.py)和[研途路由生成器](../../../backend/study/AccountWorkspace/GatewayConfig.py) |
 
 在 Linux 源码目录用 `python3 -B -m backend.study.AccountWorkspace.LabRunner --help` 查看参数。参数或路由变更先用独立工作目录、空闲端口和 `--check-only` 验证。恢复既有部署时，`--resume` 会根据启动参数重新生成配置并核对原 `envoy.json`。
+
+### 小研路由与资源映射
+
+| 入口 | Envoy 目标或结果 |
+|---|---|
+| `/phase11/assistant/`、`/phase11/shared/PersonalAgent/`、`/phase11/shared/AgentRuntime/` | 启用网页快照后交给研途托管。无末尾斜杠的助手地址返回 307，并携带原查询参数 |
+| `/api/ai/web/models`、`/api/ai/web/generations` 及任务路径 | NEBULA 业务上游。模型列表、生成、查询和取消分别沿用业务鉴权 |
+| `/api/ai/private/*` | HTTP 返回 403。HTTPS 配置可验证的 TLS 上游后由同一 NEBULA 实例鉴权，HTTPS 缺上游时返回 503 |
+| `/api/local/*` | 回环客户端处理本机接口。Linux 网关对同名路径返回 404 |
+| `/api/study/*` | 研途工作区服务 |
+
+NEBULA 私人推理按实际 TLS 连接判断。HTTPS 监听启用上游 TLS 后，登录、业务 API 与 WebSocket 也走对应的 TLS 实例。上游仅配置固定回环端口，使用现有证书链并核对精确 DNS 名或 IP SAN。NEBULA 的 Origin 配置需要包含 Windows 客户端访问网关时使用的 HTTPS 来源。[Envoy TLS 上游](https://www.envoyproxy.io/docs/envoy/latest/start/quick-start/securing)
+
+隔离启动检查会对照小研页面、资源清单、压缩模块和 DAG 脚本的实际响应字节，并验证模型目录和本机接口的可达边界。日常网关仍按现有部署记录确认版本，生成的新配置使用新的工作目录进行切换。
 
 ### Function3.3 首次绑定与切号
 
@@ -51,6 +66,8 @@ python3 -B -m backend.study.AccountWorkspace.LabRunner \
   --study-port 18773 --admin-port 19098 --https-port 18445 \
   --listen 192.168.239.135 --public-origin https://192.168.239.135:18445 \
   --certificate "$CERTIFICATE" --private-key "$PRIVATE_KEY" \
+  --upstream-tls-port 18444 --upstream-tls-ca "$UPSTREAM_CERTIFICATE" \
+  --upstream-tls-name 192.168.239.135 \
   --work-dir "$HOME/phase11-data/function3/yantu-tls-$(date -u +%Y%m%dT%H%M%SZ)"
 ```
 

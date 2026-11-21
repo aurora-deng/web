@@ -1,2 +1,2 @@
-import { startChatApplication } from './chat/ChatApplication/ChatApplication.js?v=7f8c7f1b31e4435c';
+import { startChatApplication } from './chat/ChatApplication/ChatApplication.js?v=4364119c78f60e44';
 startChatApplication();

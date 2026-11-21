@@ -2,6 +2,8 @@
 
 Function3.3 整理了缘续-聊天、缘生-广场命名与切页，新增研途首次账号绑定和 Windows 返回原模块的切号流程。监控、接口、目录与运行证据继续按原主题维护。[版本说明](../releases/function3.3.md) · [目录](../architecture/overview/project-layout.md)
 
+Function3.5 汇集小研个性化记忆与 DAG、Envoy 映射及 Observer 查询优化。小研已验证账号隔离、跨页面恢复和模型调用载荷，模型准确率另列验收。Observer 隔离验收覆盖历史读取、压缩传输和自动刷新节点复用。[Function3.5 发布说明](../releases/function3.5.md) · [小研进度](../reports/xiaoyan-personalization-progress.md) · [监控测试](../observability/validation.md#查询速度与自动刷新)
+
 编号阶段的最近验收为 [Phase49](../architecture/business/engineering/phase49.md)。在 Function3.1 之后，本地分支又完成了[社区装配拆分](../architecture/business/engineering/community-runtime-modules.md)与[两档复现](../ops/validation/reproduce.md)。Phase49 的 ACK 尾延迟门槛仍未通过。
 
 Function3 初始基线为 Function2.1 `ffc0e14`，早期开发分支为 `feature/function3-tree`。[Function3.2 复现与性能基线](../releases/function3.2.md)

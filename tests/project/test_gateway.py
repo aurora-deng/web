@@ -14,15 +14,29 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from backend.study.AccountWorkspace import LabRunner
+from backend.study.AccountWorkspace.GatewayConfig import add_workspace
 from tools.observability.gateway import render
 from tools.observability.observer.events import Invalid
-from tools.observability.observer.gateway_logs import GatewayTelemetry, normalize_access
+from tools.observability.observer.gateway_logs import GatewayTelemetry, ROUTES, normalize_access
 from tools.observability.observer.log_store import LogStore
 from tools.observability.observer.store import Store, DAY
 from tools.observability.observer.workspace import Workspace, provision_files
 
 
 REQUESTS = [f"{letter * 8}-{letter * 4}-{letter * 4}-{letter * 4}-{letter * 12}" for letter in "bcd"]
+
+
+def selected_route(config, listener_name, path):
+    listeners = config["static_resources"]["listeners"]
+    listener = next(item for item in listeners if item["name"] == listener_name)
+    routes = listener["filter_chains"][0]["filters"][0]["typed_config"]["route_config"]["virtual_hosts"][0]["routes"]
+    for route in routes:
+        match = route["match"]
+        segment = match.get("path_separated_prefix")
+        if path == match.get("path") or path.startswith(match.get("prefix", "\0")) or (
+                segment and (path == segment or path.startswith(segment + "/"))):
+            return route
+    raise AssertionError(path)
 
 
 def access(**fields):
@@ -133,6 +147,58 @@ class GatewayContract(unittest.TestCase):
         self.assertEqual(dual["health_checks"][0]["http_health_check"]["path"], "/health/ready")
         self.assertEqual(dual["common_lb_config"]["healthy_panic_threshold"]["value"], 0)
         self.assertEqual(dual["circuit_breakers"]["thresholds"][0]["max_retries"], 0)
+
+    def test_assistant_pages_apis_and_client_boundaries_have_explicit_first_matches(self):
+        log = self.root / "access.jsonl"
+        cert = self.root / "approved.crt"
+        cert.touch()  # The live Envoy test validates certificate bytes.
+        base = render(18095, 19097, 18090, log, owns_upstream=False, https_port=18445, cert=cert,
+                      key=self.root / "approved.key", upstream_tls_port=18443, upstream_tls_ca=cert,
+                      upstream_tls_name="192.168.239.135")
+        config = add_workspace(base, 18772, ["http://127.0.0.1:18095", "https://192.168.239.135:18445"],
+                               serve_frontend=True)
+        for name, cluster in (("nebula_http", "nebula_application"), ("nebula_https", "nebula_application_tls")):
+            for route, expected_name, backend in (
+                ("/phase11/assistant/", "assistant_page", "nebula_study"),
+                ("/phase11/shared/PersonalAgent/ContextWindow.js", "assistant_assets", "nebula_study"),
+                ("/phase11/shared/AgentRuntime/DagExecutor.js", "agent_runtime", "nebula_study"),
+                ("/api/study/session", "study", "nebula_study"),
+                ("/api/ai/web/models", "ai_web_models", cluster),
+                ("/api/ai/web/generations", "ai_web_generations", cluster),
+                ("/api/ai/web/generations/item", "ai_web_generations", cluster),
+                ("/api/ai/web/generations-shadow", "api", cluster),
+                ("/api/auth/login", "auth_login", cluster),
+                ("/events", "sse", cluster),
+                ("/ws", "ws", cluster),
+            ):
+                found = selected_route(config, name, route)
+                self.assertEqual((found["name"], found["route"]["cluster"]), (expected_name, backend))
+                self.assertIn(expected_name, ROUTES)
+            redirect = selected_route(config, name, "/phase11/assistant")
+            self.assertEqual(redirect["redirect"]["path_redirect"], "/phase11/assistant/")
+            self.assertEqual(selected_route(config, name, "/api/local/assistant/generations")["direct_response"]["status"], 404)
+        self.assertEqual(selected_route(config, "nebula_http", "/api/ai/private/generations/item")["direct_response"]["status"], 403)
+        self.assertEqual(selected_route(config, "nebula_https", "/api/ai/private/generations/item")["route"]["cluster"], "nebula_application_tls")
+        secure = next(item for item in config["static_resources"]["clusters"] if item["name"] == "nebula_application_tls")
+        validation = secure["transport_socket"]["typed_config"]["common_tls_context"]["validation_context"]
+        self.assertEqual(validation["match_typed_subject_alt_names"],
+                         [{"san_type": "IP_ADDRESS", "matcher": {"exact": "192.168.239.135"}}])
+        self.assertEqual(Path(validation["trusted_ca"]["filename"]), cert)
+
+    def test_private_upstream_is_unavailable_without_verified_tls_configuration(self):
+        log = self.root / "access.jsonl"
+        cert, key = self.root / "fixture.crt", self.root / "fixture.key"
+        config = render(18095, 19097, 38100, log, https_port=18445, cert=cert, key=key)
+        self.assertEqual(selected_route(config, "nebula_https", "/api/ai/private/models")["direct_response"]["status"], 503)
+        with self.assertRaises(ValueError):
+            render(18095, 19097, 38100, log, upstream_tls_port=18446)
+        with self.assertRaises(ValueError):
+            render(18095, 19097, 38100, log, https_port=18445, cert=cert, key=key, upstream_tls_port=18446)
+
+    def test_startup_refuses_gateway_served_stale_asset_bytes(self):
+        with patch.object(LabRunner, 'probe', return_value=(200, b'older-static-file')):
+            with self.assertRaisesRegex(RuntimeError, '未读取本次发布的资源'):
+                LabRunner.verify_assistant_routes(18095, ROOT / 'frontend/phase11')
 
 
 if __name__ == "__main__":

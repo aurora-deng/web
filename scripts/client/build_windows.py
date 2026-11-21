@@ -36,6 +36,7 @@ sources=['client/companion/JsonRuntime/JsonRuntime.cpp','client/storage/SqliteSt
          'client/companion/ProxyServer/ProxyServer.cpp','client/assistant/DocumentImport/DocumentImport.cpp',
          'client/storage/CredentialVault/CredentialVault.cpp','client/assistant/LocalAssistantService/LocalAssistantService.cpp',
          'client/assistant/ActionService/ActionService.cpp','client/assistant/PrivateMigration/PrivateMigration.cpp',
+         'client/assistant/PreferenceInference/PreferenceInference.cpp',
          'client/assistant/PersonalSpeech/PersonalSpeech.cpp','client/assistant/WindowsCloudSpeech/WindowsCloudSpeech.cpp',
          'backend/ai/speech/application/SpeechText/SpeechText.cpp','backend/ai/speech/application/WaveCodec/WaveCodec.cpp',
          'backend/ai/speech/application/SpeechWire/SpeechWire.cpp','backend/ai/speech/application/CloudSpeechPolicy/CloudSpeechPolicy.cpp']

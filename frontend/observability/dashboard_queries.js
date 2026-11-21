@@ -14,7 +14,7 @@ export class DashboardQueries {
   }
   start(path,bounds){
     if(this.controller.signal.aborted)return;
-    const state={...this.states.get(path),pending:true,error:null};
+    const state={...this.states.get(path),pending:true};
     this.states.set(path,state);this.notify();
     const args=path==='markers'?{...bounds}:null;
     Promise.resolve().then(()=>{

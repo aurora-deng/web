@@ -22,4 +22,10 @@
 .web-assistant-notice summary{color:var(--text);cursor:pointer;font-weight:650;}
 .assistant-tabs{overflow-x:auto;}
 .assistant-tabs button{white-space:nowrap;}
+.personal-agent-settings p,.personal-agent-settings li{overflow-wrap:anywhere;}
+.personal-agent-settings .personal-agent-options{display:grid;gap:8px;margin-block:14px;}
+.personal-agent-settings .personal-agent-options label{display:flex;align-items:flex-start;gap:8px;}
+.personal-agent-settings input[type=checkbox]{width:auto;margin:3px 0 0;accent-color:var(--accent);}
+.personal-agent-settings ul{display:grid;gap:8px;padding-inline-start:20px;}
+.personal-agent-settings li button{font-size:var(--fs-meta);padding:3px 9px;}
 @media(max-width:520px){.assistant-heading strong{font-size:var(--fs-lead);}.assistant-empty{min-height:120px;padding:20px 12px;}.assistant-threadbar button{padding-inline:8px;}}

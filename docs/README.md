@@ -1,6 +1,6 @@
 # 项目文档分类
 
-**Function3.3**。[版本与测试范围](releases/function3.3.md) · [账号绑定、切换与回退](ops/runtime/nebula-yantu-community.md) · [下一阶段实施顺序](roadmap/next-steps.md)
+**Function3.5**。[版本与测试范围](releases/function3.5.md) · [完整更新文件](releases/function3.5-files.md) · [账号绑定、切换与回退](ops/runtime/nebula-yantu-community.md) · [下一阶段实施顺序](roadmap/next-steps.md)
 
 本轮工程化收口：[全项目实施清单](roadmap/project-review-implementation-2026-11-19.md) · [原生交付与预检](ops/validation/native-delivery.md) · [真实慢 ACK 排查讲义](observability/ack-diagnosis.md)。
 
@@ -14,6 +14,7 @@
 |从空目录构建和启动|[两档复现指南](ops/validation/reproduce.md)|
 |日常启动/停止与客户端入口|[运行文档](ops/runtime/README.md)|
 |研途客户端与网页同步、故事广场、七日榜、小研与训练授权|[接入改造、启动与验收](ops/runtime/nebula-yantu-community.md)|
+|学习小研怎样识别偏好、召回个人要点和组织回答|[个性化记忆进度](reports/xiaoyan-personalization-progress.md)|
 |看从通信到业务、模型的完整图|[当前端到端总图](architecture/business/flows/current-end-to-end.md)、[系统总览](architecture/overview/ARCHITECTURE.md)|
 |了解后续优先级与验收标准|[ACK 长尾、Envoy 与多机计划](roadmap/next-steps.md)、[近期工程计划](roadmap/engineering-credibility.md)|
 |查询监控技术、实测版本与更新方法|[技术应用与版本台账](observability/sources.md)、[真实双实例验收](observability/dual-instance-lab.md)|

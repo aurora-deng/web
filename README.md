@@ -1,10 +1,10 @@
-# NEBULA · C++20 Web Server / Function3.3
+# NEBULA · C++20 Web Server / Function3.5
 
 工程化改造：[原生包复现/预检](docs/ops/validation/native-delivery.md)、[真实 Prometheus 与慢 ACK 排查](docs/observability/ack-diagnosis.md)、[R1–R12 实施和验收边界](docs/roadmap/project-review-implementation-2026-11-19.md)。保持通信核心与原业务库，新增依赖仍单项授权。
 
 NEBULA 用 Linux C++20 服务器运行缘续-聊天、缘生-广场、研途和小研，并用 Observer 观测这些业务的真实流量。
 
-**Function3.3** 汇集研途账号工作区、全站小研、故事广场、Observer 诊断和 Envoy 实验。缘续-聊天先恢复会话再决定是否显示登录，缘生-广场的滚轮切页有淡入淡出和模糊过渡。Windows 客户端可切换 NEBULA 账号并回到当前模块，研途数据按账号绑定。[本版说明](docs/releases/function3.3.md) · [Function3.2 基线](docs/releases/function3.2.md) · [当前日常版本](STATUS.md)
+**Function3.5** 增加小研个性化记忆、长会话压缩和 DAG 调度，补齐 Envoy 入口映射及 Observer 增量刷新。具身多 Agent 示例验证观测、规划、安全审核和待确认提案的协作过程。[本版说明](docs/releases/function3.5.md) · [全部更新文件](docs/releases/function3.5-files.md) · [Function3.3 基线](docs/releases/function3.3.md) · [当前日常版本](STATUS.md)
 
 [文档分类](docs/README.md) · [当前架构](docs/architecture/overview/ARCHITECTURE.md) · [完整调用图](docs/architecture/business/flows/current-end-to-end.md) · [当前状态](STATUS.md) · [后续计划](docs/roadmap/next-steps.md)
 

@@ -1,14 +1,20 @@
-import { WebAssistantPanel } from '../WebAssistantPanel/WebAssistantPanel.js?v=7f8c7f1b31e4435c';
-import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=7f8c7f1b31e4435c';
-import { LocalAssistantApi } from '../LocalAssistantApi/LocalAssistantApi.js?v=7f8c7f1b31e4435c';
-import { openSpeechSettings } from '../SpeechSettings/SpeechSettings.js?v=7f8c7f1b31e4435c';
+import { WebAssistantPanel } from '../WebAssistantPanel/WebAssistantPanel.js?v=4364119c78f60e44';
+import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=4364119c78f60e44';
+import { LocalAssistantApi } from '../LocalAssistantApi/LocalAssistantApi.js?v=4364119c78f60e44';
+import { openSpeechSettings } from '../SpeechSettings/SpeechSettings.js?v=4364119c78f60e44';
+import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=4364119c78f60e44';
+import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=4364119c78f60e44';
+import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=4364119c78f60e44';
+import { conversationStore, preferenceSite } from '../PersonalAgent/PreferenceStore.js?v=4364119c78f60e44';
+import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=4364119c78f60e44';
+import { utf8Bytes } from '../PersonalAgent/ContextWindow.js?v=4364119c78f60e44';
 const node=(tag,text='',className='')=>{const e=document.createElement(tag);e.textContent=text;if(className)e.className=className;return e;};
 const token=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),n=>n.toString(16).padStart(2,'0')).join('');
 /** 小研的两个入口共享本机对话目录，已有的两类会话各自保留。 */
 export class AssistantPanel {
   constructor(host,{surface='sidebar',close}={}){
     this.host=host;this.surface=surface;this.close=close;this.api=new LocalAssistantApi();this.thread='';this.generation='';this.polling=false;this.disposed=false;this.shortcut='Alt+j';
-    const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/AssistantPanel/AssistantPanel.css?v=7f8c7f1b31e4435c';document.head.append(css);
+    const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/AssistantPanel/AssistantPanel.css?v=4364119c78f60e44';document.head.append(css);
     host.classList.add('private-assistant');
     host.innerHTML=`
       <header class="assistant-heading">
@@ -27,6 +33,7 @@ export class AssistantPanel {
           <select aria-label="私人会话"></select>
           <button data-new type="button">新对话</button><button data-delete-thread type="button">删除</button>
           <button data-model-settings type="button">模型连接</button>
+          <button data-personalization type="button" hidden>个性化记忆</button>
         </div>
         <div class="assistant-messages" aria-live="polite"></div>
         <div class="assistant-citations"></div>
@@ -74,7 +81,15 @@ export class AssistantPanel {
     this.select.onchange=()=>{this.thread=this.select.value;this.rememberThread();this.loadMessages().catch(e=>this.error(e));};
     host.querySelector('[data-model-settings]').onclick=()=>this.tab('settings');
     host.querySelector('[data-new]').onclick=()=>this.newThread().catch(e=>this.error(e));
-    host.querySelector('[data-delete-thread]').onclick=async()=>{if(!this.thread||!confirm('删除本机这个助手会话及其历史？'))return;try{await this.api.request('/threads/'+this.thread,{method:'DELETE'});this.thread='';await this.loadThreads();}catch(e){this.error(e);}};
+    host.querySelector('[data-delete-thread]').onclick=async()=>{
+      const thread=this.thread;
+      if(this.sending||!thread||!confirm('删除本机这个助手会话及其历史？'))return;
+      try{
+        await this.api.request('/threads/'+thread,{method:'DELETE'});
+        if(this.agent)await conversationStore.remove(this.agent.scope,thread).catch(()=>{});
+        this.thread='';await this.loadThreads();
+      }catch(e){this.error(e);}
+    };
     host.querySelector('.assistant-composer').onsubmit=event=>{event.preventDefault();this.send().catch(e=>this.error(e));};
     this.input.onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();host.querySelector('.assistant-composer').requestSubmit();}};
     host.querySelector('[data-stop]').onclick=()=>this.stop().catch(e=>this.error(e));
@@ -96,8 +111,16 @@ export class AssistantPanel {
         throw error;
       });
       if(this.disposed)return;
-      if(publicMode||!result.available){this.web=new WebAssistantPanel(this.host,{close:this.close,hasPrivateSpace:result.available});return this.web.start();}
+      const site=preferenceSite(this.api.session);
+      if(publicMode||!result.available){this.web=new WebAssistantPanel(this.host,{close:this.close,hasPrivateSpace:result.available,site});return this.web.start();}
       this.host.querySelectorAll('input,textarea,select,button').forEach(e=>e.disabled=false);this.host.querySelector('[data-stop]').disabled=true;
+      if(result.preferenceInference&&site){
+        this.agent=new PersonalAgent(this.api.account,'private',{site});
+        this.contextCompaction=Boolean(result.contextCompaction);
+        const button=this.host.querySelector('[data-personalization]');
+        button.hidden=false;
+        button.onclick=()=>{if(!this.preferenceDialog?.open)this.preferenceDialog=openPreferenceSettings(this.agent,{local:true});};
+      }
       const settings=await this.api.request('/settings');
       if(this.disposed)return;
       this.status.classList.remove('error');this.status.textContent='已连接 Windows 私人空间';this.host.querySelector('[data-ai]').value=settings.aiUserId||'';this.shortcut=settings.shortcut||'Alt+j';this.host.querySelector('[data-shortcut]').value=this.shortcut;
@@ -129,22 +152,97 @@ export class AssistantPanel {
   }
   async newThread(){const created=await this.api.request('/threads',{method:'POST',data:{surface:'friend',title:'新对话 '+new Date().toLocaleDateString()}});this.thread=created.id;this.rememberThread();await this.loadThreads();}
   bubble(message){const article=node('article','',`assistant-bubble ${message.role}`);article.dataset.request=message.requestId;article.append(node('small',message.role==='user'?'我':'小研'),node('p',message.body||'正在思考…'),node('small',({completed:'',streaming:'生成中',failed:'生成未完成',cancelled:'已停止'})[message.state]||message.state));return article;}
-  async loadMessages(){const thread=this.thread;const messages=await this.api.request('/threads/'+thread+'/messages');if(this.thread!==thread||this.disposed)return;this.list.replaceChildren(...messages.map(m=>this.bubble(m)));if(!messages.length)this.list.append(node('div','没有历史消息。写下第一个问题吧。','assistant-empty'));this.list.scrollTop=this.list.scrollHeight;const pending=messages.find(m=>m.role==='assistant'&&m.state==='streaming');if(pending&&!this.polling){this.generation=pending.requestId;this.poll();}}
-  async send(){if(this.generation||this.sending)throw new Error('请等待当前回答完成，或先停止生成');const text=this.input.value.trim();if(!text)return;const aiUserId=this.host.querySelector('[data-ai]').value;if(!aiUserId){this.tab('settings');throw new Error('请先选择已绑定 ONNX 的私人模型');}
-    this.sending=true;this.select.disabled=true;
-    try{if(!this.thread)await this.newThread();const requestId=token();const result=await this.api.request('/generations',{method:'POST',data:{threadId:this.thread,requestId,text,aiUserId}});this.generation=result.id;this.input.value='';
-      await this.loadMessages();this.poll();
-    }finally{this.sending=false;if(!this.generation)this.select.disabled=false;}}
-  async poll(){if(this.polling||!this.generation||this.disposed)return;this.polling=true;const id=this.generation;this.select.disabled=true;this.host.querySelector('[data-stop]').disabled=false;
-    try{while(this.generation===id&&!this.disposed){const result=await this.api.request('/generations/'+id);const bubble=[...this.list.querySelectorAll('.assistant-bubble.assistant')].find(e=>e.dataset.request===id);if(bubble){bubble.querySelector('p').textContent=result.body||'正在思考…';bubble.lastChild.textContent=result.state==='streaming'?'生成中':result.state==='cancelled'?'已停止':result.state==='failed'?'生成失败':'';}
+  async loadMessages(){const thread=this.thread;const messages=await this.api.request('/threads/'+thread+'/messages');if(this.thread!==thread||this.disposed)return;this.list.replaceChildren(...messages.map(m=>this.bubble(m)));if(!messages.length)this.list.append(node('div','没有历史消息。写下第一个问题吧。','assistant-empty'));this.list.scrollTop=this.list.scrollHeight;const pending=messages.find(m=>m.role==='assistant'&&m.state==='streaming');if(pending&&!this.polling&&!this.sending){this.generation=pending.requestId;this.poll();}}
+  inferPreferences(model, messages, { signal, maxTokens }) {
+    const path='/preference-inference';
+    return assistantInference({
+      start:(data,signal)=>this.api.request(path,{method:'POST',data,signal}),
+      poll:(id,after,signal)=>this.api.request(path+'/'+id+'?after='+after,{signal}),
+      stop:id=>this.api.request(path+'/'+id,{method:'DELETE'}),
+    },messages,{model,signal,maxTokens});
+  }
+
+  async send(){
+    if(this.generation||this.sending)throw new Error('请等待当前回答完成，或先停止生成');
+    const text=this.input.value.trim();
+    if(!text)return;
+    if(utf8Bytes(text)>8192)throw new Error('单条私人消息上限为 8 KiB，请将这条消息拆分。');
+    const aiUserId=this.host.querySelector('[data-ai]').value;
+    if(!aiUserId){this.tab('settings');throw new Error('请先选择已绑定 ONNX 的私人模型');}
+    this.sending=true;
+    this.select.disabled=true;
+    const stop=this.host.querySelector('[data-stop]');
+    const actions=[...this.host.querySelectorAll('[data-new],[data-delete-thread]')];
+    actions.forEach(button=>{button.disabled=true;});
+    const controller=new AbortController();
+    this.turnController=this.preparing=controller;
+    stop.disabled=false;
+    try{
+      if(!this.thread)await this.newThread();
+      if(this.disposed)return;
+      const requestId=token(),threadId=this.thread;
+      const infer=(messages,options)=>this.inferPreferences(aiUserId,messages,options);
+      this.status.textContent='小研正在准备本轮上下文…';
+      const result=await runAgentTurn({
+        agent:this.agent,text,id:requestId,mode:'private',infer,
+        readHistory:async signal=>{
+          if(!this.contextCompaction)return [];
+          const rows=await this.api.request('/threads/'+threadId+'/messages?limit=30',{signal});
+          return rows.filter(row=>row.state==='completed').map(row=>({sequence:row.id,role:row.role,content:row.body}));
+        },
+        readCheckpoint:()=>this.contextCompaction?conversationStore.read(this.agent.scope,threadId).catch(()=>null):null,
+        saveCheckpoint:checkpoint=>conversationStore.save(this.agent.scope,threadId,checkpoint),
+        onStage:stage=>{
+          if(stage==='compacting')this.status.textContent='小研正在压缩旧对话…';
+          if(stage==='answering')this.status.textContent='小研正在回答…';
+        },
+        generate:async(plan,signal)=>{
+          this.preparing=null;
+          stop.disabled=true;
+          const data={threadId,requestId,text,aiUserId};
+          if(plan.guidance)data.personalization=plan.guidance;
+          if(plan.maxTokens!==512)data.maxOutputTokens=String(plan.maxTokens);
+          if(plan.checkpoint){
+            data.historyThrough=plan.checkpoint.through;
+            data.historySummary=plan.checkpoint.summary;
+          }
+          const started=await this.api.request('/generations',{method:'POST',data});
+          signal.throwIfAborted();
+          this.generation=started.id;
+          this.input.value='';
+          await this.loadMessages();
+          return this.poll(signal);
+        },
+      },controller.signal);
+      if(!this.disposed&&result)this.status.textContent=result.error
+        ||({cancelled:'已停止',failed:'生成未完成'})[result.state]
+        ||(result.compacted?'旧对话已压缩。':'')+'回答已保存在本机';
+    }catch(error){
+      if(error.name!=='AbortError')throw error;
+      if(!this.disposed)this.status.textContent='已停止回复';
+    }finally{
+      this.preparing=null;
+      this.turnController=null;
+      this.sending=false;
+      actions.forEach(button=>{button.disabled=false;});
+      if(!this.generation){this.select.disabled=false;stop.disabled=true;}
+    }
+  }
+  async poll(signal){if(this.polling||!this.generation||this.disposed)return;this.polling=true;const id=this.generation;this.select.disabled=true;this.host.querySelector('[data-stop]').disabled=false;
+    try{while(this.generation===id&&!this.disposed){const result=await this.api.request('/generations/'+id,{signal});const bubble=[...this.list.querySelectorAll('.assistant-bubble.assistant')].find(e=>e.dataset.request===id);if(bubble){bubble.querySelector('p').textContent=result.body||'正在思考…';bubble.lastChild.textContent=result.state==='streaming'?'生成中':result.state==='cancelled'?'已停止':result.state==='failed'?'生成失败':'';}
         const citations=this.host.querySelector('.assistant-citations');citations.replaceChildren(...(result.citations||[]).map(c=>{const details=node('details');details.append(node('summary','引用 · '+c.title),node('p',c.excerpt));return details;}));
-        if(result.state!=='streaming'){this.generation='';this.status.textContent=result.error||'回答已保存在本机';break;}await new Promise(resolve=>setTimeout(resolve,400));}
-    }catch(e){this.error(e);}finally{this.polling=false;this.select.disabled=Boolean(this.generation);const stop=this.host.querySelector('[data-stop]');if(stop)stop.disabled=!this.generation;}}
-  async stop(){if(!this.generation)return;await this.api.request('/generations/'+this.generation,{method:'DELETE'});this.status.textContent='正在停止生成并回收任务…';}
+        if(result.state!=='streaming'){
+          this.generation='';
+          if(!signal)this.status.textContent=result.error||({cancelled:'已停止',failed:'生成未完成'})[result.state]||'回答已保存在本机';
+          return result;
+        }
+        await new Promise(resolve=>setTimeout(resolve,400));}
+    }catch(e){if(signal)throw e;this.error(e);}finally{this.polling=false;this.select.disabled=Boolean(this.generation);const stop=this.host.querySelector('[data-stop]');if(stop)stop.disabled=!this.generation;}}
+  async stop(){if(this.preparing){this.preparing.abort();return;}if(!this.generation)return;await this.api.request('/generations/'+this.generation,{method:'DELETE'});this.status.textContent='正在停止生成并回收任务…';}
   async importFile(file){if(!file)return;if(file.size>10*1024*1024)throw new Error('单份资料最多 10 MiB');const extension='.'+file.name.split('.').pop().toLowerCase();this.status.textContent='正在本机解析和建立索引…';await this.api.request('/documents/import',{method:'POST',body:file,headers:{'Content-Type':'application/octet-stream','X-Document-Extension':extension,'X-Document-Authorized':String(this.host.querySelector('[data-consent]').checked)}});this.status.textContent='原文与索引已保存在本机';await this.loadDocuments();}
   async loadDocuments(){if(!this.api.account)return;const items=await this.api.request('/documents'),host=this.host.querySelector('[data-documents]');host.replaceChildren();for(const d of items){const card=node('article','', 'assistant-item');card.append(node('strong',d.title));const label=node('label','允许检索片段发送到自有后端');const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=d.authorized;label.prepend(checkbox);checkbox.onchange=()=>this.api.request('/documents/'+d.id,{method:'PATCH',data:{enabled:true,authorized:checkbox.checked}}).catch(e=>this.error(e));const remove=node('button','删除原文与索引');remove.onclick=async()=>{if(!confirm('删除这份本机资料？'))return;try{await this.api.request('/documents/'+d.id,{method:'DELETE'});await this.loadDocuments();}catch(e){this.error(e);}};card.append(label,remove);host.append(card);}if(!items.length)host.append(node('p','还没有导入资料。'));}
   async loadMemories(){if(!this.api.account)return;const items=await this.api.request('/memories'),host=this.host.querySelector('[data-memories]');host.replaceChildren();for(const memory of items){const card=node('article','','assistant-item'),input=node('textarea');input.value=memory.text;input.maxLength=2000;const enabled=document.createElement('input');enabled.type='checkbox';enabled.checked=memory.enabled;const label=node('label','启用');label.prepend(enabled);const save=node('button','保存修改');save.onclick=()=>this.api.request('/memories/'+memory.id,{method:'PATCH',data:{text:input.value,enabled:enabled.checked}}).then(()=>this.status.textContent='记忆已更新').catch(e=>this.error(e));const remove=node('button','删除');remove.onclick=()=>this.api.request('/memories/'+memory.id,{method:'DELETE'}).then(()=>this.loadMemories()).catch(e=>this.error(e));card.append(input,label,save,remove);host.append(card);}}
-  dispose(){this.disposed=true;this.web?.dispose();}
+  dispose(){this.disposed=true;this.turnController?.abort();this.agent?.dispose();this.preferenceDialog?.close();this.web?.dispose();}
 }
 export function mountGlobalAssistant(navigation,{fullPage=false}={}){
   const button=node('button','','workspace-assistant');button.title='小研 · Alt+J';button.setAttribute('aria-label','打开小研');button.type='button';button.append(xiaoYanAvatar('xiaoyan-nav-portrait'));navigation.append(button);

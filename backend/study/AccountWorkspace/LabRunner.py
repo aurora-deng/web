@@ -1,25 +1,31 @@
 """Run the Yantu gateway and service on fresh loopback-only Linux ports."""
 import argparse
 from contextlib import contextmanager, ExitStack
-from http.client import HTTPConnection, HTTPException
+from http.client import HTTPConnection, HTTPException, HTTPResponse
 import ipaddress
 import json
 import os
 from pathlib import Path
 import signal
 import secrets
+import socket
+import ssl
 import subprocess
 import sys
 import threading
+from urllib.parse import urlsplit
 
 from backend.study.AccountWorkspace.FrontendSnapshot import FrontendSnapshot
 from backend.study.AccountWorkspace.GatewayConfig import add_workspace
 from backend.study.AccountWorkspace.AccountWorkspace import origin, prepare_data_directory
-from tools.observability.gateway import check_ports, render
+from tools.observability.gateway import add_upstream_tls_arguments, check_ports, render, upstream_tls_arguments
 
 
 ROOT = Path(__file__).resolve().parents[3]
 DAILY_AUTHORITY_MARKER = '.nebula-yantu-daily-authority'
+ASSISTANT_ASSETS = ('asset-manifest.json', 'assistant/index.html',
+                    'shared/PersonalAgent/AgentTurnDag.js', 'shared/PersonalAgent/ContextWindow.js',
+                    'shared/AgentRuntime/DagExecutor.js')
 
 
 def probe(port, path, *, limit=0):
@@ -78,6 +84,38 @@ def daily_workspace(directory):
     return root
 
 
+def verify_assistant_routes(port, frontend):
+    for relative in ASSISTANT_ASSETS:
+        route = '/phase11/assistant/' if relative == 'assistant/index.html' else '/phase11/' + relative
+        expected = (frontend / relative).read_bytes()
+        status, actual = probe(port, route, limit=len(expected) + 1)
+        if status != 200 or actual != expected:
+            raise RuntimeError(f'网关未读取本次发布的资源：{route}')
+    for route, expected in (('/phase11/assistant', 307), ('/api/ai/web/models', 401),
+                            ('/api/ai/private/models', 403), ('/api/local/session/info', 404)):
+        if probe(port, route)[0] != expected:
+            raise RuntimeError(f'网关路由未返回预期状态：{route}')
+
+
+def verify_assistant_tls(listen, port, origins, certificate, upstream_enabled):
+    origin = next(urlsplit(value) for value in origins if value.startswith('https://'))
+    context = ssl.create_default_context(cafile=str(certificate))
+    if hasattr(ssl, 'VERIFY_X509_PARTIAL_CHAIN'):
+        context.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
+    target = str(listen) if not listen.is_unspecified else '127.0.0.1'
+    with socket.create_connection((target, port), timeout=4) as connection:
+        with context.wrap_socket(connection, server_hostname=origin.hostname) as stream:
+            stream.sendall((f'GET /api/ai/private/models HTTP/1.1\r\nHost: {origin.netloc}\r\n'
+                            'Connection: close\r\n\r\n').encode('ascii'))
+            response = HTTPResponse(stream)
+            try:
+                response.begin()
+                if response.status != (401 if upstream_enabled else 503):
+                    raise RuntimeError(f'HTTPS 私人模型映射未通过匿名鉴权检查，状态 {response.status}')
+            finally:
+                response.close()
+
+
 def start(args):
     ports = [args.study_port, args.gateway_port, args.admin_port]
     if args.https_port is not None:
@@ -116,7 +154,8 @@ def start(args):
     public_origins = list(dict.fromkeys([origin, *args.public_origin]))
     configuration = add_workspace(render(args.gateway_port, args.admin_port, args.upstream_port,
                                          folder / 'access.jsonl', https_port=args.https_port, cert=args.certificate,
-                                         key=args.private_key, owns_upstream=not args.daily_authority),
+                                         key=args.private_key, owns_upstream=not args.daily_authority,
+                                         **upstream_tls_arguments(args)),
                                   args.study_port, public_origins, serve_frontend=True)
     for listener in configuration['static_resources']['listeners']:
         if listener['name'] == 'nebula_https':
@@ -149,6 +188,10 @@ def start(args):
                                                ('/api/study/session', 401)), stopped)
         if b'id="study-surface"' not in probe(args.gateway_port, '/phase11/study/', limit=8192)[1]:
             raise RuntimeError('访问到了页面，但未确认使用本轮的研途前端')
+        verify_assistant_routes(args.gateway_port, frontend)
+        if args.https_port:
+            verify_assistant_tls(args.listen, args.https_port, public_origins, args.certificate,
+                                 getattr(args, 'upstream_tls_port', None) is not None)
         print(f'研途隔离入口 {origin}/phase11/study/', flush=True)
         if not args.check_only:
             while not stopped.wait(.5):
@@ -168,6 +211,7 @@ def main():
     parser.add_argument('--listen', type=ipaddress.IPv4Address, default=ipaddress.IPv4Address('127.0.0.1'))
     parser.add_argument('--certificate', type=Path)
     parser.add_argument('--private-key', type=Path)
+    add_upstream_tls_arguments(parser)
     parser.add_argument('--public-origin', action='append', type=origin, default=[], help='HTTPS origin used by the client')
     parser.add_argument('--daily-authority', action='store_true', help='Use the migrated daily service as the account and business authority')
     parser.add_argument('--accounts-dir', type=Path, help='Persistent account directory for daily authority')

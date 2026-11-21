@@ -228,13 +228,17 @@ class LocalMetrics:
 
     def metric_rows(self,start,end):
         start=max(start,self.retention_floor())
-        if self.store and start<self.dense_floor():
-            with self.store.connect() as db:
-                rows=db.execute("SELECT stamp,values_json FROM metric_samples WHERE stamp BETWEEN ? AND ? ORDER BY stamp",
-                                (start,end)).fetchall()
-            return [(stamp,json.loads(body)) for stamp,body in rows]
+        dense=self.dense_floor() if self.store else start
+        recent_start=max(start,dense)
         with self.lock:
-            return [(stamp,values) for stamp,values in self.rows if start<=stamp<=end]
+            recent=[(stamp,values) for stamp,values in self.rows if recent_start<=stamp<=end]
+        if start>=dense:
+            return recent
+        # Recent samples are already decoded by the sampler. Read only the older prefix.
+        with self.store.read() as db:
+            rows=db.execute("SELECT stamp,values_json FROM metric_samples WHERE stamp BETWEEN ? AND ? ORDER BY stamp",
+                            (start,min(end,dense-1))).fetchall()
+        return [(stamp,json.loads(body)) for stamp,body in rows]+recent
 
     def sample(self):
         alive = int(self.request("/health/live")[0] == 200)

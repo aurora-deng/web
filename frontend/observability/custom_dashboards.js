@@ -239,20 +239,8 @@ function details(panel,series,reports) {
     download(new Blob(["\uFEFF时间(UTC),序列,值,单位\r\n"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"}),"observer-panel.csv");
   }));
 }
-function displayPanel(box,panel,series,bounds,visuals,bus,zoom) {
+function displayValues(box,panel,series) {
   if (!series.some(line=>line.points.some(([,v])=>v!=null))) {box.append(el("p","当前时间范围没有有效样本","empty"));return;}
-  if (panel.view==="line" || panel.view==="area") {
-    const target=el("div",null,"chart");
-    box.append(target);
-    visuals.push(drawChart(target,{model:{...panel,area:panel.view==="area"},bounds,series,markers:[],bus,zoom}));
-    const legend=el("div",null,"legend");
-    for(const line of series) {
-      const item=el("span",line.name,"legend-item");
-      item.style.setProperty("--series",line.color);legend.append(item);
-    }
-    box.append(legend);
-    return;
-  }
   if(panel.view==="table") {
     const points=series.flatMap(line=>line.points.map(([t,value])=>[t,line.name,value]));
     points.sort((a,b)=>b[0]-a[0]);
@@ -270,6 +258,43 @@ function displayPanel(box,panel,series,bounds,visuals,bus,zoom) {
     tile.append(value);grid.append(tile);
   }
   box.append(grid);
+}
+
+function panelDisplay(root,panel,visuals,bus,zoom) {
+  const chart=panel.view==="line"||panel.view==="area";
+  const box=el("div"), empty=el("p","正在查询…","empty");
+  root.append(box,empty);
+  if(!chart)return series=>{
+    const next=el("div");
+    displayValues(next,panel,series);
+    if(!box.isEqualNode(next))box.replaceChildren(...next.childNodes);
+    empty.hidden=true;
+  };
+  const target=el("div",null,"chart"), legend=el("div",null,"legend");
+  target.hidden=legend.hidden=true;
+  box.append(target,legend);
+  let graph, legendKey;
+  visuals.push({dispose:()=>graph?.dispose(),interacting:()=>graph?.interacting()});
+  return (series,bounds)=>{
+    const populated=series.some(line=>line.points.some(([,value])=>value!=null));
+    empty.hidden=populated;
+    empty.textContent="当前时间范围没有有效样本";
+    target.hidden=legend.hidden=!populated;
+    if(!populated)return;
+    if(graph)graph.update({bounds,series,markers:[]});
+    else {
+      graph=drawChart(target,{model:{...panel,area:panel.view==="area"},bounds,series,markers:[],bus,zoom});
+      graph.paint();
+    }
+    const key=JSON.stringify(series.map(line=>[line.name,line.color]));
+    if(key===legendKey)return;
+    legendKey=key;
+    legend.replaceChildren(...series.map(line=>{
+      const item=el("span",line.name,"legend-item");
+      item.style.setProperty("--series",line.color);
+      return item;
+    }));
+  };
 }
 
 function download(bytes,name) {
@@ -344,7 +369,7 @@ function catalogView(root,sources,refresh) {
 
 export {post as workspacePost};
 
-async function renderCascade(root,sources,board,scope,bounds,signal,refresh) {
+async function renderCascade(root,sources,board,scope,range,signal,refresh) {
   const strip=el("div",null,"strip"), status=el("small",null,"muted");
   const origin=select(sources.map(item=>[item.id,item.name]),sources[0].id);
   const fields=Object.fromEntries(["bc","app","instance"].map(key=>[key,select([])]));
@@ -359,7 +384,7 @@ async function renderCascade(root,sources,board,scope,bounds,signal,refresh) {
       for(let i=first;i<order.length;i++) {
         const key=order[i];
         const parents=Object.fromEntries(order.slice(0,i).filter(parent=>labels[parent]).map(parent=>[parent,labels[parent]]));
-        const data=await post("labels",{...bounds,source:origin.value,label:key,scope:parents},signal);
+        const data=await post("labels",{...range(),source:origin.value,label:key,scope:parents},signal);
         if(signal.aborted||revision!==sequence)return;
         const field=fields[key];
         field.replaceChildren(new Option("全部",""),...data.values.map(value=>new Option(value,value)));
@@ -383,15 +408,25 @@ async function renderCascade(root,sources,board,scope,bounds,signal,refresh) {
   await reload(0,scope);
 }
 
-export async function renderCustom(root,{api,bounds,signal,visuals,zoom,refresh,view}) {
-  const workspace=await api("workspace",null,signal);
+export async function renderCustom(root,{api,bounds,signal,visuals,zoom,refresh,view,previous,refreshData}) {
+  const requested=view==="boards"?uid():null;
+  const reuse=()=>({live:previous,reused:true,load:()=>previous.update(bounds,signal)});
+  if(refreshData&&requested&&previous?.board===requested&&performance.now()-previous.checked<60000)
+    return reuse();
+  const [workspace,catalog]=await Promise.all([api("workspace",null,signal),requested?api("catalog",null,signal):[]]);
   if(signal.aborted) return;
   if(view==="sources") {
     showSource(root,workspace.sources,workspace.simulated,refresh,workspace.suggestedMetricsUrl);
     return;
   }
   const sources=[{id:"nebula",name:"NEBULA 内置",type:"nebula"},...workspace.sources.filter(s=>["prometheus","metrics","http"].includes(s.type))];
-  const current=workspace.boards.find(board=>board.id===uid());
+  const current=workspace.boards.find(board=>board.id===requested);
+  const scope=filters.get(current?.id)||{};
+  const key=JSON.stringify([current,scope,sources.map(({id,name,revision})=>[id,name,revision])]);
+  if(refreshData&&current&&previous?.key===key) {
+    previous.checked=performance.now();
+    return reuse();
+  }
   const actions=el("div",null,"strip");
   const state=el("p","","notice");
   actions.append(btn("新建仪表盘",()=>{
@@ -408,10 +443,11 @@ export async function renderCustom(root,{api,bounds,signal,visuals,zoom,refresh,
   actions.prepend(field("打开仪表盘",choose));
   root.append(actions);
   if(!current) {catalogView(root,sources,refresh);return;}
-  const catalog=await api("catalog",null,signal);
-  const scope=filters.get(current.id)||{};
+  let currentBounds=bounds;
+  const lifetime=new AbortController();
+  visuals.push({dispose:()=>lifetime.abort()});
   const header=el("div",null,"strip");
-  const add=btn("添加面板",()=>editPanel(current,current.panels.length,catalog,sources,refresh,bounds,scope));
+  const add=btn("添加面板",()=>editPanel(current,current.panels.length,catalog,sources,refresh,currentBounds,scope));
   header.append(el("h2",current.title),btn("导出 JSON",()=>saveFile(current,sources)));
   if(current.provisioned)header.append(el("small","由文件管理 · "+current.provisioned+" · r"+current.revision,"muted"));
   else header.append(add,btn("重命名",()=>{
@@ -427,15 +463,14 @@ export async function renderCustom(root,{api,bounds,signal,visuals,zoom,refresh,
   root.append(header,state);
   const activeProm=sources.filter(s=>s.type==="prometheus" && current.panels.some(p=>p.source===s.id));
   if(activeProm.length) {
-    await renderCascade(root,activeProm,current.id,scope,bounds,signal,refresh);
-    if(signal.aborted)return;
+    void renderCascade(root,activeProm,current.id,scope,()=>currentBounds,lifetime.signal,refresh);
     const strip=el("div",null,"strip");
     const labelSource=select(activeProm.map(s=>[s.id,s.name]),activeProm[0].id);
     const keys=select(resourceLabels.map(label=>[label,label]),"cluster"), values=select([["","全部"]],"");
     const load=btn("加载标签",feedback(state,async()=>{
       const source=labelSource.value,label=keys.value;
-      const result=await post("labels",{source,label,...bounds});
-      if(source!==labelSource.value || label!==keys.value) return;
+      const result=await post("labels",{source,label,...currentBounds},lifetime.signal);
+      if(lifetime.signal.aborted||source!==labelSource.value||label!==keys.value)return;
       values.replaceChildren(new Option("全部",""),...result.values.map(v=>new Option(v,v)));
       values.value=scope[label]||"";
       state.textContent=result.values.length ? "" : "这个数据源未返回该标签";
@@ -451,7 +486,7 @@ export async function renderCustom(root,{api,bounds,signal,visuals,zoom,refresh,
   if(!current.panels.length) root.append(el("p","点击「添加面板」选择数据源、查询和图形。","empty"));
   const grid=el("div",null,"panels custom-panels"), bus=new EventTarget();
   root.append(grid);
-  const render=async(panel,index)=>{
+  const render=(panel,index)=>{
     const card=el("section",null,"panel");
     if(panel.width===2) card.classList.add("panel-wide");
     grid.append(card);
@@ -464,7 +499,7 @@ export async function renderCustom(root,{api,bounds,signal,visuals,zoom,refresh,
     });
     const prev=btn("前移",shift(-1)), next=btn("后移",shift(1));
     prev.disabled=index===0;next.disabled=index===current.panels.length-1;
-    if(!current.provisioned)controls.append(btn("编辑",()=>editPanel(current,index,catalog,sources,refresh,bounds,scope)),prev,next,
+    if(!current.provisioned)controls.append(btn("编辑",()=>editPanel(current,index,catalog,sources,refresh,currentBounds,scope)),prev,next,
       btn("删除",async()=>{
         if(!confirm("删除面板「"+panel.title+"」？")) return;
         await feedback(state,async()=>{
@@ -472,37 +507,68 @@ export async function renderCustom(root,{api,bounds,signal,visuals,zoom,refresh,
         })();
       }));
     head.append(el("h3",panel.title),controls);card.append(head);
-    const reports=[];
-    for(const query of panel.queries) {
-      if(signal.aborted) return;
-      const key=JSON.stringify([current.id,current.revision,panel.source,query.expr,scope]);
-      try {
-        const report=await post("query",{...bounds,scope,source:panel.source,expr:query.expr},signal);
-        reports.push(report);
-        if(!signal.aborted && report.status==="ok") {
-          recent.set(key,report);
-          if(recent.size>80) recent.delete(recent.keys().next().value);
-        }
-      } catch(error) {
-        const old=recent.get(key), previous=old?.series.map(line=>({...line,
-          points:line.points.filter(([t])=>bounds.from<=t && t<=bounds.to)}));
-        reports.push({...old,series:previous,error:error.message+
-          (previous?.some(line=>line.points.length) ? " · 暂时显示上次读数" : "")});
+    const notice=el("p",null,"notice");
+    notice.hidden=true;
+    card.append(notice);
+    const display=panelDisplay(card,panel,visuals,bus,zoom);
+    let readings=[], lines=[];
+    const inspect=btn("检查",()=>details(panel,lines,readings));
+    inspect.disabled=true;
+    controls.prepend(inspect);
+    return async(query,range,requestSignal)=>{
+      const reports=[];
+      for(const item of panel.queries) {
+        if(requestSignal.aborted)return;
+        reports.push(await query(panel.source,item.expr));
       }
-    }
-    if(signal.aborted) return;
-    const series=reports.flatMap((report,i)=>(report.series||[]).map((line,j)=>{
-      const labels=Object.entries(line.labels).map(([key,value])=>key+"="+value).join(" · ");
-      return {...line,name:(panel.queries[i].alias || panel.queries[i].expr)+(labels?" · "+labels:""),
-        step:report.step,color:i+j?palette[(i+j)%palette.length]:colors[panel.color]};
-    }));
-    controls.prepend(btn("检查",()=>details(panel,series,reports)));
-    if(reports.some(item=>item.error)) card.append(el("p",reports.filter(item=>item.error).map(item=>item.error).join(" · "),"notice"));
-    displayPanel(card,panel,series,bounds,visuals,bus,zoom);
+      if(requestSignal.aborted)return;
+      readings=reports;
+      lines=reports.flatMap((report,i)=>(report.series||[]).map((line,j)=>{
+        const labels=Object.entries(line.labels).map(([key,value])=>key+"="+value).join(" · ");
+        return {...line,name:(panel.queries[i].alias||panel.queries[i].expr)+(labels?" · "+labels:""),
+          step:report.step,color:i+j?palette[(i+j)%palette.length]:colors[panel.color]};
+      }));
+      inspect.disabled=false;
+      const failures=reports.filter(item=>item.error).map(item=>item.error).join(" · ");
+      if(notice.textContent!==failures)notice.textContent=failures;
+      notice.hidden=!failures;
+      display(lines,range);
+    };
   };
-  // Keep requests within the Observer worker budget.
-  for(let i=0;i<current.panels.length;i+=4) {
-    if(signal.aborted) return;
-    await Promise.all(current.panels.slice(i,i+4).map((panel,j)=>render(panel,i+j)));
-  }
+  const panels=current.panels.map(render);
+  const live={key,board:current.id,checked:performance.now(),async update(range,requestSignal){
+    currentBounds=range;
+    const shared=new Map();
+    const query=(source,expr)=>{
+      const id=JSON.stringify([current.id,current.revision,source,expr,scope]);
+      if(!shared.has(id))shared.set(id,(async()=>{
+        try {
+          const report=await post("query",{...range,scope,source,expr},requestSignal);
+          if(report.status==="unavailable")throw new Error(report.error||"数据源暂不可用");
+          if(!requestSignal.aborted) {
+            if(report.status==="ok") {
+              recent.set(id,report);
+              if(recent.size>80)recent.delete(recent.keys().next().value);
+            } else recent.delete(id);
+          }
+          return report;
+        } catch(error) {
+          const old=recent.get(id), series=old?.series.map(line=>({...line,
+            points:line.points.filter(([t])=>range.from<=t&&t<=range.to)}));
+          return {...old,series,error:error.message+
+            (series?.some(line=>line.points.length)?" · 暂时显示上次读数":"")};
+        }
+      })());
+      return shared.get(id);
+    };
+    // Advance each available worker as soon as its panel completes.
+    const pending=panels.values();
+    await Promise.all(Array.from({length:Math.min(4,panels.length)},async()=>{
+      for(const panel of pending) {
+        if(requestSignal.aborted)return;
+        await panel(query,range,requestSignal);
+      }
+    }));
+  }};
+  return {live,load:()=>live.update(bounds,signal)};
 }

@@ -13,7 +13,8 @@ async function until(test,label){
 }
 async function run(){
   const health=await fetch(base+'/health');assert(health.ok);
-  const metricRoute=(await health.json()).seriesBatch?'/api/v1/series/batch':'/api/v1/series';
+  const profile=await health.json();
+  const metricRoute=profile.seriesBatch?'/api/v1/series/batch':'/api/v1/series';
   const end=Math.floor(Date.parse(health.headers.get('date'))/1000);
   fs.mkdirSync(directory,{recursive:true});
   const edge=spawn(process.env.OBSERVER_RD_EDGE||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
@@ -117,9 +118,61 @@ async function run(){
     await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,mobile:false,deviceScaleFactor:1});
     await until(()=>js('document.documentElement.scrollWidth<=390'),'mobile width');
     await screenshot('mobile-dashboard');
+    await call('Emulation.setDeviceMetricsOverride',{width:1440,height:900,mobile:false,deviceScaleFactor:1});
+    await call('Page.navigate',{url:base+'/?view=service'});
+    await until(()=>js('!!document.querySelector("#traffic svg path[stroke-width]")'),'interactive chart');
+    await js(`
+      window.releaseSupplemental();
+      const interval=document.querySelector('#interval');
+      interval.value='5';interval.dispatchEvent(new Event('change'));
+    `);
+    await until(()=>js('document.querySelector("#status").dataset.state==="ready"'),'live chart ready');
+    const liveRefresh=await js(`(() => {
+      const svg=document.querySelector('#traffic svg'),rect=svg.getBoundingClientRect();
+      svg.dispatchEvent(new PointerEvent('pointermove',{clientX:rect.left+rect.width/2,clientY:rect.top+40,pointerType:'mouse'}));
+      window.stableSelectors=['.stat-card','.signal .stat-health','#traffic svg path[stroke-width]','#traffic .cursor-line'];
+      window.stableElements=stableSelectors.map(selector=>document.querySelector(selector));
+      return window.dashboardCalls[window.dashboardMetricRoute];
+    })()`);
+    await until(()=>js('(window.dashboardCalls[window.dashboardMetricRoute]||0)>'+liveRefresh),'automatic chart fetch while hovering');
+    await until(()=>js('document.querySelector("#status").dataset.state==="ready"'),'automatic chart rendered');
+    const stableAutomatic=await js('stableSelectors.every((selector,index)=>stableElements[index]&&document.querySelector(selector)===stableElements[index])');
+    assert(stableAutomatic);
+    assert.equal(await js('document.querySelector("#traffic .cursor-line").getAttribute("visibility")'),'visible');
+
+    let customStable=false;
+    if(profile.simulated) {
+      const boardResponse=await fetch(base+'/api/v1/workspace/board/save',{
+        method:'POST',headers:{'Content-Type':'application/json','X-Observer-Workspace':'1'},
+        body:JSON.stringify({title:'刷新验证',panels:['line','area'].map((view,index)=>({
+          title:'同一指标 '+index,source:'nebula',view,queries:[{expr:'http',alias:'请求'}],
+        }))}),
+      });
+      assert(boardResponse.ok);
+      const fixture=await boardResponse.json();
+      await call('Page.navigate',{url:base+'/?view=boards&board='+encodeURIComponent(fixture.id)});
+      await until(()=>js('document.querySelectorAll(".custom-panels svg path[stroke-width]").length===2'),'custom panels attached');
+      const capture=await js(`(() => {
+        window.customGrid=document.querySelector('.custom-panels');
+        window.customPath=customGrid.querySelector('svg path[stroke-width]');
+        window.customInspect=customGrid.querySelector('.panel-actions button');
+        return window.dashboardCalls['/api/v1/workspace/query'];
+      })()`);
+      assert.equal(capture,1);
+      const refreshed=await js(`(() => {
+        document.querySelector('#refresh').click();
+        return true;
+      })()`);
+      assert(refreshed);
+      await until(()=>js('window.dashboardCalls["/api/v1/workspace/query"]===2'),'one repeated query across two panels');
+      await until(()=>js('!document.querySelector(".custom-panels .panel-actions button").disabled'),'retained controls');
+      customStable=await js('document.querySelector(".custom-panels")===customGrid && customGrid.querySelector("svg path[stroke-width]")===customPath && customGrid.querySelector(".panel-actions button")===customInspect');
+      assert(customStable);
+    }
     assert.equal(errors.length,0,JSON.stringify(errors));
     const evidence={passed:true,firstChartMs,metricRoute,withheldOptionalRequests:4,chartStableOnRetry:true,
-      failedOnlyRetry:true,pendingSurvivesMetricRefresh:true,focusSkippedHiddenQueries:true,lateGenerationIgnored:true,artifacts:directory};
+      failedOnlyRetry:true,pendingSurvivesMetricRefresh:true,focusSkippedHiddenQueries:true,lateGenerationIgnored:true,
+      stableAutomatic,customStable,artifacts:directory};
     fs.writeFileSync(path.join(directory,'result.json'),JSON.stringify(evidence,null,2)+'\n');
     console.log(JSON.stringify(evidence));
   }finally{socket?.close();edge.kill();}

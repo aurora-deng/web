@@ -22,6 +22,26 @@ export function validateConnection(value){
   if(value.provider==='ollama'&&(!loopback||!['/','/api/chat'].includes(url.pathname)))throw Error('Ollama 请填写本机地址，例如 http://127.0.0.1:11434。');
   if(!value.model.trim()||value.model.length>160||value.key.length>4096||/[\r\n]/.test(value.key))throw Error('请填写有效的模型 ID 和凭据。');
 }
+
+async function responseText(response, limit) {
+  if (!response.body) return '';
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let text = '', bytes = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      bytes += value.length;
+      if (bytes > limit) {
+        await reader.cancel();
+        throw new Error('模型响应超过读取上限。');
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+  } finally { reader.releaseLock(); }
+}
+
 /** 自带 API 由浏览器直接连接，不让服务器成为任意网络代理；服务商须允许本站 Origin 的 CORS。 */
 export async function requestOwnModel(value,messages,{signal,maxTokens=512}={}){
   validateConnection(value);
@@ -31,8 +51,20 @@ export async function requestOwnModel(value,messages,{signal,maxTokens=512}={}){
   const limits=native?{options:{num_predict:maxTokens}}:{max_tokens:maxTokens};
   const response=await fetch(target,{method:'POST',credentials:'omit',referrerPolicy:'no-referrer',redirect:'error',signal,headers,
     body:JSON.stringify({model:value.model,messages,stream:false,...limits})});
-  if(!response.ok)throw Error(`模型服务返回 HTTP ${response.status}，请检查地址、Key、模型权限与额度。`);
-  const reader=response.body.getReader(),decoder=new TextDecoder();let text='',bytes=0;try{while(true){const part=await reader.read();if(part.done)break;bytes+=part.value.length;if(bytes>262144){await reader.cancel();throw Error('模型响应超过 256 KiB。');}text+=decoder.decode(part.value,{stream:true});}text+=decoder.decode();}finally{reader.releaseLock();}
+  if(!response.ok){
+    if([400,413].includes(response.status)){
+      const data=await responseText(response,4096).then(JSON.parse).catch(()=>null);
+      signal?.throwIfAborted();
+      const code=data?.error?.code ?? data?.code;
+      if(['context_length_exceeded','context_window_exceeded','max_context_length_exceeded'].includes(code)){
+        const error=new Error('当前模型的上下文容量不足。');
+        error.code='context_length_exceeded';
+        throw error;
+      }
+    }
+    throw Error(`模型服务返回 HTTP ${response.status}，请检查地址、Key、模型权限与额度。`);
+  }
+  const text=await responseText(response,262144);
   let data;try{data=JSON.parse(text);}catch{throw Error('接口未返回有效 JSON，请确认使用 Chat Completions 兼容协议。');}
   const reply=native?data?.message?.content:data?.choices?.[0]?.message?.content;
   if(typeof reply!=='string'||!reply.trim())throw Error('连接到了接口，但未收到有效模型回答，不能判定连接成功。');return reply;
@@ -40,7 +72,7 @@ export async function requestOwnModel(value,messages,{signal,maxTokens=512}={}){
 export function openModelConnection({testServer,onChange=()=>{},serverModels=[],serverModel=''}={}){
   const dialog=document.createElement('dialog');dialog.className='model-connection';
   dialog.innerHTML='<header><h2>小研的模型连接</h2><button type=button data-close aria-label="关闭模型连接">×</button></header><form><label>连接方式<select name=provider><option value=server>本站模型 · Linux</option><option value=ollama>本机 Ollama · 浏览器直连</option><option value=custom>自带 API · OpenAI 兼容</option></select></label><label data-server>选择本站模型<select name=serverModel aria-label="检测的本站模型"></select></label><section data-custom hidden><label>接口地址<input name=endpoint type=url maxlength=2048></label><label>模型 ID<input name=model maxlength=160></label><label data-key>API Key<input name=key type=password autocomplete=new-password maxlength=4096 placeholder="仅保留在当前页面内存"></label></section><p data-route></p><label><input name=consent type=checkbox>我了解当前连接的数据流向。测试会发送固定的简短文本，外部服务商可能计费。</label><p role=status aria-live=polite></p><footer><button type=button data-test>测试连接</button><button type=submit>使用此连接</button></footer></form>';
-  const style=document.querySelector('[data-model-connection-css]');if(!style){const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/ModelConnection/ModelConnection.css?v=7f8c7f1b31e4435c';css.dataset.modelConnectionCss='';document.head.append(css);}
+  const style=document.querySelector('[data-model-connection-css]');if(!style){const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/ModelConnection/ModelConnection.css?v=4364119c78f60e44';css.dataset.modelConnectionCss='';document.head.append(css);}
   document.body.append(dialog);const form=dialog.querySelector('form'),status=dialog.querySelector('[role=status]'),f=name=>form.elements.namedItem(name);let tested='',controller;
   for(const name of ['provider','endpoint','model','key'])f(name).value=connection[name];
   for(const model of serverModels)f('serverModel').append(new Option(`${model.name} · ${model.runtime}`,String(model.accountId)));

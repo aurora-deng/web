@@ -3,6 +3,7 @@
 - [阶段验收](stages/README.md)：Function3及后续综合验收的历史结论。
 - [按日期的历史测试报告](history/README.md)：早期版本的测试记录。
 - [当前复现验收](../ops/validation/reproduce.md#这次的验证记录)：Linux 通信档和业务档均从空目录构建并启动。
+- [小研个性化记忆进度](xiaoyan-personalization-progress.md)涵盖实际交互、记忆限制和验收证据。
 - [Phase49 历史验收](../architecture/business/engineering/phase49.md)：当时的功能回归与未达标的性能门槛。
 - [运行状态](../../STATUS.md)与[原始证据](../evidence/README.md)。
 

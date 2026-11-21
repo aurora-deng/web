@@ -1,27 +1,32 @@
+import { readCheckpoint, validSequence } from '../PersonalAgent/ContextWindow.js?v=4364119c78f60e44';
+
 const MAX_THREADS = 16;
 const MAX_MESSAGES = 30;
 
 function history(messages) {
+  let sequence = 0n;
   return Array.isArray(messages) ? messages.filter(message => message &&
     ['user', 'assistant'].includes(message.role) && typeof message.content === 'string' && message.content.length <= 8000)
-    .map(({ role, content }) => ({ role, content })).slice(-MAX_MESSAGES) : [];
+    .slice(-MAX_MESSAGES).map(({ role, content, sequence: stored }) => {
+      sequence = validSequence(stored) && BigInt(stored) > sequence ? BigInt(stored) : sequence + 1n;
+      return { role, content, sequence: String(sequence) };
+    }) : [];
 }
-
 function decode(storage, key) {
   try { return JSON.parse(storage.getItem(key)); } catch { return null; }
 }
 
 /** Both web surfaces use one session-local history for the signed-in account. */
 export class WebAssistantHistory {
-  constructor(owner, storage = sessionStorage) {
+  constructor(owner, storage = sessionStorage, site = 'origin') {
     this.storage = storage;
-    this.key = `nebula:xiaoyan:web:${owner}`;
+    this.key = `nebula:xiaoyan:web:${site === 'origin' ? owner : site + ':' + owner}`;
     const saved = decode(storage, this.key);
     this.threads = Array.isArray(saved?.threads) ? saved.threads.filter(thread =>
       thread && typeof thread.id === 'string' && typeof thread.title === 'string')
-      .map(thread => ({ id: thread.id, title: thread.title.slice(0, 64), messages: history(thread.messages) }))
+      .map(thread => ({ id: thread.id, title: thread.title.slice(0, 64), messages: history(thread.messages), checkpoint: readCheckpoint(thread.checkpoint) }))
       .slice(0, MAX_THREADS) : [];
-    if (!saved) {
+    if (!saved && site === 'origin') {
       for (const [surface, title] of [['friend', '原好友对话'], ['sidebar', '原侧栏对话']]) {
         const messages = history(decode(storage, `nebula:web-chat:${owner}:${surface}`));
         if (messages.length) this.threads.push({ id: `legacy-${surface}`, title, messages });
@@ -54,7 +59,15 @@ export class WebAssistantHistory {
 
   append(thread, message) {
     if (!thread.messages.length && thread.title === '新对话') thread.title = message.content.replace(/\s+/g, ' ').slice(0, 36);
-    thread.messages = [...thread.messages, { role: message.role, content: message.content }].slice(-MAX_MESSAGES);
+    const previous = BigInt(thread.messages.at(-1)?.sequence ?? 0);
+    const through = BigInt(thread.checkpoint?.through ?? 0);
+    const sequence = String((previous > through ? previous : through) + 1n);
+    thread.messages = [...thread.messages, { role: message.role, content: message.content, sequence }].slice(-MAX_MESSAGES);
+    this.save();
+  }
+
+  checkpoint(thread, checkpoint) {
+    thread.checkpoint = checkpoint;
     this.save();
   }
 

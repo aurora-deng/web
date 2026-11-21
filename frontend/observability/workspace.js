@@ -24,11 +24,12 @@ const params = new URL(location.href).searchParams;
 let view = Object.hasOwn(views, params.get("view")) ? params.get("view") : "overview";
 let fixed = params.has("from") && params.has("to") ? {from:Number(params.get("from")),to:Number(params.get("to"))} : null;
 let traceId = params.get("trace") || "";
-let paused = !!fixed, version = 0, request, visuals = [], cursor = "", eventPages = [], liveDashboard;
+let paused = !!fixed, version = 0, request, visuals = [], cursor = "", eventPages = [], liveView;
 let domain=["dag","agent","device","service"].includes(params.get("domain"))?params.get("domain"):"dag";
 let producer=params.get("source")||"";
 let panel = params.get("panel") || "", instance = params.get("instance") || "";
 let bc=params.get("bc")||"", app=params.get("app")||"", scopes=[], learnedInstances=[];
+let scopeRequest, lastScopeCheck=-Infinity;
 let transaction = params.get("transaction") === "history" ? "history" : "http";
 let refreshing = false, extensionKind = "", extensionOrigin = "";
 const isDashboard = () => ["overview","service"].includes(view);
@@ -613,8 +614,9 @@ function setInstances(instances) {
   const set=(id,values,chosen,placeholder)=>{
     const field=$(id), names=[...new Set(values.filter(Boolean))];
     if(chosen&&!names.includes(chosen))names.push(chosen);
-    field.replaceChildren(new Option(placeholder,""),...names.map(value=>new Option(value,value)));
-    field.value=chosen;
+    if(field.options.length!==names.length+1||names.some((name,index)=>field.options[index+1].value!==name))
+      field.replaceChildren(new Option(placeholder,""),...names.map(value=>new Option(value,value)));
+    if(field.value!==chosen)field.value=chosen;
   };
   set("bc",scopes.map(target=>target.bc),bc,"全部 BC");
   const apps=scopes.filter(target=>!bc||target.bc===bc);
@@ -624,7 +626,19 @@ function setInstances(instances) {
   $("app").disabled=!apps.length;
 }
 
-async function run(append=false) {
+function loadScopes() {
+  if(scopeRequest)return scopeRequest;
+  if(performance.now()-lastScopeCheck<30000)return Promise.resolve();
+  scopeRequest=api("scopes").then(catalog=>{
+    if(!Array.isArray(catalog?.items))return;
+    lastScopeCheck=performance.now();
+    scopes=catalog.items;
+    if(isDashboard())setInstances(learnedInstances);
+  }).catch(()=>{}).finally(()=>{scopeRequest=null;});
+  return scopeRequest;
+}
+
+async function run(append=false,refreshData=false) {
   const current=++version;
   request?.abort();
   request=new AbortController();
@@ -660,17 +674,19 @@ async function run(append=false) {
     const bounds=windowParams();
     let result;
     if (isDashboard()) {
-      const [profile,catalog]=await Promise.all([loadProfile(),api("scopes",null,signal).catch(()=>({items:[]}))]);
+      const scopeRead=loadScopes();
+      const profile=await loadProfile();
+      if(bc||app)await scopeRead;
       if(signal.aborted)return;
-      scopes=catalog.items;
       const available=scopes.filter(target=>(!bc||target.bc===bc)&&(!app||target.app===app)).map(target=>target.instance);
-      const allowed=scopes.length&&(bc||app)?new Set(available):null;
-      result=await renderDashboard(draft,{api, view, signal, transaction, bounds, reading:profile,now:observerNow,previous:liveDashboard,
+      const allowed=(bc||app)?new Set(available):null;
+      result=await renderDashboard(draft,{api, view, signal, transaction, bounds, fixed, reading:profile,now:observerNow,previous:liveView,
         alertPanel, focus, zoom, panel, instance, allowed, setInstances, visuals:nextVisuals});
     } else if(view==="resources" || view==="profiles") result=await renderResources(draft,{api,post:workspacePost,bounds,
       signal,visuals:nextVisuals,zoom,view,readHealth:loadProfile});
     else if (view==="reliability") result=await renderReliability(draft,{api,bounds,signal});
-    else if (view==="boards" || view==="sources") await renderCustom(draft,{api,bounds,signal,visuals:nextVisuals,zoom,refresh:()=>run(),view});
+    else if (view==="boards" || view==="sources") result=await renderCustom(draft,{api,bounds,signal,visuals:nextVisuals,zoom,
+      refresh:()=>run(),view,previous:liveView,refreshData});
     else if (view==="distributed") await renderDistributed(draft,{api,bounds,signal,post:workspacePost});
     else if (view==="explore") await renderExplore(draft,{api,bounds,signal,visuals:nextVisuals,zoom,post:workspacePost});
     else if (view==="logs") await renderLogs(draft,{api,post:workspacePost,bounds,signal,visuals:nextVisuals,now:observerNow});
@@ -684,17 +700,19 @@ async function run(append=false) {
       visuals=nextVisuals;
       $("body").replaceChildren(...draft.childNodes);
     }
-    liveDashboard=result?.live;
+    liveView=result?.live;
     if(view==="distributed"&&location.hash==="#trace-logs")$("trace-logs")?.scrollIntoView();
     // SVGs are painted in the same frame as the DOM swap to avoid an empty chart frame.
     nextVisuals.forEach(visual=>visual.paint?.());
+    applied=true;
+    if(result?.load)await result.load();
+    if(current!==version)return;
     const update=new Date().toLocaleTimeString("zh-CN",{hour12:false});
     const state=fixed ? "固定窗口" : paused || Number($("interval").value)===0 ? "已暂停" : "自动刷新";
     const stale=isDashboard() && !fixed && result?.sampleAt && bounds.to-result.sampleAt>Math.max(45,3*Number($("interval").value));
     status.dataset.state=result?.failed || stale ? "warn" : "ready";
-    status.textContent=result ? state+" · "+(result.sampleAt ? "最近样本 "+new Date(result.sampleAt*1000).toLocaleTimeString("zh-CN",{hour12:false}) : "无指标样本")+
+    status.textContent=result?.sampleAt!==undefined ? state+" · "+(result.sampleAt ? "最近样本 "+new Date(result.sampleAt*1000).toLocaleTimeString("zh-CN",{hour12:false}) : "无指标样本")+
       " · "+(result.failed ? result.failed+" 项查询失败" : stale ? "采样延迟" : "查询于 "+update) : "查询于 "+update;
-    applied=true;
   } catch(error) {
     if (current!==version) return;
     status.dataset.state="warn";
@@ -707,7 +725,7 @@ async function run(append=false) {
 
 function go(next) {
   view=next; panel=""; cursor=""; eventPages=[];
-  liveDashboard=null;
+  liveView=null;
   visuals.splice(0).forEach(visual=>visual.dispose());
   $("body").replaceChildren();
   run();
@@ -722,20 +740,20 @@ function schedule() {
     if(!paused&&!fixed&&!refreshing&&!document.hidden&&(isDashboard() || view==="resources" || view==="alerts" || view==="reliability" ||
        view==="boards"&&new URL(location.href).searchParams.has("board"))&&
        !document.querySelector("dialog[open]")&&!visuals.some(visual=>visual.interacting?.())&&
-       !$("body").querySelector(isDashboard()?"input:focus-visible, select:focus-visible, textarea:focus-visible, details[open]:hover":
-         ".chart:hover, :focus-visible, details[open]:hover")) run();
+       !$("body").querySelector(isDashboard()||view==="boards"?"input:focus-visible, select:focus-visible, textarea:focus-visible, details[open]:hover":
+         ".chart:hover, :focus-visible, details[open]:hover")) run(false,true);
   },every*1000);
 }
 sideNav.querySelectorAll("button").forEach(button=>button.onclick=()=>go(button.dataset.view));
 new ResizeObserver(revealActiveNavigation).observe(sideNav);
-$("refresh").onclick=()=>run();
+$("refresh").onclick=()=>run(false,true);
 $("pause").onclick=()=>{
   if (fixed) {fixed=null; $("range").value="900"; syncRange();}
   if (Number($("interval").value)===0) $("interval").value="15";
   paused=$("pause").getAttribute("aria-pressed")==="false";
   schedule(); run();
 };
-$("interval").onchange=()=>{paused=Number($("interval").value)===0; schedule(); run();};
+$("interval").onchange=()=>{paused=Number($("interval").value)===0; schedule(); run(false,true);};
 $("transaction").value=transaction;
 $("transaction").onchange=()=>{transaction=$("transaction").value;run();};
 $("bc").onchange=()=>{bc=$("bc").value;app="";instance="";setInstances(learnedInstances);run();};

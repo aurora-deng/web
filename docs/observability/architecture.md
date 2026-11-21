@@ -43,6 +43,10 @@ flowchart LR
 
 ## 实现边界
 
+Observer 用 Python 的 HTTP 服务和 SQLite 组织本地采样与查询，浏览器端使用原生 JavaScript 和 SVG。内置历史窗口从 SQLite 取旧区间，从内存读取最近六小时的已解码样本。两段按明确时间边界拼接。返回较大的查询结果时，HTTP 根据浏览器声明协商 gzip。
+
+内置总览和业务性能保留原来的数值卡、健康状态和 SVG 路径，刷新时更新数据和坐标。当附加告警、版本或标记请求未完成时，主曲线仍可先显示。自定义仪表盘复用当页控件，同一轮相同数据源、表达式和筛选的查询共享请求，面板按完成顺序更新。[查询与无闪烁验收](validation.md#查询速度与自动刷新)
+
 | 层 | 职责与入口 |
 |---|---|
 | C++ 业务埋点 | 请求分类、阶段时延、直方图与有界 span 导出；通信核心按原职责收发。[Telemetry](../../backend/application/observability/Telemetry/Telemetry.cpp) · [ChatAckTrace](../../backend/application/observability/ChatAckTrace/ChatAckTrace.h) |

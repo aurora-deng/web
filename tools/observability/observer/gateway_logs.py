@@ -17,7 +17,9 @@ from .store import Conflict
 
 SOURCE = "nebula-gateway"
 ROUTES = frozenset({"other", "fast", "health_live", "health_ready", "health_version", "page", "auth_login",
-                    "auth_register", "conversations", "tree", "ws", "sse", "api", "files", "deny"})
+                    "auth_register", "conversations", "tree", "ws", "sse", "api", "files", "deny",
+                    "assistant_redirect", "assistant_page", "assistant_assets", "agent_runtime", "ai_web_models",
+                    "ai_web_generations", "ai_private", "local_only", "study", "study_page", "study_page_root"})
 OPERATIONS = {route: f"gateway.{route}" for route in ROUTES}
 TIMING_FIELDS = frozenset({"durationUs", "upstreamConnectUs", "upstreamHeaderUs", "upstreamResponseUs"})
 STAGES = {"durationUs": "request", "upstreamHeaderUs": "upstream_header", "upstreamResponseUs": "upstream_response"}
