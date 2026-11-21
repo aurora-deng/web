@@ -1,3 +1,4 @@
+#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
 #include "backend/application/modules/accounts/application/AuthService/AuthService.h"
 #include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
 
@@ -41,6 +42,7 @@ User AuthService::registerUser(std::string username,
                                std::string displayName,
                                TimePoint now)
 {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::AuthRegister);
     username = normalizeUsername(username);
     if (password.size() < 8 || password.size() > 256)
         throw ApplicationError(ErrorCode::InvalidArgument,
@@ -66,6 +68,7 @@ LoginSession AuthService::login(std::string_view username,
                                 TimePoint now,
                                 std::string_view origin)
 {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::AuthLogin);
     const auto normalized = normalizeUsername(username);
     if (!rateLimiter_.allowLogin(normalized, origin, now))
         throw ApplicationError(ErrorCode::RateLimited,

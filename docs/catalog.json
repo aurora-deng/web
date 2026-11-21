@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-14",
+  "generated": "2026-11-21",
   "scope": "public human-readable documents; raw evidence and local account files excluded",
   "documents": [
     {
@@ -796,14 +796,68 @@
       "kind": "index"
     },
     {
+      "path": "docs/observability/ack-diagnosis.md",
+      "title": "用真实慢 ACK 学习指标、Trace 与故障恢复",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
       "path": "docs/observability/architecture.md",
       "title": "架构、指标与事件契约",
       "category": "observability",
       "kind": "document"
     },
     {
+      "path": "docs/observability/business-instrumentation.md",
+      "title": "业务埋点：从请求到函数、数据库与异步任务",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/daily-rollout.md",
+      "title": "日常 18090 日志与函数耗时启用记录",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/dual-instance-lab.md",
+      "title": "双实例聊天与真实遥测验收",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/envoy-gateway.md",
+      "title": "Envoy 网关隔离实验",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/explore-and-connect.md",
+      "title": "用真实业务跑通 Explore、调用路线与监控接入",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/grafana-rd-matrix.md",
+      "title": "Observer 与 Grafana 的能力对照和 RD 验收",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
       "path": "docs/observability/learning.md",
       "title": "NEBULA 可观测性实战",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/logging.md",
+      "title": "结构化日志、查询编辑器与函数耗时",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/resources.md",
+      "title": "从主机、进程和函数定位长尾",
       "category": "observability",
       "kind": "document"
     },
@@ -815,13 +869,19 @@
     },
     {
       "path": "docs/observability/sources.md",
-      "title": "11 月 14 日研讨资料核对",
+      "title": "参考资料与演进顺序",
       "category": "observability",
       "kind": "document"
     },
     {
       "path": "docs/observability/validation.md",
       "title": "验证记录",
+      "category": "observability",
+      "kind": "document"
+    },
+    {
+      "path": "docs/observability/workspace.md",
+      "title": "自定义仪表盘、数据源与分布式排障",
       "category": "observability",
       "kind": "document"
     },
@@ -898,6 +958,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/ops/runtime/nebula-yantu-community.md",
+      "title": "NEBULA 研途接入与故事广场改造",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
       "path": "docs/ops/runtime/phase36-41-local-preview.md",
       "title": "Phase36–41本地成果如何复现",
       "category": "ops",
@@ -948,6 +1014,12 @@
     {
       "path": "docs/ops/validation/function3.1.md",
       "title": "Function3.1 · 开发快照",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/validation/native-delivery.md",
+      "title": "原生档交付、预检与复现",
       "category": "ops",
       "kind": "document"
     },
@@ -1024,6 +1096,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/releases/function3.3.md",
+      "title": "Function3.3 · 研途账号与工作区切换",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
       "path": "docs/releases/test9.1.md",
       "title": "test9.1 版本差异：HTTP/gRPC 架构与性能升级",
       "category": "releases",
@@ -1090,20 +1168,44 @@
       "kind": "document"
     },
     {
+      "path": "docs/roadmap/gateway-and-reliability-next-2026-11-19.md",
+      "title": "Envoy 网关与可靠性路线",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
       "path": "docs/roadmap/learning/ROBOTICS_ROADMAP.md",
       "title": "机器人 C++ 系统软件 9–12 个月路线图",
       "category": "roadmap",
       "kind": "document"
     },
     {
+      "path": "docs/roadmap/nebula-cpp-dag-robotics-evaluation.md",
+      "title": "NEBULA 工程评估与 C++、DAG、具身智能路线",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
       "path": "docs/roadmap/next-steps.md",
-      "title": "后续演进建议：先完成性能闭环，再验收已有能力",
+      "title": "NEBULA 下一阶段计划",
       "category": "roadmap",
       "kind": "document"
     },
     {
       "path": "docs/roadmap/phase43-47-progress.md",
       "title": "Phase43–47 实施台账",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/project-review-2026-11-19.md",
+      "title": "NEBULA 全项目改进意见与实施对照",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/project-review-implementation-2026-11-19.md",
+      "title": "全项目改进意见：本轮实施与验收",
       "category": "roadmap",
       "kind": "document"
     },

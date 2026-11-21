@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import re
+import sys
 
 ROOT=Path(__file__).resolve().parents[2]
 def run(args,**kw):return subprocess.run(args,cwd=ROOT,check=True,**kw)
@@ -22,39 +23,77 @@ def test_matrix(names):
     required={'phase11_core_tests','function3_workspace_contract','phase11_chat_reliability_tests',
               'phase11_http_auth_tests','phase11_file_tests','phase11_sodium_credentials_tests',
               'phase11_postgres_contract_tests','function3_postgres_contract',
-              'function3_runtime_config','function3_business_shutdown','function3_commit_wakeup'}
+              'function3_runtime_config','function3_business_shutdown','function3_commit_wakeup',
+              'function3_tree_contract','function3_ai_link_contract','function3_speech_link_contract'}
     missing=required-set(names)
     if missing or any(not lane for lane in matrix.values()):
         raise RuntimeError('Required test lanes/suites missing: '+','.join(sorted(missing)))
     if not any(n.startswith('HttpParserTest.') for n in names) or not any('WebSocket' in n and '.' in n for n in names):
         raise RuntimeError('Required HTTP/WebSocket protocol tests not registered; check installed GTest')
     return matrix
+def source_checks(report, observer_http):
+    checks = report['checks'] = {}
+    report['tools'] = {'python': sys.version.split()[0],
+                       'node': subprocess.check_output(['node', '--version'], text=True).strip()}
+
+    def check(name, *command):
+        checks[name] = 'failed'
+        run(list(command))
+        checks[name] = 'passed'
+
+    python = sys.executable
+    for name, script, *args in [
+        ('boundaries', 'scripts/project/check_boundaries.py'),
+        ('function3Boundaries', 'tests/function3/architecture/check_boundaries.py'),
+        ('artwork', 'scripts/project/chat_backdrop_artwork.py', '--check'),
+        ('assetVersions', 'scripts/project/frontend_release.py', '--check'),
+        ('presentation', 'scripts/project/check_presentation.py'),
+        ('apiVersions', 'scripts/project/sync_api_contracts.py', '--check'),
+        ('docs', 'scripts/project/check_doc_links.py'),
+        ('apiContracts', 'tests/project/test_api_contracts.py'),
+        ('releaseGates', 'tests/project/test_ci_gates.py'),
+        ('runtimeDelivery', 'tests/project/test_runtime_delivery.py'),
+        ('observerQueries', 'tests/project/test_observer_queries.py'),
+        ('gatewayContracts', 'tests/project/test_gateway.py'),
+        ('distributedObservability', 'tests/project/test_distributed_observability.py'),
+        ('processIdentity', 'tests/project/test_process_identity.py'),
+        ('inventory', 'tests/project/test_source_inventory.py'),
+        ('snapshotPruning', 'tests/project/test_snapshot_pruning.py'),
+        ('measurement', 'tests/project/test_measurement_evidence.py'),
+    ]:
+        check(name, python, script, *args)
+    if os.name != 'nt' or observer_http:
+        check('observerHttp', python, 'tests/project/test_observability.py')
+    else:
+        checks['observerHttp'] = 'not requested; use --observer-http on Windows with loopback access'
+
+    checks['pythonSyntax'] = 'failed'
+    for folder in ('scripts', 'tests', 'tools/observability'):
+        for path in sorted((ROOT / folder).rglob('*.py')):
+            ast.parse(path.read_text(encoding='utf-8-sig'), filename=str(path))
+    checks['pythonSyntax'] = 'passed'
+
+    checks['javascriptSyntax'] = 'failed'
+    for folder in ('frontend/phase11', 'frontend/observability'):
+        for path in sorted((ROOT / folder).rglob('*.js')):
+            if 'vendor' not in path.parts:
+                run(['node', '--check', str(path)], stdout=subprocess.DEVNULL)
+    checks['javascriptSyntax'] = 'passed'
+    frontend_tests = [str(path) for stage in ('function3', 'phase11')
+                      for path in sorted((ROOT / 'tests' / stage / 'frontend').glob('*.test.mjs'))]
+    if not frontend_tests:
+        raise RuntimeError('No frontend tests found')
+    check('frontendContracts', 'node', '--test', *frontend_tests)
+
+
 def main():
-    p=argparse.ArgumentParser();p.add_argument('profile',choices=['source','full']);p.add_argument('--build',type=Path,default=Path('build-release'));p.add_argument('--output',type=Path,default=Path('build-function3/ci-report.json'));a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('profile',choices=['source','full']);p.add_argument('--build',type=Path,default=Path('build-release'));p.add_argument('--output',type=Path,default=Path('build-function3/ci-report.json'))
+    p.add_argument('--observer-http',action='store_true',help='Also require Observer HTTP contracts on Windows')
+    a=p.parse_args()
     report={'profile':a.profile,'passed':False,'installsDependencies':False};a.output.parent.mkdir(parents=True,exist_ok=True)
     try:
         if a.profile=='source':
-            run(['python3' if os.name!='nt' else os.sys.executable,'scripts/project/check_boundaries.py'])
-            run([os.sys.executable,'tests/function3/architecture/check_boundaries.py'])
-            run([os.sys.executable,'scripts/project/chat_backdrop_artwork.py','--check'])
-            run(['python3' if os.name!='nt' else os.sys.executable,'scripts/project/frontend_release.py','--check'])
-            run([os.sys.executable,'scripts/project/check_presentation.py'])
-            run([os.sys.executable,'scripts/project/sync_api_contracts.py','--check'])
-            run([os.sys.executable,'scripts/project/check_doc_links.py'])
-            run([os.sys.executable,'tests/project/test_api_contracts.py'])
-            run([os.sys.executable,'tests/project/test_ci_gates.py'])
-            run([os.sys.executable,'tests/project/test_process_identity.py'])
-            run([os.sys.executable,'tests/project/test_source_inventory.py'])
-            run([os.sys.executable,'tests/project/test_snapshot_pruning.py'])
-            run([os.sys.executable,'tests/project/test_measurement_evidence.py'])
-            if os.name != 'nt':
-                run([os.sys.executable,'tests/project/test_observability.py'])
-            for folder in ['scripts','tests','tools/observability']:
-                for path in (ROOT/folder).rglob('*.py'):ast.parse(path.read_text(encoding='utf-8-sig'),filename=str(path))
-            for path in (ROOT/'frontend/phase11').rglob('*.js'):
-                if 'vendor' not in path.parts:run(['node','--check',str(path)],stdout=subprocess.DEVNULL)
-            run(['node','--check','frontend/observability/app.js'])
-            run(['node','--test','tests/function3/frontend/history_capacity.test.mjs','tests/function3/frontend/chat_recall_backdrop.test.mjs','tests/phase11/frontend/chat_reliability.test.mjs','tests/function3/frontend/unread_watermarks.test.mjs','tests/function3/frontend/workspace_logic.test.mjs','tests/function3/frontend/chat_scope.test.mjs','tests/function3/frontend/api_contracts.test.mjs','tests/function3/frontend/speech_navigation.test.mjs','tests/function3/frontend/announcement_playback.test.mjs','tests/function3/frontend/azure_speech.test.mjs','tests/function3/frontend/browser_speech.test.mjs','tests/function3/frontend/tree_navigation_motion.test.mjs'])
+            source_checks(report, a.observer_http)
         else:
             build=a.build.resolve();cache=build/'CMakeCache.txt'
             if not cache.exists():raise RuntimeError('A provisioned Linux build is required. Configure PostgreSQL/libsodium ON; no silent fallback or installation.')

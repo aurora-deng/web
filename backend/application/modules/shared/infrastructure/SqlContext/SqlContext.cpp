@@ -1,5 +1,6 @@
 #include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
 #include "SqlContext.h"
+#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
 #include <map>
 #include <memory>
 #include <iostream>
@@ -9,11 +10,16 @@ namespace {
 thread_local std::map<const SqlContext *, PGconn *> connections;
 thread_local std::map<const SqlContext *,std::vector<std::function<void()>>> notifications;
 SqlRows execute(PGconn *connection, const std::string &sql, const std::vector<std::string> &parameters) {
+    const telemetry::BusinessOperation observation(telemetry::Series::SqlExecute);
     webserver::business_metrics::Timer timer{webserver::business_metrics::Database};
     std::vector<const char *> values;
     for (const auto &p : parameters) values.push_back(p.c_str());
-    std::unique_ptr<PGresult, decltype(&PQclear)> result(PQexecParams(connection, sql.c_str(),
-        static_cast<int>(values.size()), nullptr, values.data(), nullptr, nullptr, 0), PQclear);
+    std::unique_ptr<PGresult, decltype(&PQclear)> result(nullptr,PQclear);
+    {
+        telemetry::Span command("PostgreSQL command",{},telemetry::Span::Kind::Client);
+        result.reset(PQexecParams(connection, sql.c_str(),static_cast<int>(values.size()),nullptr,values.data(),nullptr,nullptr,0));
+        if(!result||(PQresultStatus(result.get())!=PGRES_TUPLES_OK&&PQresultStatus(result.get())!=PGRES_COMMAND_OK))command.error();
+    }
     if (!result || (PQresultStatus(result.get()) != PGRES_TUPLES_OK && PQresultStatus(result.get()) != PGRES_COMMAND_OK)) {
         // SQL 文本与连接信息不会返回浏览器；详细诊断只能进入受控运维日志。
         const char *state = result ? PQresultErrorField(result.get(), PG_DIAG_SQLSTATE) : nullptr;
@@ -43,11 +49,13 @@ void SqlContext::requireTransaction() const {
 }
 SqlRows SqlContext::query(const std::string &sql, const std::vector<std::string> &parameters) const {
     if (auto it=connections.find(this); it!=connections.end()) return execute(it->second,sql,parameters);
-    auto connection=pool_.acquire(); return execute(connection.get(),sql,parameters);
+    auto connection=[&]{const telemetry::BusinessOperation wait(telemetry::Series::SqlAcquire);return pool_.acquire();}();
+    return execute(connection.get(),sql,parameters);
 }
 void SqlContext::transact(const std::function<void()> &operation) {
+    const telemetry::BusinessOperation observation(telemetry::Series::SqlTransaction);
     if (inTransaction()) throw std::logic_error("nested unit of work");
-    auto lease=pool_.acquire(); auto *connection=lease.get();
+    auto lease=[&]{const telemetry::BusinessOperation wait(telemetry::Series::SqlAcquire);return pool_.acquire();}();auto *connection=lease.get();
     execute(connection,"BEGIN",{}); connections.emplace(this,connection);
     try {
         // 构造时已设置连接级期限，不在每条事件事务中重复发送两次 SET。

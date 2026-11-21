@@ -16,7 +16,7 @@ class Inventory(unittest.TestCase):
             root=Path(folder)
             # B precedes a in the canonical manifest, regardless of host Path rules.
             entries=[('CMakeLists.txt',b'cmake\n'),('backend/B.cpp',b'B\n'),
-                     ('backend/a.cpp',b'a\n'),('main.cpp',b'main\n')]
+                     ('backend/a.cpp',b'a\n'),('backend/operations.def',b'fixed catalog\n'),('main.cpp',b'main\n')]
             for name,data in entries:
                 p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data.replace(b'\n',b'\r\n'))
             expected=hashlib.sha256(b''.join(name.encode()+b'\0'+data for name,data in entries)).hexdigest()

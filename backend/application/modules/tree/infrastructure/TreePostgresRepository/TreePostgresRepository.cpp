@@ -13,7 +13,9 @@ std::string postSelect(const std::string& viewer) {
     return "SELECT p.id,p.author_id,u.display_name,p.request_key,p.canonical_request,p.body,COALESCE(p.category_id,0),p.mood,p.state,p.created_ms,p.version,"
         "(SELECT count(*) FROM tree_likes l WHERE l.post_id=p.id AND l.user_id<>p.author_id),"
         "(SELECT count(DISTINCT r.author_id) FROM tree_replies r WHERE r.post_id=p.id AND NOT r.deleted AND r.author_id<>p.author_id),"
-        "EXISTS(SELECT 1 FROM tree_likes l WHERE l.post_id=p.id AND l.user_id="+viewer+"),p.tree_channel,p.profile_channel,p.visibility FROM tree_posts p JOIN users u ON u.id=p.author_id ";
+        "EXISTS(SELECT 1 FROM tree_likes l WHERE l.post_id=p.id AND l.user_id="+viewer+"),p.tree_channel,p.profile_channel,p.visibility,"
+        "EXISTS(SELECT 1 FROM activity_favorites f WHERE f.post_id=p.id AND f.user_id="+viewer+") "
+        "FROM tree_posts p JOIN users u ON u.id=p.author_id ";
 }
 std::string idArray(const std::vector<TreePost>& posts) {
     std::string result="{";for(const auto& p:posts){if(result.size()>1)result+=',';result+=str(p.id);}return result+"}";
@@ -49,7 +51,7 @@ std::vector<TreePost> TreePostgresRepository::hydrate(const SqlRows& rows) const
     p.content.body=r[5]; p.content.category=std::stoull(r[6]); p.content.mood=r[7];
     p.state=r[8]=="published"?PostState::Published:r[8]=="hidden"?PostState::Hidden:PostState::Deleted;
     p.createdAt=std::stoll(r[9]); p.version=std::stoull(r[10]); p.likes=std::stoull(r[11]); p.repliers=std::stoull(r[12]); p.likedByViewer=r[13]=="t";
-    p.content.treeChannel=r[14]=="t";p.content.profileChannel=r[15]=="t";p.content.visibility=r[16];
+    p.content.treeChannel=r[14]=="t";p.content.profileChannel=r[15]=="t";p.content.visibility=r[16];p.favoritedByViewer=r[17]=="t";
     positions.emplace(p.id,result.size());result.push_back(std::move(p));}
     if(result.empty())return result;
     // 一页最多100条：正文、标签、媒体共3次SQL，代替原来的1+3N次往返。
@@ -95,6 +97,12 @@ std::vector<TreePost> TreePostgresRepository::posts(const PostQuery &q,Id viewer
     if(q.until) filter("p.created_ms<",std::to_string(*q.until));
     if(!q.mood.empty()) filter("p.mood=",q.mood);
     if(!q.tag.empty()) {args.push_back(q.tag);sql+=" AND EXISTS(SELECT 1 FROM tree_tags t WHERE t.post_id=p.id AND t.tag=$"+str(args.size())+")";}
+    if (!q.keyword.empty()) {
+        args.push_back(q.keyword);
+        const auto term = "lower($" + str(args.size()) + "::text)";
+        sql += " AND (strpos(lower(p.body)," + term + ")>0 OR strpos(lower(u.display_name)," + term + ")>0 "
+               "OR EXISTS(SELECT 1 FROM tree_tags t WHERE t.post_id=p.id AND strpos(lower(t.tag)," + term + ")>0))";
+    }
     if(q.mediaKind) {args.push_back(*q.mediaKind==MediaKind::Image?"image":"audio");sql+=" AND EXISTS(SELECT 1 FROM tree_media m JOIN tree_media_validation v ON v.file_id=m.file_id WHERE m.post_id=p.id AND v.kind=$"+str(args.size())+")";}
     if(!q.ids.empty()){std::string ids="{";for(auto id:q.ids){if(ids.size()>1)ids+=',';ids+=str(id);}ids+='}';args.push_back(std::move(ids));sql+=" AND p.id=ANY($"+str(args.size())+"::bigint[])";}
     sql+=" ORDER BY p.id DESC LIMIT $2";
@@ -118,9 +126,11 @@ std::optional<TreeReply> TreePostgresRepository::reply(Id id) const {
     auto r=sql_.query(replySelect+"WHERE r.id=$1",{str(id)});return r.empty()?std::optional<TreeReply>{}:parseReply(r[0]);
 }
 void TreePostgresRepository::deleteReply(Id id) {sql_.requireTransaction();sql_.query("UPDATE tree_replies SET deleted=TRUE WHERE id=$1",{str(id)});}
-std::vector<TreeReply> TreePostgresRepository::replies(Id post,Id before,std::size_t limit) const {
+std::vector<TreeReply> TreePostgresRepository::replies(Id post,Id before,std::size_t limit,std::optional<Id> author) const {
     std::vector<TreeReply> result;
-    for(auto &r:sql_.query(replySelect+"WHERE r.post_id=$1 AND NOT r.deleted AND ($2::bigint=0 OR r.id<$2) ORDER BY r.id DESC LIMIT $3",{str(post),str(before),str(limit)})) result.push_back(parseReply(r));
+    const auto query = replySelect + "WHERE r.post_id=$1 AND NOT r.deleted AND ($2::bigint=0 OR r.id<$2) "
+        "AND ($4::bigint=0 OR r.author_id=$4) ORDER BY r.id DESC LIMIT $3";
+    for(auto &row:sql_.query(query,{str(post),str(before),str(limit),str(author.value_or(0))})) result.push_back(parseReply(row));
     return result;
 }
 }

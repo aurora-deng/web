@@ -1,4 +1,742 @@
 {
+  "projectReview20261119": {
+    "date": "2026-11-19",
+    "evidence": "../evidence/function3/project-review-20261119/summary.json",
+    "binarySha256": "7d225b2dea72135b8afe6f492a4e29990d04a1fc3387af9ef9f960de43c646c4",
+    "sourceFingerprint": "442ca9b5f75acef84e42b09691d92b29fd1b8226fac740bf9442028fdd21e797",
+    "releaseCtest": {
+      "registered": 122,
+      "passed": 121,
+      "skipped": [
+        "function3_redis_contract"
+      ],
+      "lanes": {
+        "communication": 87,
+        "businessWithoutPostgres": 33,
+        "realPostgres": 2
+      }
+    },
+    "debugUbsan": {
+      "registered": 119,
+      "passed": 118,
+      "skipped": [
+        "function3_redis_contract"
+      ],
+      "lanes": {
+        "communication": 86,
+        "businessWithoutPostgres": 31,
+        "realPostgres": 2
+      },
+      "passedAll": true,
+      "buildType": "Debug",
+      "sanitizer": "UBSan",
+      "haltOnError": true,
+      "migration": 24
+    },
+    "realMetricsBackend": true,
+    "browserPassed": true,
+    "retentionDays": 7,
+    "dailyServiceChanged": false,
+    "sourceGate": "../evidence/function3/project-review-20261119/source-gate.json",
+    "capacityImprovementClaimed": false,
+    "sourceGatePassed": true
+  },
+  "businessInstrumentation20261119": {
+    "date": "2026-11-19",
+    "scope": "isolated-real-business-and-scripted-model-wire",
+    "evidence": "../evidence/function3/observability-business-probes-20261119/summary.json",
+    "registeredOperations": 26,
+    "liveExercisedOperations": 16,
+    "httpRouteTemplates": 117,
+    "sourceGatePassed": true,
+    "observerContracts": {
+      "windows": 45,
+      "linux": 45
+    },
+    "frontendContracts": 83,
+    "releaseCtest": {
+      "registered": 120,
+      "passed": 119,
+      "skipped": [
+        "function3_redis_contract"
+      ]
+    },
+    "scopedDebugUbsanTests": 3,
+    "modelWire": {
+      "passed": true,
+      "provider": "scripted-test-only",
+      "transport": "real-loopback-OTLP-HTTP",
+      "spansReceived": 56,
+      "statusCodes": [
+        0,
+        1,
+        2
+      ],
+      "duplicateSpanIds": false,
+      "cancelledPreparationIsUnset": true,
+      "privateContentFields": false,
+      "exactShutdownFlushClaimed": false,
+      "realModelQualityClaimed": false
+    },
+    "latestOverhead": {
+      "binarySha256": "7a438fb82c8c201c168094378ef00f4ef38fbb518b1f2c45a4ffc33c55a7ced8",
+      "passedNumericalGate": true,
+      "rounds": 3,
+      "operationsPerLeg": 4000,
+      "ackSamplesPerLeg": 1200,
+      "pairedAckIncreasePercent": [
+        -6.8642,
+        6.1745,
+        -6.141
+      ],
+      "fastMedianChangePercent": 4.2005
+    },
+    "earlierLongBucketRun": {
+      "binarySha256": "9c9d2d25b13974b570e9c1489a8fbcee2ba238a43a9d7b0f7f58158a2ee0b9bc",
+      "passed": false,
+      "pairedAckIncreasePercent": [
+        40.2219,
+        13.8119,
+        -12.5666
+      ]
+    },
+    "precedingCandidateCalibration": {
+      "binarySha256": "9c9d2d25b13974b570e9c1489a8fbcee2ba238a43a9d7b0f7f58158a2ee0b9bc",
+      "level": "NOISY",
+      "absolutePairDifferenceP95Percent": 33.4639118503961,
+      "rounds": 10
+    },
+    "performanceImprovementClaimed": false,
+    "capacityGateClaimed": false,
+    "tsan": {
+      "configure": 0,
+      "build": 2,
+      "limitation": "Missing /usr/lib64/libtsan.so.0.0.0; no new dependency installed"
+    },
+    "cumulativeTraceDropsObserved": 19,
+    "steadyWindowTraceDropDelta": 0,
+    "steadyWindowQueueFullDelta": 0,
+    "dailyReplaced": false,
+    "retentionDays": 7,
+    "browser": {
+      "functionsLogsQueries": "build-function3/obs-qa/logging-browser-1795068100442",
+      "screens": [
+        [
+          1440,
+          900
+        ],
+        [
+          1920,
+          1080
+        ],
+        [
+          390,
+          844
+        ]
+      ],
+      "passed": true,
+      "dashboard": "build-function3/obs-qa/dashboard-browser-1795067562494",
+      "dashboardPassed": true,
+      "firstChartObservationMs": 414,
+      "firstChartIsCapacityBenchmark": false
+    },
+    "binarySha256": "7a438fb82c8c201c168094378ef00f4ef38fbb518b1f2c45a4ffc33c55a7ced8",
+    "frozenCoreFiles": 152,
+    "configurationSaveConcurrencyFixed": true
+  },
+  "structuredLogging20261119": {
+    "date": "2026-11-19",
+    "scope": "observer-isolated-and-authorized-daily-business",
+    "sourceGatePassed": true,
+    "observerContracts": {
+      "windows": 43,
+      "linux": 43
+    },
+    "frontendContracts": 79,
+    "releaseCtest": {
+      "passed": 114,
+      "skipped": 1,
+      "skippedName": "function3_redis_contract"
+    },
+    "dedicatedDebugUbsanLogContract": true,
+    "fullProjectDebugOrTsanClaimed": false,
+    "mixed": {
+      "operations": 4000,
+      "errors": 0,
+      "operationsPerSecond": 573.921,
+      "ackSamples": 1200,
+      "ackP99Ms": 19.405
+    },
+    "tree": {
+      "operations": 800,
+      "errors": 0,
+      "operationsPerSecond": 893.851,
+      "httpP99Ms": 11.915
+    },
+    "functionSweepOperations": 80,
+    "controlledRejectionStatus": 401,
+    "linkedLogRecords": 3,
+    "fileRejected": 0,
+    "traceId": "d07e1bfe201eb2991a1f1bb7b167c890",
+    "retentionDays": 7,
+    "fileDailyBudgetBytes": 8388608,
+    "browserArtifact": "build-function3/obs-qa/logging-browser-1795045965078",
+    "browserFunctionP99Ms": {
+      "send": 19.89,
+      "conversations": 9.92,
+      "history": 8.93,
+      "historyBefore": 4.5
+    },
+    "isolatedBinarySha256": "5efc89fe92b1fa99f0898a8103231b1ae666340ae0387cf11f877f37f30a3253",
+    "dailyFeatureParityRequired": [
+      "grpc",
+      "onnx-genai",
+      "rocketmq",
+      "sherpa-tts"
+    ],
+    "capacityGateClaimed": false,
+    "compatibleRuntime": {
+      "binarySha256": "865fdaefa336d7235132f0da287acea664c04425b552641b529efe71be2b8b99",
+      "features": [
+        "grpc",
+        "onnx-genai",
+        "rocketmq",
+        "sherpa-tts"
+      ],
+      "ctest": {
+        "passed": 117,
+        "skipped": 1,
+        "skippedName": "function3_redis_contract"
+      },
+      "mixed": {
+        "ackP50Ms": 7.01,
+        "ackP95Ms": 13.721,
+        "ackP99Ms": 18.001,
+        "ackSamples": 1200,
+        "errors": 0,
+        "operations": 4000,
+        "operationsPerSecond": 592.066,
+        "workers": 4
+      },
+      "tree": {
+        "operations": 800,
+        "errors": 0,
+        "operationsPerSecond": 912.821,
+        "httpP99Ms": 9.87
+      },
+      "wsTraceId": "7b0e1cb7ecc9c0557dd358ba48f5af18",
+      "wsTraceStatus": "complete",
+      "wsSpans": 17,
+      "dailyDeployment": "enabled-2026-11-19T02:17:34Z"
+    },
+    "finalBrowserArtifact": "build-function3/obs-qa/logging-browser-1795048501800",
+    "finalBrowserFunctionP99Ms": {
+      "send": 9.83,
+      "conversations": 9.25,
+      "history": 4.75,
+      "historyBefore": 4.5
+    },
+    "dailyDeployment": {
+      "authorized": true,
+      "utc": "2026-11-19T02:17:34Z",
+      "pidAtDeployment": 57254,
+      "database": "phase11",
+      "schemaVersion": 24,
+      "ddlApplied": false,
+      "originalAccounts": 68,
+      "originalAccountDigestsUnchanged": true,
+      "originalAccountLoginVerified": true,
+      "frontendUnchanged": true,
+      "tlsAndTokenKeyUnchanged": true,
+      "coreFilesUnchanged": 152,
+      "nativeFeaturesUnchanged": true,
+      "backup": "/home/pikachu/phase11-data/function3/runtime/backups/observability-20261119T021733Z-d75b1d",
+      "backupRestoreListVerified": true,
+      "contentWrites": 0,
+      "conversationReads": 13,
+      "historyReads": 12,
+      "historyBeforeReads": 12,
+      "treeAndSpeechReads": 4,
+      "traceId": "494901e7a03820145fc17cef14d80a3b",
+      "traceStatus": "complete",
+      "traceSpans": 8,
+      "controlledRejectionStatus": 401,
+      "fileRejected": 0,
+      "logDropped": 0,
+      "fileDropped": 0,
+      "retentionDays": 7,
+      "cleanupIntervalSeconds": 60,
+      "browserPassed": true,
+      "browserArtifact": "build-function3/obs-qa/logging-browser-1795055283595",
+      "functionReadP99ObservedMs": {
+        "conversations": 9.78,
+        "history": 2.49,
+        "historyBefore": 2.49
+      },
+      "dailySendFixtureWritten": false,
+      "capacityGateClaimed": false
+    }
+  },
+  "onlineTest20261118": {
+    "date": "2026-11-18",
+    "verifiedAtUnixSeconds": 1795004652,
+    "kind": "bounded-live-smoke-not-capacity-acceptance",
+    "daily": {
+      "port": 18090,
+      "pid": 18119,
+      "observerPort": 18791,
+      "method": "GET",
+      "paths": [
+        "/phase11/",
+        "/phase11/tree/"
+      ],
+      "ratePerWorker": 5,
+      "phases": [
+        {
+          "workers": 2,
+          "seconds": 45.139,
+          "operations": 450,
+          "errors": 0,
+          "operationsPerSecond": 9.969,
+          "httpP99Ms": 5.258
+        },
+        {
+          "workers": 8,
+          "seconds": 45.157,
+          "operations": 1800,
+          "errors": 0,
+          "operationsPerSecond": 39.861,
+          "httpP99Ms": 7.361
+        },
+        {
+          "workers": 16,
+          "seconds": 45.165,
+          "operations": 3600,
+          "errors": 0,
+          "operationsPerSecond": 79.708,
+          "httpP99Ms": 5.681
+        }
+      ],
+      "additionalPageReads": 180,
+      "additionalReadErrors": 0,
+      "readyAfterLoad": 200,
+      "httpRateWindowSeconds": 120,
+      "httpRatePeak": 48.269,
+      "httpRateAfterLoad": 0.933
+    },
+    "isolated": {
+      "port": 52641,
+      "observerPort": 18793,
+      "initialAttempt": "script-startup-validation-failed-no-valid-business-result",
+      "workers": 4,
+      "rounds": [
+        {
+          "operations": 4000,
+          "errors": 0,
+          "operationsPerSecond": 380.525,
+          "ackSamples": 1200,
+          "ackP99Ms": 29.826,
+          "treeReads": 800,
+          "treeErrors": 0,
+          "treeHttpP99Ms": 17.51
+        },
+        {
+          "operations": 4000,
+          "errors": 0,
+          "operationsPerSecond": 367.451,
+          "ackSamples": 1200,
+          "ackP99Ms": 30.257,
+          "treeReads": 800,
+          "treeErrors": 0,
+          "treeHttpP99Ms": 22.154
+        },
+        {
+          "operations": 4000,
+          "errors": 0,
+          "operationsPerSecond": 380.404,
+          "ackSamples": 1200,
+          "ackP99Ms": 26.421,
+          "treeReads": 800,
+          "treeErrors": 0,
+          "treeHttpP99Ms": 16.78
+        }
+      ],
+      "readyAfterLoad": 200,
+      "traceId": "ac0d247f6847acdf94029a24ec7c0d05",
+      "traceStatus": "complete",
+      "runtimeLimitSeconds": 14400
+    },
+    "loadStopped": true,
+    "monitoringContinues": true,
+    "telemetryRetentionDays": 7
+  },
+  "postgresCommitObservation": {
+    "date": "2026-11-16",
+    "source": "isolated-centos-postgresql-18.6",
+    "evidencePath": "observed-load/commit-observation-1794832333",
+    "control": {
+      "injectedDelayMs": 120,
+      "commitMs": 124.268,
+      "ackMs": 132.615,
+      "pgSleepSamples": 12
+    },
+    "naturalRuns": [
+      {
+        "operationsPerSecond": 582.953,
+        "ackP99Ms": 41.645,
+        "commitP99Us": 4531.55,
+        "maxCommitUs": 39514
+      },
+      {
+        "operationsPerSecond": 561.704,
+        "ackP99Ms": 65.513,
+        "commitP99Us": 4652.4,
+        "maxCommitUs": 521616
+      },
+      {
+        "operationsPerSecond": 600.871,
+        "ackP99Ms": 38.934,
+        "commitP99Us": 4323.94,
+        "maxCommitUs": 57650
+      }
+    ],
+    "naturalSlowCommits": 10,
+    "naturalSlowCommitsWithBackendSample": 10,
+    "naturalWorstCommit": {
+      "ackMs": 560.889,
+      "commitUs": 521616,
+      "matchingWaitSamples": {
+        "IO:WalSync": 1
+      },
+      "maxPollGapMs": 506.35,
+      "maxPollGapWithinCommitMs": 496.736,
+      "diskObservationWithinCommitMs": 11.832
+    },
+    "messageWriteComparison": {
+      "baselineBinarySha256": "bdcd97f7cc021eecd45976a253cba9e4dc1e34881e0af3ee7b810d51a48bb9db",
+      "combinedBinarySha256": "4f31c42123830bda38d2ffff320df2042c11c3578877f8cc983cdc6e55f36066",
+      "workloadPerRun": {
+        "workers": 16,
+        "operations": 4000,
+        "pairedAcks": 1200,
+        "errors": 0
+      },
+      "pairs": [
+        {
+          "operationsPerSecond": [
+            513.325,
+            509.623
+          ],
+          "beforeCommitP50Us": [
+            9374.5,
+            9215.5
+          ],
+          "ackP99Ms": [
+            50.942,
+            56.375
+          ]
+        },
+        {
+          "operationsPerSecond": [
+            490.534,
+            498.756
+          ],
+          "beforeCommitP50Us": [
+            9868.0,
+            9299.5
+          ],
+          "ackP99Ms": [
+            50.23,
+            49.212
+          ]
+        },
+        {
+          "operationsPerSecond": [
+            480.633,
+            516.803
+          ],
+          "beforeCommitP50Us": [
+            10082.0,
+            9009.5
+          ],
+          "ackP99Ms": [
+            49.178,
+            47.707
+          ]
+        }
+      ],
+      "throughputMedianChangePercent": 3.89,
+      "beforeCommitP50MedianChangePercent": -6.61
+    },
+    "validation": {
+      "linuxReleaseCtestPassed": 114,
+      "linuxReleaseCtestSkipped": 0,
+      "windowsSourceGatePassed": true,
+      "measurementTestsPassedOnEachPlatform": 12,
+      "postgresTermination": {
+        "sessionsTerminated": 10,
+        "live": true,
+        "msToSuccessfulAck": 128.425
+      },
+      "crashAfterDurableAck": {
+        "sameMessageId": true,
+        "matchingRows": 1,
+        "historyRecovered": true
+      }
+    }
+  },
+  "observerCiDeliveryExercise": {
+    "date": "2026-11-16",
+    "source": "local-windows-and-isolated-linux",
+    "windowsFrontendTestsPassed": 79,
+    "windowsObserverContractsPassed": 29,
+    "linuxObserverContractsPassed": 29,
+    "linuxReleaseCtestPassed": 114,
+    "linuxReleaseCtestSkipped": 0,
+    "builtFromEmptyDirectory": true,
+    "verifiedFiles": 182,
+    "deliverySmokeViaDisposablePostgres": true,
+    "artifactSha256": "14424cd576164633cd0ad27c88540b2c241a83d3f4e3d9e6323c297b82bca976",
+    "artifactBytes": 4737850,
+    "binarySha256": "5d2d320771b75d31ef3468ded38f1b6e8fdbf85b3615fce0e50ded161e4b8e98",
+    "revision": "source-snapshot",
+    "evidencePath": "observed-load/ci-delivery-20261115T182610Z",
+    "workflowRun": null,
+    "samplingReadback": {
+      "http": 200,
+      "skipped": 6,
+      "failureRoots": 0,
+      "dropped": 0,
+      "changedAssetsServed": 2
+    }
+  },
+  "httpTraceSamplingExercise": {
+    "date": "2026-11-16",
+    "source": "isolated-linux",
+    "baselinePath": "observed-load/ack-profile-20261115T171338Z/summary.json",
+    "candidatePath": "observed-load/ack-profile-20261115T175404Z/summary.json",
+    "candidateBinarySha256": "c61e3a681df3be085e48929178562bd08be407217e3d1ec3ccb2ef9822cf9d1b",
+    "workers": 16,
+    "operationsPerTrial": 4000,
+    "pairedAcksPerTrial": 1200,
+    "wsTraceEvery": 100,
+    "oldTailSegmentCounts": {
+      "queue": 29,
+      "handler": 18,
+      "remaining": 1
+    },
+    "oldWorstSampleMs": {
+      "rtt": 4867.749,
+      "queue": 23.014,
+      "handler": 4843.207,
+      "commit": 4835.754,
+      "remaining": 1.528
+    },
+    "trials": [
+      {
+        "leg": 1,
+        "httpTraceEvery": 1,
+        "opsPerSec": 493.217,
+        "ackP99Ms": 76.373,
+        "exported": 20670,
+        "errors": 0,
+        "dropped": 0,
+        "queueFull": 0
+      },
+      {
+        "leg": 2,
+        "httpTraceEvery": 20,
+        "opsPerSec": 610.828,
+        "ackP99Ms": 42.225,
+        "exported": 1287,
+        "errors": 0,
+        "dropped": 0,
+        "queueFull": 0
+      },
+      {
+        "leg": 3,
+        "httpTraceEvery": 20,
+        "opsPerSec": 611.532,
+        "ackP99Ms": 38.401,
+        "exported": 1284,
+        "errors": 0,
+        "dropped": 0,
+        "queueFull": 0
+      },
+      {
+        "leg": 4,
+        "httpTraceEvery": 1,
+        "opsPerSec": 281.909,
+        "ackP99Ms": 2859.613,
+        "exported": 20652,
+        "errors": 0,
+        "dropped": 0,
+        "queueFull": 0
+      },
+      {
+        "leg": 5,
+        "httpTraceEvery": 1,
+        "opsPerSec": 517.377,
+        "ackP99Ms": 46.169,
+        "exported": 20670,
+        "errors": 0,
+        "dropped": 0,
+        "queueFull": 0
+      },
+      {
+        "leg": 6,
+        "httpTraceEvery": 20,
+        "opsPerSec": 597.988,
+        "ackP99Ms": 47.969,
+        "exported": 1292,
+        "errors": 0,
+        "dropped": 0,
+        "queueFull": 0
+      }
+    ]
+  },
+  "observerLiveMixedExercise": {
+    "source": "isolated-live-linux",
+    "day": "2026-11-15",
+    "observerPort": 18791,
+    "applicationPort": 47375,
+    "retargeted": {
+      "metricsStatus": 200,
+      "readinessStatus": 200,
+      "archivedHistoricalSamples": 6688
+    },
+    "plannedOperationsPerLeg": 4000,
+    "workload": {
+      "conversationsPercent": 50,
+      "historyPercent": 20,
+      "websocketPercent": 30,
+      "ssePerWorker": 1
+    },
+    "reportWindow": {
+      "from": 1794746275,
+      "to": 1794747188
+    },
+    "recheckWindow": {
+      "from": 1794747136,
+      "to": 1794747188
+    },
+    "attempts": [
+      {
+        "workers": 1,
+        "successes": 4000,
+        "errors": 0,
+        "operationsPerSecond": 181.46,
+        "ackSamples": 1200,
+        "ackP50Ms": 5.699,
+        "ackP95Ms": 9.598,
+        "ackP99Ms": 12.518
+      },
+      {
+        "workers": 4,
+        "successes": 3784,
+        "errors": 216,
+        "operationsPerSecond": 160.792,
+        "ackSamples": 984,
+        "ackP50Ms": 10.691,
+        "ackP95Ms": 19.814,
+        "ackP99Ms": 1155.544
+      },
+      {
+        "workers": 4,
+        "successes": 4000,
+        "errors": 0,
+        "operationsPerSecond": 360.983,
+        "ackSamples": 1200,
+        "ackP50Ms": 11.215,
+        "ackP95Ms": 20.713,
+        "ackP99Ms": 26.679
+      },
+      {
+        "workers": 16,
+        "successes": 4000,
+        "errors": 0,
+        "operationsPerSecond": 280.585,
+        "ackSamples": 1200,
+        "ackP50Ms": 27.414,
+        "ackP95Ms": 55.889,
+        "ackP99Ms": 1107.151
+      }
+    ],
+    "failureWindow": {
+      "from": 1794746311,
+      "to": 1794746341,
+      "exported": 17153,
+      "dropped": 127,
+      "queueFull": 127
+    },
+    "recheckTelemetry": {
+      "exported": 41250,
+      "dropped": 0,
+      "queueFull": 0
+    },
+    "sampleTrace": {
+      "id": "69ca54100f2c1cda78d32ad6f068d9c6",
+      "spans": 18,
+      "handlerMs": 18.072
+    }
+  },
+  "serviceLevelExercise": {
+    "source": "isolated-live-linux",
+    "recordedAtUtc": "2026-11-15T11:23:11Z",
+    "incidentWindow": {
+      "from": 1794741461,
+      "to": 1794741761,
+      "coveredSeconds": 295
+    },
+    "recoveryWindow": {
+      "from": 1794741491,
+      "to": 1794741791
+    },
+    "http": {
+      "events": 175,
+      "bad": 12
+    },
+    "conversationLatency": {
+      "events": 172,
+      "bad": 1,
+      "thresholdMs": 80
+    },
+    "chatAckReady": {
+      "events": 25,
+      "bad": 0,
+      "thresholdMs": 40
+    },
+    "fastBurn": {
+      "threshold": 3.6,
+      "fault": {
+        "short": 25,
+        "long": 6.857142857142858,
+        "state": "burning"
+      },
+      "recovery": {
+        "short": 0,
+        "long": 7.59493670886076,
+        "state": "within"
+      }
+    },
+    "traces": {
+      "matchingHttp5xx": 12,
+      "sample": "02b6a8596b1648a1a6fde095fe19a349",
+      "sampleStatus": 500
+    },
+    "telemetry": {
+      "exported": 1276,
+      "dropped": 0,
+      "queueFull": 0
+    },
+    "unauthenticatedScrape": {
+      "status": 401,
+      "live": true,
+      "ready": true,
+      "scrape": false,
+      "reading": "no_data"
+    }
+  },
   "ackProfile": {
     "binarySha256": "6d57a2e0001b011cb950f39677b73a346420da41c155b897b78920f7fe716230",
     "curve": [
@@ -1028,5 +1766,50 @@
     "postgreSqlSpans": 4,
     "queueFullDrops": 31,
     "receiverFailureBusinessStatus": 200
+  },
+  "progressiveDashboard20261119": {
+    "target": "18090",
+    "validationObserverPort": 18796,
+    "realMetrics": true,
+    "controlledOptionalDelay": true,
+    "firstChartMs": 645,
+    "optionalQueriesWithheld": 4,
+    "maxConcurrentOptionalQueries": 4,
+    "sameSourceRequestCoalesced": true,
+    "pendingSurvivesMetricRefresh": true,
+    "failedOnlyRetry": true,
+    "chartNodePreserved": true,
+    "hiddenFocusQueriesSkipped": true,
+    "lateGenerationIgnored": true,
+    "lifecycleContracts": 4,
+    "browserPassed": true,
+    "existingRealtimeBrowserPassed": true,
+    "browserArtifact": "build-function3/obs-qa/dashboard-browser-1795056712071",
+    "realtimeArtifact": "build-function3/obs-qa/resource-browser-1795056712146",
+    "browserSizes": [
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "businessProcessRestarted": false,
+    "businessDatabaseChanged": false,
+    "communicationCoreChanged": false,
+    "retentionDays": 7,
+    "capacityGateClaimed": false,
+    "dailyObserverDeployment": "enabled-2026-11-19T02:57:10Z",
+    "dailyAssetVersion": "4eabe9579eae6ec5",
+    "dailyObserverPidAtDeployment": 58827,
+    "dailyBrowserPassed": true,
+    "dailyFirstChartMs": 437,
+    "dailyBrowserArtifact": "build-function3/obs-qa/dashboard-browser-1795057064093",
+    "sourceGatePassed": true,
+    "frontendContracts": 83,
+    "observerHttpContracts": 43,
+    "temporaryValidationStoppedAfterTests": true
   }
 }

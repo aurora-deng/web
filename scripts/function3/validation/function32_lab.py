@@ -1,5 +1,6 @@
-"""Fault drills and ACK profiling against a private, disposable Linux runtime."""
+"""Fault drills, ACK profiling and COMMIT observation against a disposable Linux runtime."""
 import argparse
+from contextlib import nullcontext
 import hashlib
 import json
 from pathlib import Path
@@ -14,6 +15,7 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parents[3]
 sys.path[:0] = [str(ROOT / "scripts/project"), str(ROOT / "benchmarks")]
 from phase15_business_benchmark import BusinessBenchmark, WebSocketClient, percentile
+from postgres_commit_observer import CommitObserver, summarize_observation
 from repro_runtime import clean_environment, disposable_database, get_json, owned_server_process, require
 
 
@@ -111,12 +113,29 @@ def quantiles(values):
     return {f"p{int(q * 100)}": round(percentile(values, q), 3) for q in (.5, .95, .99)}
 
 
-def benchmark(binary, env, out, workers, operations, name, traced=False):
+def inject_commit_delay(prefix, connection, delay_ms):
+    # The deferred trigger affects only the benchmark's first measured send.
+    # The caller owns this database and discards the entire cluster afterwards.
+    sql(prefix, connection, f"""
+        CREATE FUNCTION nebula_repro_commit_delay() RETURNS trigger LANGUAGE plpgsql AS $body$
+        BEGIN
+            PERFORM pg_catalog.pg_sleep({delay_ms} / 1000.0);
+            RETURN NEW;
+        END;
+        $body$;
+        CREATE CONSTRAINT TRIGGER nebula_repro_commit_delay
+        AFTER INSERT ON messages DEFERRABLE INITIALLY DEFERRED
+        FOR EACH ROW WHEN (NEW.client_message_id LIKE 'f3mixed-%-7')
+        EXECUTE FUNCTION nebula_repro_commit_delay();
+    """)
+
+
+def benchmark(binary, env, out, workers, operations, name, traced=False, observation=None):
     output = out / (name + ".json")
     log = out / (name + "-server.log")
     trace_budget = (operations * 3 + 9) // 10 + workers
     trace_env = {**env, **({"WEB_OBSERVABILITY": "1"} if traced else {})}
-    with owned_server_process(binary, ROOT, {**trace_env, "WEB_CHAT_ACK_TRACE_LIMIT":
+    with (observation or nullcontext()), owned_server_process(binary, ROOT, {**trace_env, "WEB_CHAT_ACK_TRACE_LIMIT":
                               str(trace_budget if traced else 0)}, log) as (port, child):
         command = [sys.executable, str(ROOT / "benchmarks/function3_mixed.py"), "--port", str(port),
                    "--server-pid", str(child.pid), "--operations", str(operations),
@@ -151,27 +170,39 @@ def benchmark(binary, env, out, workers, operations, name, traced=False):
                 k: row[k] for k in ("poolAcquireUs", "commitStartUs", "commitUs", "ackReadyUs")}}
                                   | ({"queueUs": row["queueUs"]} if "queueUs" in row else {})
                                   for sample, row in tail]}
+        if observation:
+            (out / "commit-samples.json").write_text(
+                json.dumps({"polls": observation.samples, "wal": observation.wal}, separators=(",", ":")) + "\n",
+                encoding="utf-8")
+            summary["commitObservation"] = summarize_observation(observation, paired, full["workloadMonotonicNs"])
     return summary
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("faults", "profile"))
+    parser.add_argument("mode", choices=("faults", "profile", "commit"))
     for name in ("binary", "postgres-prefix", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--operations", type=int, default=1200)
-    parser.add_argument("--workers", type=int, nargs="+", default=[1, 4, 16])
+    parser.add_argument("--workers", type=int, nargs="+")
+    parser.add_argument("--commit-delay-ms", type=int, default=0,
+                        help="Positive control, delaying the first measured COMMIT by 0–250 ms in its private DB")
     args = parser.parse_args()
     require(sys.platform.startswith("linux"), "Linux only")
+    commit_mode = args.mode == "commit"
+    args.workers = args.workers or ([16] if commit_mode else [1, 4, 16])
     require(10 <= args.operations <= 9900, "Operations must be 10–9900")
     require(len(args.workers) <= 8 and all(1 <= n <= 64 for n in args.workers),
             "Use at most eight points, each with 1–64 workers")
+    require(not commit_mode or len(args.workers) == 1, "Use one worker count per COMMIT observation")
+    require(0 <= args.commit_delay_ms <= 250 and (commit_mode or args.commit_delay_ms == 0),
+            "The 0–250 ms delay is exclusive to the COMMIT observation")
     binary, prefix, out = (p.resolve() for p in (args.binary, args.postgres_prefix, args.output))
-    out.mkdir(parents=True, exist_ok=False)
+    out.mkdir(mode=0o700, parents=True, exist_ok=False)
     result = {"mode": args.mode, "binarySha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
               "existingDatabaseUsed": False, "passed": False}
     try:
-        with disposable_database(prefix, ROOT, out) as (connection, migration), tempfile.TemporaryDirectory(
+        with disposable_database(prefix, ROOT, out, track_wal_io=commit_mode) as (connection, migration), tempfile.TemporaryDirectory(
                 prefix="nebula-function32-") as scratch:
             key = Path(scratch) / "token.key"
             key.touch(mode=0o600, exist_ok=False)
@@ -183,6 +214,18 @@ def main():
             result["migration"] = migration
             if args.mode == "faults":
                 result["checks"] = faults(binary, env, out, prefix, connection)
+            elif commit_mode:
+                if args.commit_delay_ms:
+                    inject_commit_delay(prefix, connection, args.commit_delay_ms)
+                result["commitControlDelayMs"] = args.commit_delay_ms
+                observation = CommitObserver(prefix, connection)
+                result["instrumented"] = benchmark(binary, env, out, args.workers[0], args.operations,
+                                                   "instrumented", traced=True, observation=observation)
+                if args.commit_delay_ms:
+                    longest = result["instrumented"]["commitObservation"]["longestCommits"]
+                    require(any(item["commitUs"] >= args.commit_delay_ms * 1000 and
+                                item["backendWaitSamples"].get("Timeout:PgSleep", 0) > 0 for item in longest),
+                            "The sampler missed the positive control in its COMMIT window")
             else:
                 result["curve"] = []
                 for index, workers in enumerate(args.workers):

@@ -442,6 +442,10 @@ class AiFixture:
 class BusinessBenchmark:
     def __init__(self, args: argparse.Namespace) -> None:
         self.args = args
+        token_file = getattr(args, "metrics_token_file", None)
+        self.metrics_token = token_file.read_text(encoding="ascii").strip() if token_file else None
+        if token_file and not self.metrics_token:
+            raise ValueError("The metrics token file is empty")
         self.suffix = str(time.time_ns())[-9:]
         self.users: list[UserFixture] = []
         self.users_lock = threading.Lock()
@@ -449,10 +453,13 @@ class BusinessBenchmark:
         self.results: list[dict] = []
 
     def application_metrics(self) -> dict[str, float]:
+        headers = {"Accept": "text/plain"}
+        if self.metrics_token:
+            headers["Authorization"] = "Bearer " + self.metrics_token
         connection = http.client.HTTPConnection(
             self.args.host, self.args.port, timeout=self.args.timeout)
         try:
-            connection.request("GET", "/metrics", headers={"Accept": "text/plain"})
+            connection.request("GET", "/metrics", headers=headers)
             response = connection.getresponse()
             body = response.read().decode("utf-8", "replace")
             if response.status != 200:

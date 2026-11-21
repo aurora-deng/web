@@ -50,7 +50,7 @@ inline Result execute(PGconn *connection, std::string_view sql,
     for (const auto &parameter : parameters)
         values.push_back(parameter ? parameter->c_str() : nullptr);
 
-    telemetry::Span span("PostgreSQL command");
+    telemetry::Span span("PostgreSQL command", {}, telemetry::Span::Kind::Client);
     PGresult *raw = PQexecParams(
         connection, std::string(sql).c_str(), static_cast<int>(values.size()),
         nullptr, values.empty() ? nullptr : values.data(), nullptr, nullptr, 0);

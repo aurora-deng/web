@@ -50,13 +50,6 @@
   border-color:var(--line);
   box-shadow:var(--shadow-3);
 }
-#nebula-navigation .audio-settings-links button,
-#nebula-navigation .audio-settings-links a {
-  border-color:var(--line);
-  background:var(--accent-softer);
-  color:var(--text-2);
-}
-#nebula-navigation .audio-settings-links p,
 #nebula-navigation .audio-placeholder { color:var(--text-3); }
 
 
@@ -216,6 +209,7 @@ body[data-workspace=chat] .private-friend-entry > span {
   background:var(--accent-soft);
   color:var(--accent-text);
 }
+body[data-workspace=chat] .private-friend-entry img { display:block; width:32px; height:32px; object-fit:contain; }
 
 /* ⑧ 右侧详情卡：原本写死 rgba(12,27,47,.75) 的深蓝，
       和中性灰的聊天区不是同一个色系。改回表面 token。 */
@@ -433,7 +427,7 @@ body[data-workspace=tree] {
   color:var(--text);
 }
 
-/* 主按钮：玫瑰色是本工作区的强调色，全页只有它能用 */
+/* 社区主操作沿用全站主题色。 */
 body[data-workspace=tree] button.primary,
 body[data-workspace=tree] .publish-entry {
   background:var(--accent);
@@ -470,14 +464,22 @@ body[data-workspace=tree] .community-sidebar {
 body[data-workspace=tree] .community-logo { color:var(--accent-text); }
 body[data-workspace=tree] .community-logo small,
 body[data-workspace=tree] .sidebar-caption { color:var(--text-3); }
-body[data-workspace=tree] .community-sidebar nav button { color:var(--text-2); }
+body[data-workspace=tree] .community-sidebar nav button {
+  background:transparent;
+  color:var(--text-2);
+}
+body[data-workspace=tree] .community-sidebar nav button:hover:not(:disabled) {
+  background:var(--surface-2);
+  color:var(--text);
+}
 body[data-workspace=tree] .community-sidebar nav button > span { color:var(--text-3); }
 body[data-workspace=tree] .community-sidebar nav button > small { color:var(--text-3); }
 body[data-workspace=tree] .community-sidebar nav button.active {
   color:var(--accent-text);
-  background:var(--accent-soft);
+  background:color-mix(in srgb, var(--accent) 12%, var(--surface));
   box-shadow:inset 2px 0 var(--accent);
 }
+body[data-workspace=tree] .community-sidebar nav button.active > span { color:inherit; }
 body[data-workspace=tree] .sidebar-note p { color:var(--text-2); }
 body[data-workspace=tree] .sidebar-note i,
 body[data-workspace=tree] .sidebar-note > span { color:var(--text-3); }

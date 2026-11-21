@@ -1,6 +1,9 @@
 #pragma once
 #include "backend/application/business/ApplicationError/ApplicationError.h"
 #include "backend/application/domain/Domain/Domain.h"
+#include "backend/application/observability/Telemetry/Telemetry.h"
+#include "backend/application/observability/BusinessLog/BusinessLog.h"
+#include "backend/application/transport/http/BusinessHttpObservation/BusinessHttpObservation.h"
 #include "backend/application/transport/FlatJson/FlatJson.h"
 #include "backend/application/transport/serialization/MessageJson/MessageJson.h"
 #include "backend/server/http/RequestContext/RequestContext.h"
@@ -56,6 +59,10 @@ inline void reply(RequestContext &context, int status, std::string body)
 inline void error(RequestContext &context, int status,
            std::string_view code, std::string_view message)
 {
+    const auto [trace,span]=telemetry::Span::context();
+    business_log::write({status>=500 ? business_log::Code::HttpFailed : business_log::Code::HttpRejected,
+                         status>=500 ? business_log::Level::Error : business_log::Level::Warn,
+                         "business HTTP",status,-1,trace,span,code});
     reply(context, status,
           "{\"code\":" + quoteJson(code) +
               ",\"message\":" + quoteJson(message) + "}");
@@ -64,6 +71,7 @@ inline void error(RequestContext &context, int status,
 template<class Operation>
 inline bool guarded(RequestContext &context, Operation &&operation)
 {
+    BusinessHttpObservation observation(context);
     try
     {
         operation();

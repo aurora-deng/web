@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include "backend/application/domain/OutboxTypes/OutboxTypes.h"
+#include "backend/application/modules/chat/ports/IRealtimeRelayRepository/IRealtimeRelayRepository.h"
 #include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
 #include "backend/application/storage/postgres/PostgresOutboxWriter/PostgresOutboxWriter.h"
 namespace webserver::phase11 {
@@ -11,5 +12,8 @@ public:
     static OutboxEvent appendOutbox(PGconn *connection, bool ownsTransaction, const std::shared_ptr<PostgresOutboxWriter>& writer, OutboxEvent event);
     static std::vector<OutboxEvent> pendingOutbox(PGconn *connection, std::size_t limit);
     static bool markPublished(PGconn *connection, OutboxEventId id, TimePoint now);
+    static std::uint64_t relayHead(PGconn *connection);
+    static void stageRelayBatch(PGconn *connection, std::size_t limit);
+    static std::vector<RealtimeRelayEvent> readRelayBatch(PGconn *connection, std::uint64_t after, std::size_t limit);
 };
 }

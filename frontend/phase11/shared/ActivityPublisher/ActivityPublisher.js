@@ -1,6 +1,6 @@
-import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=144f1e6009a3d461";
-import { MediaUploader } from '../MediaUploader/MediaUploader.js?v=144f1e6009a3d461';
-import { paintUploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=144f1e6009a3d461';
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=7f8c7f1b31e4435c";
+import { MediaUploader } from '../MediaUploader/MediaUploader.js?v=7f8c7f1b31e4435c';
+import { paintUploadCapabilities } from '../UploadCapabilities/UploadCapabilities.js?v=7f8c7f1b31e4435c';
 /** 树和主页共用一条发布链路；公开范围确认进入服务器契约，不能只改 UI 提示。 */
 export class ActivityPublisher {
   constructor(form,api,{initialDestination='profile',files=()=>[],status,onPublished}) {
@@ -8,7 +8,7 @@ export class ActivityPublisher {
     // Read rules when the publisher is opened/used, after the owning page restored its login.
     form.addEventListener('focusin',()=>paintUploadCapabilities(api,form).catch(error=>{this.status.textContent=error.message;}),{once:true});
     const box=document.createElement('section');box.className='publisher-audience';
-    box.innerHTML='<label>发布到<select name="destination"><option value="profile">个人主页</option><option value="tree">苦情树</option><option value="both">主页与苦情树</option></select></label><label>谁可以看<select name="visibility"><option value="friends">好友可见</option><option value="members">登录用户可见</option><option value="private">仅自己</option></select></label><label class="publisher-public-confirm" hidden><input name="publicConfirmed" type="checkbox">我确认：苦情树内容对所有登录用户可见</label>';
+    box.innerHTML='<label>发布到<select name="destination"><option value="profile">个人主页</option><option value="tree">缘生-广场</option><option value="both">主页与缘生-广场</option></select></label><label>谁可以看<select name="visibility"><option value="friends">好友可见</option><option value="members">登录用户可见</option><option value="private">仅自己</option></select></label><label class="publisher-public-confirm" hidden><input name="publicConfirmed" type="checkbox">我确认：缘生-广场内容对所有登录用户可见</label>';
     const header=form.querySelector('header');if(header)header.after(box);else form.prepend(box);
     form.elements.destination.value=initialDestination;form.elements.visibility.value=initialDestination==='profile'?'friends':'members';
     const change=()=>{
@@ -28,7 +28,7 @@ export class ActivityPublisher {
     if([...body].length>2000){this.status.textContent='正文最多 2,000 字。';return;}
     const data={body,destination,visibility,categoryId:String(values.get('categoryId')||'0'),mood:String(values.get('mood')||''),
       tags:String(values.get('tags')||'').trim().split(/\s+/u).filter(Boolean).join('\n'),fileIds:'',publicConfirmed:String(form.elements.publicConfirmed.checked)};
-    if(destination!=='profile'&&data.categoryId==='0'){this.status.textContent='发布到苦情树时请选择主题分类。';return;}
+    if(destination!=='profile'&&data.categoryId==='0'){this.status.textContent='发布到缘生-广场时请选择主题分类。';return;}
     this.status.classList.remove('error');
     const submit=form.querySelector('button[type="submit"],button:not([type])');this.busy=true;submit.disabled=true;
     try {

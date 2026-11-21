@@ -8,6 +8,8 @@
 #include "backend/application/modules/tree/infrastructure/TreePostgresRepository/TreePostgresRepository.h"
 #include "backend/application/modules/tree/transport/TreeHttp/TreeHttp.h"
 #include "backend/application/modules/tree/transport/TreeMediaHttp/TreeMediaHttp.h"
+#include "backend/application/modules/tree/infrastructure/TreeTrainingPostgres/TreeTrainingPostgres.h"
+#include "backend/application/modules/tree/transport/TreeTrainingHttp/TreeTrainingHttp.h"
 
 #include <cstdlib>
 
@@ -25,6 +27,9 @@ struct CommunityContentRuntime::Impl {
     TreeService tree;
     ModerationService moderation;
     TreeHttp treeHttp;
+    TreeTrainingPostgres trainingRepository;
+    TreeTrainingService training;
+    TreeTrainingHttp trainingHttp;
     ActivityPostgresViews activityViews;
     ActivityService activities;
     ActivityHttp activityHttp;
@@ -42,6 +47,7 @@ struct CommunityContentRuntime::Impl {
           tree(sql, bridge, treeRepository, bridge, events, &treeRepository),
           moderation(sql, bridge, treeRepository, reportRepository, events),
           treeHttp(auth, executor, tree, moderation),
+          trainingRepository(sql), training(sql, bridge, trainingRepository, events), trainingHttp(auth, executor, training),
           activityViews(sql), activities(sql, bridge, tree, activityViews, activityViews),
           activityHttp(auth, executor, activities, social),
           mediaProcessor(configured("WEB_FUNCTION3_FFMPEG_ROOT",
@@ -65,6 +71,7 @@ void CommunityContentRuntime::setCache(IQueryCache* cache) noexcept { impl_->tre
 void CommunityContentRuntime::registerRoutes(Router& router) {
     impl_->activityHttp.registerRoutes(router);
     impl_->treeHttp.registerRoutes(router);
+    impl_->trainingHttp.registerRoutes(router);
     impl_->mediaHttp.registerRoutes(router);
 }
 void CommunityContentRuntime::stop() noexcept { impl_->mediaExecutor.shutdown(); }

@@ -1,4 +1,4 @@
-name: source-and-business
+name: Verify and package NEBULA
 
 on:
   push:
@@ -7,7 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       run_business:
-        description: 'Run the provisioned Linux business reproduction on the isolated runner'
+        description: 'Run Linux business and OTLP tests, then prepare a delivery artifact'
+        type: boolean
+        default: false
+      run_native:
+        description: 'Also verify the installed native toolchain and package both Workers'
         type: boolean
         default: false
 
@@ -15,26 +19,37 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   source:
-    runs-on: ubuntu-latest
+    name: Source and Observer · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Source and frontend contracts (no installation)
-        run: python3 scripts/project/ci_checks.py source
-      - uses: actions/upload-artifact@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Source, frontend and Observer contracts
+        run: python scripts/project/ci_checks.py source --observer-http
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: source-evidence
+          name: source-evidence-${{ matrix.os }}-${{ github.run_attempt }}
           path: build-function3/ci-report.json
+          if-no-files-found: error
+          retention-days: 7
+
   business:
-    # Opt-in only: a green source job is not evidence that this runner exists
-    # or that real PostgreSQL and WebSocket checks ran.
-    if: github.event_name == 'workflow_dispatch' && inputs.run_business
+    name: Linux business and delivery
+    needs: source
+    # Only the explicit dispatch uses the existing provisioned runner.
+    if: github.event_name == 'workflow_dispatch' && (inputs.run_business || inputs.run_native)
     runs-on: [self-hosted, linux, webserver-isolated-ci]
     environment: isolated-ci
     timeout-minutes: 30
@@ -44,21 +59,82 @@ jobs:
       GTEST_DIR: ${{ vars.WEB_CI_GTEST_DIR }}
       SSL_INCLUDE: ${{ vars.WEB_CI_OPENSSL_INCLUDE }}
       SSL_LIB_DIR: ${{ vars.WEB_CI_OPENSSL_LIB_DIR }}
+      CURL_PREFIX: ${{ vars.WEB_CI_CURL_PREFIX }}
+      CI_BUILD: build/ci-business-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_DELIVERY: build/ci-delivery-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Clean Release build and real disposable PostgreSQL
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Clean Release build, real business and OTLP regression
         shell: bash
         run: |
           args=(--postgres-prefix "${PG_PREFIX:?Configure WEB_CI_POSTGRES_PREFIX on the isolated runner}")
           if [[ -n "$SODIUM_PREFIX" ]]; then args+=(--sodium-prefix "$SODIUM_PREFIX"); fi
           if [[ -n "$GTEST_DIR" ]]; then args+=(--gtest-dir "$GTEST_DIR"); fi
+          if [[ -n "$CURL_PREFIX" ]]; then args+=(--curl-root "$CURL_PREFIX"); fi
           if [[ -n "$SSL_INCLUDE" || -n "$SSL_LIB_DIR" ]]; then
             args+=(--openssl-include "${SSL_INCLUDE:?}" --openssl-lib-dir "${SSL_LIB_DIR:?}")
           fi
-          python3 scripts/project/reproduce.py business \
-            --build-dir "build/ci-business-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" "${args[@]}"
-      - uses: actions/upload-artifact@v4
+          python3 scripts/project/reproduce.py business --with-otlp --build-dir "$CI_BUILD" "${args[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: business-evidence
-          path: build/ci-business-*/reproduction.json
+          name: business-evidence-${{ github.run_attempt }}
+          path: |
+            ${{ env.CI_BUILD }}/reproduction.json
+            ${{ env.CI_BUILD }}/ctest.xml
+          retention-days: 7
+      - name: Package and smoke-test the extracted runtime
+        shell: bash
+        run: |
+          python3 scripts/project/package_release.py --revision "$GITHUB_SHA" package \
+            --build "$CI_BUILD" --output "$CI_DELIVERY"
+          (cd "$CI_DELIVERY" && sha256sum --check SHA256SUMS)
+          python3 scripts/project/package_release.py --revision "$GITHUB_SHA" verify \
+            "$CI_DELIVERY"/nebula-linux-*.tar.gz --postgres-prefix "$PG_PREFIX"
+      - name: Upload NEBULA delivery artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nebula-delivery-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ env.CI_DELIVERY }}/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  native:
+    name: Native Workers and runtime prerequisites
+    needs: business
+    if: github.event_name == 'workflow_dispatch' && inputs.run_native
+    runs-on: [self-hosted, linux, webserver-isolated-ci]
+    environment: isolated-ci
+    timeout-minutes: 45
+    env:
+      PG_PREFIX: ${{ vars.WEB_CI_POSTGRES_PREFIX }}
+      NATIVE_CACHE: ${{ vars.WEB_CI_NATIVE_CACHE }}
+      CI_BUILD: build/ci-native-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_DELIVERY: build/ci-native-delivery-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Native build and real isolated regression
+        shell: bash
+        run: |
+          python3 scripts/project/reproduce.py native --build-dir "$CI_BUILD" \
+            --postgres-prefix "${PG_PREFIX:?Configure the existing PostgreSQL prefix}" \
+            --initial-cache "${NATIVE_CACHE:?Configure the installed dependency cache}"
+          python3 scripts/project/package_release.py --revision "$GITHUB_SHA" package \
+            --build "$CI_BUILD" --output "$CI_DELIVERY"
+          python3 scripts/project/package_release.py --revision "$GITHUB_SHA" verify \
+            "$CI_DELIVERY"/nebula-linux-*.tar.gz --postgres-prefix "$PG_PREFIX"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: native-evidence-${{ github.run_attempt }}
+          path: |
+            ${{ env.CI_BUILD }}/reproduction.json
+            ${{ env.CI_BUILD }}/ctest.xml
+            ${{ env.CI_DELIVERY }}/
+          if-no-files-found: error
+          retention-days: 7

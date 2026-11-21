@@ -1,0 +1,32 @@
+{
+  "packages": [
+    {
+      "name": "prometheus",
+      "version": "3.13.5",
+      "license": "Apache-2.0",
+      "directory": "/home/pikachu/phase11-deps/observability/prometheus-3.13.5",
+      "archiveBytes": 104644132,
+      "archiveSha256": "0388822ace519c5a3a8ef556a541ce1b536e21d872f82deded465bd27a5a0699",
+      "officialChecksums": "https://github.com/prometheus/prometheus/releases/download/v3.13.5/sha256sums.txt",
+      "programs": {
+        "prometheus": "b20def7421c2037f18139a3695f0905884098add886cb7f26f1c655f5de4611a",
+        "promtool": "4e84296dc89ef03d856674d76d387f5ccc54a698136c2f0dc30ceef2286908ff"
+      }
+    },
+    {
+      "name": "node_exporter",
+      "version": "1.12.1",
+      "license": "Apache-2.0",
+      "directory": "/home/pikachu/phase11-deps/observability/node_exporter-1.12.1",
+      "archiveBytes": 12168577,
+      "archiveSha256": "b51d8a76aa2a9156a55d501aca6276fae09e262259a5e4e831d2c2222f084e63",
+      "officialChecksums": "https://github.com/prometheus/node_exporter/releases/download/v1.12.1/sha256sums.txt",
+      "programs": {
+        "node_exporter": "1108f7453ecfe4a72f131c73b69537c171840ad4f1713a2402328ad56cf12e09"
+      }
+    }
+  ],
+  "usedBytes": 392164772,
+  "servicesInstalled": false,
+  "globalEnvironmentChanged": false
+}

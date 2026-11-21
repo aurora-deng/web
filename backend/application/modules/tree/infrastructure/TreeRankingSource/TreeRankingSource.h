@@ -6,6 +6,7 @@ class TreeRankingSource final:public ITreeRankingSource {
 public:
     explicit TreeRankingSource(SqlContext &sql):sql_(sql){}
     std::vector<RankCandidate> topCandidates(Milliseconds now) const override;
+    std::vector<CategoryRankEntry> categoryTop(Milliseconds now) const override;
 private: SqlContext &sql_;
 };
 }

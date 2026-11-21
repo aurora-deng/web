@@ -3,6 +3,7 @@
 #include "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
 #include "backend/application/transport/FlatJson/FlatJson.h"
 #include "backend/application/modules/shared/BusinessContext/BusinessContext.h"
+#include "backend/application/transport/http/BusinessHttpObservation/BusinessHttpObservation.h"
 #include <charconv>
 #include <chrono>
 
@@ -27,6 +28,7 @@ inline Fields body(const RequestContext &ctx){
 }
 inline void reply(RequestContext &ctx,std::string json,int status=200){ctx.response->status=status;ctx.response->statusText=status==200?"OK":status==201?"Created":status==202?"Accepted":"Error";ctx.response->json(json);ctx.response->setHeader("Cache-Control","no-store");ctx.response->setHeader("X-Content-Type-Options","nosniff");}
 template<class Operation> bool guarded(RequestContext &ctx,Operation operation){
+    phase11::transport::BusinessHttpObservation observation(ctx,true);
     try{if(ctx.stopRequested())throw BusinessError(Failure::Busy,"request cancelled");operation();}
     catch(const BusinessError &e){int status=500;switch(e.code){case Failure::Invalid:status=400;break;case Failure::Unauthenticated:status=401;break;case Failure::Forbidden:status=403;break;case Failure::NotFound:status=404;break;case Failure::Conflict:status=409;break;case Failure::Busy:status=503;break;}reply(ctx,"{\"message\":"+quote(e.what())+"}",status);}
     catch(const phase11::ApplicationError &e){int status=503;switch(e.code()){case phase11::ErrorCode::Unauthenticated:status=401;break;case phase11::ErrorCode::Forbidden:status=403;break;case phase11::ErrorCode::InvalidArgument:status=400;break;case phase11::ErrorCode::NotFound:status=404;break;case phase11::ErrorCode::Conflict:status=409;break;case phase11::ErrorCode::RateLimited:status=429;break;default:break;}reply(ctx,"{\"message\":"+quote(e.what())+"}",status);}

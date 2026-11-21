@@ -9,7 +9,12 @@ void registerFrontendAssets(Router &router) {
     for(auto &entry:std::filesystem::recursive_directory_iterator(root)) {
         if(entry.is_symlink()||!entry.is_regular_file())continue;
         const auto extension=entry.path().extension().string();
-        const std::string mime=extension==".js"?"text/javascript; charset=utf-8":extension==".css"?"text/css; charset=utf-8":extension==".html"?"text/html; charset=utf-8":entry.path().filename()=="asset-manifest.json"?"application/json; charset=utf-8":"";
+        std::string mime;
+        if(extension==".js") mime="text/javascript; charset=utf-8";
+        else if(extension==".css") mime="text/css; charset=utf-8";
+        else if(extension==".html") mime="text/html; charset=utf-8";
+        else if(extension==".png") mime="image/png";
+        else if(entry.path().filename()=="asset-manifest.json") mime="application/json; charset=utf-8";
         if(mime.empty())continue;
         const auto relative=entry.path().lexically_relative(root).generic_string();
         auto handler=[path=entry.path().string(),mime](RequestContext &ctx){

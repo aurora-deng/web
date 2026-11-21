@@ -1,4 +1,5 @@
 #include "PrivateGenerationService.h"
+#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
 #include "backend/application/business/ApplicationError/ApplicationError.h"
 #include "backend/application/runtime/BoundedExecutor/BoundedExecutor.h"
 #include <openssl/sha.h>
@@ -66,9 +67,10 @@ PrivateGenerationView PrivateGenerationService::start(UserId owner,UserId ai,Gen
         State::Job j;j.owner=owner;j.id=id;j.signature=hash;j.accepted=j.renewed=Clock::now();j.cancellation=cancellation;s->jobs.emplace(key,std::move(j));
     }
     const std::weak_ptr<State>weak=s;
-    const bool submitted=s->executor.submit([weak,key,ai,request=std::move(request),cancellation]()mutable{
+    const bool submitted=s->executor.submit([weak,key,ai,parent=telemetry::Span::traceparent(),request=std::move(request),cancellation]()mutable{
         auto state=weak.lock();if(!state)return;
         {std::lock_guard lock(state->mutex);auto i=state->jobs.find(key);if(i==state->jobs.end()||!active(i->second.state))return;i->second.state="running";}
+        telemetry::BusinessOperation observation(telemetry::Series::PrivateDispatch,std::source_location::current(),true,parent);
         auto token=[weak,key](std::string_view piece){if(auto state=weak.lock()){
             std::lock_guard lock(state->mutex);auto i=state->jobs.find(key);if(i==state->jobs.end()||!active(i->second.state))return;auto&j=i->second;
             if(piece.size()>16384||j.bytes+piece.size()>state->config.responseBytesLimit||j.pieces.size()>=4096){j.cancellation.cancel();j.state="failed";j.error="private_output_limit";j.finished=Clock::now();return;}
@@ -80,7 +82,7 @@ PrivateGenerationView PrivateGenerationService::start(UserId owner,UserId ai,Gen
             j.state=result.cancelled?"cancelled":result.success?"completed":"failed";j.error=result.success?"":"private_model_failed";j.trace=result.trace;j.finished=Clock::now();
         }};
         try{state->model.generate(ai,std::move(request),std::move(token),complete,cancellation);}
-        catch(...){complete({false,cancellation.cancelled(),"",{}});}
+        catch(...){if(cancellation.cancelled())observation.cancel();else observation.fail();complete({false,cancellation.cancelled(),"",{}});}
     });
     if(!submitted){std::lock_guard lock(s->mutex);s->jobs.erase(key);throw ApplicationError(ErrorCode::Unavailable,"private inference queue is full");}
     return poll(owner,id,0);

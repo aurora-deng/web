@@ -74,6 +74,12 @@ void InMemoryTreeRepository::savePost(const TreePost &value) {
 }
 std::vector<TreePost> InMemoryTreeRepository::posts(const PostQuery &q, Id viewer) const {
     std::lock_guard lock(mutex_); std::vector<TreePost> result;
+    const auto fold = [](std::string value) {
+        for (auto &letter : value) if (letter >= 'A' && letter <= 'Z') letter = static_cast<char>(letter + ('a' - 'A'));
+        return value;
+    };
+    const auto keyword = fold(q.keyword);
+    const auto matches = [&](const std::string &value) { return fold(value).find(keyword) != std::string::npos; };
     for (auto it = state_.posts.rbegin(); it != state_.posts.rend() && result.size() < q.limit; ++it) {
         const auto &p = it->second;
         if(!q.ids.empty()&&std::find(q.ids.begin(),q.ids.end(),p.id)==q.ids.end())continue;
@@ -86,6 +92,8 @@ std::vector<TreePost> InMemoryTreeRepository::posts(const PostQuery &q, Id viewe
             (!q.mood.empty() && p.content.mood != q.mood) || (!q.tag.empty() &&
              std::find(p.content.tags.begin(), p.content.tags.end(), q.tag) == p.content.tags.end())) continue;
         if (q.mediaKind && std::none_of(p.media.begin(), p.media.end(), [&](const auto &m) { return m.kind == *q.mediaKind; })) continue;
+        if (!keyword.empty() && !matches(p.content.body) && !matches(p.authorName) &&
+            std::none_of(p.content.tags.begin(), p.content.tags.end(), matches)) continue;
         result.push_back(*post(p.id, viewer));
     }
     return result;
@@ -114,10 +122,11 @@ std::optional<TreeReply> InMemoryTreeRepository::reply(Id id) const {
 void InMemoryTreeRepository::deleteReply(Id id) {
     std::lock_guard lock(mutex_); requireTransaction(); state_.replies.at(id).deleted = true;
 }
-std::vector<TreeReply> InMemoryTreeRepository::replies(Id post, Id before, std::size_t limit) const {
+std::vector<TreeReply> InMemoryTreeRepository::replies(Id post, Id before, std::size_t limit, std::optional<Id> author) const {
     std::lock_guard lock(mutex_); std::vector<TreeReply> result;
     for (auto it = state_.replies.rbegin(); it != state_.replies.rend() && result.size() < limit; ++it)
-        if (it->second.post == post && !it->second.deleted && (!before || it->first < before)) result.push_back(it->second);
+        if (it->second.post == post && !it->second.deleted && (!author || it->second.author == *author) &&
+            (!before || it->first < before)) result.push_back(it->second);
     return result;
 }
 void InMemoryTreeRepository::seedActor(Actor actor) { std::lock_guard lock(mutex_); state_.actors[actor.id] = std::move(actor); }

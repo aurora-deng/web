@@ -1,0 +1,70 @@
+{
+  "passed": true,
+  "environment": "disposable-real-nebula",
+  "simulatedBusinessContent": true,
+  "dailyServiceChanged": false,
+  "startedAtUnix": 1795088687,
+  "finishedAtUnix": 1795088688,
+  "target": 56527,
+  "observer": 18798,
+  "registeredFunctions": 26,
+  "exercisedFunctions": [
+    "ChatService::conversations",
+    "ChatService::history",
+    "ChatService::historyBefore",
+    "ChatService::sendMessage",
+    "AuthService::registerUser",
+    "AuthService::login",
+    "TreeService::list",
+    "TreeService::get",
+    "TreeService::publish",
+    "TreeService::like",
+    "TreeService::reply",
+    "TreeService::replies",
+    "TreeService::remove",
+    "SqlContext::acquire",
+    "SqlContext::execute",
+    "SqlContext::transact"
+  ],
+  "checks": [
+    "real websocket ACK, history and historyBefore",
+    "tree writes, reads, delete permission and final state",
+    "26 fixed metrics; 16 exercised operations; error and in-flight accounting",
+    "two complete real cross-process probe -> HTTP -> service -> PostgreSQL traces",
+    "independent scrape, catalog and private-content exclusion"
+  ],
+  "traces": {
+    "/api/conversations": {
+      "traceId": "fb7e2a67b085c06ef480619bf209e30a",
+      "spans": 8,
+      "operations": [
+        "ChatService::conversations",
+        "GET /api/conversations",
+        "PostgreSQL command",
+        "PostgresConversationRepository::listConversationSummaries",
+        "probe GET /api/conversations"
+      ],
+      "status": "complete"
+    },
+    "/api/tree/posts": {
+      "traceId": "9c4bad35025bb1c3a4ff39d5c68b17f0",
+      "spans": 17,
+      "operations": [
+        "GET /api/tree/posts",
+        "PostgreSQL command",
+        "SqlContext::acquire",
+        "SqlContext::execute",
+        "TreeService::list",
+        "probe GET /api/tree/posts"
+      ],
+      "status": "complete"
+    }
+  },
+  "version": {
+    "sourceFingerprint": "442ca9b5f75acef84e42b09691d92b29fd1b8226fac740bf9442028fdd21e797",
+    "revision": "source-snapshot",
+    "requiredMigration": 24,
+    "testResults": "see phase49 evidence and retained phase43-48 history; not a runtime health assertion",
+    "schemaVerifiedAtStartup": true
+  }
+}

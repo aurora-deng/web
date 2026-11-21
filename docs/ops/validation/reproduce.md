@@ -1,5 +1,7 @@
 # 从干净目录复现 Nebula
 
+原有两档继续使用；新增[完整原生档交付说明](native-delivery.md)，包含 Worker/动态库清单、版本 2 解包预检和显式 CI 原生入口。模型预热及生成质量与编译、业务冒烟分别验收。
+
 复现分为两个级别。两者都从源码配置、构建、启动，再访问真实 HTTP 服务。源码检查仍可以单独在 Windows 运行。
 
 请使用 `Function3.2` 的完整检出，从项目根目录执行下方命令。[项目文件架构](../../architecture/overview/project-layout.md) · [附加故障演练与 ACK 性能定位](../../releases/function3.2.md)
@@ -32,13 +34,27 @@ python3 scripts/project/reproduce.py business \
 - 不复用旧构建目录冒充全新配置。需要核验指定 Release 构建时，用 `--verify-existing-build`，报告会把它与全新构建分开标记。
 - 业务档不启用 Redis、RocketMQ、TLS 云端资源、模型和真实 TTS。Redis 契约是该档唯一允许跳过的测试，报告明确列出。额外驱动仍需各自的集成环境。
 
-Windows 源码检查：`python scripts/project/ci_checks.py source`。已有 MinGW/Boost 的 Windows 客户端使用[本机客户端构建入口](../../../scripts/client/build_windows.py)。
+Windows 可运行 `python scripts/project/ci_checks.py source --observer-http`，Observer 契约需要访问临时的本机端口。已有 MinGW 和 Boost 的 Windows 客户端使用[本机客户端构建入口](../../../scripts/client/build_windows.py)。
 
-## 容器与 CI
+## CI 与交付
 
 - [Dockerfile](../../../Dockerfile) 是通信层演示镜像草案，`docker build -t nebula:transport .` 会尝试获取基础镜像和软件包；尚未在本轮构建。运行命令可用 `docker run --rm -p 127.0.0.1:8080:8080 nebula:transport`，此镜像不启用 PostgreSQL 账号业务。
-- [CI](../../../.github/workflows/ci.yml) 默认运行源码门禁。业务工作流须手动勾选 `run_business`，使用已有依赖、已获准的隔离 runner 与 `isolated-ci` 环境。可为环境配置 `WEB_CI_POSTGRES_PREFIX`、可选的 `WEB_CI_SODIUM_PREFIX`、`WEB_CI_GTEST_DIR`，以及成对的 `WEB_CI_OPENSSL_INCLUDE`、`WEB_CI_OPENSSL_LIB_DIR`。本机真实通过不等于 GitHub runner 已配置或执行。
-- 本说明验证可构建和可重复观察到功能，未承诺不同工具链生成相同二进制，也未执行生产替换、发布回滚或性能验收。数据库变更见[迁移规则](../../database/migration-policy.md)。
+- [GitHub Actions 工作流](../../../.github/workflows/ci.yml) 在 push 和 PR 跑 Ubuntu 24.04、Windows 2025 双平台门禁。两端检查业务前端、Observer 的全部 JavaScript 文件，以及真实本机 HTTP 契约。各平台分别上传 `ci-report.json`，显示实际通过、失败和本地可选检查。
+- 在 Actions 手动勾选 `run_business` 后，隔离 runner 等两平台通过再构建启动，执行协议与业务 CTest、PostgreSQL 冒烟、重启恢复和 OTLP 鉴权、采样、失败恢复。环境中设置 `WEB_CI_POSTGRES_PREFIX`，按需设置 `WEB_CI_SODIUM_PREFIX`、`WEB_CI_GTEST_DIR`、`WEB_CI_CURL_PREFIX` 与成对的 `WEB_CI_OPENSSL_INCLUDE`、`WEB_CI_OPENSSL_LIB_DIR`。制品 `business-evidence-*` 收录 `reproduction.json` 和 `ctest.xml`。Redis 可在本地通过 `--test-redis-port` 指定一次性 fixture。未指定时，报告明确列出该项跳过。
+- CD 交付包来自同一受测二进制。打包校验源码指纹、提交号、前端版本与迁移版本。包内有服务、两套前端、Observer 查询服务、迁移、预置面板和校验清单。上传前从解包目录应用迁移并启动，检查服务就绪、登录页、静态资源版本及 Observer 入口。Actions 的 `nebula-delivery-*` 仅在通过这些检查后出现，保留 7 天。本轮的远端工作流执行状态详见 [Observer 验收记录](../../observability/validation.md)。[GitHub 构建产物文档](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts)
+
+也能在已准备依赖的 Linux 本机跑这条交付路径。变量使用实际已安装的目录。
+
+```bash
+python3 scripts/project/reproduce.py business --with-otlp \
+  --postgres-prefix "$POSTGRES_ROOT" --curl-root "$CURL_ROOT" --build-dir "$CI_BUILD"
+python3 scripts/project/package_release.py package --build "$CI_BUILD" --output "$CI_DELIVERY"
+(cd "$CI_DELIVERY" && sha256sum --check SHA256SUMS)
+python3 scripts/project/package_release.py verify "$CI_DELIVERY"/nebula-linux-*.tar.gz \
+  --postgres-prefix "$POSTGRES_ROOT"
+```
+
+从 Actions 下载时可在 `verify` 前加 `--revision "$EXPECTED_COMMIT"`，将报告关联到对应提交。若需要准备目标机数据库，按[迁移规则](../../database/migration-policy.md)执行。交付包使用构建时链接的系统依赖，需在兼容 Linux 环境运行。
 
 ## 这次的验证记录
 

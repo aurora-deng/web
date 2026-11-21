@@ -68,7 +68,8 @@ http::response<http::string_body> HttpConnectionPool::request(
             }
             http::write(connection->stream,request);
             http::response_parser<http::string_body> parser;
-            parser.body_limit(2*1024*1024);parser.header_limit(32768);
+            const bool study = request.target().starts_with("/api/study/");
+            parser.body_limit((study ? 12 : 2) * 1024 * 1024);parser.header_limit(32768);
             if(request.method()==http::verb::head)parser.skip(true);
             http::read(connection->stream,connection->buffer,parser);
             auto response=parser.release();++connection->requests;

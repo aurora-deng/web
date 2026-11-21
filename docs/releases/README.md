@@ -6,6 +6,7 @@
 
 |内容|文件|
 |---|---|
+|[Function3.3 发布说明](function3.3.md)|研途账号、跨模块切换、Observer 与本版验收|
 |[Function3.2 发布说明](function3.2.md)|架构拆分、复现、故障演练及 ACK 分段数据|
 |[Function3.1 发布说明](../ops/validation/function3.1.md)|版本与线上记录|
 |[原型 vs 最新版本：代码差异对比文档](code_diff_comparison.md)|code_diff_comparison.md|

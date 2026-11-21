@@ -2,6 +2,18 @@
 
 路径相对项目根目录。每个组件保持同名目录，头文件与实现文件放在一起；纯端口不创建空实现。
 
+## Function3.3 入口与工作区
+
+| 组件 | 责任 |
+|---|---|
+| [AccountSession](../../../../frontend/phase11/shared/AccountSession/AccountSession.js) | 合并同页会话恢复请求、校验站内返回路径、通知其他页面重新验身份 |
+| [AccountEntryView](../../../../frontend/phase11/accounts/AccountEntryView/AccountEntryView.js) | 登录中、已登录、访客、可重试错误与主动切换账号 |
+| [TreePageNavigation](../../../../frontend/phase11/tree/TreePageNavigation/TreePageNavigation.js) · [TreePageTransition](../../../../frontend/phase11/tree/TreePageTransition/TreePageTransition.js) | 滚轮边界与换页过渡 |
+| [StudyWorkspace](../../../../frontend/phase11/study/StudyWorkspace/StudyWorkspace.js) · [AccountWorkspace](../../../../backend/study/AccountWorkspace/AccountWorkspace.py) | 前端重建研途页面，服务端核验账号、选择学习数据 |
+| [UpstreamTransport](../../../../client/companion/UpstreamTransport/UpstreamTransport.cpp) · [ClientBootstrap](../../../../frontend/phase11/shared/ClientBootstrap/ClientBootstrap.js) | 串行处理身份切换，刷新 Windows 各页面的本机会话 |
+
+## 共享业务组件
+
 | 模块 | 层 | 组件 | 文件 |
 |---|---|---|---|
 | admin | application | `AdminService` | [AdminService.cpp](../../../../backend/application/modules/admin/application/AdminService/AdminService.cpp), [AdminService.h](../../../../backend/application/modules/admin/application/AdminService/AdminService.h) |
@@ -112,3 +124,17 @@
 语音、回复和前端具体改动、调用图及验证入口见[Phase35](../client-ui/phase35.md)。
 
 I/O诊断脚本：[wal_diagnostic.py](../../../../scripts/function3/validation/wal_diagnostic.py)，只调整带标记的私有PG集群，结束后恢复计时配置。
+
+## 故事广场与小研
+
+| 组件 | 职责 | 入口 |
+|---|---|---|
+| StoryPreview | 从活动正文生成卡片标题与摘要，读取媒体和示例标识 | [StoryPreview.js](../../../../frontend/phase11/tree/StoryPreview/StoryPreview.js) |
+| CategoryRanking | 读取所选领域的榜单快照，批量读取可见帖子，切换分类后丢弃迟到结果 | [CategoryRanking.js](../../../../frontend/phase11/tree/CategoryRanking/CategoryRanking.js) |
+| DiscussionThreads | 渲染楼层、楼中回复和回复对象，消费已过业务权限检查的评论 | [DiscussionThreads.js](../../../../frontend/phase11/shared/DiscussionThreads/DiscussionThreads.js) |
+| XiaoYan | 提供全站小研的同一角色资源，聊天入口和全局侧栏进入同一助手 | [XiaoYan.js](../../../../frontend/phase11/shared/XiaoYan/XiaoYan.js) |
+| FrontendAssets | 日常直连启动时枚举前端文件，设置静态内容类型，提供小研 PNG | [FrontendAssets.cpp](../../../../backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.cpp) |
+| WebAssistantHistory | 按账号合并网页会话目录，保留两路历史与当前会话 | [WebAssistantHistory.js](../../../../frontend/phase11/shared/WebAssistantPanel/WebAssistantHistory.js) |
+| ModelConnection | 测试站点模型、本机 Ollama 和兼容 API，展示选定连接的数据范围 | [ModelConnection.js](../../../../frontend/phase11/shared/ModelConnection/ModelConnection.js) |
+
+社区查询、种子数据与小研网页和私人空间的链路见[实施记录](../../../ops/runtime/nebula-yantu-community.md#故事广场七日心动榜与小研)。

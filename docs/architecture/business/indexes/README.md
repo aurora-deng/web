@@ -1,5 +1,7 @@
 # 代码组件索引
 
+本轮组件补充见[AI、PG 工作单元和 Observer 查询关系](../../../roadmap/project-review-implementation-2026-11-19.md#2-组件与责任)。原 Port 和业务接口保持兼容；同名头文件组件无需空 `.cpp`。
+
 查目录先看[项目文件架构](../../overview/project-layout.md)。社区装配与投递看 Function3 索引，账号、聊天与数据库分层可从 Phase49 索引定位。旧阶段索引用于对照当时的代码演进。
 
 [返回文档分类](../../../README.md)

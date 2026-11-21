@@ -26,6 +26,7 @@ struct OutboxDispatchResult
     std::size_t published = 0;
     bool blocked = false;
     std::chrono::microseconds oldestAttemptAge{0};
+    void beginAttempt(const OutboxEvent &event, TimePoint now) noexcept;
 };
 
 /**

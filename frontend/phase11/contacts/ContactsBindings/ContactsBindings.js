@@ -1,5 +1,5 @@
-import { contactsApi } from "../ContactsApi/ContactsApi.js?v=144f1e6009a3d461";
-import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=144f1e6009a3d461';
+import { contactsApi } from "../ContactsApi/ContactsApi.js?v=7f8c7f1b31e4435c";
+import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=7f8c7f1b31e4435c';
 export const dependencies={"resources":["$","elements"],"commands":["setStatus","setButtonBusy","api","loadContacts"],"types":[],"events":true};
 /** Contacts UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindContacts(context) {

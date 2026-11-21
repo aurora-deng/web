@@ -38,8 +38,10 @@ int main() {
         rejects(Failure::Busy,[&]{tree.publish(1,rollback,2000);});
         check(tree.count(1)==1 && store.events().size()==1,"event failure must rollback post");
         check(tree.publish(1,rollback,2001).id==2,"retry rolled back command");
-        check(tree.like(1,first.id,true,3000).likes==0,"self like excluded from heat");
-        check(tree.like(2,first.id,true,3000).likes==1,"like count");
+        const auto authorLike = tree.like(1,first.id,true,3000);
+        check(authorLike.likes==0 && authorLike.canDelete,"self like preserves owner controls and does not count in heat");
+        const auto readerLike = tree.like(2,first.id,true,3000);
+        check(readerLike.likes==1 && !readerLike.canDelete,"like count and viewer-specific controls");
         const auto rootReply=tree.reply(2,first.id,"thread-root","你好",3100);
         const auto childReply=tree.reply(1,first.id,"thread-child","谢谢你的回应",3101,rootReply.id);
         check(childReply.parent==rootReply.id&&childReply.replyToName=="读者","persistent reply target");
@@ -58,9 +60,15 @@ int main() {
         rejects(Failure::Forbidden,[&]{tree.removeReply(1,reply.id,4000);});
         tree.removeReply(2,reply.id,4000); check(tree.get(2,first.id).repliers==1,"other reply still counts");
         auto replies=tree.replies(2,first.id,0,1); check(replies.size()==1,"reply pagination");
+        auto authorReplies=tree.replies(2,first.id,0,30,true);
+        check(authorReplies.size()==1 && authorReplies[0].author==1,"only the post author can appear in filtered replies");
+        check(tree.replies(2,first.id,authorReplies.front().id,30,true).empty(),"author filter preserves an exclusive cursor");
         auto q=PostQuery{}; q.tag="生活"; q.limit=1;
         auto page=tree.list(2,q); check(page.size()==1 && page[0].id==2,"post page descending");
         q.before=page[0].id; check(tree.list(2,q)[0].id==1,"exclusive cursor");
+        q.keyword="  开心  ";check(tree.list(2,q).size()==1,"keyword composes with tag and cursor");
+        q.keyword="不存在";check(tree.list(2,q).empty(),"word search excludes unrelated posts");
+        q.keyword.assign(65,'x');rejects(Failure::Invalid,[&]{tree.list(2,q);});
         PostQuery batch;batch.ids={first.id,999999,2};
         auto selected=tree.list(2,batch);check(selected.size()==2&&selected[0].id==2&&selected[1].id==first.id,"bounded batch order and missing IDs");
         batch.ids={0};rejects(Failure::Invalid,[&]{tree.list(2,batch);});
@@ -74,6 +82,7 @@ int main() {
         rejects(Failure::NotFound,[&]{tree.get(1,first.id);});
         check(tree.count(1)==1,"hidden post must not grow tree");
         batch.ids={first.id,2};selected=tree.list(2,batch);check(selected.size()==1&&selected[0].id==2,"hidden batch content filtered");
+        batch.keyword="作者";check(tree.list(2,batch).size()==1,"keyword results still exclude hidden posts");
         tree.remove(1,2,5000); tree.remove(1,2,5000); check(tree.count(1)==0,"delete idempotence");
         // 两个设备同时提交同一键，只能产生一个果实和一条创建事件。
         PublishPost concurrent{"same-device-key","并发",1,{}, {},{}};

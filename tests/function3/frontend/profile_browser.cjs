@@ -2,18 +2,39 @@
  * Permission enforcement is separately exercised by activities_blackbox.py. */
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const{chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const root=path.resolve(__dirname,'../../..');let writes=[],posts=[];
+const root=path.resolve(__dirname,'../../..');let writes=[],posts=[],uploadedBytes=0;
+let notification={sound:false,voice:'zf_001'};
+const avatar=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2v8AAAAASUVORK5CYII=','base64');
 const profile={id:'1',username:'profile_user',displayName:'小满',biography:'记录日常，认真回应。',avatarUrl:'',self:true,showBiography:true,showAvatar:true};
 const server=http.createServer(async(req,res)=>{
  const url=new URL(req.url,'http://localhost'),json=(body,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(body));};
  if(url.pathname==='/events'){res.writeHead(200,{'Content-Type':'text/event-stream'});return res.write(': ready\n\n');}
+ if(url.pathname==='/api/files/18/content'&&req.method==='PATCH'){
+  assert.equal(Number(req.headers['upload-offset']),uploadedBytes);
+  assert.equal(req.headers['x-csrf-token'],'profile-test-csrf');
+  for await(const chunk of req)uploadedBytes+=chunk.length;
+  return json({uploadedSize:String(uploadedBytes)});
+ }
+ if(url.pathname==='/api/files/18'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'image/png'});return res.end(avatar);}
  if(['POST','PATCH','DELETE'].includes(req.method)){let raw='';for await(const chunk of req)raw+=chunk;const data=JSON.parse(raw||'{}');writes.push({path:url.pathname,method:req.method,data,csrf:req.headers['x-csrf-token']});
   if(url.pathname==='/api/activities'){const p={id:String(posts.length+1),authorId:'1',authorName:'小满',...data,media:[],tags:[],likes:'0',repliers:'0',createdAt:Date.now(),treeChannel:data.destination!=='profile',profileChannel:data.destination!=='tree',capabilities:{delete:true}};posts.unshift(p);return json(p,201);}
   if(url.pathname==='/api/me'){Object.assign(profile,data);return json({user:profile});}
-  if(url.pathname==='/api/me/profile-display'){Object.assign(profile,{showBiography:data.showBiography==='true',showAvatar:data.showAvatar==='true'});return json({ok:true});}
+  if(url.pathname==='/api/me/profile-display'){Object.assign(profile,{showBiography:data.showBiography==='true',showAvatar:data.showAvatar==='true',allowTreeFriendRequests:data.allowTreeFriendRequests==='true'});return json({ok:true});}
+  if(url.pathname==='/api/me/notification-settings'){notification={sound:data.sound==='true',voice:data.voice};return json(notification);}
+  if(url.pathname==='/api/files/uploads')return json({id:'18',uploadedSize:'0'},201);
+  if(url.pathname==='/api/files/18/complete')return json({id:'18'});
+  if(url.pathname==='/api/me/avatar'){assert.equal(data.fileId,'18');profile.avatarUrl='/api/files/18';return json({ok:true});}
   return json({ok:true});
  }
  if(url.pathname==='/api/me')return json({user:profile,csrfToken:'profile-test-csrf'});
+ if(url.pathname==='/api/admin/me')return json({id:'1',role:'user'});
+ if(url.pathname==='/api/client-capabilities')return json({uploads:{
+  chat:{chunkBytes:32,allowed:[{mediaTypes:['image/png']}]},avatar:{maxBytes:1024},
+  treeImage:{mediaTypes:['image/png'],maxCount:6,maxBytes:1024},
+  treeVoice:{mediaTypes:['audio/wav'],maxDurationMs:60000,maxBytes:1024},
+ }});
+ if(url.pathname==='/api/me/notification-settings')return json(notification);
+ if(url.pathname==='/api/me/speech/status')return json({enabled:false});
  if(url.pathname==='/api/profiles/1')return json(profile);
  if(url.pathname==='/api/profiles/2')return json({...profile,id:'2',username:'friend',displayName:'树下的朋友',self:false});
  if(url.pathname==='/api/tree/categories')return json([{id:'1',name:'生活'}]);
@@ -33,7 +54,31 @@ try{const page=await browser.newPage({viewport:{width:1440,height:900}}),errors=
  assert.equal(writes.at(-1).data.publicConfirmed,'true');assert.equal(writes.at(-1).data.destination,'both');
  await page.locator('#publish-activity').click();assert.equal(await page.locator('[name=publicConfirmed]').isChecked(),false);await page.locator('[data-close-publisher]').first().click();
  for(const size of[{width:1440,height:900},{width:1920,height:1080},{width:390,height:844}]){await page.setViewportSize(size);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(root,`build-function3/profile-${size.width}.png`)});}
- await page.locator('[data-section=information]').click();await page.locator('#profile-edit-form [name=displayName]').fill('小满的新名字');await page.locator('#profile-edit-form [type=submit]').click();await page.waitForFunction(()=>document.querySelector('#public-name').textContent==='小满的新名字');
- await page.goto(base+'/phase11/profile/?user=2');await page.waitForFunction(()=>document.querySelector('#public-name').textContent==='树下的朋友');assert.equal(await page.locator('#profile-edit-form').isVisible(),false);assert.equal(await page.locator('#publish-activity').isVisible(),false);assert.equal(await page.locator('#favorites-tab').isVisible(),false);
- assert.deepEqual(errors,[]);console.log('PASS profile three viewports, own/public areas, unified publisher confirmation/reset and real form handlers');
+ await page.locator('[data-section=information]').click();assert.equal(await page.locator('#profile-edit-form').isVisible(),false);
+ await page.locator('[data-section=settings]').click();
+ await page.locator('#profile-edit-form [name=displayName]').fill('小满的新名字');
+ await page.locator('#profile-edit-form [name=allowTreeFriendRequests]').check();
+ await page.locator('#profile-edit-form [type=submit]').click();
+ await page.waitForFunction(()=>document.querySelector('#settings-status').textContent.includes('已保存'));
+ assert.equal(profile.allowTreeFriendRequests,true);
+ assert.equal(await page.locator('[data-nav-user]').textContent(),'小满的新名字');
+ await page.locator('#profile-avatar-form [type=file]').setInputFiles({name:'avatar.png',mimeType:'image/png',buffer:avatar});
+ await page.locator('#profile-avatar-form [type=submit]').click();
+ await page.waitForFunction(()=>!document.querySelector('#profile-avatar-form [type=submit]').disabled);
+ assert.equal(await page.locator('#settings-status').textContent(),'头像已更新。');
+ await page.waitForSelector('#public-avatar img');
+ assert.equal(uploadedBytes,avatar.length);
+ await Promise.all([
+  page.waitForResponse(response=>response.url().endsWith('/api/me/notification-settings')&&response.request().method()==='PATCH'),
+  page.locator('[data-notification-preferences] select').selectOption('zm_009'),
+ ]);
+ await page.locator('#profile-theme').selectOption('light');
+ await page.reload();await page.waitForSelector('#settings-section:not([hidden])');
+ await page.waitForSelector('[data-notification-preferences] select');
+ assert.equal(await page.locator('html').getAttribute('data-theme'),'light');
+ assert.equal(await page.locator('[data-notification-preferences] select').inputValue(),'zm_009');
+ await page.goto(base+'/phase11/profile/?user=2#settings');await page.waitForFunction(()=>document.querySelector('#public-name').textContent==='树下的朋友');
+ assert.equal(await page.locator('#settings-tab').isVisible(),false);
+ assert.equal(await page.locator('#profile-edit-form').isVisible(),false);assert.equal(await page.locator('#publish-activity').isVisible(),false);assert.equal(await page.locator('#favorites-tab').isVisible(),false);
+ assert.deepEqual(errors,[]);console.log('PASS profile three viewports, publication, own settings, avatar upload, persisted voice/theme and visitor boundaries');
 }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}})().catch(error=>{console.error(error);process.exitCode=1;server.closeAllConnections();server.close();});

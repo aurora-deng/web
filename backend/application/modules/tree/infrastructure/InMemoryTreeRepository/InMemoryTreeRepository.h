@@ -29,7 +29,7 @@ public:
     TreeReply insertReply(TreeReply reply) override;
     std::optional<TreeReply> reply(Id id) const override;
     void deleteReply(Id id) override;
-    std::vector<TreeReply> replies(Id post, Id before, std::size_t limit) const override;
+    std::vector<TreeReply> replies(Id post, Id before, std::size_t limit, std::optional<Id> author) const override;
 
     void seedActor(Actor actor);
     bool friendsCanView(Id author,Id viewer)const override;

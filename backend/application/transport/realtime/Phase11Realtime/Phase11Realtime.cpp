@@ -1,5 +1,7 @@
 #include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
 #include "backend/application/observability/ChatAckTrace/ChatAckTrace.h"
+#include "backend/application/observability/Telemetry/Telemetry.h"
+#include "backend/application/observability/BusinessLog/BusinessLog.h"
 #include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 
 #include "backend/application/transport/FlatJson/FlatJson.h"
@@ -57,10 +59,14 @@ bool handleRealtime(WsMessageContext &context, std::string_view errorType,
     }
     catch (const ApplicationError &failure)
     {
+        const auto [trace,span]=telemetry::Span::context();
+        business_log::write({business_log::Code::WsRejected,business_log::Level::Warn,"business WS",0,-1,trace,span});
         setReply(context, std::string(errorType), failure.what());
     }
     catch (const std::exception &)
     {
+        const auto [trace,span]=telemetry::Span::context();
+        business_log::write({business_log::Code::WsFailed,business_log::Level::Error,"business WS",0,-1,trace,span});
         setReply(context, std::string(errorType), "internal server error");
     }
     return true;
@@ -123,7 +129,12 @@ void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
         { return databaseExecutor_.submit(std::move(task)); });
     dispatcher.on("chat.send", [this](WsMessageContext &context)
     {
-        return handleRealtime(context, "chat.error", [&]
+        // This handler runs on the database lane, so nested service calls share
+        // the context. Each sampled command gets a new trace within the socket.
+        std::optional<telemetry::Span> span;
+        if (telemetry::sampleChatSend())
+            span.emplace("WS chat.send", std::string_view{}, telemetry::Span::Kind::Server, true);
+        const bool handled = handleRealtime(context, "chat.error", [&]
         {
             if (context.uid == 0 || context.inbound.conversationId == 0)
                 throw ApplicationError(ErrorCode::InvalidArgument,
@@ -144,6 +155,9 @@ void Phase11Realtime::registerHandlers(WebSocketDispatcher &dispatcher)
                      &result.message);
             trace.ackReady(result.message.id);
         });
+        if (span && context.outbound.type == "chat.error")
+            span->error();
+        return handled;
     });
 
     dispatcher.on("chat.ack", [this](WsMessageContext &context)
@@ -569,7 +583,14 @@ bool Phase11RealtimeOutboxSink::publish(const OutboxEvent &event)
 
 Phase11OutboxPump::Phase11OutboxPump(IOutboxRepository &outbox,
                                      IOutboxEventSink &sink)
-    : dispatcher_(outbox, sink), worker_([this] { run(); })
+    : Phase11OutboxPump([dispatcher = OutboxDispatcher(outbox, sink)](std::size_t limit, TimePoint stamp) mutable {
+        return dispatcher.dispatchPending(limit, stamp);
+    })
+{
+}
+
+Phase11OutboxPump::Phase11OutboxPump(Cycle cycle)
+    : dispatch_(std::move(cycle)), worker_([this] { run(); })
 {
 }
 
@@ -608,7 +629,8 @@ Phase11OutboxPump::Snapshot Phase11OutboxPump::snapshot() const noexcept
             failures_.load(std::memory_order_relaxed),
             lastBatch_.load(std::memory_order_relaxed),
             batchHighWatermark_.load(std::memory_order_relaxed),
-            oldestAttemptAgeMicroseconds_.load(std::memory_order_relaxed)};
+            oldestAttemptAgeMicroseconds_.load(std::memory_order_relaxed),
+            recentPendingAgeMicroseconds_.load(std::memory_order_relaxed)};
 }
 
 void Phase11OutboxPump::run() noexcept
@@ -626,7 +648,8 @@ void Phase11OutboxPump::run() noexcept
         try
         {
             webserver::business_metrics::Timer cycleTimer{webserver::business_metrics::OutboxCycle};
-            const auto result = dispatcher_.dispatchPending(100, now());
+            const auto result = dispatch_(100, now());
+            recentPendingAgeMicroseconds_.store(result.oldestAttemptAge.count(), std::memory_order_relaxed);
             cycles_.fetch_add(1, std::memory_order_relaxed);
             attempted_.fetch_add(result.attempted, std::memory_order_relaxed);
             published_.fetch_add(result.published, std::memory_order_relaxed);
@@ -651,6 +674,7 @@ void Phase11OutboxPump::run() noexcept
         }
         catch (...)
         {
+            recentPendingAgeMicroseconds_.store(-1, std::memory_order_relaxed);
             failures_.fetch_add(1, std::memory_order_relaxed);
             delay = std::chrono::seconds{1};
         }

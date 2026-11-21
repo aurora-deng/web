@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
 #include <string_view>
 #include <syncstream>
@@ -13,7 +14,7 @@
 namespace webserver::application
 {
 
-// Opt-in per-process budget. Records numeric timing and the persisted message ID only.
+// Opt-in per-process budget. Records IDs and numeric timings for correlation.
 class ChatAckTrace final
 {
     using Clock = std::chrono::steady_clock;
@@ -58,19 +59,28 @@ public:
             current_->poolUs_ += micros(Clock::now() - started);
     }
 
-    static Clock::time_point committing() noexcept
+    static Clock::time_point committing(auto backendPid) noexcept
     {
         if (!current_)
             return {};
         const auto now = Clock::now();
         current_->commitStartUs_ = micros(now - current_->started_);
+        if (current_->sampled_)
+        {
+            current_->commitBackendPid_ = backendPid();
+            current_->commitStartedMonoNs_ = monotonicNs();
+        }
         return now;
     }
 
     static void committed(Clock::time_point start) noexcept
     {
         if (current_ && start != Clock::time_point{})
+        {
             current_->commitUs_ = micros(Clock::now() - start);
+            if (current_->sampled_)
+                current_->commitFinishedMonoNs_ = monotonicNs();
+        }
     }
 
     void ackReady(std::uint64_t messageId) const noexcept
@@ -93,12 +103,27 @@ public:
                 << ",\"poolAcquireUs\":" << poolUs_
                 << ",\"commitStartUs\":" << commitStartUs_
                 << ",\"commitUs\":" << commitUs_
+                << ",\"commitBackendPid\":" << commitBackendPid_
+                << ",\"commitStartedMonoNs\":" << commitStartedMonoNs_
+                << ",\"commitFinishedMonoNs\":" << commitFinishedMonoNs_
                 << ",\"ackReadyUs\":" << elapsed << "}\n";
         }
         catch (...) {} // Observability cannot affect an already committed send.
     }
 
 private:
+    static std::int64_t monotonicNs() noexcept
+    {
+        // The Linux sampler reads this same clock. It can join observations
+        // to a particular COMMIT even if the wall clock steps.
+#ifdef __linux__
+        timespec value{};
+        if (::clock_gettime(CLOCK_MONOTONIC, &value) == 0)
+            return static_cast<std::int64_t>(value.tv_sec) * 1'000'000'000 + value.tv_nsec;
+#endif
+        return -1;
+    }
+
     static std::int64_t micros(Clock::duration duration) noexcept
     {
         return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
@@ -126,6 +151,9 @@ private:
     std::int64_t poolUs_ = 0;
     std::int64_t commitStartUs_ = -1;
     std::int64_t commitUs_ = -1;
+    int commitBackendPid_ = 0;
+    std::int64_t commitStartedMonoNs_ = -1;
+    std::int64_t commitFinishedMonoNs_ = -1;
 };
 
 } // namespace webserver::application

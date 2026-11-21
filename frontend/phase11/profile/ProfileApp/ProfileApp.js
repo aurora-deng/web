@@ -1,19 +1,22 @@
-import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=144f1e6009a3d461";
-import { profilesApi } from "../ProfilesApi/ProfilesApi.js?v=144f1e6009a3d461";
-import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=144f1e6009a3d461";
-import { accountsApi } from "../../accounts/AccountsApi/AccountsApi.js?v=144f1e6009a3d461";
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=144f1e6009a3d461';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=144f1e6009a3d461';
-import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=144f1e6009a3d461';
-import { ActivityDetail } from '../../shared/ActivityDetail/ActivityDetail.js?v=144f1e6009a3d461';
-import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=144f1e6009a3d461';
-import { formatShortDateTime } from '../../shared/TimeFormat/TimeFormat.js?v=144f1e6009a3d461';
+import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=7f8c7f1b31e4435c";
+import { profilesApi } from "../ProfilesApi/ProfilesApi.js?v=7f8c7f1b31e4435c";
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=7f8c7f1b31e4435c";
+import { mountProfileSettings } from '../ProfileSettings/ProfileSettings.js?v=7f8c7f1b31e4435c';
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=7f8c7f1b31e4435c';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=7f8c7f1b31e4435c';
+import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=7f8c7f1b31e4435c';
+import { ActivityDetail } from '../../shared/ActivityDetail/ActivityDetail.js?v=7f8c7f1b31e4435c';
+import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=7f8c7f1b31e4435c';
+import { formatShortDateTime } from '../../shared/TimeFormat/TimeFormat.js?v=7f8c7f1b31e4435c';
 mountNavigation('profile');
 const $=s=>document.querySelector(s),api=new BusinessApi();
-const state={owner:'',channel:'all',section:'timeline',before:'0',rows:[],busy:false};
+const state={owner:'',self:false,channel:'all',section:'timeline',before:'0',rows:[],audience:''};
+const titles={timeline:'日常，有迹可循',information:'关于我',favorites:'珍藏的故事',settings:'个人设置'};
 const element=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 const error=e=>{$('#profile-status').textContent=e.status===401?'请先前往消息页面登录。':e.message;};
 const detail=new ActivityDetail(api,()=>load());
+const settings = mountProfileSettings($('#settings-section'), api, profile);
+let player;
 function render() {
   const list=$('#activity-list');list.replaceChildren();
   if(!state.rows.length)list.append(element('div',state.section==='favorites'?'还没有收藏，去树下发现值得珍藏的故事。':'暂时没有你可见的动态。','activity-empty'));
@@ -31,6 +34,7 @@ function render() {
 }
 let version=0;
 async function load(older=false) {
+  if (!state.owner || (state.section !== 'timeline' && state.section !== 'favorites')) return;
   const current=++version;$('#profile-status').textContent='';
   const before=older?state.before:'0';let rows,next;
   if(state.section==='favorites'){const result=await api.request(activitiesApi.getActivitiesFavorites({}, "before=" + String(before)));rows=result.items;next=result.nextCursor;}
@@ -39,23 +43,73 @@ async function load(older=false) {
   state.rows=older?[...state.rows,...rows]:rows;state.before=String(next);$('#older-activities').hidden=!next||String(next)==='0';render();
 }
 document.querySelectorAll('[data-channel]').forEach(b=>b.onclick=()=>{state.channel=b.dataset.channel;document.querySelectorAll('[data-channel]').forEach(x=>x.classList.toggle('active',x===b));load().catch(error);});
-document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>{state.section=b.dataset.section;document.querySelectorAll('[data-section]').forEach(x=>x.classList.toggle('active',x===b));$('#information-section').hidden=state.section!=='information';$('#timeline-section').hidden=state.section==='information';$('.timeline-filters').hidden=state.section==='favorites';$('#section-title').textContent=state.section==='information'?'关于我':state.section==='favorites'?'珍藏的故事':'日常，有迹可循';if(state.section!=='information')load().catch(error);});
+function showSection(section) {
+  if (!Object.hasOwn(titles, section) || !state.owner) return;
+  if (!state.self && (section === 'settings' || section === 'favorites')) return;
+  state.section = section;
+  ++version;
+  for (const button of document.querySelectorAll('[data-section]')) {
+    const selected = button.dataset.section === section;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  }
+  $('#information-section').hidden = section !== 'information';
+  $('#timeline-section').hidden = section !== 'timeline' && section !== 'favorites';
+  $('#settings-section').hidden = section !== 'settings';
+  $('.timeline-filters').hidden = section === 'favorites' || state.audience === 'tree-only';
+  $('#section-title').textContent = section === 'timeline' && state.audience === 'tree-only'
+    ? '公开的树上故事' : titles[section];
+  player?.setControlsHost(section === 'settings' ? settings.notificationPanel : null);
+}
+document.querySelectorAll('[data-section]').forEach(button => button.onclick = () => {
+  showSection(button.dataset.section);
+  const url = new URL(location.href);
+  const next = state.section === 'settings' ? '#settings' : '';
+  if (url.hash !== next) { url.hash = next; history.replaceState(null, '', url); }
+  load().catch(error);
+});
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#settings') showSection('settings');
+  else if (state.section === 'settings') { showSection('timeline'); load().catch(error); }
+});
 $('#older-activities').onclick=()=>load(true).catch(error);
 $('#publish-activity').onclick=()=>$('#profile-publish-dialog').showModal();
 document.querySelectorAll('[data-close-publisher]').forEach(b=>b.onclick=()=>$('#profile-publish-dialog').close());
 new ActivityPublisher($('#profile-publish-form'),api,{files:()=>[...$('#profile-media-files').files],status:$('#profile-publish-status'),onPublished:async()=>{$('#profile-publish-dialog').close();await load();}});
-$('#profile-edit-form').onsubmit=async event=>{
-  event.preventDefault();const form=event.currentTarget,button=form.querySelector('[type=submit]');button.disabled=true;
-  try{await api.request(accountsApi.patchMe({}),{method:'PATCH',data:{displayName:form.elements.displayName.value.trim(),biography:form.elements.biography.value.trim()}});
-    await api.request(profilesApi.patchMeProfileDisplay({}),{method:'PATCH',data:{showBiography:String(form.elements.showBiography.checked),showAvatar:String(form.elements.showAvatar.checked),allowTreeFriendRequests:String(form.elements.allowTreeFriendRequests.checked)}});await profile();$('#profile-status').textContent='资料已更新';
-  }catch(e){error(e);}finally{button.disabled=false;}
-};
 async function profile() {
   const p=await api.request(profilesApi.getProfilesUser({"user":(state.owner)}));$('#public-name').textContent=p.displayName;$('#public-handle').textContent='@'+p.username;$('#public-biography').textContent=p.biography||'这个人留了一点神秘感。';
   const avatar=$('#public-avatar');avatar.replaceChildren();if(p.avatarUrl){const img=element('img');img.src=p.avatarUrl;img.alt=p.displayName;avatar.append(img);}else avatar.textContent=[...p.displayName][0]||'N';
-  $('.timeline-filters').hidden=p.audience==='tree-only';if(p.audience==='tree-only'){state.channel='tree';$('#section-title').textContent='公开的树上故事';$('#profile-status').textContent='你们尚未成为好友，仅展示公开到神树的故事。';}$('#favorites-tab').hidden=!p.self;$('#publish-activity').hidden=!p.self;$('#profile-edit-form').hidden=!p.self;
+  state.self = p.self === true && String(p.id) === String(api.user?.id);
+  state.audience = p.audience;
+  if (p.audience === 'tree-only') state.channel='tree';
+  $('#favorites-tab').hidden = !state.self;
+  $('#publish-activity').hidden = !state.self;
+  $('#settings-tab').hidden = !state.self;
+  settings.setProfile(state.self ? p : null);
   const list=$('#public-information');list.replaceChildren();for(const [label,value] of [['显示名称',p.displayName],['用户名','@'+p.username],['简介',p.biography||'未公开']])list.append(element('dt',label),element('dd',value));
-  if(p.self){const form=$('#profile-edit-form');for(const key of ['username','displayName','biography'])form.elements[key].value=p[key]||'';form.elements.showBiography.checked=p.showBiography;form.elements.showAvatar.checked=p.showAvatar;form.elements.allowTreeFriendRequests.checked=p.allowTreeFriendRequests;}
 }
-async function start(){try{const me=await api.restore();state.owner=new URL(location.href).searchParams.get('user')||String(me.id);if(!/^\d+$/.test(state.owner))throw new Error('无效用户');await profile();const categories=await api.request(treeApi.getTreeCategories({}));for(const c of categories){const option=element('option',c.name);option.value=c.id;$('#profile-publish-category').append(option);}await load();const post=new URL(location.href).searchParams.get('post');if(post)await detail.open(post);new AnnouncementPlayer(api,$('#profile-announcements')).start();}catch(e){error(e);}}
+async function start() {
+  try {
+    const me = await api.restore();
+    const url = new URL(location.href);
+    const owner = url.searchParams.get('user') || String(me.id);
+    if (!/^\d+$/.test(owner)) throw new Error('无效用户');
+    state.owner = owner;
+    await profile();
+    player = new AnnouncementPlayer(api,$('#profile-announcements'));
+    showSection(state.self && location.hash === '#settings' ? 'settings' : 'timeline');
+    player.start();
+    if (state.self) {
+      const categories = await api.request(treeApi.getTreeCategories({}));
+      for (const category of categories) {
+        const option = element('option', category.name);
+        option.value = category.id;
+        $('#profile-publish-category').append(option);
+      }
+    }
+    await load();
+    const post = url.searchParams.get('post');
+    if (post && state.section === 'timeline') await detail.open(post);
+  } catch (e) { error(e); }
+}
 start();

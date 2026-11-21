@@ -1,8 +1,8 @@
-import { cloudRequest, pcmWave } from './CloudSpeech.js?v=144f1e6009a3d461';
-import { fetchWave, requireWave, boundedSpeechBody } from '../../shared/SpeechPlayback/SpeechPlayback.js?v=144f1e6009a3d461';
-import { speechApi } from '../SpeechApi/SpeechApi.js?v=144f1e6009a3d461';
-import { fetchAzureVoices } from '../AzureVoiceCatalog/AzureVoiceCatalog.js?v=144f1e6009a3d461';
-import { browserSpeech } from '../BrowserSpeech/BrowserSpeech.js?v=144f1e6009a3d461';
+import { cloudRequest, pcmWave } from './CloudSpeech.js?v=7f8c7f1b31e4435c';
+import { fetchWave, requireWave, boundedSpeechBody } from '../../shared/SpeechPlayback/SpeechPlayback.js?v=7f8c7f1b31e4435c';
+import { speechApi } from '../SpeechApi/SpeechApi.js?v=7f8c7f1b31e4435c';
+import { fetchAzureVoices } from '../AzureVoiceCatalog/AzureVoiceCatalog.js?v=7f8c7f1b31e4435c';
+import { browserSpeech } from '../BrowserSpeech/BrowserSpeech.js?v=7f8c7f1b31e4435c';
 const defaults={provider:'local',voice:'zf_001',style:'calm',region:'eastasia',speed:.95,pitch:-2,freeTierConfirmed:false,dataUseConsent:false,cloudVoice:'',browserVoice:'',model:'gemini-3.1-flash-tts-preview'};
 const providers=['local','browser','azure','gemini'];
 const sessions=new Map();

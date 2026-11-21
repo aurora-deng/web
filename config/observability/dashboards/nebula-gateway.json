@@ -1,0 +1,51 @@
+{
+  "schema": "nebula-observer/1",
+  "title": "NEBULA · 入口网关",
+  "panels": [
+    {
+      "title": "入口活动连接",
+      "source": "nebula",
+      "view": "line",
+      "color": "blue",
+      "unit": "连接",
+      "queries": [{"expr": "gateway_connections", "alias": "活动连接"}]
+    },
+    {
+      "title": "各路由完成请求速率",
+      "source": "nebula",
+      "view": "line",
+      "color": "green",
+      "unit": "次/秒",
+      "queries": [{"expr": "gateway_rate"}]
+    },
+    {
+      "title": "普通 HTTP 耗时 P99",
+      "source": "nebula",
+      "view": "line",
+      "color": "blue",
+      "unit": "ms",
+      "queries": [
+        {"expr": "gateway_request_p99", "alias": "入口总耗时"},
+        {"expr": "gateway_upstream_header_p99", "alias": "上游响应头"},
+        {"expr": "gateway_upstream_response_p99", "alias": "上游完整响应"},
+        {"expr": "gateway_upstream_connect_p99", "alias": "上游连接"}
+      ]
+    },
+    {
+      "title": "入口观测到的 5xx",
+      "source": "nebula",
+      "view": "line",
+      "color": "orange",
+      "unit": "次/秒",
+      "queries": [{"expr": "gateway_failures"}]
+    },
+    {
+      "title": "入口日志有多少待采集",
+      "source": "nebula",
+      "view": "line",
+      "color": "orange",
+      "unit": "B",
+      "queries": [{"expr": "gateway_log_pending"}]
+    }
+  ]
+}

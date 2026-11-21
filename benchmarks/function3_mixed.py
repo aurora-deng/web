@@ -14,6 +14,7 @@ p.add_argument('--operations',type=int,default=1200)
 p.add_argument('--workers',type=int,default=4)
 p.add_argument('--capture-acks',action='store_true',help='Include synthetic message IDs and RTTs for trace correlation')
 p.add_argument('--output',type=Path,required=True)
+p.add_argument('--metrics-token-file',type=Path,help='Existing ops Bearer token file for the loopback /metrics request')
 p.add_argument('--observe-database',choices=('function3_phase11_test','function3_baseline_test'))
 args=p.parse_args();args.host='127.0.0.1';args.timeout=20
 if not 1 <= args.workers <= 64 or args.operations < 10:
@@ -52,23 +53,31 @@ def perform(worker,index):
     elif choice<7:
         phases[worker]='http.history';status,data=pair.sender.api.request('GET',f'/api/conversations/{pair.conversation}/messages?after=0&limit=20');assert status==200 and isinstance(data,list)
     else:
-        sender,receiver=channels[worker];key=f'f3mixed-{b.suffix}-{worker}-{index}';start=time.perf_counter()
+        sender,receiver=channels[worker];key=f'f3mixed-{b.suffix}-{worker}-{index}'
+        sent_ns = time.monotonic_ns()
         sender.send_json({'v':1,'type':'chat.send','id':key,'conversationId':pair.conversation,'content':'同配置混合负载：持久化 ACK 与在线送达分开计量'})
         phases[worker]='websocket.accepted:'+key;reply=sender.wait('chat.accepted',key);assert reply.get('status')=='inserted',reply
-        elapsed=(time.perf_counter()-start)*1000
+        ack_ns = time.monotonic_ns()
+        elapsed = (ack_ns - sent_ns) / 1_000_000
         with lock:
             accepted.append(elapsed)
-            if args.capture_acks:captured.append({'messageId':str(reply['id']),'rttMs':elapsed})
+            if args.capture_acks:
+                captured.append({'messageId':str(reply['id']), 'rttMs':elapsed,
+                                 'sentMonoNs':sent_ns, 'ackMonoNs':ack_ns})
         phases[worker]='websocket.delivery:'+key;receiver.wait('chat.message',client_message_id=key)
 def operation(worker,index):
     try:perform(worker,index)
     except Exception as error:raise AssertionError(f'worker={worker} index={index} stage={phases.get(worker)}: {error}') from error
 try:
+    started_ns = time.monotonic_ns()
     metric=b.run_parallel('mixed-http-ws-sse',args.workers,args.operations,operation)
+    finished_ns = time.monotonic_ns()
     report={'subscriptionReadySeconds':round(ready_seconds,3),'configuration':{'workers':args.workers,'operations':args.operations,'httpListPercent':50,'historyPercent':20,'chatPercent':30,'residentSse':args.workers},
             'mixed':metric.summary(),'durableChatAckMs':{f'p{int(q*100)}':round(percentile(accepted,q),3) for q in (.5,.95,.99)},
             'durableChatAckSamples':len(accepted),'resources':sampler.stop(),'applicationMetrics':{'before':metrics_before,'after':b.application_metrics()}}
-    if args.capture_acks:report['ackSamples']=captured
+    if args.capture_acks:
+        report['ackSamples'] = captured
+        report['workloadMonotonicNs'] = {'start': started_ns, 'end': finished_ns}
     if observer:report['databaseObservation']=observer.stop();observer=None
     args.output.parent.mkdir(parents=True,exist_ok=True);args.output.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='ackSamples'},ensure_ascii=False))

@@ -41,6 +41,7 @@ void UpstreamTransport::acceptCookies(const http::fields&headers){
 }
 ProxyResponse UpstreamTransport::request(ProxyRequest request){
     const std::string target(request.target());
+    const bool head = request.method() == http::verb::head;
     const bool readsIdentity=(target=="/api/me"&&request.method()==http::verb::get)||target=="/api/auth/login";
     // 登录/退出/身份恢复串行，避免迟到 /me 清掉新登录或切到别人的私人目录。
     std::unique_lock<std::mutex>authLock(authOperations_,std::defer_lock);
@@ -57,13 +58,15 @@ ProxyResponse UpstreamTransport::request(ProxyRequest request){
             std::lock_guard lock(mutex_);if(sessionEpoch_==epoch||target=="/api/auth/login"){account_=std::move(account);csrf_=std::string(csrf->as_string());}
         }
     }
-    if(target=="/api/auth/logout")clearCookie();
+    if(target=="/api/auth/logout"&&((response.result_int()>=200&&response.result_int()<300)||response.result_int()==401))clearCookie();
     else if(response.result_int()==401&&!target.starts_with("/api/auth/")){
         std::lock_guard lock(mutex_);if(sessionEpoch_==epoch){cookie_.clear();account_.clear();csrf_.clear();http_.invalidate(++sessionEpoch_);}
     }
     if(credentialSink_&&(target.starts_with("/api/auth/")||target=="/api/me"))credentialSink_(this->session());
     response.erase(http::field::set_cookie);response.erase(http::field::connection);response.erase(http::field::transfer_encoding);
-    response.keep_alive(false);response.prepare_payload();return response;
+    response.keep_alive(false);
+    if(!head)response.prepare_payload();
+    return response;
 }
 ProxyResponse UpstreamTransport::requestBound(const BoundServerSession&session,ProxyRequest request)const {
     if(session.account.empty()||session.cookie.empty())throw std::runtime_error("Verified server account required");

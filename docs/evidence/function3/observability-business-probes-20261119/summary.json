@@ -1,0 +1,370 @@
+{
+  "dateUtc": "2026-11-19T06:03:31Z",
+  "build": {
+    "binarySha256": "7a438fb82c8c201c168094378ef00f4ef38fbb518b1f2c45a4ffc33c55a7ced8",
+    "migration": 24,
+    "ctestExit": 0,
+    "features": {
+      "ASAN": "OFF",
+      "CURL_CLIENT": "ON",
+      "GRPC": "ON",
+      "ONNX_GENAI": "ON",
+      "PHASE11": "ON",
+      "POSTGRES": "ON",
+      "ROCKETMQ": "ON",
+      "SHERPA_TTS": "ON",
+      "SODIUM": "ON",
+      "TSAN": "OFF",
+      "UBSAN": "OFF"
+    }
+  },
+  "releaseCtest": {
+    "registered": 120,
+    "passed": 119,
+    "skipped": [
+      "function3_redis_contract"
+    ]
+  },
+  "frozenCoreFiles": 152,
+  "frozenCoreMatchesDaily": true,
+  "dailyReplaced": false,
+  "dailyPid": 57254,
+  "dailyBinarySha256": "865fdaefa336d7235132f0da287acea664c04425b552641b529efe71be2b8b99",
+  "live": {
+    "passed": true,
+    "environment": "disposable-real-nebula",
+    "simulatedBusinessContent": true,
+    "dailyServiceChanged": false,
+    "startedAtUnix": 1795068096,
+    "finishedAtUnix": 1795068096,
+    "target": 59673,
+    "observer": 18797,
+    "registeredFunctions": 26,
+    "exercisedFunctions": [
+      "ChatService::conversations",
+      "ChatService::history",
+      "ChatService::historyBefore",
+      "ChatService::sendMessage",
+      "AuthService::registerUser",
+      "AuthService::login",
+      "TreeService::list",
+      "TreeService::get",
+      "TreeService::publish",
+      "TreeService::like",
+      "TreeService::reply",
+      "TreeService::replies",
+      "TreeService::remove",
+      "SqlContext::acquire",
+      "SqlContext::execute",
+      "SqlContext::transact"
+    ],
+    "checks": [
+      "real websocket ACK, history and historyBefore",
+      "tree writes, reads, delete permission and final state",
+      "26 fixed metrics; 16 exercised operations; error and in-flight accounting",
+      "two complete real cross-process probe -> HTTP -> service -> PostgreSQL traces",
+      "independent scrape, catalog and private-content exclusion"
+    ],
+    "traces": {
+      "/api/conversations": {
+        "traceId": "3a262eef8e52b399d319e5669d82d35d",
+        "spans": 8,
+        "operations": [
+          "ChatService::conversations",
+          "GET /api/conversations",
+          "PostgreSQL command",
+          "PostgresConversationRepository::listConversationSummaries",
+          "probe GET /api/conversations"
+        ],
+        "status": "complete"
+      },
+      "/api/tree/posts": {
+        "traceId": "98a2c2c20822ac207c288c6ba1f54818",
+        "spans": 17,
+        "operations": [
+          "GET /api/tree/posts",
+          "PostgreSQL command",
+          "SqlContext::acquire",
+          "SqlContext::execute",
+          "TreeService::list",
+          "probe GET /api/tree/posts"
+        ],
+        "status": "complete"
+      }
+    },
+    "version": {
+      "sourceFingerprint": "c00c6c75495d31d817226ceedc95a62b27b721dc35c3e6ba613bbf6d17e0fbbf",
+      "revision": "source-snapshot",
+      "requiredMigration": 24,
+      "testResults": "see phase49 evidence and retained phase43-48 history; not a runtime health assertion",
+      "schemaVerifiedAtStartup": true
+    }
+  },
+  "liveLoad": {
+    "configuration": {
+      "workers": 4,
+      "operations": 4000,
+      "httpListPercent": 50,
+      "historyPercent": 20,
+      "chatPercent": 30,
+      "residentSse": 4
+    },
+    "mixed": {
+      "name": "mixed-http-ws-sse",
+      "operations": 4000,
+      "units": 4000,
+      "elapsedSeconds": 7.502367,
+      "operationsPerSecond": 533.165,
+      "unitsPerSecond": 533.165,
+      "latencyMs": {
+        "average": 7.489,
+        "p50": 5.503,
+        "p95": 16.225,
+        "p99": 30.702,
+        "maximum": 118.225
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    "durableChatAckMs": {
+      "p50": 7.162,
+      "p95": 15.501,
+      "p99": 37.904
+    },
+    "durableChatAckSamples": 1200,
+    "resources": {
+      "available": true,
+      "samples": 36,
+      "rssKiB": {
+        "average": 38865.9,
+        "peak": 39304
+      },
+      "fileDescriptors": {
+        "average": 47.4,
+        "peak": 48
+      },
+      "threads": {
+        "average": 40.0,
+        "peak": 40
+      },
+      "cpuPercent": {
+        "average": 42.48,
+        "peak": 59.52
+      }
+    }
+  },
+  "modelWire": {
+    "passed": true,
+    "provider": "scripted-test-only",
+    "transport": "real-loopback-OTLP-HTTP",
+    "spansReceived": 56,
+    "statusCodes": [
+      0,
+      1,
+      2
+    ],
+    "duplicateSpanIds": false,
+    "cancelledPreparationIsUnset": true,
+    "privateContentFields": false,
+    "exactShutdownFlushClaimed": false,
+    "realModelQualityClaimed": false
+  },
+  "telemetry": {
+    "exported": 1722.0,
+    "dropped": 19.0,
+    "queue_full": 0.0
+  },
+  "latestOverhead": {
+    "binarySha256": "7a438fb82c8c201c168094378ef00f4ef38fbb518b1f2c45a4ffc33c55a7ced8",
+    "passedNumericalGate": true,
+    "rounds": 3,
+    "operationsPerLeg": 4000,
+    "ackSamplesPerLeg": 1200,
+    "pairedAckIncreasePercent": [
+      -6.8642,
+      6.1745,
+      -6.141
+    ],
+    "fastMedianChangePercent": 4.2005
+  },
+  "earlierLongBucketRun": {
+    "binarySha256": "9c9d2d25b13974b570e9c1489a8fbcee2ba238a43a9d7b0f7f58158a2ee0b9bc",
+    "passed": false,
+    "pairedAckIncreasePercent": [
+      40.2219,
+      13.8119,
+      -12.5666
+    ]
+  },
+  "calibration": {
+    "absolutePairDifferenceP95Percent": 33.4639118503961,
+    "acceptanceReinterpreted": false,
+    "baselineAckMedianMs": 15.9405,
+    "currentAckMedianMs": 15.817,
+    "gatePercentUnchanged": 20,
+    "identityVerified": true,
+    "level": "NOISY",
+    "limitation": "Descriptive sample quantile; not a confidence interval, causal proof or replacement gate.",
+    "mode": "calibration",
+    "outliersRemoved": 0,
+    "pairedAckIncreasePercent": [
+      -16.261439324199912,
+      -3.037027643925949,
+      -9.808181761748102,
+      39.922292374939296,
+      -15.539599185510655,
+      0.3073831057516019,
+      25.57033565373217,
+      3.2989968356560873,
+      20.026241281679447,
+      -2.091172660539131
+    ],
+    "publishedGateEvaluatedUnchanged": false,
+    "publishedPassedUnchanged": null,
+    "rounds": 10
+  },
+  "performanceImprovementClaimed": false,
+  "tsan": {
+    "configure": 0,
+    "build": 2,
+    "limitation": "Missing /usr/lib64/libtsan.so.0.0.0; no new dependency installed"
+  },
+  "retentionDays": 7,
+  "steadyTelemetry": {
+    "startedAtUnix": 1795068278,
+    "finishedAtUnix": 1795068286,
+    "loadExit": 0,
+    "before": {
+      "exported": 1935.0,
+      "dropped": 19.0,
+      "queue_full": 0.0
+    },
+    "after": {
+      "exported": 3195.0,
+      "dropped": 19.0,
+      "queue_full": 0.0
+    },
+    "delta": {
+      "exported": 1260.0,
+      "dropped": 0.0,
+      "queue_full": 0.0
+    }
+  },
+  "steadyLoad": {
+    "configuration": {
+      "workers": 4,
+      "operations": 4000,
+      "httpListPercent": 50,
+      "historyPercent": 20,
+      "chatPercent": 30,
+      "residentSse": 4
+    },
+    "mixed": {
+      "name": "mixed-http-ws-sse",
+      "operations": 4000,
+      "units": 4000,
+      "elapsedSeconds": 6.785145,
+      "operationsPerSecond": 589.523,
+      "unitsPerSecond": 589.523,
+      "latencyMs": {
+        "average": 6.772,
+        "p50": 5.418,
+        "p95": 14.843,
+        "p99": 20.78,
+        "maximum": 33.246
+      },
+      "errors": 0,
+      "errorSamples": []
+    },
+    "durableChatAckMs": {
+      "p50": 7.296,
+      "p95": 15.205,
+      "p99": 20.019
+    },
+    "durableChatAckSamples": 1200,
+    "resources": {
+      "available": true,
+      "samples": 33,
+      "rssKiB": {
+        "average": 40597.3,
+        "peak": 41056
+      },
+      "fileDescriptors": {
+        "average": 47.2,
+        "peak": 48
+      },
+      "threads": {
+        "average": 40.0,
+        "peak": 40
+      },
+      "cpuPercent": {
+        "average": 41.35,
+        "peak": 49.33
+      }
+    }
+  },
+  "observerContracts": {
+    "linux": 45,
+    "windows": 45,
+    "concurrentRuleRepeatPassed": true
+  },
+  "calibrationBinarySha256": "9c9d2d25b13974b570e9c1489a8fbcee2ba238a43a9d7b0f7f58158a2ee0b9bc",
+  "sourceGate": {
+    "profile": "source",
+    "passed": true,
+    "installsDependencies": false,
+    "checks": {
+      "boundaries": "passed",
+      "function3Boundaries": "passed",
+      "artwork": "passed",
+      "assetVersions": "passed",
+      "presentation": "passed",
+      "apiVersions": "passed",
+      "docs": "passed",
+      "apiContracts": "passed",
+      "releaseGates": "passed",
+      "processIdentity": "passed",
+      "inventory": "passed",
+      "snapshotPruning": "passed",
+      "measurement": "passed",
+      "observerHttp": "passed",
+      "pythonSyntax": "passed",
+      "javascriptSyntax": "passed",
+      "frontendContracts": "passed"
+    },
+    "tools": {
+      "python": "3.12.7",
+      "node": "v24.16.0"
+    }
+  },
+  "frontendContracts": 83,
+  "debugUbsan": {
+    "profile": "scoped-debug-ubsan",
+    "tests": 3,
+    "passed": true,
+    "wholeProjectClaimed": false
+  },
+  "browser": {
+    "functionsLogsQueries": "build-function3/obs-qa/logging-browser-1795068100442",
+    "screens": [
+      [
+        1440,
+        900
+      ],
+      [
+        1920,
+        1080
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "passed": true,
+    "dashboard": "build-function3/obs-qa/dashboard-browser-1795067562494",
+    "dashboardPassed": true,
+    "firstChartObservationMs": 414,
+    "firstChartIsCapacityBenchmark": false
+  },
+  "evidenceRetention": "Selected acceptance export; runtime stores remain seven days"
+}

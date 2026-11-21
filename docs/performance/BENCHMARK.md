@@ -11,8 +11,7 @@
 > [Phase 26：长连接容量、AI 并发与混合负载证据](../architecture/business/runtime/phase26.md)。工具已就绪，正式三轮
 > 结果等待当前 24 小时长稳结束后采集。
 
-本文给出实验协议和结果模板。虚拟机上一次 `GET /` 快照见 [../closeout/CLOSEOUT.md](../ops/closeout/CLOSEOUT.md)；
-**不能**外推为物理机上限或与 nginx 的正式对比结论。
+本文给出实验协议和结果模板。虚拟机的 `GET /` 快照结论限于当时的配置和负载。[阶段收口](../ops/closeout/CLOSEOUT.md)
 
 ## 阅读目标与设计动机
 
@@ -101,7 +100,7 @@ taskset -c 0-7 bash scripts/benchmark.sh
 ```bash
 # 固定并发，比较本机 8081 的 baseline
 TOOL=wrk THREADS=4 CONNECTIONS=128 DURATION=30s WARMUP_DURATION=10s \
-  BASELINE_URL=http://127.0.0.1:8081/ BASELINE_PID="$(pgrep -n nginx)" \
+  BASELINE_URL=http://127.0.0.1:8081/ BASELINE_PID="$REFERENCE_PID" \
   RUN_ID=root-c128-r1 bash scripts/benchmark.sh
 
 # 固定到达率；逐级提高 RATE 找到错误为 0、P99 可接受的最大档位
@@ -194,51 +193,9 @@ baseline:
 推荐用独立脚本从多个 `summary.tsv` 计算统计量，计算脚本与输入一起保存。不要复制终端显示后手算，
 不要选择性报告最好一轮。
 
-## nginx 对比
+## Envoy 入口对照
 
-nginx 是成熟事件驱动服务器，适合作为静态/小响应参考，不应宣称两者功能完全等价。示例配置：
-
-```nginx
-worker_processes auto;
-worker_rlimit_nofile 200000;
-
-events {
-    worker_connections 65535;
-    use epoll;
-}
-
-http {
-    access_log off;
-    sendfile on;
-    keepalive_timeout 30;
-
-    server {
-        listen 8081;
-        location = / {
-            default_type text/html;
-            return 200 "<h1>hello</h1>";
-        }
-        location = /logo {
-            alias /absolute/path/to/repository/static/logo.svg;
-        }
-    }
-}
-```
-
-验证响应语义与大小后启动并传入 master 或 worker PID：
-
-```bash
-curl -sS -D- http://127.0.0.1:8080/ -o /tmp/current.body
-curl -sS -D- http://127.0.0.1:8081/ -o /tmp/nginx.body
-cmp /tmp/current.body /tmp/nginx.body
-
-BASELINE_URL=http://127.0.0.1:8081/ \
-BASELINE_PID="$(pgrep -n 'nginx')" \
-RUN_ID=nginx-root-c128-r1 bash scripts/benchmark.sh
-```
-
-nginx 多 worker 时单个 PID 的 RSS/CPU 不代表总量，应对 worker 集合求和，或用 systemd/cgroup
-统计整个服务。记录 nginx 版本、完整配置、worker 数、是否开启日志和 sendfile。
+从同一个隔离 NEBULA 上游分别走直连、Envoy 和可选 Wasm，比较代理这一跳对 `/fast`、实际业务 ACK、长连接和资源的影响。用相同请求先核对状态、响应、传输行为和错误率，固定采样、监控和日志设置。资源分别统计 Envoy、NEBULA 和数据库，保存配置、版本和时间窗。[实验和对照口径](../observability/envoy-gateway.md#4-c-插件对照)
 
 ## muduo 对比
 
@@ -326,5 +283,5 @@ cat "/proc/${SERVER_PID}/status"
 - 火焰图的宽度代表采样占比，不直接等于“函数很慢”。结合调用次数、perf stat 和 A/B 复测定位。
 - 发现热点后一次只改一个变量，至少重复 5 次；优化收益小于环境波动时结论应为“不显著”。
 - 所有结论限定到具体硬件、内核、编译器、响应路径和负载。
-- 虚拟机快照（约 2.3 万～3 万 QPS）见 [../closeout/CLOSEOUT.md](../ops/closeout/CLOSEOUT.md)；未做同机 nginx/muduo 正式对比前，
+- 虚拟机快照（约 2.3 万～3 万 QPS）见 [阶段收口](../ops/closeout/CLOSEOUT.md)；正式比较前，
   不得宣称优于竞品。c1000 延迟升高若符合 Little 定律（连接数/QPS），应解释为排队而非回归。

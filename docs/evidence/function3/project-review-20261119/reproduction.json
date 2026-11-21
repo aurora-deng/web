@@ -1,0 +1,393 @@
+{
+  "profile": "native",
+  "passed": true,
+  "installedDependencies": false,
+  "existingDatabaseUsed": false,
+  "builtFromEmptyDirectory": false,
+  "build": {
+    "buildType": "Release",
+    "generator": "Unix Makefiles",
+    "compiler": "c++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-15)",
+    "cmake": "cmake version 3.31.8"
+  },
+  "binarySha256": "7d225b2dea72135b8afe6f492a4e29990d04a1fc3387af9ef9f960de43c646c4",
+  "nativeInventory": {
+    "schemaVersion": 1,
+    "profile": "native",
+    "passed": true,
+    "features": {
+      "ASAN": false,
+      "CURL_CLIENT": true,
+      "GRPC": true,
+      "ONNX_GENAI": true,
+      "PHASE11": true,
+      "POSTGRES": true,
+      "ROCKETMQ": true,
+      "SHERPA_TTS": true,
+      "SODIUM": true,
+      "TSAN": false,
+      "UBSAN": false
+    },
+    "programs": {
+      "server": {
+        "path": "webserver",
+        "sha256": "7d225b2dea72135b8afe6f492a4e29990d04a1fc3387af9ef9f960de43c646c4",
+        "linkage": {
+          "checked": true,
+          "resolved": true,
+          "missing": [],
+          "dependencies": [
+            {
+              "soname": "libnghttp2.so.14",
+              "path": "/usr/lib64/libnghttp2.so.14.20.1",
+              "sha256": "d6954507f906809babd898c3b07d1140ea7545596702e88416f3e6f1b8d271fc",
+              "provisioning": "system"
+            },
+            {
+              "soname": "librocketmq.so.5",
+              "path": "/home/pikachu/phase11-deps/rocketmq-cpp/5.1.1/install/lib64/librocketmq.so.5.1.0",
+              "sha256": "ad7314fe8473e2736e1a9311d2a1c62b67fa68b7c0e86b21a164aa4f639672c8",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libssl.so.3",
+              "path": "/usr/lib64/libssl.so.3.5.5",
+              "sha256": "dd28e4dbdecfcfa74c54c07e67c8744ea05fc5fde48d7ef2ca5d98a9150efc66",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libonnxruntime-genai.so",
+              "path": "/home/pikachu/phase11-deps/onnxruntime-genai/0.17.0/lib/libonnxruntime-genai.so",
+              "sha256": "ccaaa0fb3f7372eaa0690e68d0a947b0bb53b514335d852ce91c0523865e52f1",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libonnxruntime.so.1",
+              "path": "/home/pikachu/phase11-deps/onnxruntime/1.28.0/lib/libonnxruntime.so.1.28.0",
+              "sha256": "1461ef7cc3d9e49982591721683cc3e3a55580aeca9a5254e7aac47b75ee4bab",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libpq.so.5",
+              "path": "/home/pikachu/phase11-deps/postgresql/18.6/lib/libpq.so.5.18",
+              "sha256": "c28d720ffd29b9e0ca91b0284bf897b45754c8893efcd2827b8b3f0d84567f03",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libsodium.so.26",
+              "path": "/home/pikachu/phase11-deps/libsodium/1.0.22/lib/libsodium.so.26.4.0",
+              "sha256": "17f6465620bcf1cf3d8b99747dab378afc1f510ca99e28af675a5cb7c5b9ea89",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libcrypto.so.3",
+              "path": "/usr/lib64/libcrypto.so.3.5.5",
+              "sha256": "053770b5292eefcc9709be8407ce1a641882ca69eaab3ce5864f4b67cec25503",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libcurl.so.4",
+              "path": "/home/pikachu/phase11-deps/curl/8.22.0/lib64/libcurl.so.4.8.0",
+              "sha256": "1e884f2f3e4758f94f459af32590f0a65a9a10dc24c80eb30fa3f2828a4fa70e",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libstdc++.so.6",
+              "path": "/usr/lib64/libstdc++.so.6.0.29",
+              "sha256": "cc5f795fb4c6cc06fd5e1c14e9105dc8db7b663b7fe41d4b4fb35a8f133aec83",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libm.so.6",
+              "path": "/usr/lib64/libm.so.6",
+              "sha256": "64082bb4266fc0aa094d018ac2eecd866e3c672a63fb410b52d5467b2dd5c4cb",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libgcc_s.so.1",
+              "path": "/usr/lib64/libgcc_s-11-20240719.so.1",
+              "sha256": "3d144b557008c93e4e67567d5dc98cb81cf55187a698d1b4872ce84ba8a26bed",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libc.so.6",
+              "path": "/usr/lib64/libc.so.6",
+              "sha256": "1bb475607dfdcec1cf8b1a885e2c71a36797e786e41248deb50ab54397d56aac",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libpthread.so.0",
+              "path": "/usr/lib64/libpthread.so.0",
+              "sha256": "ebf2727dfc1895a3cbf9bd634251eca057a5c0b80c0ffc3be8c49997bd922b5d",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libutil.so.1",
+              "path": "/usr/lib64/libutil.so.1",
+              "sha256": "ab9982a1e6c25c54cdd0790b7b26644d7891b648dddfb7499482ab16772325c7",
+              "provisioning": "system"
+            },
+            {
+              "soname": "librt.so.1",
+              "path": "/usr/lib64/librt.so.1",
+              "sha256": "d92de85d4ebca6f487ac8009c7efe89b3903cc54e13084136b80a8da82a454c2",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libdl.so.2",
+              "path": "/usr/lib64/libdl.so.2",
+              "sha256": "a3284f596e4e94b680509a0332ac241fcc67d8351727f1be78c0ca8f752f5c0d",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libz.so.1",
+              "path": "/usr/lib64/libz.so.1.2.11",
+              "sha256": "ae0b0485bffccd7b374451b52938f67e109c237a4a98679792d5dc1a31270289",
+              "provisioning": "system"
+            }
+          ]
+        }
+      },
+      "onnx": {
+        "path": "webserver-onnx-worker",
+        "sha256": "849cdb8a5588818cf1b17df0d877cf289def1826f11d0c0e37e4499d40ce3c2e",
+        "linkage": {
+          "checked": true,
+          "resolved": true,
+          "missing": [],
+          "dependencies": [
+            {
+              "soname": "libonnxruntime-genai.so",
+              "path": "/home/pikachu/phase11-deps/onnxruntime-genai/0.17.0/lib/libonnxruntime-genai.so",
+              "sha256": "ccaaa0fb3f7372eaa0690e68d0a947b0bb53b514335d852ce91c0523865e52f1",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libonnxruntime.so.1",
+              "path": "/home/pikachu/phase11-deps/onnxruntime/1.28.0/lib/libonnxruntime.so.1.28.0",
+              "sha256": "1461ef7cc3d9e49982591721683cc3e3a55580aeca9a5254e7aac47b75ee4bab",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libcurl.so.4",
+              "path": "/home/pikachu/phase11-deps/curl/8.22.0/lib64/libcurl.so.4.8.0",
+              "sha256": "1e884f2f3e4758f94f459af32590f0a65a9a10dc24c80eb30fa3f2828a4fa70e",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libpq.so.5",
+              "path": "/home/pikachu/phase11-deps/postgresql/18.6/lib/libpq.so.5.18",
+              "sha256": "c28d720ffd29b9e0ca91b0284bf897b45754c8893efcd2827b8b3f0d84567f03",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libsodium.so.26",
+              "path": "/home/pikachu/phase11-deps/libsodium/1.0.22/lib/libsodium.so.26.4.0",
+              "sha256": "17f6465620bcf1cf3d8b99747dab378afc1f510ca99e28af675a5cb7c5b9ea89",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libssl.so.3",
+              "path": "/usr/lib64/libssl.so.3.5.5",
+              "sha256": "dd28e4dbdecfcfa74c54c07e67c8744ea05fc5fde48d7ef2ca5d98a9150efc66",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libcrypto.so.3",
+              "path": "/usr/lib64/libcrypto.so.3.5.5",
+              "sha256": "053770b5292eefcc9709be8407ce1a641882ca69eaab3ce5864f4b67cec25503",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libstdc++.so.6",
+              "path": "/usr/lib64/libstdc++.so.6.0.29",
+              "sha256": "cc5f795fb4c6cc06fd5e1c14e9105dc8db7b663b7fe41d4b4fb35a8f133aec83",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libm.so.6",
+              "path": "/usr/lib64/libm.so.6",
+              "sha256": "64082bb4266fc0aa094d018ac2eecd866e3c672a63fb410b52d5467b2dd5c4cb",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libgcc_s.so.1",
+              "path": "/usr/lib64/libgcc_s-11-20240719.so.1",
+              "sha256": "3d144b557008c93e4e67567d5dc98cb81cf55187a698d1b4872ce84ba8a26bed",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libc.so.6",
+              "path": "/usr/lib64/libc.so.6",
+              "sha256": "1bb475607dfdcec1cf8b1a885e2c71a36797e786e41248deb50ab54397d56aac",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libpthread.so.0",
+              "path": "/usr/lib64/libpthread.so.0",
+              "sha256": "ebf2727dfc1895a3cbf9bd634251eca057a5c0b80c0ffc3be8c49997bd922b5d",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libutil.so.1",
+              "path": "/usr/lib64/libutil.so.1",
+              "sha256": "ab9982a1e6c25c54cdd0790b7b26644d7891b648dddfb7499482ab16772325c7",
+              "provisioning": "system"
+            },
+            {
+              "soname": "librt.so.1",
+              "path": "/usr/lib64/librt.so.1",
+              "sha256": "d92de85d4ebca6f487ac8009c7efe89b3903cc54e13084136b80a8da82a454c2",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libdl.so.2",
+              "path": "/usr/lib64/libdl.so.2",
+              "sha256": "a3284f596e4e94b680509a0332ac241fcc67d8351727f1be78c0ca8f752f5c0d",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libz.so.1",
+              "path": "/usr/lib64/libz.so.1.2.11",
+              "sha256": "ae0b0485bffccd7b374451b52938f67e109c237a4a98679792d5dc1a31270289",
+              "provisioning": "system"
+            }
+          ]
+        }
+      },
+      "speech": {
+        "path": "backend/application/modules/function3-tts-worker",
+        "sha256": "d331d070c2be7a1eeeab50715dc6b0fdc7b9bdb564a2e0c57b6ea0dbe457ce70",
+        "linkage": {
+          "checked": true,
+          "resolved": true,
+          "missing": [],
+          "dependencies": [
+            {
+              "soname": "libsherpa-onnx-c-api.so",
+              "path": "/home/pikachu/phase11-deps/sherpa-onnx/1.13.8/lib/libsherpa-onnx-c-api.so",
+              "sha256": "b8351ca1632571ac108adbb317bcc4bf7cfe84b72690e3017316b0da3e1e344f",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libstdc++.so.6",
+              "path": "/usr/lib64/libstdc++.so.6.0.29",
+              "sha256": "cc5f795fb4c6cc06fd5e1c14e9105dc8db7b663b7fe41d4b4fb35a8f133aec83",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libm.so.6",
+              "path": "/usr/lib64/libm.so.6",
+              "sha256": "64082bb4266fc0aa094d018ac2eecd866e3c672a63fb410b52d5467b2dd5c4cb",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libgcc_s.so.1",
+              "path": "/usr/lib64/libgcc_s-11-20240719.so.1",
+              "sha256": "3d144b557008c93e4e67567d5dc98cb81cf55187a698d1b4872ce84ba8a26bed",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libc.so.6",
+              "path": "/usr/lib64/libc.so.6",
+              "sha256": "1bb475607dfdcec1cf8b1a885e2c71a36797e786e41248deb50ab54397d56aac",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libpthread.so.0",
+              "path": "/usr/lib64/libpthread.so.0",
+              "sha256": "ebf2727dfc1895a3cbf9bd634251eca057a5c0b80c0ffc3be8c49997bd922b5d",
+              "provisioning": "system"
+            },
+            {
+              "soname": "libonnxruntime.so",
+              "path": "/home/pikachu/phase11-deps/sherpa-onnx/1.13.8/lib/libonnxruntime.so",
+              "sha256": "4b3607aebd1784b26b6f9b20e4bd974c7ab8287043e4d095cb7d2cb40b5e566e",
+              "provisioning": "external-approved"
+            },
+            {
+              "soname": "libdl.so.2",
+              "path": "/usr/lib64/libdl.so.2",
+              "sha256": "a3284f596e4e94b680509a0332ac241fcc67d8351727f1be78c0ca8f752f5c0d",
+              "provisioning": "system"
+            },
+            {
+              "soname": "librt.so.1",
+              "path": "/usr/lib64/librt.so.1",
+              "sha256": "d92de85d4ebca6f487ac8009c7efe89b3903cc54e13084136b80a8da82a454c2",
+              "provisioning": "system"
+            }
+          ]
+        }
+      }
+    },
+    "buildProblems": [],
+    "runtime": {
+      "configured": {
+        "WEB_PHASE11_DATABASE": false,
+        "WEB_PHASE11_TOKEN_KEY_FILE": false,
+        "WEB_PHASE11_ONNX_MODEL_ROOT": false,
+        "WEB_PHASE11_ONNX_GRPC_TARGET": false,
+        "WEB_FUNCTION3_TTS_WORKER": false,
+        "WEB_FUNCTION3_MQ_ENDPOINT": false,
+        "WEB_AUTH_SECRET": false
+      },
+      "problems": [],
+      "configurationValid": true,
+      "databaseConnectionProbed": false,
+      "modelWarmupProbed": false,
+      "generationQualityVerified": false
+    },
+    "externalFilesBundled": false,
+    "privateValuesIncluded": false
+  },
+  "migration": 24,
+  "ctest": {
+    "registered": 122,
+    "passed": 121,
+    "skipped": [
+      "function3_redis_contract"
+    ],
+    "lanes": {
+      "communication": 87,
+      "businessWithoutPostgres": 33,
+      "realPostgres": 2
+    }
+  },
+  "smoke": {
+    "revision": "source-snapshot",
+    "sourceFingerprint": "442ca9b5f75acef84e42b09691d92b29fd1b8226fac740bf9442028fdd21e797",
+    "assetVersion": "144f1e6009a3d461",
+    "schemaVerifiedAtStartup": true,
+    "requiredMigration": 24
+  },
+  "checks": [
+    "registration",
+    "login",
+    "WebSocket upgrade",
+    "story creation",
+    "idempotency",
+    "durable Outbox SSE",
+    "session and story recovered after restart"
+  ],
+  "otlpWire": {
+    "exportResumed": true,
+    "failedExportsCounted": 48,
+    "httpSampling": {
+      "failureRoots": 1,
+      "locallySkipped": 2,
+      "upstreamUnsampledHonored": true
+    },
+    "matchedSpans": 8,
+    "mode": "wire-receiver",
+    "nonOps": 403,
+    "ops": 200,
+    "postgreSqlSpans": 2,
+    "probeStatus": 200,
+    "queueFullDrops": 47,
+    "receiverFailureBusinessStatus": 200,
+    "routeHistogram": true,
+    "schema": 24,
+    "unauthenticated": 401
+  }
+}

@@ -16,6 +16,7 @@ import http.client
 import json
 import os
 import socket
+import ssl
 import threading
 import time
 from dataclasses import dataclass
@@ -99,7 +100,7 @@ class ChunkReader:
                 raise AssertionError("SSE stream closed while reading a chunk")
             self.buffer.extend(part)
 
-    def read(self) -> str:
+    def read_bytes(self) -> bytes:
         while b"\r\n" not in self.buffer:
             self._fill(len(self.buffer) + 1)
         raw_size, remainder = bytes(self.buffer).split(b"\r\n", 1)
@@ -112,7 +113,30 @@ class ChunkReader:
         if self.buffer[size : size + 2] != b"\r\n":
             raise AssertionError("invalid HTTP chunk terminator")
         del self.buffer[: size + 2]
-        return payload.decode("utf-8")
+        return payload
+
+    def read(self) -> str:
+        return self.read_bytes().decode("utf-8")
+
+
+class SseEventReader:
+    """Read complete SSE events when a proxy re-chunks the HTTP body."""
+
+    def __init__(self, chunks: ChunkReader) -> None:
+        self.chunks = chunks
+        self.buffer = bytearray()
+
+    def read(self) -> str:
+        while True:
+            boundary = self.buffer.find(b"\n\n")
+            if boundary >= 0:
+                end = boundary + 2
+                event = self.buffer[:end].decode("utf-8")
+                del self.buffer[:end]
+                return event
+            if len(self.buffer) >= 512 * 1024:
+                raise AssertionError("SSE event exceeded the fixture limit")
+            self.buffer.extend(self.chunks.read_bytes())
 
 
 def receive_headers(sock: socket.socket) -> tuple[bytes, bytes]:
@@ -133,6 +157,23 @@ class BrowserClient:
     cookie: str = ""
     csrf: str = ""
     user_id: int = 0
+    origin: str = "http://localhost"
+    tls_context: Optional[ssl.SSLContext] = None
+
+    def http_connection(self):
+        if self.tls_context:
+            return http.client.HTTPSConnection(self.host, self.port, timeout=TIMEOUT, context=self.tls_context)
+        return http.client.HTTPConnection(self.host, self.port, timeout=TIMEOUT)
+
+    def socket_connection(self):
+        sock = socket.create_connection((self.host, self.port), timeout=TIMEOUT)
+        if self.tls_context:
+            try:
+                return self.tls_context.wrap_socket(sock, server_hostname=self.host)
+            except Exception:
+                sock.close()
+                raise
+        return sock
 
     def request(self, method: str, path: str,
                 body: Optional[dict] = None) -> tuple[int, dict]:
@@ -145,8 +186,8 @@ class BrowserClient:
             headers["Cookie"] = self.cookie
         if method not in ("GET", "HEAD") and self.csrf:
             headers["X-CSRF-Token"] = self.csrf
-            headers["Origin"] = "http://localhost"
-        connection = http.client.HTTPConnection(self.host, self.port, timeout=TIMEOUT)
+            headers["Origin"] = self.origin
+        connection = self.http_connection()
         connection.request(method, path, encoded, headers)
         response = connection.getresponse()
         raw = response.read()
@@ -177,7 +218,7 @@ class BrowserClient:
         expected = base64.b64encode(
             hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()
         )
-        sock = socket.create_connection((self.host, self.port), timeout=TIMEOUT)
+        sock = self.socket_connection()
         sock.settimeout(TIMEOUT)
         sock.sendall(
             (
@@ -187,36 +228,42 @@ class BrowserClient:
                 "Connection: Upgrade\r\n"
                 f"Sec-WebSocket-Key: {key}\r\n"
                 "Sec-WebSocket-Version: 13\r\n"
-                "Origin: http://localhost\r\n"
+                f"Origin: {self.origin}\r\n"
                 f"Cookie: {self.cookie}\r\n\r\n"
             ).encode()
         )
         header, tail = receive_headers(sock)
         if not header.startswith(b"HTTP/1.1 101 Switching Protocols"):
+            sock.close()
             raise AssertionError(("websocket handshake", header))
         if expected not in header:
+            sock.close()
             raise AssertionError("invalid Sec-WebSocket-Accept")
         return sock, WebSocketReader(sock, tail)
 
-    def open_sse(self) -> tuple[socket.socket, ChunkReader]:
-        sock = socket.create_connection((self.host, self.port), timeout=TIMEOUT)
+    def open_sse(self, last_event_id: Optional[str] = None) -> tuple[socket.socket, SseEventReader]:
+        sock = self.socket_connection()
         sock.settimeout(TIMEOUT)
+        cursor = f"Last-Event-ID: {last_event_id}\r\n" if last_event_id else ""
         sock.sendall(
             (
                 f"GET /events?uid={self.user_id} HTTP/1.1\r\n"
                 f"Host: {self.host}:{self.port}\r\n"
                 "Accept: text/event-stream\r\n"
                 "Connection: keep-alive\r\n"
-                "Origin: http://localhost\r\n"
+                f"Origin: {self.origin}\r\n"
+                f"{cursor}"
                 f"Cookie: {self.cookie}\r\n\r\n"
             ).encode()
         )
         header, tail = receive_headers(sock)
         if not header.startswith(b"HTTP/1.1 200 OK"):
+            sock.close()
             raise AssertionError(("sse handshake", header))
-        reader = ChunkReader(sock, tail)
+        reader = SseEventReader(ChunkReader(sock, tail))
         ready = reader.read()
         if "event: ready\n" not in ready:
+            sock.close()
             raise AssertionError(("sse ready", ready))
         return sock, reader
 

@@ -45,7 +45,7 @@ flowchart LR
 | 7 · 数据库故障 | 跑隔离的 `faults`。先终止这个临时库的连接，再观察 /health/live、错误响应和何时恢复。另开一次实验，受控持有临时测试表的锁来区分连接断开和执行等待。 | 能解释为什么修连接池不等于重跑事务，记下恢复用时、失败请求和一次写入证据。 |
 | 8 · 进程故障 | 临时进程先返回持久化 ACK，再被杀死；重启后用相同消息编号发送并查历史。进阶：用测试替身或受控暂停点模拟“提交后、ACK 前断开”，与本版演练分开记录。 | 证明只写一行、消息 ID 不变；明确 ACK 前后崩溃覆盖了哪种，哪些状态仍不确定。 |
 | 9 · 背压和依赖 | 设计慢接收端、消息队列断开、AI Worker 失败三个独立实验。先明确聊天、通知、AI 各自允许的退化；对照 Outbox 积压、超时、队列与重放。 | 交每个故障的预期、观察、回退；只有在本轮实际启用的可选依赖才记为已验证。 |
-| 10 · 定向读源码 | 只读能回答当前假设的模块。NGINX 看 epoll 事件交给谁和何时延迟处理；Muduo 看唤醒和待执行任务；Asio 看 strand 如何串行回调，Beast 看异步写入的对象与缓冲区寿命。 | 对照 NEBULA 画一张小图，列出一项能验证的借鉴和一项不适用的原因。 |
+| 10 · 定向读源码 | 沿一个请求查 Envoy 的过滤器、路由到上游连接；用 Muduo 学唤醒和待执行任务，用 Asio strand 学回调串行化与 Beast 异步对象的寿命。 | 对照 NEBULA 画出一次请求的调用和等待，选一个具体机制做实验。 |
 | 11 · 最小 A/B | 按证据选一个应用层改动：SQL/索引、任务/连接预算或 Outbox 工作批次。先定相同负载、成功标准和回退方法，再跑三轮以上。 | 同时报告正确性、吞吐、P99、错误和资源，A/A 波动大于收益时标为证据不足。 |
 | 12 · 复盘与长跑 | 写一份故障报告和性能报告。先小流量长跑，逐步到有日志和存储上限的 24 小时测试；验证进程退出、积压和内存趋势。 | 别人按文档能重复；每条结论附证据、环境和未覆盖事项。 |
 
@@ -84,10 +84,10 @@ flowchart LR
 | 临时库、测试与复现 | `scripts/project/reproduce.py`、`scripts/function3/validation/function32_lab.py` |
 | 混合压测与历史证据 | `benchmarks/function3_mixed.py`、Phase49、Function3.2 发布说明 |
 
-阅读顺序建议：先按业务链跑通一条消息，再有目的地读源码。学习 NGINX 和 Boost 有价值，现阶段没有证据表明换库会解决本项目的 ACK 尾延迟。
+先用直连实验跑通一条消息。从客户端 ACK 选中一条慢样本，看执行器排队还是 PostgreSQL 等待占用时间。再看双实例报告里的 A/B、消息 ID 与行数，复述“发送端已收到 ACK、接收端何时收到、重试几次后写了几行”。Envoy 实机联调通过后，用同一业务版本增加入口阶段，沿请求 ID 核对 504 的来源。[慢 ACK 实操](../observability/ack-diagnosis.md) · [双实例实操](../observability/dual-instance-lab.md) · [技术应用与版本台账](../observability/sources.md)
 
 - [PostgreSQL：Using EXPLAIN](https://www.postgresql.org/docs/current/using-explain.html)
-- [NGINX：epoll 事件模块源码](https://github.com/nginx/nginx/blob/master/src/event/modules/ngx_epoll_module.c)
+- [Envoy HTTP 连接管理](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_connection_management)
 - [Muduo：EventLoop 源码](https://github.com/chenshuo/muduo/blob/master/muduo/net/EventLoop.cc)
 - [Boost.Asio：strand 的串行回调规则](https://www.boost.org/doc/libs/latest/doc/html/boost_asio/overview/core/strands.html)
 

@@ -1,6 +1,9 @@
 """Read models over persisted telemetry. The scheduler remains the source of truth."""
 import collections
 
+RESOURCE_KEYS = ("service.name", "service.namespace", "service.instance.id", "deployment.environment.name", "host.name",
+                 "k8s.cluster.name", "k8s.namespace.name", "k8s.node.name", "k8s.pod.name")
+
 
 def trace_view(raw):
     trace = raw.get("trace", raw)
@@ -11,10 +14,19 @@ def trace_view(raw):
         for scope in group.get("scopeSpans", group.get("instrumentationLibrarySpans", [])):
             for span in scope.get("spans", []):
                 ident = span["spanId"]
+                tags = {a["key"]: next(iter(a.get("value", {}).values()), None) for a in span.get("attributes", [])}
+                retained = ("http.request.method","http.response.status_code","rpc.system","db.system","error.type")
                 spans[ident] = {"id": ident, "parent": span.get("parentSpanId"),
                                 "name": span["name"], "service": attrs.get("service.name", ""),
                                 "start": span["startTimeUnixNano"], "end": span["endTimeUnixNano"],
                                 "links": [link["spanId"] for link in span.get("links", [])],
+                                "place": " / ".join(str(attrs[key]) for key in
+                                    ("deployment.environment.name","service.instance.id","k8s.cluster.name","k8s.namespace.name","k8s.node.name","host.name","k8s.pod.name")
+                                    if attrs.get(key)),
+                                "attributes": {key: tags[key] for key in retained if key in tags},
+                                "resourceAttributes": {key: attrs[key] for key in RESOURCE_KEYS if key in attrs},
+                                "cpuNs": tags.get("nebula.thread_cpu_ns"),
+                                "kind": span.get("kind"),
                                 "status": span.get("status", {}).get("code", 0)}
     return sorted(spans.values(), key=lambda s: (int(s["start"]), s["id"]))
 

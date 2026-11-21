@@ -1,0 +1,97 @@
+:root{--wx-reading-size:16px;--wx-reading-leading:1.8;--wx-focus:#087f9c;--wx-viewport-height:100dvh}
+.wx-experience *{letter-spacing:0}
+.wx-experience :is(button,a,input,textarea,select,summary,[tabindex]):focus-visible{outline:3px solid var(--wx-focus)!important;outline-offset:3px}
+.wx-experience :is(button,input:not([type=checkbox]):not([type=radio]),select,summary){min-height:44px}
+.wx-experience :is(.btn-icon,.sticky-icon){min-width:44px;min-height:44px}
+.wx-experience :is(button,a,label,h2,h3,h4,p,span,summary){overflow-wrap:anywhere}
+.wx-experience :is(.detail-text p,.rich-preview,.reader-notes textarea,#richSource,.sticky-content,.card-question-text,#assistantTranscript .message-content,#workbenchSummaryForm textarea){font-size:var(--wx-reading-size)!important;line-height:var(--wx-reading-leading)!important}
+.wx-experience .wx-primary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) 44px;gap:4px;border-bottom:1px solid var(--line);padding:0 0 12px;margin-bottom:20px;background:var(--surface)}
+.wx-primary .btn{border-radius:4px;gap:8px;display:flex;align-items:center;justify-content:center;min-width:0;color:var(--ink);font-size:14px;padding:8px}
+.wx-primary .active{background:var(--surface-soft);color:var(--accent-dark);box-shadow:inset 0 -3px var(--accent)}
+.wx-skip{position:fixed;left:12px;top:-100px;z-index:100000;background:var(--surface);color:var(--ink);padding:12px}
+.wx-skip:focus{top:12px}
+.wx-experience .wx-duplicate-today{display:none!important}
+.wx-experience .workspace-view>.workspace-heading>h2,.wx-experience #view-assistant-workspace .aw-toolbar>h2{display:none}
+.wx-experience .workspace-view>.workspace-heading:has(>.workspace-actions:empty){display:none}
+.wx-experience #homeStudyFocus{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:18px}
+.wx-focus-actual{display:block;color:var(--muted);font-size:13px;margin-top:12px}
+.wx-experience .wx-countdown{min-height:0;padding:14px 18px;margin-bottom:16px;align-items:center}
+.wx-experience .wx-countdown .countdown-days{font-size:32px;line-height:1.2}
+.wx-home-tools{border-top:1px solid var(--line);margin-top:20px;padding-top:12px}
+.wx-home-tools summary{cursor:pointer;font-size:14px;font-weight:600;display:list-item;align-content:center}
+.wx-home-tools .quick-actions{padding-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+.wx-experience .wx-home-tools .btn-danger{margin-top:12px;border-top:1px solid var(--line)}
+.wx-experience :is(.library-bulk,.dialog-actions)>:is(.btn-danger,[data-action=delete]){margin-inline-start:auto;border-inline-start:2px solid var(--danger);padding-inline-start:16px}
+.wx-experience .library-bulk{flex-wrap:wrap;gap:8px}
+.wx-experience #workbenchBacklog{width:100%;justify-content:flex-start;text-align:left;margin-bottom:12px;white-space:normal}
+.wx-experience .wx-dialog{width:min(560px,calc(100vw - 24px));padding:0;background:var(--surface);color:var(--ink);max-height:calc(var(--wx-viewport-height) - 24px);overflow:auto}
+.wx-dialog .dialog-header{position:sticky;top:0;background:var(--surface);z-index:1;gap:12px;padding:12px 16px}
+.wx-dialog .dialog-header h3{font-size:18px;flex:1;min-width:0}
+.wx-dialog label{display:grid;gap:6px;margin-bottom:16px;min-width:0}
+.wx-dialog .wx-toggle{display:flex;align-items:center;gap:12px;min-height:44px}
+.wx-dialog input[type=checkbox]{width:22px;height:22px;flex:none;margin:0}
+.wx-dialog :is(input,textarea,select){width:100%;box-sizing:border-box;min-width:0;background:var(--surface);color:var(--ink)}
+.wx-dialog .dialog-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;position:sticky;bottom:-1px;background:var(--surface);padding:12px 0}
+.wx-dialog .dialog-actions button{white-space:normal;min-width:0}
+.wx-date-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#workbenchSummaryStatus{font-size:13px;color:var(--muted);min-height:1.5em}
+#workbenchDetailActions{display:none}
+#workbenchMilestone{position:fixed;bottom:24px;right:24px;z-index:3000;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;display:flex;gap:12px;align-items:center;padding:10px 12px;max-width:min(420px,calc(100vw - 24px));box-sizing:border-box;font-size:14px;box-shadow:0 4px 20px #20242c18}
+#workbenchMilestone[hidden],.wx-experience [hidden]{display:none!important}
+#workbenchMilestone>span{min-width:0;flex:1}
+html[data-wx-pet=false] :is(.assistant-perch,.assistant-brand>img,.assistant-welcome>img){display:none!important}
+html[data-wx-motion=reduce]{scroll-behavior:auto!important}
+html[data-wx-motion=reduce] *,html[data-wx-motion=reduce] *::before,html[data-wx-motion=reduce] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+html[data-wx-theme=dark]{color-scheme:dark;--bg:#181b1e;--surface:#24292d;--surface-soft:#303a36;--ink:#e8eeeb;--muted:#b6c1bc;--line:#4b5554;--accent:#77d6b3;--accent-dark:#a1e9cb;--danger:#ffa2ab;--warn:#f1c46f;--wx-focus:#73d9f2}
+html[data-wx-theme=dark] body{background:var(--bg);color:var(--ink);--page-soft:#303a36;--page-accent:#93d6bc}
+html[data-wx-theme=dark] :is(.sidebar,.card,.file-record,.wx-primary,dialog,.dialog-header,.dialog-body,.study-detail-header,.detail-pager,.study-detail-body,.study-review-controls,.library-toolbar,.library-shell,.library-bulk,.workspace-header,.home-study-focus,.weekly-report,.assistant-transcript,.assistant-composer,.grade-history,.grade-comparison,.sync-chip){background:var(--surface);color:var(--ink);border-color:var(--line)}
+html[data-wx-theme=dark] :is(.btn-ghost,input,textarea,select,.library-folder,.attachment-button,.library-record-title,.workspace-linked-row){background:var(--surface);color:var(--ink);border-color:var(--line)}
+html[data-wx-theme=dark] :is(.btn-primary,.countdown-banner){background:#226b52;color:#fff}
+html[data-wx-theme=dark] :is(.detail-meta,.detail-text p,.detail-text h4,.detail-attachments h4,.library-summary,.record-meta,.workspace-summary,.workspace-date,.home-study-focus h3,.report-empty,.study-detail-header h3,.score-cell strong){color:var(--ink)}
+html[data-wx-theme=dark] :is(.badge,.record-tag,.library-folder.active,.grade-history th,.grade-comparison th){background:var(--surface-soft);color:var(--ink)}
+html[data-wx-theme=dark] :is(.sidebar .brand h1,.system-clock time,.system-clock span,.sidebar .nav-item,.sidebar .nav-section,.detail-pager>span){color:var(--muted)}
+html[data-wx-theme=dark] :is(.sidebar .nav-item.active,.sidebar .nav-item:hover,.sidebar .nav-item i){background:var(--surface-soft);color:var(--ink)}
+html[data-wx-theme=dark] .mood-board[data-surface=paper]{filter:none;background-color:#343e3c}
+html[data-wx-theme=dark] .sticky-paper{color:#283e48}
+html[data-wx-theme=dark] #taskList [style*="background:"]{background:var(--surface-soft)!important;color:var(--ink)!important}
+html[data-wx-theme=dark] #taskList .task-item{background:var(--surface);color:var(--ink);border-color:var(--line)}
+html[data-wx-theme=dark] #taskList .task-item.done{background:var(--surface-soft)}
+@media(min-width:1100px){
+    .wx-experience #studyDetail{inset:0 0 0 auto;margin:0;width:min(640px,46vw);max-width:46vw;height:100dvh;max-height:100dvh;border-radius:0;border:0;border-left:1px solid var(--line)}
+    .wx-experience #studyDetail::backdrop{background:#18232618;backdrop-filter:none}
+    .wx-experience #studyDetail.is-fullscreen{inset:0;width:100vw;max-width:100vw}
+}
+@media(max-width:1100px){.wx-experience .workspace-header{flex-wrap:wrap}.wx-experience .workspace-header-actions{gap:6px}.wx-experience .overview-columns{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:768px){
+    .wx-experience{padding-bottom:calc(82px + env(safe-area-inset-bottom))}
+    .wx-experience .wx-legacy-mobile{display:none!important}
+    .wx-experience .wx-primary{position:fixed;inset:auto 0 0;z-index:1100;grid-template-columns:repeat(5,minmax(0,1fr)) 44px;margin:0;padding:6px 4px calc(6px + env(safe-area-inset-bottom));border:0;border-top:1px solid var(--line);gap:0}
+    .wx-primary .btn{flex-direction:column;gap:4px;padding:6px 1px;min-height:58px;border-radius:0;font-size:12px}
+    .wx-primary #workbenchMore{min-width:44px}
+    .wx-primary .btn i{font-size:17px}.wx-primary .active{box-shadow:inset 0 3px var(--accent)}
+    .wx-experience .workspace-header{gap:8px;margin-bottom:18px}
+    .wx-experience .workspace-header h2{font-size:21px;white-space:normal}
+    .wx-experience .workspace-header-actions{width:100%;justify-content:flex-start;flex-wrap:wrap}
+    .wx-experience .workspace-header-actions .system-clock{margin-right:auto}
+    .wx-experience #homeStudyFocus{grid-template-columns:minmax(0,1fr);gap:12px}
+    .wx-experience :is(.view,.card,.library-shell,.library-body,.library-main,.study-detail-header>div){min-width:0}
+    .wx-experience .library-gallery{grid-template-columns:minmax(0,1fr)}
+    .wx-experience .library-toolbar>select{max-width:100%}
+    .wx-experience .library-record-title{white-space:normal}
+    .wx-experience .study-detail-header{flex-wrap:wrap;gap:8px;padding:10px 12px}
+    .wx-experience #studyDetailTitle{order:2;flex:1 0 100%;font-size:16px;line-height:1.5;max-height:6em;overflow:auto;white-space:normal;margin:0;padding:0 4px 4px}
+    .wx-experience #studyDetail{width:100vw;max-width:100vw;height:var(--wx-viewport-height);max-height:var(--wx-viewport-height);inset:0;margin:0;border-radius:0;border:0}
+    .wx-experience .study-detail-body{padding:18px}
+    .wx-experience #workbenchDetailActions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 16px calc(8px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line);flex:none}
+    .wx-experience #workbenchDetailActions .btn{white-space:normal;display:flex;align-items:center;justify-content:center;gap:8px}
+    .wx-experience .study-review-controls{position:sticky;bottom:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+    .wx-experience .study-detail-header .btn{white-space:normal}
+    .wx-experience .wx-dialog{width:calc(100vw - 12px);max-height:calc(var(--wx-viewport-height) - 12px)}
+    .wx-experience .wx-dialog .dialog-body{padding:16px}
+    .wx-date-pair{grid-template-columns:minmax(0,1fr);gap:0}
+    #workbenchMilestone{inset:auto 12px calc(86px + env(safe-area-inset-bottom));max-width:calc(100vw - 24px)}
+    .wx-keyboard .wx-primary{display:none}.wx-keyboard #workbenchMilestone{display:none}
+}
+@media(max-height:480px) and (orientation:landscape){.wx-experience .wx-primary .btn{min-height:44px;flex-direction:row}.wx-experience .wx-dialog{max-height:calc(var(--wx-viewport-height) - 8px)}}
+@media(prefers-reduced-motion:reduce){.wx-experience *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(forced-colors:active){.wx-primary .active{outline:2px solid Highlight}.wx-experience :focus-visible{outline-color:Highlight!important}}

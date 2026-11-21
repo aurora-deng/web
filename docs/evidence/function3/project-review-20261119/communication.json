@@ -1,0 +1,21 @@
+{
+  "profile": "communication",
+  "passed": true,
+  "installedDependencies": false,
+  "existingDatabaseUsed": false,
+  "builtFromEmptyDirectory": true,
+  "build": {
+    "buildType": "Release",
+    "generator": "Unix Makefiles",
+    "compiler": "c++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-15)",
+    "cmake": "cmake version 3.31.8"
+  },
+  "binarySha256": "ad2fe6029c9efdceb951094e4d9b20f5f0155038b6a0f47244074e4ce47212bd",
+  "smoke": {
+    "revision": "source-snapshot",
+    "sourceFingerprint": "442ca9b5f75acef84e42b09691d92b29fd1b8226fac740bf9442028fdd21e797",
+    "assetVersion": "144f1e6009a3d461",
+    "schemaVerifiedAtStartup": false,
+    "requiredMigration": 24
+  }
+}

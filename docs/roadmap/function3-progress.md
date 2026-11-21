@@ -1,10 +1,40 @@
 # Function3 实施与验收台账
 
+Function3.3 整理了缘续-聊天、缘生-广场命名与切页，新增研途首次账号绑定和 Windows 返回原模块的切号流程。监控、接口、目录与运行证据继续按原主题维护。[版本说明](../releases/function3.3.md) · [目录](../architecture/overview/project-layout.md)
+
 编号阶段的最近验收为 [Phase49](../architecture/business/engineering/phase49.md)。在 Function3.1 之后，本地分支又完成了[社区装配拆分](../architecture/business/engineering/community-runtime-modules.md)与[两档复现](../ops/validation/reproduce.md)。Phase49 的 ACK 尾延迟门槛仍未通过。
 
-Function3 初始基线为 Function2.1 `ffc0e14`，早期开发分支为 `feature/function3-tree`。最新开发快照见 [Function3.2](../releases/function3.2.md)。
+Function3 初始基线为 Function2.1 `ffc0e14`，早期开发分支为 `feature/function3-tree`。[Function3.2 复现与性能基线](../releases/function3.2.md)
 
 研发诊断平台从 Function3.2 独立开发。阶段交付为[可观测性工作区](../observability/README.md)，逐项验收与未覆盖事项见[验证记录](../observability/validation.md)。
+
+Envoy 1.40.2 已在 `18095` 隔离站完成研途 HTTP 代理实测。账号会话、笔记同步、附件和访问权限已验证。网关的双上游、其他协议和 C++ Wasm 继续单独验收。[研途发布记录](../ops/runtime/nebula-yantu-community.md#本次结果) · [启动与观察](../observability/envoy-gateway.md) · [C++、DAG 和机器人接入方向](nebula-cpp-dag-robotics-evaluation.md)
+
+11 月 21 日，在两库备份和恢复副本演练通过后，新版研途入口切换到原 `phase11`。两个业务入口通过迁移 026 和就绪检查，68 个原账号保留，3 条回复进入本人可见的个人动态。Observer 保留历史并继续采集新的业务进程。[合并与验收](../ops/runtime/nebula-yantu-community.md#账号与数据归属)
+
+同日完成故事广场的关键词与标签浏览、楼主回复查询和七日榜卡片。全站以小研呈现原个人 AI 好友与侧栏助手，网页可切换本站模型、本机 Ollama 和自带 API。通过真实 PostgreSQL 和 Envoy 隔离验收后，现有两入口已同步，原库新增 5 篇考研示例和 12 条评论，Observer 已采集到新业务进程。[过程与结果](../ops/runtime/nebula-yantu-community.md#日常发布与回退)
+
+11 月 20 日，同一虚拟机的直连双实例隔离验收通过。迁移 025 支撑实时转发，覆盖 25 条跨实例投递、已确认消息的历史恢复和原键去重。真实 Prometheus、Collector/Tempo 以及本机 Alertmanager 完成短时演练。接下来的主要门槛是 ACK 长尾、Envoy 单上游与双上游、异机故障和长稳。[双实例验收](../observability/validation.md#双实例实时投递与告警验收) · [下一阶段计划](next-steps.md)
+
+监控大盘补齐共享游标、区间选择、面板检查、CSV、DAG 节点联动和 Agent 分类统计。新增[轻量实时档](../observability/setup.md#轻量实时档)，以隔离实例验证真实数据到查询接口。
+
+新增[可配置数据源与分布式排障工作区](../observability/workspace.md)，覆盖自定义仪表盘和模板、资源标签、Tempo、Loki 与真实 NEBULA 链路排查，接口和浏览器实际验收记入[验证记录](../observability/validation.md)。
+
+新增[主机、服务、进程、线程与函数观测](../observability/resources.md)，使用真实 /proc、业务直方图以及隔离绑核、syscall、指令、堆实验。Pyroscope 与 Jaeger v3 已通过协议契约，真实后端和多机现场验收仍待完成。
+
+补充[Explore 实际延迟桶与 P99、BC/APP/INSTANCE、两条告警、Span 调用树、Linux 函数与配置即代码](../observability/explore-and-connect.md)。DAG、Agent 和设备按来源回读已保存的同一批事件，验证接收与去重。
+
+补充「服务目标与采集质量」。将原始计数采样、SLO 计算、HTTP 查询和页面显示分层，核对受影响的请求量、采集覆盖和双窗口预算，支持同窗 HTTP 5xx Trace。按[验证记录](../observability/validation.md#服务目标与采集质量的真实验证)查看实际范围。下一步优先统一跨实例身份并接入真实日志，详细理由见[演进顺序](../observability/sources.md)。
+
+2026-11-18 补充内置总览与业务面板的原图刷新，保留图例、焦点与悬停游标，验证查询失败后的曲线清除与恢复。18791 用于日常 18090 监控，18793 用于隔离埋点版。七天留存、批量查询、页面探针和导图操作见[当前启动说明](../observability/setup.md)，浏览器与接口证据见[实时刷新验收](../observability/validation.md#2026-11-18-实时刷新与恢复)。
+
+同日继续完善空白指标诊断，按实际采样区分缺少耗时指标、无新增业务调用、采集失败、过期和预热。查询增加八秒超时并保留失败原因，说明与组件入口见[空白指标与查询失败](../observability/architecture.md#空白指标与查询失败)。
+
+2026-11-19 收尾[结构化日志与查询编辑器](../observability/logging.md)。将日志格式、异步队列、文件轮转、存储、采集与页面分开，接通业务 HTTP/WS 错误和 Observer 报错。日志索引滚动保留七天，自有文本按日轮转并限额。函数页明确显示监控目标和指标族。经用户批准，完整功能配置版本已启用到日常 18090，原库、68 个账号、页面、证书及通信核心不变；18791 已采到真实函数耗时、业务日志和数据库调用链，详见[日常验收](../observability/daily-rollout.md)。修复隔离启动配置的原子发布与旧端口读取时序。后续跨实例身份和外部 Loki 的实机部署仍单列验收。
+
+2026-11-19 继续完成[大盘附加查询隔离](../observability/architecture.md#页面查询与生命周期)。指标先绘制，告警等附加请求由独立模块管理；五秒刷新合并未完成请求，切页取消并忽略迟到结果，支持失败项目单独重试。新增四项生命周期契约及真实指标浏览器验收，通信核心、原业务库和日常业务进程不变。[实测和边界](../observability/validation.md#2026-11-19-附加查询隔离与首图显示)
+
+同日新增[跨业务埋点](../observability/business-instrumentation.md)：固定目录 26 项，完成次数、执行中数量、墙钟分布分开；异步生成计到终态，AI 准备/分派跨线程传播 Trace。社区 SQL 分段与真实探针链路已接通，函数页按业务域筛选。测试与性能结论按[本轮验收](../observability/validation.md#2026-11-19-跨业务埋点)记录，新业务程序先独立验证。全项目后续改进列为[待评审意见](project-review-2026-11-19.md)，不自动实施其新范围。
 
 ## 现场核对（2026-10-23）
 
@@ -65,3 +95,14 @@ Phase28–34历史验收见 [Phase34](../reports/stages/phase34.md)；当前增�
 ## Phase42：响应与外观优化（架构方向保持不变）
 
 普通短请求复用已验证的TLS连接，神树批量读取与前十查询合并，静态树干合批、离屏暂停与果实资源增量更新；花穗、珠光果实、根部落花与窄屏构图细化。既有客户端/服务端/前端职责与数据库不变；测试与完整文件索引见[Phase42](../architecture/business/community/phase42.md)。
+
+
+## 2026-11-19 全项目改进意见实施
+
+- 本轮按 [R1–R12 实施表](project-review-implementation-2026-11-19.md)推进，保留此前未提交成果和原通信核心。
+- AI 编排拆分准备、终态、审计和共享状态；PG 同连接事务独立为工作单元；Observer 指标/Trace/实验查询与 HTTP 路由分离。
+- 新增原生交付清单、Worker/外部库预检、独立模块链接测试和显式 CI 原生档；CI 临时产物统一七天。
+- 已获批安装 Prometheus/Node Exporter，并建立真实 `metrics` 隔离运行档。真实行锁慢 ACK 与幂等恢复讲义见 [诊断课程](../observability/ack-diagnosis.md)。
+- 具体测试、浏览器、资源和待验收项见 [本轮验证](../observability/validation.md#2026-11-19-全项目改进意见落地)；不把本地成功称作远端 CI、真实模型质量或全平台生产治理完成。
+
+- 本轮收尾：原生 Release 121 通过/1 Redis 跳过，Debug+UBSan 118 通过/1 Redis 跳过；通信档空目录构建、原生交付解包、真实后端故障恢复及三组监控浏览器旅程通过。首次采集基线、真实 PromQL 和多实例过滤问题已修复。完整范围和缺证据事项均保留在验收记录，不宣称全量企业平台已验收。

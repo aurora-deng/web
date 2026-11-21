@@ -10,7 +10,11 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -24,7 +28,9 @@
         "WEBSERVER_ENABLE_UBSAN": "OFF",
         "WEBSERVER_ENABLE_TSAN": "OFF",
         "WEBSERVER_BUILD_BENCHMARKS": "OFF",
-        "WEBSERVER_BUILD_FUZZER": "OFF"
+        "WEBSERVER_BUILD_FUZZER": "OFF",
+        "WEBSERVER_ENABLE_ROCKETMQ": "OFF",
+        "WEBSERVER_ENABLE_SHERPA_TTS": "OFF"
       }
     },
     {
@@ -132,31 +138,98 @@
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++"
       }
+    },
+    {
+      "name": "business-test",
+      "displayName": "业务档 Release 回归",
+      "inherits": "release-full",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "native-test",
+      "displayName": "完整原生档 Release 回归（复用已安装依赖）",
+      "inherits": "business-test",
+      "description": "不下载依赖；缺 gRPC、ONNX、RocketMQ、TTS 或 Worker 时明确失败。",
+      "cacheVariables": {
+        "WEBSERVER_ENABLE_GRPC": "ON",
+        "WEBSERVER_ENABLE_ONNX_GENAI": "ON",
+        "WEBSERVER_ENABLE_ROCKETMQ": "ON",
+        "WEBSERVER_ENABLE_SHERPA_TTS": "ON"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "debug", "configurePreset": "debug" },
-    { "name": "release", "configurePreset": "release" },
-    { "name": "release-full", "configurePreset": "release-full" },
-    { "name": "release-grpc", "configurePreset": "release-grpc" },
-    { "name": "docker", "configurePreset": "docker" },
-    { "name": "docker-full", "configurePreset": "docker-full" },
-    { "name": "asan", "configurePreset": "asan" },
-    { "name": "ubsan", "configurePreset": "ubsan" },
-    { "name": "tsan", "configurePreset": "tsan" }
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "release-full",
+      "configurePreset": "release-full"
+    },
+    {
+      "name": "release-grpc",
+      "configurePreset": "release-grpc"
+    },
+    {
+      "name": "docker",
+      "configurePreset": "docker"
+    },
+    {
+      "name": "docker-full",
+      "configurePreset": "docker-full"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan"
+    },
+    {
+      "name": "ubsan",
+      "configurePreset": "ubsan"
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan"
+    },
+    {
+      "name": "business-test",
+      "configurePreset": "business-test"
+    },
+    {
+      "name": "native-test",
+      "configurePreset": "native-test"
+    }
   ],
   "testPresets": [
     {
       "name": "debug",
       "configurePreset": "debug",
-      "output": { "outputOnFailure": true },
-      "execution": { "jobs": 1, "timeout": 300, "noTestsAction": "error" }
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1,
+        "timeout": 300,
+        "noTestsAction": "error"
+      }
     },
     {
       "name": "asan",
       "configurePreset": "asan",
-      "output": { "outputOnFailure": true },
-      "execution": { "jobs": 1, "timeout": 600, "noTestsAction": "error" },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1,
+        "timeout": 600,
+        "noTestsAction": "error"
+      },
       "environment": {
         "ASAN_OPTIONS": "detect_leaks=1:abort_on_error=1:strict_string_checks=1",
         "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
@@ -165,8 +238,14 @@
     {
       "name": "ubsan",
       "configurePreset": "ubsan",
-      "output": { "outputOnFailure": true },
-      "execution": { "jobs": 1, "timeout": 600, "noTestsAction": "error" },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1,
+        "timeout": 600,
+        "noTestsAction": "error"
+      },
       "environment": {
         "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
       }
@@ -174,10 +253,38 @@
     {
       "name": "tsan",
       "configurePreset": "tsan",
-      "output": { "outputOnFailure": true },
-      "execution": { "jobs": 1, "timeout": 600, "noTestsAction": "error" },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1,
+        "timeout": 600,
+        "noTestsAction": "error"
+      },
       "environment": {
         "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1"
+      }
+    },
+    {
+      "name": "business-test",
+      "configurePreset": "business-test",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1,
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "native-test",
+      "configurePreset": "native-test",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 1,
+        "noTestsAction": "error"
       }
     }
   ]

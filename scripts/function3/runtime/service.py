@@ -22,6 +22,8 @@ p.add_argument('--no-ai',action='store_true')
 p.add_argument('--no-redis',action='store_true')
 p.add_argument('--redis-port',type=int,default=6379,help='Existing Redis endpoint; does not start or reconfigure Redis')
 p.add_argument('--mq-endpoint',default='',help='Optional already reachable Broker Proxy; empty means explicit local durable delivery')
+p.add_argument('--observability',action=argparse.BooleanOptionalAction,default=None,
+               help='Override business telemetry for this start; otherwise use the authorized runtime marker')
 a=p.parse_args()
 source=Path(__file__).resolve().parents[3]
 root=Path('/home/pikachu/phase11-data/function3/runtime')
@@ -55,7 +57,8 @@ def accounts_fingerprint():
     return hashlib.sha256(rows.encode()).hexdigest()
 
 if a.action=='status':
-    print(json.dumps({'pid':owned(),'http':18090,'database':'phase11','postgresPort':5432,'log':str(root/'webserver.log')}))
+    print(json.dumps({'pid':owned(),'http':18090,'database':'phase11','postgresPort':5432,'log':str(root/'webserver.log'),
+                      'observabilityDefault':(root/'observability.enabled').is_file()}))
 elif a.action=='stop':
     if pid:=owned():
         os.kill(pid,signal.SIGTERM);deadline=time.monotonic()+45
@@ -104,6 +107,21 @@ else:
         if not 1<=a.redis_port<=65535:raise RuntimeError('invalid Redis port')
         if not a.no_redis:env.update({'WEB_FUNCTION3_REDIS_PORT':str(a.redis_port),'WEB_FUNCTION3_REDIS_PREFIX':'nebula:phase11:function3:'})
         if a.mq_endpoint:env['WEB_FUNCTION3_MQ_ENDPOINT']=a.mq_endpoint
+        # The deployment marker preserves the approved daily setting across restarts.
+        # These are business-layer probes; communication-core logging is unchanged.
+        observe=a.observability if a.observability is not None else (root/'observability.enabled').is_file()
+        if observe:
+            env.update({'WEB_OBSERVABILITY':'1',
+                        'WEB_OBSERVABILITY_OTLP':'http://127.0.0.1:18791',
+                        'WEB_OBSERVABILITY_HTTP_TRACE_EVERY':'20',
+                        'WEB_OBSERVABILITY_WS_TRACE_EVERY':'100',
+                        'WEB_OBSERVABILITY_LOG':'error',
+                        'WEB_BUSINESS_LOG_LEVEL':'warn',
+                        'WEB_BUSINESS_LOG_DIRECTORY':str(root/'structured-logs')})
+        elif a.observability is False:
+            env['WEB_OBSERVABILITY']='0'
+            env['WEB_BUSINESS_LOG_LEVEL']='off'
+            env.pop('WEB_OBSERVABILITY_OTLP',None)
         # 仅在显式启动且确认没有运行实例后准备日常资源；构建不再更新运行页面。
         working=root/'work';working.mkdir(exist_ok=True)
         shutil.copytree(source/'frontend/phase11',working/'frontend/phase11',dirs_exist_ok=True)

@@ -12,7 +12,7 @@ struct StorageRuntime::Impl {
       store({connection,size("WEB_PHASE11_DB_POOL",4,1,32),std::chrono::milliseconds(size("WEB_PHASE11_DB_ACQUIRE_MS",5000,10,60000))}),
       executor(size("WEB_PHASE11_DB_WORKERS",4,1,32),size("WEB_PHASE11_DB_QUEUE",256,1,65536)){
         if(!store.healthy())throw std::runtime_error("Phase 11 PostgreSQL health check failed");
-        store.requireMigrations(24);
+        store.requireMigrations(25);
         if(separate)delivery=std::make_unique<phase11::PostgresStore>(phase11::PostgresPoolConfig{connection,size("WEB_FUNCTION3_DELIVERY_DB_POOL",2,1,8),std::chrono::milliseconds(2000)});
     }
 };

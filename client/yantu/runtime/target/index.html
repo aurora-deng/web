@@ -1,0 +1,3396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#206c57" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon-192.png" />
+    <title>研途备考管理 Pro</title>
+    <script src="workspace-context.js"></script>
+    <script src="vendor/chart.umd.min.js"></script>
+    <script src="vendor/lz-string.min.js"></script>
+    <link rel="stylesheet" href="vendor/css/all.min.css" />
+    <script src="vendor/email.min.js"></script>
+    <script src="vendor/jszip-3.10.1/jszip.min.js"></script>
+    <script src="activity-classification.js"></script>
+    <style>
+        :root {
+            --bg: #f4f7f6;
+            --surface: #ffffff;
+            --surface-soft: #eef3f2;
+            --ink: #18211f;
+            --muted: #63716d;
+            --line: #dfe5e2;
+            --accent: #1f7a63;
+            --accent-dark: #12533f;
+            --warn: #b66a24;
+            --danger: #b64c4c;
+            --shadow: 0 8px 24px rgba(24, 33, 31, 0.06);
+            --sidebar-w: 240px;
+            --radius: 12px;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: var(--bg);
+            color: var(--ink);
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+        button, input, textarea, select {
+            font: inherit;
+            border: none;
+            outline: none;
+        }
+        button {
+            cursor: pointer;
+            background: transparent;
+        }
+        .app-shell {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: var(--sidebar-w);
+            background: #17221f;
+            color: #f3f7f5;
+            padding: 24px 16px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 100;
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-w);
+            padding: 24px;
+            transition: margin-left 0.3s ease;
+            width: 100%;
+        }
+        .main-content.expanded {
+            margin-left: 0;
+        }
+        .toggle-sidebar {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 101;
+            background: var(--accent);
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+            transition: left 0.3s ease;
+        }
+        .sidebar:not(.collapsed)~.main-content .toggle-sidebar {
+            left: calc(var(--sidebar-w) + 16px);
+        }
+        .brand {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+        .brand-mark {
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            font-weight: 900;
+            font-size: 18px;
+        }
+        .brand h1 {
+            font-size: 18px;
+        }
+        .brand p {
+            font-size: 12px;
+            color: #8a9994;
+            margin-top: 4px;
+        }
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+        .nav-item {
+            color: #b9c9c4;
+            padding: 10px 12px;
+            border-radius: 8px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        .nav-item.active {
+            background: var(--accent);
+            box-shadow: 0 4px 12px rgba(31, 122, 99, 0.4);
+        }
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--line);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--accent-dark);
+        }
+        .btn-ghost {
+            background: var(--surface-soft);
+            color: var(--accent-dark);
+        }
+        .btn-ghost:hover {
+            background: #dff0ea;
+        }
+        .btn-danger {
+            background: #fff1f1;
+            color: var(--danger);
+        }
+        .btn-danger:hover {
+            background: #ffe0e0;
+        }
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 50%;
+        }
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+        input[type="text"], input[type="number"], input[type="date"], select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #fff;
+            margin-bottom: 12px;
+        }
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        label {
+            font-size: 13px;
+            color: var(--muted);
+            display: block;
+            margin-bottom: 4px;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .badge-数学 { background: #2563eb; }
+        .badge-英语 { background: #dc2626; }
+        .badge-政治 { background: #d97706; }
+        .badge-408 { background: #7c3aed; }
+        .badge-综合 { background: #059669; }
+        .badge-其他 { background: #6b7280; }
+        .view {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .view.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .countdown-banner {
+            background: linear-gradient(135deg, #1f7a63 0%, #12533f 100%);
+            color: #fff;
+            padding: 20px;
+            border-radius: var(--radius);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 20px rgba(31, 122, 99, 0.25);
+            margin-bottom: 24px;
+        }
+        .countdown-days {
+            font-size: 48px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f8faf9;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .task-meta {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+        /* ============= Win10 Calendar Style - Upgraded ============= */
+        .win-calendar {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 0;
+            background: var(--surface);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--line);
+        }
+        .cal-sidebar {
+            background: var(--bg);
+            padding: 20px 16px;
+            border-right: 1px solid var(--line);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .cal-year-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 0;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--ink);
+            transition: all 0.2s ease;
+        }
+        .cal-year-btn:hover {
+            background: rgba(31, 122, 99, 0.1);
+            color: var(--accent-dark);
+        }
+        .cal-year-btn.active {
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(31, 122, 99, 0.25);
+        }
+        .cal-main {
+            padding: 24px;
+            background: #fff;
+        }
+        .cal-main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--line);
+        }
+        .cal-main-header h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--ink);
+            min-width: 140px;
+            text-align: center;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            text-align: center;
+        }
+        .cal-head {
+            font-weight: 600;
+            color: var(--muted);
+            padding: 8px 0;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .cal-day {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            font-size: 14px;
+            cursor: pointer;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--ink);
+            font-weight: 500;
+        }
+        .cal-day:hover {
+            background: var(--surface-soft);
+            transform: scale(1.1);
+            z-index: 1;
+        }
+        .cal-day.today {
+            background: var(--accent);
+            color: #fff;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(31, 122, 99, 0.4);
+            transform: scale(1.15);
+            border-radius: 12px;
+            font-size: 12px;
+            padding: 4px;
+        }
+        .cal-day.has-event::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            width: 6px;
+            height: 6px;
+            background: var(--warn);
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px var(--warn);
+        }
+        .cal-day.today.has-event::after {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px #fff;
+        }
+        .cal-day.other-month {
+            color: #d1d5db;
+        }
+        .cal-day.selected {
+            background: var(--accent-dark);
+            color: #fff;
+            font-weight: 700;
+            box-shadow: 0 4px 10px rgba(18, 83, 63, 0.3);
+        }
+        .event-list-panel {
+            margin-top: 24px;
+            border-top: 1px solid var(--line);
+            padding-top: 20px;
+        }
+        .event-item {
+            background: var(--surface-soft);
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid var(--accent);
+            transition: all 0.2s;
+        }
+        .event-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        /* Records & Category */
+        .category-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--line);
+        }
+        .filter-btn {
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            background: var(--surface);
+            color: var(--muted);
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent-dark);
+        }
+        .filter-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .subject-group {
+            margin-bottom: 12px;
+        }
+        .subject-group-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-dark);
+        }
+        .record-item {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .record-item h4 {
+            font-size: 15px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .record-meta {
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .tag {
+            border-radius: 999px;
+            background: var(--surface-soft);
+            color: var(--accent-dark);
+            padding: 4px 8px;
+            font-size: 12px;
+            margin-right: 4px;
+            display: inline-block;
+            margin-top: 4px;
+        }
+        /* Viewer Dialog */
+        .viewer-dialog {
+            width: min(1180px, 96vw);
+            height: min(820px, 92vh);
+            padding: 0;
+            background: #0f1513;
+            color: #f7fbf9;
+            overflow: hidden;
+            border: none;
+            border-radius: 8px;
+        }
+        .viewer-dialog::backdrop {
+            background: rgba(10, 14, 13, 0.72);
+        }
+        .viewer-shell {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            height: 100%;
+        }
+        .viewer-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .viewer-actions .btn-ghost {
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #f7fbf9;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .viewer-stage {
+            position: relative;
+            min-height: 0;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .viewer-pager {
+            position: absolute;
+            top: 50%;
+            z-index: 100;
+            width: 40px;
+            height: 60px;
+            place-items: center;
+            transform: translateY(-50%);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            border: none;
+        }
+        .viewer-pager-left { left: 14px; }
+        .viewer-pager-right { right: 14px; }
+        .viewer-media {
+            max-width: 90%;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+        .viewer-frame {
+            width: 90%;
+            height: 80vh;
+            border: none;
+            border-radius: 8px;
+            background: #fff;
+        }
+        dialog {
+            border: none;
+            border-radius: var(--radius);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            padding: 0;
+            width: min(500px, 90vw);
+        }
+        dialog::backdrop {
+            background: rgba(10, 14, 13, 0.6);
+            backdrop-filter: blur(4px);
+        }
+        .dialog-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .dialog-body {
+            padding: 20px;
+        }
+        /* School Card */
+        .school-card {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            background: #fff;
+        }
+        .school-card h4 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: var(--accent-dark);
+        }
+        .school-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        .school-info strong {
+            color: var(--ink);
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .toggle-sidebar { left: 16px !important; }
+            .grid-2, .grid-3, .grid-4, .win-calendar { grid-template-columns: 1fr; }
+            .cal-sidebar { border-right: none; border-bottom: 1px solid var(--line); padding: 12px; }
+            .countdown-banner { flex-direction: column; text-align: center; gap: 10px; }
+        }
+    </style>
+    <link rel="stylesheet" href="workspace.css" />
+    <link rel="stylesheet" href="companion.css" />
+    <link rel="stylesheet" href="studio.css" />
+    <link rel="stylesheet" href="study-library.css" />
+    <link rel="stylesheet" href="reliability.css" />
+    <link rel="stylesheet" href="media-workspace.css" />
+    <link rel="stylesheet" href="workspace-upgrade.css" />
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand"><span class="brand-mark">研</span>
+                <div>
+                    <h1>研途备考</h1>
+                    <p>任务 · 日历 · 分析</p>
+                </div>
+            </div>
+            <nav class="nav">
+                <span class="nav-section">学习规划</span>
+                <button class="nav-item active" data-view="overview"><i class="fas fa-home"></i> 总览</button>
+                <button class="nav-item" data-view="timeline"><i class="fas fa-stream"></i> 时间周期表</button>
+                <span class="nav-section">知识档案</span>
+                <button class="nav-item" data-view="mistakes"><i class="fas fa-times-circle"></i> 错题集</button>
+                <button class="nav-item" data-view="resources"><i class="fas fa-book"></i> 学习资料</button>
+                <button class="nav-item" data-view="mindmaps"><i class="fas fa-project-diagram"></i> 思维导图</button>
+                <button class="nav-item" data-view="papers"><i class="fas fa-file-alt"></i> 真题试卷</button>
+                <span class="nav-section">成长记录</span>
+                <button class="nav-item" data-view="scores"><i class="fas fa-chart-line"></i> 成绩追踪</button>
+                <button class="nav-item" data-view="review"><i class="fas fa-pen-fancy"></i> 每日复盘</button>
+                <button class="nav-item" data-view="schools"><i class="fas fa-university"></i> 目标院校</button>
+                <button class="nav-item" data-view="exams"><i class="fas fa-calendar-days"></i> 考试日历</button>
+                <span class="nav-section">陪伴与设置</span>
+                <button class="nav-item" data-view="connection"><i class="fas fa-link"></i> 设备与数据</button>
+                <button class="nav-item" data-view="notifications"><i class="fas fa-bell"></i> 提醒通知</button>
+                <button class="nav-item" data-view="mood"><i class="fas fa-note-sticky"></i> 心情墙</button>
+                <button class="nav-item" data-view="assistant"><i class="fas fa-robot"></i> 小研助手</button>
+            </nav>
+            <div class="sidebar-footer"><button class="btn btn-ghost" type="button" data-open-download-settings>下载位置</button></div>
+            <div class="sidebar-footer"><span class="connection-dot"></span><span id="sidebarSyncText">正在连接本机</span></div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <main class="main-content" id="mainContent">
+            <button class="toggle-sidebar" id="toggleSidebar"><i class="fas fa-bars"></i></button>
+            <header class="workspace-header">
+                <span class="workspace-mark" id="workspaceMark" aria-hidden="true"><i class="fas fa-house"></i></span>
+                <div><div class="workspace-date" id="workspaceDate"></div><h2 id="workspaceTitle">今日总览</h2><div id="workspaceSummary" class="workspace-summary"></div></div>
+                <div class="workspace-header-actions">
+                    <div class="system-clock"><time id="systemClock">--:--:--</time><span id="clockSource">系统时间</span></div>
+                    <button class="sync-chip" onclick="PrepLocal.showConnection()"><span class="connection-dot"></span><span id="syncText">连接中</span></button>
+                    <button class="btn btn-icon btn-ghost" onclick="showReminderSettings()" title="提醒设置" aria-label="提醒设置"><i class="fas fa-bell"></i></button>
+                    <button class="btn btn-primary" onclick="openTaskDialog()" title="新建任务" aria-label="新建任务"><i class="fas fa-plus"></i> 新建任务</button>
+                </div>
+            </header>
+            <!-- 1. 总览 -->
+            <section class="view active" id="view-overview">
+                <div class="countdown-banner">
+                    <div>
+                        <div style="font-size:14px; opacity:0.9">距离初试还剩</div>
+                        <div class="countdown-days" id="countdownDays">--</div>
+                        <div style="font-size:14px; opacity:0.9">天</div>
+                    </div>
+                    <div style="text-align:right">
+                        <select id="examYear" style="width:auto; background:rgba(255,255,255,0.2); color:#fff; border:none; padding:4px 8px; border-radius:4px;">
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027" selected>2027</option>
+                            <option value="2028">2028</option>
+                        </select>
+                        <input type="date" id="examDateInput" aria-label="预计初试日期" />
+                        <div style="font-size:13px; margin-top:4px; opacity:0.8" id="examDateText"></div>
+                    </div>
+                </div>
+                <div class="grid-4" id="statCards">
+                    <div class="card metric-item" style="padding:16px"><i class="fas fa-list-check metric-icon" aria-hidden="true"></i>
+                        <div style="color:var(--muted);font-size:12px">待完成</div>
+                        <div style="font-size:24px;font-weight:700;margin-top:4px" id="statTodo">0</div>
+                    </div>
+                    <div class="card metric-item" style="padding:16px"><i class="fas fa-circle-check metric-icon" aria-hidden="true"></i>
+                        <div style="color:var(--muted);font-size:12px">已完成</div>
+                        <div style="font-size:24px;font-weight:700;margin-top:4px;color:var(--accent)" id="statDone">0</div>
+                    </div>
+                    <div class="card metric-item" style="padding:16px"><i class="fas fa-chart-simple metric-icon" aria-hidden="true"></i>
+                        <div style="color:var(--muted);font-size:12px">最近总分</div>
+                        <div style="font-size:24px;font-weight:700;margin-top:4px" id="statScore">--</div>
+                    </div>
+                    <div class="card metric-item" style="padding:16px"><i class="fas fa-flag metric-icon" aria-hidden="true"></i>
+                        <div style="color:var(--muted);font-size:12px">备考状态</div>
+                        <div style="font-size:24px;font-weight:700;margin-top:4px" id="statStatus">未开始</div>
+                    </div>
+                </div>
+                <div class="grid-2 overview-columns">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title"><i class="fas fa-list-check" aria-hidden="true"></i> 今日任务</div><button class="btn btn-primary btn-sm" onclick="openTaskDialog()"><i class="fas fa-plus"></i> 添加</button>
+                        </div>
+                        <label for="taskActivityFilter">活动类别</label>
+                        <select id="taskActivityFilter" onchange="renderTaskList()">
+                            <option value="all">全部</option><option value="exam">备考</option><option value="skill">技能</option><option value="project">项目</option><option value="unclassified">未分类</option>
+                        </select>
+                        <div id="taskList"></div>
+                    </div>
+                    <div class="card">
+                        <section class="focus-tool">
+                            <div class="card-header"><div class="card-title"><i class="fas fa-stopwatch" aria-hidden="true"></i> 专注计时</div><span id="focusStatus" class="record-meta">待开始</span></div>
+                            <div class="focus-dial" id="focusDial" role="progressbar" aria-label="本轮专注剩余时间" aria-valuemin="0" aria-valuemax="1500" aria-valuenow="1500"><div id="focusClock" class="focus-clock">25:00</div><span class="focus-dial-label">FOCUS</span></div>
+                            <div class="focus-controls">
+                                <button class="btn btn-primary" id="focusStart" onclick="PrepLocal.timerAction('start')"><i class="fas fa-play"></i> 开始</button>
+                                <button class="btn btn-ghost" id="focusPause" onclick="PrepLocal.timerAction('pause')" disabled><i class="fas fa-pause"></i> 暂停</button>
+                                <button class="btn btn-icon btn-ghost" onclick="PrepLocal.timerAction('reset')" title="重置计时" aria-label="重置计时"><i class="fas fa-rotate-left"></i></button>
+                            </div>
+                            <label class="focus-duration">专注时长（分钟）<input type="number" id="focusMinutes" min="1" max="180" value="25" onchange="PrepLocal.timerDuration(this.value)" /></label>
+                        </section>
+                        <div class="card-header">
+                            <div class="card-title">快捷操作</div>
+                        </div>
+                        <div class="quick-actions">
+                            <button class="btn btn-ghost" style="width:100%" id="btnStartPrep" onclick="togglePrep('active')"><i class="fas fa-play"></i> 开始备考</button>
+                            <button class="btn btn-ghost" style="width:100%;display:none" id="btnPausePrep" onclick="togglePrep('paused')"><i class="fas fa-pause"></i> 暂停备考</button>
+                            <button class="btn btn-ghost" style="width:100%;display:none" id="btnResumePrep" onclick="togglePrep('active')"><i class="fas fa-play"></i> 继续备考</button>
+                            <button class="btn btn-danger" style="width:100%;display:none" id="btnExitPrep" onclick="showExitConfirm()"><i class="fas fa-stop"></i> 结束备考</button>
+                            <button class="btn btn-ghost" style="width:100%" onclick="showStatusDialog()"><i class="fas fa-cog"></i> 设置状态</button>
+                            <button class="btn btn-ghost" style="width:100%" onclick="showReminderSettings()"><i class="fas fa-bell"></i> 提醒设置</button>
+                            <button class="btn btn-ghost" style="width:100%" onclick="exportData()"><i class="fas fa-download"></i> 导出数据</button>
+                            <button class="btn btn-ghost" style="width:100%" onclick="showImportDialog()"><i class="fas fa-upload"></i> 导入数据</button>
+                            <button class="btn btn-danger" style="width:100%" onclick="showDeleteConfirm('deleteAllData', '确定要删除所有数据吗？此操作不可恢复！')"><i class="fas fa-trash"></i> 一键删除所有数据</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- 3. 时间周期表 -->
+            <section class="view" id="view-mood">
+                <header class="mood-toolbar"><div><h3><i class="fas fa-heart" aria-hidden="true"></i> 心情墙</h3><span id="moodCount">0 / 30</span></div><div class="mood-toolbar-actions"><button class="btn btn-icon btn-ghost" id="moodPrevious" onclick="MoodWall.page(-1)" title="上一面墙" aria-label="上一面墙"><i class="fas fa-chevron-left"></i></button><button class="btn btn-icon btn-ghost" id="moodNext" onclick="MoodWall.page(1)" title="下一面墙" aria-label="下一面墙"><i class="fas fa-chevron-right"></i></button><button class="btn btn-primary" onclick="MoodWall.create()"><i class="fas fa-plus"></i> 贴一张便签</button></div></header>
+                <div id="moodTabs" class="mood-tabs" aria-label="心情墙页面"></div>
+                <div class="mood-board" id="moodBoard" data-surface="paper">
+                    <div class="mood-board-bar"><div class="mood-board-caption"><i class="fas fa-bookmark" aria-hidden="true"></i><span id="moodWallLabel">第 01 面</span><span id="moodPhotoCount"></span></div><div class="mood-surfaces" role="group" aria-label="墙面样式"><button class="mood-surface-swatch" data-surface="paper" onclick="MoodWall.surface('paper')" title="手账拼贴" aria-label="手账拼贴" aria-pressed="true"><i class="fas fa-note-sticky"></i></button><button class="mood-surface-swatch" data-surface="grid" onclick="MoodWall.surface('grid')" title="清爽格纸" aria-label="清爽格纸" aria-pressed="false"><i class="fas fa-border-all"></i></button><button class="mood-surface-swatch" data-surface="felt" onclick="MoodWall.surface('felt')" title="暮色毛毡" aria-label="暮色毛毡" aria-pressed="false"><i class="fas fa-moon"></i></button></div></div>
+                    <div id="moodViewport" class="mood-viewport" tabindex="0" aria-label="心情墙画布"><div id="moodStage" class="mood-stage" tabindex="0"></div></div>
+                </div>
+                <div id="moodDragStatus" class="mood-drag-status" aria-live="polite"></div>
+            </section>
+            <section class="view" id="view-assistant">
+                <header class="assistant-toolbar"><div class="assistant-brand"><img src="icons/study-pet.png" alt="小研桌宠" width="56" height="62" /><div><h3>小研助手</h3><span id="assistantConnection">正在连接电脑</span></div></div><div class="assistant-toolbar-actions"><button class="btn btn-ghost" onclick="StudyAI.showMemories()" title="记忆宫殿" aria-label="记忆宫殿"><i class="fas fa-brain"></i> 记忆宫殿</button><button class="btn btn-icon btn-ghost" onclick="StudyAI.settings()" title="模型接口设置" aria-label="模型接口设置"><i class="fas fa-gear"></i></button></div></header>
+                <div class="assistant-layout"><aside class="conversation-sidebar"><button class="btn btn-ghost" onclick="StudyAI.newChat()"><i class="fas fa-plus"></i> 新对话</button><div id="assistantConversations"></div></aside><div class="assistant-chat"><div id="assistantTranscript" class="assistant-transcript" aria-live="polite"></div><div id="assistantSources" class="assistant-sources"></div><form id="assistantComposer" class="assistant-composer"><textarea id="assistantInput" rows="3" maxlength="12000" placeholder="和小研聊聊…" aria-label="给小研的消息" required></textarea><div class="assistant-composer-actions"><select id="assistantProvider" aria-label="对话模型"><option value="ollama">电脑本地 Ollama</option><option value="api">电脑 API</option><option value="api-device">本机直连 API</option></select><span id="assistantJobStatus"></span><button class="btn btn-ghost" id="assistantStop" type="button" onclick="StudyAI.stop()" hidden><i class="fas fa-stop"></i> 停止</button><button class="btn btn-primary" id="assistantSend" type="submit"><i class="fas fa-paper-plane"></i> 发送</button></div></form></div></div>
+            </section>
+            <section class="view" id="view-timeline">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">阶段周期表</div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-ghost" onclick="seedTasksFromTimeline()"><i class="fas fa-tasks"></i> 生成阶段任务</button>
+                            <button class="btn btn-primary" onclick="openTimelineDialog()"><i class="fas fa-plus"></i> 添加阶段</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('deleteAllTimelines', '确定要删除所有阶段吗？')"><i class="fas fa-trash"></i> 一键删除</button>
+                        </div>
+                    </div>
+                    <div class="timeline-layout"><form id="timelineForm" class="planning-editor">
+                        <h4><i class="fas fa-pen-to-square" aria-hidden="true"></i> 阶段编辑</h4>
+                        <input type="hidden" name="id" />
+                        <div class="grid-2">
+                            <input type="text" name="range" placeholder="时间范围：2026.07-2026.09" required />
+                            <input type="text" name="title" placeholder="阶段标题" required />
+                        </div>
+                        <input type="text" name="subjects" placeholder="任务标签：英语,数学,408 (逗号分隔)" />
+                        <textarea name="goals" placeholder="阶段目标和结果要求" required></textarea>
+                        <div style="display:flex; gap:8px; justify-content:flex-end;">
+                            <button type="button" class="btn btn-ghost" onclick="resetTimelineForm()">取消编辑</button>
+                            <button type="submit" class="btn btn-primary">保存阶段</button>
+                        </div>
+                    </form>
+                    <div id="timelineList"></div></div>
+                </div>
+            </section>
+            <!-- 4. 错题集 -->
+            <section class="view" id="view-mistakes">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">错题集</div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-primary" onclick="openRecordDialog('mistakes')"><i class="fas fa-plus"></i> 添加错题</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('deleteAllMistakes', '确定要删除所有错题吗？')"><i class="fas fa-trash"></i> 一键删除</button>
+                        </div>
+                    </div>
+                    <div class="category-bar" id="mistakeFilter"></div>
+                    <div id="mistakeList"></div>
+                </div>
+            </section>
+            <!-- 5. 学习资料 -->
+            <section class="view" id="view-resources">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">学习笔记</div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-primary" onclick="openRecordDialog('notes')"><i class="fas fa-plus"></i> 添加笔记</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('deleteAllNotes', '确定要删除所有学习笔记吗？')"><i class="fas fa-trash"></i> 一键删除</button>
+                        </div>
+                    </div>
+                    <div class="category-bar" id="noteFilter"></div>
+                    <div id="noteList"></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">电子资源</div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-primary" onclick="openRecordDialog('resources')"><i class="fas fa-plus"></i> 上传资源</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('deleteAllResources', '确定要删除所有电子资料吗？')"><i class="fas fa-trash"></i> 一键删除</button>
+                        </div>
+                    </div>
+                    <div class="category-bar" id="resourceFilter"></div>
+                    <div id="resourceList"></div>
+                </div>
+            </section>
+            <!-- 6. 真题试卷 -->
+            <section class="view" id="view-mindmaps">
+                <div class="card"><div class="card-header"><div class="card-title">思维导图</div><button class="btn btn-primary" onclick="openRecordDialog('mindmaps')"><i class="fas fa-plus"></i> 上传导图</button></div><div class="category-bar" id="mindmapFilter"></div><div id="mindmapList"></div></div>
+            </section>
+            <section class="view" id="view-papers">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">真题试卷</div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-primary" onclick="openPaperDialog()"><i class="fas fa-plus"></i> 添加试卷</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('deleteAllPapers', '确定要删除所有试卷吗？')"><i class="fas fa-trash"></i> 一键删除</button>
+                        </div>
+                    </div>
+                    <div class="category-bar" id="paperFilter"></div>
+                    <div id="paperList"></div>
+                </div>
+            </section>
+            <!-- 7. 成绩追踪 -->
+            <section class="view" id="view-scores">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">成绩录入</div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-primary" onclick="openScoreDialog()"><i class="fas fa-plus"></i> 录入成绩</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('deleteAllScores', '确定要删除所有成绩记录吗？')"><i class="fas fa-trash"></i> 一键删除</button>
+                        </div>
+                    </div>
+                    <div id="scoreInsights" class="score-insights"></div>
+                    <div class="score-charts"><section class="chart-surface"><h4><i class="fas fa-chart-line" aria-hidden="true"></i> 总分趋势</h4><div class="chart-plot"><canvas id="totalScoreChart"></canvas></div></section><section class="chart-surface"><h4><i class="fas fa-chart-simple" aria-hidden="true"></i> 各科成绩</h4><div class="chart-plot"><canvas id="subjectScoreChart"></canvas></div></section></div>
+                    <div id="scoreList" style="margin-top:20px"></div>
+                </div>
+            </section>
+            <!-- 8. 每日复盘 -->
+            <section class="view" id="view-review">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">今日复盘</div>
+                        <button class="btn btn-danger" onclick="showDeleteConfirm('deleteAllReviews', '确定要删除所有复盘记录吗？')"><i class="fas fa-trash"></i> 一键删除</button>
+                    </div>
+                    <form id="reviewForm">
+                        <input type="hidden" name="id" />
+                        <label>今日心得体会</label><textarea name="insight" rows="4" placeholder="今天，记下些什么"></textarea>
+                        <label>明日改进计划</label><textarea name="plan" rows="3" placeholder="留给明天的计划"></textarea>
+                        <label>当前状态 (1-10分)</label><input type="number" name="status" min="1" max="10" value="7" />
+                        <input type="hidden" name="date" />
+                        <div style="display:flex; gap:8px;"><button type="button" class="btn btn-ghost" onclick="resetReviewForm()">取消编辑</button><button type="submit" class="btn btn-primary" style="flex:1">保存复盘</button></div>
+                    </form>
+                </div>
+                <div class="card" style="margin-top:16px">
+                    <div class="card-header">
+                        <div class="card-title">历史复盘</div>
+                    </div>
+                    <div id="reviewList"></div>
+                </div>
+            </section>
+            <!-- 9. 目标院校 -->
+            <section class="view" id="view-schools">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">目标院校库</div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-primary" onclick="openSchoolDialog()"><i class="fas fa-plus"></i> 添加院校</button>
+                            <button class="btn btn-danger" onclick="showDeleteConfirm('deleteAllSchools', '确定要删除所有院校吗？')"><i class="fas fa-trash"></i> 一键删除</button>
+                        </div>
+                    </div>
+                    <div id="schoolList"></div>
+                </div>
+            </section>
+            <section class="view" id="view-exams">
+                <div class="card"><div class="card-header"><div class="card-title">学习日与考试安排</div></div>
+                    <form id="studyScheduleForm" class="schedule-form"><label>备考起始日<input type="date" name="start" required /></label><label>周测间隔（学习日）<input type="number" name="weekly" min="1" max="60" value="5" /></label><label>月考间隔（学习日）<input type="number" name="monthly" min="1" max="365" value="25" /></label><label>大考间隔（月）<input type="number" name="major" min="1" max="24" value="3" /></label><label class="schedule-wide">额外休息日<input type="text" name="holidays" placeholder="2026-10-18,2026-10-25" /></label><button class="btn btn-primary" type="submit">保存安排</button></form>
+                </div>
+                <div class="card"><div class="card-header"><div class="card-title">下一次考试</div><button class="btn btn-primary" onclick="PrepLocal.openExam()"><i class="fas fa-plus"></i> 新建考试</button></div><div id="scheduledExams"></div><div id="calendarEventList"></div></div>
+            </section>
+            <section class="view" id="view-connection">
+                <div class="card connection-panel"><div class="card-header"><div class="card-title">电脑与手机</div><button class="btn btn-ghost" onclick="PrepLocal.refreshConnection()"><i class="fas fa-rotate"></i> 刷新</button></div>
+                    <dl class="connection-details"><div><dt>连接状态</dt><dd id="connectionState">正在连接</dd></div><div><dt>最后同步</dt><dd id="connectionLastSync">—</dd></div><div><dt>局域网地址</dt><dd id="connectionAddresses">—</dd></div><div><dt>互联网远程地址</dt><dd id="connectionRemote">未启用</dd></div><div><dt>手机配对码</dt><dd id="connectionCode">—</dd></div><div><dt>电脑数据目录</dt><dd id="connectionPath">—</dd></div><div><dt>附件文件库</dt><dd id="connectionFiles">—</dd></div><div><dt>系统时间校准</dt><dd id="connectionTime">—</dd></div></dl>
+                    <div class="connection-buttons"><button class="btn btn-primary" onclick="PrepLocal.backup()"><i class="fas fa-download"></i> 完整备份（含附件）</button><button class="btn btn-ghost" onclick="document.getElementById('backupImport').click()"><i class="fas fa-upload"></i> 导入备份</button><button class="btn btn-ghost" onclick="PrepLocal.rotateCode()" id="rotateCodeButton"><i class="fas fa-key"></i> 更换配对码</button></div>
+                    <input type="file" id="backupImport" accept=".zip,.json,.txt" hidden />
+                    <div class="connection-buttons"><button class="btn btn-primary" id="remoteStart" onclick="PrepLocal.controlRemote('start')"><i class="fas fa-globe"></i> 开启远程访问</button><button class="btn btn-ghost" id="remoteStop" onclick="PrepLocal.controlRemote('stop')"><i class="fas fa-stop"></i> 关闭远程访问</button></div>
+                    <div class="phone-entry" id="phoneEntry" hidden><img id="phoneQR" alt="手机入口二维码" width="180" height="180" /><div><h3>安卓手机入口</h3><a id="phoneURL" target="_blank" rel="noopener"></a><a id="apkDownload" class="btn btn-ghost" href="downloads/yantu_android_001.apk" download="yantu_android_001.apk" hidden><i class="fas fa-download"></i> 安卓安装包</a><button class="btn btn-ghost" onclick="PrepPush.openView('notifications')"><i class="fas fa-bell"></i> 提醒通知</button></div></div>
+                </div>
+            </section>
+            <section class="view" id="view-notifications">
+                <div class="notification-heading"><h3>提醒通知</h3><button class="btn btn-ghost" onclick="showReminderSettings()"><i class="fas fa-sliders"></i> 时间与开关</button></div>
+                <dl class="notification-summary"><div><dt>电脑调度</dt><dd id="pushScheduler">连接中</dd></div><div><dt>例行提醒</dt><dd id="pushRoutine">—</dd></div><div><dt>发送时间</dt><dd id="pushTimes">—</dd></div><div><dt>通知设备</dt><dd id="pushDeviceCount">0</dd></div></dl>
+                <div class="notification-actions"><button class="btn btn-primary" id="pushSubscribe" onclick="PrepPush.subscribe()" disabled><i class="fas fa-bell"></i> 开启本机通知</button><button class="btn btn-ghost" id="pushUnsubscribe" onclick="PrepPush.unsubscribe()" hidden><i class="fas fa-bell-slash"></i> 关闭本机通知</button><button class="btn btn-ghost" id="pushInstall" onclick="PrepPush.install()" hidden><i class="fas fa-mobile-screen"></i> 安装手机端</button><button class="btn btn-icon btn-ghost" onclick="PrepPush.refresh()" title="刷新通知状态" aria-label="刷新通知状态"><i class="fas fa-rotate"></i></button></div>
+                <p id="pushPermission" class="notification-status">正在准备通知权限</p>
+                <p id="pushLastError" class="notification-status" role="alert" hidden></p>
+                <div id="pushPCControls" hidden><div class="notification-actions"><button class="btn btn-primary" id="pushTestNow" onclick="PrepPush.test(0)"><i class="fas fa-paper-plane"></i> 发送测试</button><button class="btn btn-ghost" id="pushTestLater" onclick="PrepPush.test(30)"><i class="fas fa-clock"></i> 30 秒后发送</button></div><p id="pushTestStatus" class="notification-status"></p></div>
+                <h4 class="notification-subtitle">已连接设备</h4><div id="pushDevices"></div>
+                <h4 class="notification-subtitle">提醒记录</h4><div id="pushEvents" aria-live="polite"></div>
+            </section>
+        </main>
+    </div>
+    <nav class="mobile-tabs" aria-label="手机导航"><button onclick="PrepPush.openView('overview')" data-mobile-view="overview" title="今日"><i class="fas fa-house"></i><span>今日</span></button><button onclick="PrepPush.openView('resources')" data-mobile-view="resources" title="资料"><i class="fas fa-book-open"></i><span>资料</span></button><button onclick="PrepPush.openView('notifications')" data-mobile-view="notifications" title="提醒"><i class="fas fa-bell"></i><span>提醒</span></button><button onclick="document.getElementById('toggleSidebar').click()" title="全部功能"><i class="fas fa-bars"></i><span>全部</span></button></nav>
+    <!-- 状态设置弹窗 -->
+    <dialog id="moodDialog"><div class="dialog-header"><h3 id="moodDialogTitle">写一张便签</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()" title="返回" aria-label="返回"><i class="fas fa-xmark"></i></button></div><form id="moodForm" class="dialog-body"><input type="hidden" name="id" /><input type="hidden" name="createdAt" /><label>此刻的心情<textarea name="text" rows="5" maxlength="6000" placeholder="留下今天的一小片记忆"></textarea></label><fieldset class="sticky-swatches"><legend>便签颜色</legend><label title="柠檬黄"><input type="radio" name="color" value="lemon" checked /><span class="sticky-swatch lemon"></span></label><label title="樱花粉"><input type="radio" name="color" value="rose" /><span class="sticky-swatch rose"></span></label><label title="薄荷绿"><input type="radio" name="color" value="mint" /><span class="sticky-swatch mint"></span></label><label title="晴空蓝"><input type="radio" name="color" value="sky" /><span class="sticky-swatch sky"></span></label><label title="浅紫"><input type="radio" name="color" value="lilac" /><span class="sticky-swatch lilac"></span></label></fieldset><label class="mood-photo-label"><i class="fas fa-images"></i> 照片<input type="file" name="photos" accept="image/*" multiple /></label><div id="moodPhotoList"></div><div class="mood-form-footer"><time id="moodCreatedTime"></time><button class="btn btn-ghost" type="button" onclick="this.closest('dialog').close()">返回</button><button class="btn btn-primary" type="submit"><i class="fas fa-thumbtack"></i> 贴上便签</button></div></form></dialog>
+    <dialog id="assistantSettings"><div class="dialog-header"><h3>模型接口</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()" title="返回" aria-label="返回"><i class="fas fa-xmark"></i></button></div><form id="assistantSettingsForm" class="dialog-body"><label>默认接口<select name="provider"><option value="ollama">电脑本地 Ollama</option><option value="api">OpenAI 兼容 API</option></select></label><label>Ollama 地址<input name="ollamaUrl" type="url" value="http://127.0.0.1:11434" required /></label><label>本地模型<input name="ollamaModel" list="ollamaModels" autocomplete="off" /><datalist id="ollamaModels"></datalist></label><label>本地上下文长度<input name="contextTokens" type="number" min="2048" max="32768" step="1024" value="4096" /></label><label>API 地址<input name="apiUrl" type="url" placeholder="https://服务地址/v1" /></label><label>API 模型<input name="apiModel" autocomplete="off" /></label><label>API 密钥<input name="apiKey" type="password" autocomplete="new-password" /></label><label class="assistant-checkbox"><input name="clearKey" type="checkbox" /> 删除已保存密钥</label><label class="assistant-checkbox"><input name="cloudConsent" type="checkbox" /> 允许将学习资料和对话发送到所填 API 服务</label><div class="dialog-actions"><button class="btn btn-ghost" type="button" onclick="this.closest('dialog').close()">返回</button><button class="btn btn-primary" type="submit">保存接口</button></div></form></dialog>
+    <dialog id="memoryPalace"><div class="dialog-header"><h3>记忆宫殿</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()" title="返回" aria-label="返回"><i class="fas fa-xmark"></i></button></div><div class="dialog-body"><div id="memoryRooms" class="memory-rooms"></div><form id="memoryForm"><input type="hidden" name="id" /><label>记忆房间<select name="room"><option value="profile">个人信息</option><option value="goals">备考目标</option><option value="preferences">学习偏好</option><option value="learning">学习情况</option></select></label><label>记忆内容<textarea name="text" rows="3" maxlength="2000" required></textarea></label><div class="dialog-actions"><button class="btn btn-ghost" type="button" onclick="StudyAI.clearMemoryForm()">新记忆</button><button class="btn btn-primary" type="submit">保存记忆</button></div></form><div id="memoryList"></div></div></dialog>
+    <dialog id="statusDialog">
+        <div class="dialog-header">
+            <h3>备考状态设置</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <div style="margin-bottom:20px; padding:16px; background:var(--surface-soft); border-radius:8px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div id="statusIndicator" style="width:12px; height:12px; border-radius:50%; background:var(--muted);"></div>
+                    <div>
+                        <div style="font-size:12px; color:var(--muted);">当前状态</div>
+                        <div id="currentStatusText" style="font-weight:600; font-size:16px;">未开始</div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-weight:600; margin-bottom:8px; display:block;">状态操作</label>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <button class="btn btn-primary" style="width:100%" id="statusBtnStart" onclick="statusStart()"><i class="fas fa-play"></i> 开始备考</button>
+                    <button class="btn btn-ghost" style="width:100%" id="statusBtnPause" onclick="statusPause()"><i class="fas fa-pause"></i> 暂停备考</button>
+                    <button class="btn btn-ghost" style="width:100%" id="statusBtnResume" onclick="statusResume()"><i class="fas fa-play"></i> 继续备考</button>
+                    <button class="btn btn-ghost" style="width:100%" id="statusBtnRestart" onclick="statusRestart()"><i class="fas fa-redo"></i> 重新开始</button>
+                    <button class="btn btn-danger" style="width:100%" id="statusBtnExit" onclick="showExitConfirmFromStatus()"><i class="fas fa-stop"></i> 结束备考</button>
+                </div>
+            </div>
+            <button class="btn btn-ghost" style="width:100%;" onclick="this.closest('dialog').close()">关闭</button>
+        </div>
+    </dialog>
+    <!-- 统一删除确认弹窗 -->
+    <dialog id="deleteConfirmDialog">
+        <div class="dialog-header">
+            <h3 id="deleteConfirmTitle">确认删除</h3><button class="btn btn-icon" onclick="closeDeleteConfirm()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <p id="deleteConfirmMessage" style="margin-bottom:16px;">确定要删除吗？此操作不可恢复！</p>
+            <div id="deleteFirstConfirm" style="display:flex; gap:8px;">
+                <button class="btn btn-ghost" style="flex:1" onclick="closeDeleteConfirm()">取消</button>
+                <button class="btn btn-danger" style="flex:1" onclick="showSecondConfirm()">确认删除</button>
+            </div>
+            <div id="deleteSecondConfirm" style="display:none;">
+                <p style="color:var(--danger); font-weight:600; margin-bottom:12px;">⚠️ 再次确认：此操作不可恢复！</p>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-ghost" style="flex:1" onclick="closeDeleteConfirm()">取消</button>
+                    <button class="btn btn-danger" style="flex:1" onclick="confirmDelete()">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+    <!-- 结束备考确认弹窗 -->
+    <dialog id="exitConfirmDialog">
+        <div class="dialog-header">
+            <h3>结束备考</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <p style="margin-bottom:16px;">确定要结束备考吗？</p>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-danger" style="flex:1" onclick="exitPrep(true)">清空数据并结束</button>
+                <button class="btn btn-primary" style="flex:1" onclick="exitPrep(false)">保留数据并结束</button>
+            </div>
+            <button class="btn btn-ghost" style="width:100%; margin-top:8px;" onclick="this.closest('dialog').close()">取消</button>
+        </div>
+    </dialog>
+    <!-- 提醒设置弹窗 -->
+    <dialog id="reminderDialog">
+        <div class="dialog-header">
+            <h3>提醒设置</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <div style="margin-bottom:16px;">
+                <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="reminderEnabled" />
+                    <span>开启提醒功能</span>
+                </label>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-weight:600; margin-bottom:8px; display:block;">提醒时间设置</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="time" id="reminderMorning" value="06:00" />
+                    <input type="time" id="reminderNoon" value="12:00" />
+                    <input type="time" id="reminderEvening" value="18:00" />
+                </div>
+                <p style="font-size:12px; color:var(--muted); margin-top:4px;">早、中、晚三次提醒时间</p>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-weight:600; margin-bottom:8px; display:block;">提醒类型</label>
+                <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <input type="checkbox" id="reminderTasks" />
+                    <span>每日任务提醒</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <input type="checkbox" id="reminderReview" />
+                    <span>复盘提醒 (21:00)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="reminderSpecial" />
+                    <span>特殊日期提醒</span>
+                </label>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-weight:600; margin-bottom:8px; display:block;">邮件提醒设置</label>
+                <input type="email" id="reminderEmail" placeholder="输入接收提醒的邮箱地址" style="width:100%; margin-bottom:8px;" />
+                <p style="font-size:12px; color:var(--muted);">开启提醒后，将在设定时间向此邮箱发送提醒邮件</p>
+                <details id="nebula-email-config">
+                    <summary>配置自己的邮件服务</summary>
+                    <p>填写自有 EmailJS 服务。邮件提醒启用后，收件地址及提醒文字会交给该服务发送。</p>
+                    <label>公开 Key<input data-email-field="publicKey" maxlength="150" /></label>
+                    <label>服务 ID<input data-email-field="serviceId" maxlength="150" /></label>
+                    <label>提醒模板 ID<input data-email-field="templateTask" maxlength="150" /></label>
+                    <label>复盘模板 ID（可选）<input data-email-field="templateReview" maxlength="150" /></label>
+                    <button type="button" id="nebulaSaveEmail" class="btn btn-ghost">保存邮件连接</button>
+                    <p id="nebulaEmailStatus" role="status"></p>
+                </details>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-weight:600; margin-bottom:8px; display:block;">数据同步保存路径</label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="syncSavePath" placeholder="未设置保存路径（点击选择文件夹）" style="flex:1;" readonly />
+                    <button class="btn btn-ghost" onclick="selectSyncFolder()" style="white-space:nowrap;"><i class="fas fa-folder-open"></i> 选择文件夹</button>
+                </div>
+                <p style="font-size:12px; color:var(--muted);">设置后，23:00数据同步将自动保存到该文件夹，无需手动操作</p>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-weight:600; margin-bottom:8px; display:block;">休息日设置</label>
+                <div style="display:flex; gap:8px;">
+                    <select id="restDayMode">
+                        <option value="auto">自动(5天学习2天休息)</option>
+                        <option value="custom">自定义休息日</option>
+                    </select>
+                </div>
+                <div id="customRestDays" style="display:none; margin-top:8px;">
+                    <label style="font-size:12px; margin-bottom:4px; display:block;">选择休息日</label>
+                    <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                        <label style="padding:4px 8px; background:var(--surface-soft); border-radius:4px;"><input type="checkbox" name="restDay" value="0" /> 周日</label>
+                        <label style="padding:4px 8px; background:var(--surface-soft); border-radius:4px;"><input type="checkbox" name="restDay" value="1" /> 周一</label>
+                        <label style="padding:4px 8px; background:var(--surface-soft); border-radius:4px;"><input type="checkbox" name="restDay" value="2" /> 周二</label>
+                        <label style="padding:4px 8px; background:var(--surface-soft); border-radius:4px;"><input type="checkbox" name="restDay" value="3" /> 周三</label>
+                        <label style="padding:4px 8px; background:var(--surface-soft); border-radius:4px;"><input type="checkbox" name="restDay" value="4" /> 周四</label>
+                        <label style="padding:4px 8px; background:var(--surface-soft); border-radius:4px;"><input type="checkbox" name="restDay" value="5" /> 周五</label>
+                        <label style="padding:4px 8px; background:var(--surface-soft); border-radius:4px;"><input type="checkbox" name="restDay" value="6" /> 周六</label>
+                    </div>
+                </div>
+                <p style="font-size:12px; color:var(--muted); margin-top:4px;">休息日不发送提醒，但有任务时仍会提醒</p>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-ghost" style="flex:1" onclick="this.closest('dialog').close()">取消</button>
+                <button class="btn btn-ghost" style="flex:1" onclick="testReminderEmail()"><i class="fas fa-paper-plane"></i> 测试邮件</button>
+                <button class="btn btn-ghost" style="flex:1" onclick="testSyncEmail()"><i class="fas fa-sync"></i> 测试同步</button>
+                <button class="btn btn-primary" style="flex:1" onclick="saveReminderSettings()">保存设置</button>
+            </div>
+        </div>
+    </dialog>
+    <!-- 数据导入弹窗 -->
+    <dialog id="importDialog">
+        <div class="dialog-header">
+            <h3>导入数据</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <!-- 方式一：文件上传 -->
+            <div style="margin-bottom:16px;">
+                <label style="font-weight:600; margin-bottom:8px; display:block;">方式一：上传文件</label>
+                <input type="file" id="importFileInput" accept=".txt,.json,.zip" style="display:none;" onchange="handleImportFile(this)" />
+                <button class="btn btn-ghost" style="width:100%;" onclick="document.getElementById('importFileInput').click()">
+                    <i class="fas fa-file-upload"></i> 选择txt文件导入
+                </button>
+                <p style="font-size:12px; color:var(--muted); margin-top:4px;">支持.txt格式的导出文件</p>
+            </div>
+            <!-- 分隔线 -->
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+                <div style="flex:1; height:1px; background:var(--line);"></div>
+                <span style="color:var(--muted); font-size:12px;">或者</span>
+                <div style="flex:1; height:1px; background:var(--line);"></div>
+            </div>
+            <!-- 方式二：粘贴数据 -->
+            <div style="margin-bottom:16px;">
+                <label style="font-weight:600; margin-bottom:8px; display:block;">方式二：粘贴数据</label>
+                <textarea id="importDataInput" placeholder="请粘贴从其他设备导出的数据..." rows="4" style="width:100%;"></textarea>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-ghost" style="flex:1" onclick="this.closest('dialog').close()">取消</button>
+                <button class="btn btn-primary" style="flex:1" onclick="importData()">导入数据</button>
+            </div>
+        </div>
+    </dialog>
+    <!-- 通用任务弹窗 -->
+    <dialog id="taskDialog">
+        <div class="dialog-header">
+            <h3>添加任务</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <form id="taskForm">
+                <input type="hidden" name="id" />
+                <label>任务内容</label><input type="text" name="title" required placeholder="请输入任务内容" />
+                <div class="grid-2">
+                    <div><label>科目</label><select name="subject">
+                            <option value="数学">数学</option>
+                            <option value="英语">英语</option>
+                            <option value="政治">政治</option>
+                            <option value="408">408</option>
+                            <option value="综合">综合</option>
+                        </select></div>
+                    <div><label>优先级</label><select name="priority">
+                            <option value="高">高</option>
+                            <option value="中" selected>中</option>
+                            <option value="低">低</option>
+                        </select></div>
+                </div>
+                <label>计划执行日</label><input type="date" name="date" required />
+                <div class="grid-2">
+                    <label>开始日（可选）<input type="date" name="startDate" /></label>
+                    <label>截止日（可选）<input type="date" name="deadline" /></label>
+                </div>
+                <label>活动类别</label><select name="activityType">
+                    <option value="unclassified">未分类</option><option value="exam">备考</option><option value="skill">技能</option><option value="project">项目</option>
+                </select>
+                <label>任务状态</label><select name="taskStatus">
+                    <option value="todo">待完成</option><option value="in_progress">进行中</option><option value="done">已完成</option><option value="cancelled">已取消</option>
+                </select>
+                <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" name="useCurve" value="1" />
+                    <span>开启遗忘曲线复习</span>
+                    <span style="font-size:12px; color:var(--muted);">(完成后第1、3、7天自动提醒)</span>
+                </label>
+                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                    <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+    <!-- 通用记录弹窗 -->
+    <dialog id="recordDialog">
+        <div class="dialog-header">
+            <h3 id="recordDialogTitle">添加记录</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <form id="recordForm"><input type="hidden" name="id" /><input type="hidden" name="collection" /><label>分类路径/科目</label><input type="text" name="path" placeholder="如: 数学 > 高数 > 极限" required /><label>标题</label><input type="text" name="title" required /><label>日期</label><input type="date" name="date" /><label>详细内容</label><textarea name="content" rows="4"></textarea><label>附件 (可选)</label><input type="file" name="files" multiple accept="image/*,.pdf" /><div id="existingAttachments" class="attachment-list"></div>
+                <div style="display:flex; gap:8px; justify-content:flex-end;"><button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
+            </form>
+        </div>
+    </dialog>
+    <!-- 试卷专用弹窗 -->
+    <dialog id="paperDialog">
+        <div class="dialog-header">
+            <h3>真题试卷</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <form id="paperForm"><input type="hidden" name="id" />
+                <div class="grid-2">
+                    <div><label>科目</label><select name="subject">
+                            <option value="数学">数学</option>
+                            <option value="英语">英语</option>
+                            <option value="政治">政治</option>
+                            <option value="408">408</option>
+                        </select></div>
+                    <div><label>年份</label><input type="text" name="year" placeholder="如: 2024" required /></div>
+                </div><label>试卷名称</label><input type="text" name="title" /><label>备注</label><textarea name="remark"></textarea><label>试卷附件</label><input type="file" name="file" accept="image/*,.pdf" multiple /><div id="existingPaperAttachments" class="attachment-list"></div>
+                <div style="display:flex; gap:8px; justify-content:flex-end;"><button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
+            </form>
+        </div>
+    </dialog>
+    <!-- 成绩弹窗 -->
+    <dialog id="scoreDialog">
+        <div class="dialog-header">
+            <h3>录入成绩</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <form id="scoreForm"><input type="hidden" name="id" /><label>考试名称</label><input type="text" name="name" placeholder="如: 第三次模考" required /><label>日期</label><input type="date" name="date" required />
+                <div class="grid-2">
+                    <div><label>数学</label><input type="number" name="math" min="0" max="150" step="0.5" /></div>
+                    <div><label>英语</label><input type="number" name="english" min="0" max="100" step="0.5" /></div>
+                    <div><label>政治</label><input type="number" name="politics" min="0" max="100" step="0.5" /></div>
+                    <div><label>408/专业课</label><input type="number" name="major" min="0" max="150" step="0.5" /></div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end;"><button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
+            </form>
+        </div>
+    </dialog>
+    <!-- 目标院校弹窗 -->
+    <dialog id="schoolDialog">
+        <div class="dialog-header">
+            <h3>目标院校</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="dialog-body">
+            <form id="schoolForm"><input type="hidden" name="id" />
+                <div class="grid-2">
+                    <div><label>学校名称</label><input type="text" name="name" required /></div>
+                    <div><label>复录比</label><input type="text" name="ratio" placeholder="如: 1-1.3" /></div>
+                    <div><label>初试占比</label><input type="text" name="preWeight" placeholder="如: >=50%" /></div>
+                    <div><label>复试占比</label><input type="text" name="reWeight" placeholder="如: 40%" /></div>
+                </div>
+                <label>初试科目</label><input type="text" name="preSubjects" placeholder="如: 政治 / 英一 / 数学 / 408" />
+                <label>复试科目</label><input type="text" name="reSubjects" placeholder="如: 学院复试公告为准" />
+                <label>备注说明</label><textarea name="formula" placeholder="最终成绩计算方式、招生人数、保护一志愿等信息"></textarea>
+                <div style="display:flex; gap:8px; justify-content:flex-end;"><button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
+            </form>
+        </div>
+    </dialog>
+    <!-- 文件查看器 -->
+    <dialog id="viewerDialog" class="viewer-dialog">
+        <div class="viewer-shell">
+            <div class="viewer-top">
+                <div>
+                    <h3 id="viewerTitle" style="margin:0">资料查看</h3>
+                    <p id="viewerMeta" style="margin:0; font-size:12px; color:#aaa"></p>
+                </div>
+                <div class="viewer-actions" style="display:flex; gap:8px;">
+                    <button class="btn btn-ghost btn-sm" onclick="viewerZoom(-0.2)">缩小</button>
+                    <button class="btn btn-ghost btn-sm" onclick="viewerZoom(0.2)">放大</button>
+                    <button class="btn btn-ghost btn-sm" id="viewerFullscreen" onclick="PrepLocal.fullscreen()" title="全屏查看"><i class="fas fa-expand"></i></button>
+                    <button class="btn btn-primary btn-sm" onclick="document.getElementById('viewerDialog').close()">关闭</button>
+                </div>
+            </div>
+            <div class="viewer-stage" id="viewerStage">
+                <button class="viewer-pager viewer-pager-left" onclick="viewerPage(-1)" aria-label="上一页">&lt;</button>
+                <div id="viewerBody" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;"></div>
+                <button class="viewer-pager viewer-pager-right" onclick="viewerPage(1)" aria-label="下一页">&gt;</button>
+            </div>
+        </div>
+    </dialog>
+    <dialog id="pairDialog"><div class="dialog-header"><h3>连接备考电脑</h3></div><div class="dialog-body"><form id="pairForm"><label for="pairCode">电脑上的配对码</label><input id="pairCode" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{8}" maxlength="8" required /><p id="pairError" class="form-error" role="alert"></p><button class="btn btn-primary" type="submit">连接</button></form></div></dialog>
+    <dialog id="examDialog"><div class="dialog-header"><h3>考试安排</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()" aria-label="关闭"><i class="fas fa-times"></i></button></div><div class="dialog-body"><form id="calendarExamForm"><input type="hidden" name="id" /><label>考试名称<input type="text" name="title" required /></label><label>考试日期<input type="date" name="date" required /></label><label>考试内容<textarea name="content"></textarea></label><div class="connection-buttons"><button class="btn btn-ghost" type="button" onclick="this.closest('dialog').close()">取消</button><button class="btn btn-primary" type="submit">保存</button></div></form></div></dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script>
+        // ================= 全局状态与存储 =================
+        const DB_NAME = 'KaoyanPrepDB';
+        const STORE_NAME = 'files';
+        const LOCAL_KEY = 'kaoyan-prep-state';
+        const SUBJECTS = ["数学", "英语", "政治", "408", "综合"];
+        
+        // 时间周期基础数据 (从参考代码导入)
+        const DEFAULT_PHASES = [];
+        
+        // 目标院校基础数据 (从参考代码导入)
+        const DEFAULT_SCHOOLS = [];
+        
+        let state = loadState();
+        let chartTotal = null;
+        let chartSubject = null;
+        let currentViewer = { col: '', id: '', idx: 0, zoom: 1 };
+        
+        function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 9); }
+        function escapeHTML(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function currentDate() { return window.PrepLocal?.nowDate() || new Date(); }
+        function extractSubject(text) { if (!text) return "其他"; for (let s of SUBJECTS) { if (text.includes(s)) return s; } return "其他"; }
+        
+        function loadState() {
+            const saved = YantuEnvironment.storage.getItem(LOCAL_KEY);
+            const def = {
+                deviceId: uid(),
+                prepStatus: 'not-started',
+                prepStart: '',
+                examYear: new Date().getFullYear() + 1,
+                tasks: [],
+                calendarEvents: [],
+                timelines: DEFAULT_PHASES,
+                mistakes: [],
+                notes: [],
+                resources: [],
+                moodNotes: [],
+                moodWalls: [],
+                mindmaps: [],
+                papers: [],
+                scores: [],
+                reviews: [],
+                schools: DEFAULT_SCHOOLS
+            };
+            try { return saved ? { ...def, ...JSON.parse(saved) } : def; }
+            catch (_) { return def; }
+        }
+        
+        function saveState() {
+            try {
+                YantuEnvironment.storage.setItem(LOCAL_KEY, JSON.stringify(state));
+            } catch (e) {
+                alert('存储不足！');
+            }
+            window.PrepLocal?.capture();
+        }
+        
+        // ================= IndexedDB =================
+        function openDB() {
+            return new Promise((res, rej) => {
+                const r = indexedDB.open(YantuEnvironment.database(DB_NAME), 1);
+                r.onupgradeneeded = e => e.target.result.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                r.onsuccess = e => res(e.target.result);
+                r.onerror = e => rej(e.target.error);
+            });
+        }
+        
+        async function saveFile(id, blob) {
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).put({ id, blob });
+        }
+        
+        async function getFile(id) {
+            const db = await openDB();
+            return new Promise(res => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const r = tx.objectStore(STORE_NAME).get(id);
+                r.onsuccess = () => res(r.result?.blob);
+            });
+        }
+        
+        async function deleteFile(id) {
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).delete(id);
+        }
+        
+        const $ = id => document.getElementById(id);
+        
+        // ================= 侧边栏与路由 =================
+        function initSidebar() {
+            $('sidebarOverlay').onclick = () => {
+                $('sidebar').classList.remove('open');
+                $('sidebarOverlay').classList.remove('active');
+            };
+            $('toggleSidebar').onclick = () => {
+                if (window.innerWidth <= 768) {
+                    $('sidebar').classList.toggle('open');
+                    $('sidebarOverlay').classList.toggle('active');
+                } else {
+                    $('sidebar').classList.toggle('collapsed');
+                    $('mainContent').classList.toggle('expanded');
+                }
+            };
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                btn.onclick = () => {
+                    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                    $(`view-${btn.dataset.view}`).classList.add('active');
+                    if (window.innerWidth <= 768) {
+                        $('sidebar').classList.remove('open');
+                        $('sidebarOverlay').classList.remove('active');
+                    }
+                    renderView(btn.dataset.view);
+                };
+            });
+        }
+        
+        function renderView(v) {
+            if (v === 'overview') renderOverview();
+            if (v === 'timeline') renderTimeline();
+            if (v === 'scores') renderScores();
+            if (v === 'review') renderReview();
+            if (v === 'mistakes') renderRecords('mistakes', $('mistakeList'), $('mistakeFilter'));
+            if (v === 'resources') {
+                renderRecords('notes', $('noteList'), $('noteFilter'));
+                renderRecords('resources', $('resourceList'), $('resourceFilter'));
+            }
+            if (v === 'papers') renderPapers();
+            if (v === 'schools') renderSchools();
+        }
+        
+        // ================= 通用分类与记录渲染 =================
+        function renderFilterBar(container, records, pathField) {
+            let counts = { all: records.length };
+            SUBJECTS.forEach(s => counts[s] = 0);
+            let oc = 0;
+            records.forEach(r => {
+                let sub = extractSubject(r[pathField]);
+                if (counts[sub] !== undefined) counts[sub]++;
+                else oc++;
+            });
+            counts["其他"] = oc;
+            let html = `<button class="filter-btn active" onclick="filterRecords(this, 'all')">全部 (${counts.all})</button>`;
+            SUBJECTS.forEach(s => { if (counts[s] > 0) html += `<button class="filter-btn" onclick="filterRecords(this, '${s}')">${s} (${counts[s]})</button>`; });
+            if (oc > 0) html += `<button class="filter-btn" onclick="filterRecords(this, '其他')">其他 (${oc})</button>`;
+            container.innerHTML = html;
+        }
+        
+        window.filterRecords = function (btn, key) {
+            btn.parentElement.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            btn.parentElement.dataset.activeFilter = key;
+            const listContainer = btn.parentElement.nextElementSibling;
+            const col = listContainer.dataset.collection;
+            const pathField = (col === 'notes' || col === 'resources') ? 'path' : (col === 'papers' ? 'subject' : 'path');
+            renderRecordList(listContainer, state[col], pathField, key);
+        }
+        
+        function renderRecords(col, listCon, filterCon) {
+            const pathField = (col === 'notes' || col === 'resources') ? 'path' : (col === 'papers' ? 'subject' : 'path');
+            listCon.dataset.collection = col;
+            renderFilterBar(filterCon, state[col], pathField);
+            renderRecordList(listCon, state[col], pathField, 'all');
+        }
+        
+        // 获取列表容器的ID（处理特殊情况）
+        function getListContainerId(col) {
+            if (col === 'mistakes') return 'mistakeList';
+            if (col === 'notes') return 'noteList';
+            if (col === 'resources') return 'resourceList';
+            if (col === 'papers') return 'paperList';
+            return col + 'List';
+        }
+        
+        // 获取过滤器容器的ID（处理特殊情况）
+        function getFilterContainerId(col) {
+            if (col === 'mistakes') return 'mistakeFilter';
+            if (col === 'notes') return 'noteFilter';
+            if (col === 'resources') return 'resourceFilter';
+            if (col === 'papers') return 'paperFilter';
+            return col + 'Filter';
+        }
+        
+        // 重新渲染指定集合
+        function refreshRecords(col) {
+            const listId = getListContainerId(col);
+            const filterId = getFilterContainerId(col);
+            const listCon = $(listId);
+            const filterCon = $(filterId);
+            // 只有当DOM元素存在时才渲染（用户可能不在该视图）
+            if (listCon && filterCon) {
+                renderRecords(col, listCon, filterCon);
+            }
+        }
+        
+        function renderRecordList(container, records, pathField, filter) {
+            let filtered = filter === 'all' ? records : records.filter(r => extractSubject(r[pathField]) === filter);
+            if (!filtered.length) {
+                container.innerHTML = '<div style="color:var(--muted); text-align:center; padding:20px;">暂无记录</div>';
+                return;
+            }
+            if (filter === 'all') {
+                let groups = {};
+                let groupOrder = [...SUBJECTS, '其他'];
+                filtered.forEach(r => {
+                    let sub = extractSubject(r[pathField]);
+                    if (!groups[sub]) groups[sub] = [];
+                    groups[sub].push(r);
+                });
+                let html = '';
+                groupOrder.forEach(sub => {
+                    if (!groups[sub] || !groups[sub].length) return;
+                    html += `<div class="subject-group"><div class="subject-group-header"><span class="badge badge-${sub}">${sub}</span> ${sub} (${groups[sub].length})</div>`;
+                    groups[sub].forEach(r => html += renderRecordCard(r, sub));
+                    html += `</div>`;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = filtered.map(r => renderRecordCard(r, filter)).join('');
+            }
+        }
+        
+        function renderRecordCard(r, sub) {
+            const fileCount = r.files?.length || (r.fileId ? 1 : 0);
+            return `<div class="record-item">
+                <h4><span class="badge badge-${sub}">${sub}</span> ${r.title}</h4>
+                <div class="record-meta">${r.path || r.subject || ''} · ${r.date} · ${fileCount}个附件</div>
+                <div style="margin-top:8px; display:flex; gap:8px;">
+                    ${fileCount > 0 ? `<button class="btn btn-primary btn-sm" onclick="openViewer('${r.id}')"><i class="fas fa-eye"></i> 查看</button>` : ''}
+                    ${fileCount > 0 ? `<button class="btn btn-ghost btn-sm" onclick="downloadRecord('${r.id}')"><i class="fas fa-download"></i> 下载</button>` : ''}
+                    <button class="btn btn-ghost btn-sm" onclick="editRecord('${r.id}')"><i class="fas fa-edit"></i> 修改</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteItem('${r.id}')"><i class="fas fa-trash"></i> 删除</button>
+                </div>
+            </div>`;
+        }
+        
+        // ================= 查看器功能 =================
+        window.openViewer = async function (id) {
+            let rec = findRecord(id);
+            if (!rec) return;
+            let files = rec.files || [];
+            if (rec.fileId) files.push({ id: rec.fileId, name: rec.title + '.pdf', type: 'application/pdf' });
+            if (!files.length) return;
+            currentViewer = { id, idx: 0, zoom: 1 };
+            $('viewerDialog').showModal();
+            renderViewerMedia();
+        };
+        
+        window.viewerPage = function (step) {
+            let rec = findRecord(currentViewer.id);
+            let files = rec.files || (rec.fileId ? [{ id: rec.fileId }] : []);
+            currentViewer.idx = (currentViewer.idx + step + files.length) % files.length;
+            currentViewer.zoom = 1;
+            renderViewerMedia();
+        };
+        
+        window.viewerZoom = function (step) {
+            currentViewer.zoom += step;
+            renderViewerMedia();
+        };
+        
+        async function renderViewerMedia() {
+            let rec = findRecord(currentViewer.id);
+            let files = rec.files || [];
+            if (rec.fileId) files.push({ id: rec.fileId, name: '试卷.pdf', type: 'application/pdf' });
+            let file = files[currentViewer.idx];
+            if (!file) return;
+            $('viewerTitle').textContent = rec.title;
+            $('viewerMeta').textContent = `${currentViewer.idx + 1} / ${files.length} - ${file.name}`;
+            const blob = await getFile(file.id);
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const body = $('viewerBody');
+            if (file.type.startsWith('image/')) body.innerHTML = `<img class="viewer-media" src="${url}" style="transform:scale(${currentViewer.zoom})" />`;
+            else body.innerHTML = `<iframe class="viewer-frame" src="${url}" style="transform:scale(${currentViewer.zoom})"></iframe>`;
+        }
+        
+        window.downloadRecord = async function (id) {
+            let rec = findRecord(id);
+            let files = rec.files || [];
+            if (rec.fileId) files.push({ id: rec.fileId, name: rec.title + '.pdf' });
+            for (let f of files) {
+                const blob = await getFile(f.id);
+                if (blob) downloadBlob(f.name, blob);
+            }
+        };
+        
+        // ================= 真题试卷 =================
+        function renderPapers() { renderRecords('papers', $('paperList'), $('paperFilter')); }
+        
+        function openPaperDialog(id = null) {
+            const form = $('paperForm');
+            form.reset();
+            form.querySelector('[name=id]').value = '';
+            if (id) {
+                const p = state.papers.find(x => x.id === id);
+                if (p) fillForm(form, p);
+            }
+            $('paperDialog').showModal();
+        }
+        
+        $('paperForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd.entries());
+            const file = fd.get('file');
+            if (!data.id) {
+                data.id = uid();
+                data.date = formatDate(currentDate());
+                if (file.name) { data.fileId = uid(); await saveFile(data.fileId, file); }
+                data.files = [];
+                state.papers.unshift(data);
+            } else {
+                const idx = state.papers.findIndex(x => x.id === data.id);
+                if (file.name) { data.fileId = uid(); await saveFile(data.fileId, file); }
+                else { data.fileId = state.papers[idx].fileId; }
+                data.files = state.papers[idx].files || [];
+                data.date = state.papers[idx].date;
+                state.papers[idx] = data;
+            }
+            saveState();
+            $('paperDialog').close();
+            renderPapers();
+        };
+        
+        // ================= 通用记录 CRUD =================
+        function openRecordDialog(col, id = null) {
+            const form = $('recordForm');
+            form.reset();
+            form.querySelector('[name=id]').value = '';
+            form.querySelector('[name=collection]').value = col;
+            $('recordDialogTitle').textContent = {
+                mistakes: '添加错题',
+                notes: '添加笔记',
+                resources: '上传资源'
+            }[col];
+            if (id) {
+                const r = state[col].find(x => x.id === id);
+                if (r) fillForm(form, r);
+            }
+            $('recordDialog').showModal();
+        }
+        
+        $('recordForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd.entries());
+            const col = data.collection;
+            const isNew = !data.id;
+            const files = fd.getAll('files').filter(f => f.name);
+            const storedFiles = [];
+            for (let f of files) {
+                const fid = uid();
+                await saveFile(fid, f);
+                storedFiles.push({ id: fid, name: f.name, type: f.type });
+            }
+            if (!isNew) {
+                const idx = state[col].findIndex(x => x.id === data.id);
+                if (idx >= 0) {
+                    storedFiles.push(...(state[col][idx].files || []));
+                    data.date = state[col][idx].date;
+                }
+                state[col][idx] = { ...data, files: storedFiles };
+            } else {
+                data.id = uid();
+                data.date = formatDate(currentDate());
+                data.files = storedFiles;
+                state[col].unshift(data);
+            }
+            saveState();
+            $('recordDialog').close();
+            refreshRecords(col);
+        };
+        
+        function editRecord(id) {
+            const { record, col } = findRecordWithCol(id);
+            if (record) openRecordDialog(col, id);
+        }
+        
+        window.deleteItem = function (id) {
+            const { record, col } = findRecordWithCol(id);
+            if (!record || !confirm('确定要删除吗？')) return;
+            state[col] = state[col].filter(x => x.id !== id);
+            saveState();
+            refreshRecords(col);
+        };
+        
+        function findRecord(id) {
+            for (let col of ['mistakes', 'notes', 'resources', 'papers']) {
+                const r = state[col].find(x => x.id === id);
+                if (r) return r;
+            }
+            return null;
+        }
+        
+        function findRecordWithCol(id) {
+            for (let col of ['mistakes', 'notes', 'resources', 'papers']) {
+                const r = state[col].find(x => x.id === id);
+                if (r) return { record: r, col };
+            }
+            return { record: null, col: '' };
+        }
+        
+        // ================= 目标院校管理 =================
+        function renderSchools() {
+            if (!state.schools.length) {
+                $('schoolList').innerHTML = '<div style="color:var(--muted); text-align:center; padding:20px;">暂无目标院校</div>';
+                return;
+            }
+            $('schoolList').innerHTML = state.schools.map(s => `
+                <div class="school-card">
+                    <h4><i class="fas fa-university" style="color:var(--accent); margin-right:8px"></i> ${escapeHTML(s.name)}</h4>
+                    <div class="school-info">
+                        <span><strong>复录比:</strong> ${escapeHTML(s.ratio || '待补充')}</span>
+                        <span><strong>初试占比:</strong> ${escapeHTML(s.preWeight || '待补充')}</span>
+                        <span><strong>复试占比:</strong> ${escapeHTML(s.reWeight || '待补充')}</span>
+                    </div>
+                    <div class="school-info">
+                        <span><strong>初试科目:</strong> ${escapeHTML(s.preSubjects || '待补充')}</span>
+                        <span><strong>复试科目:</strong> ${escapeHTML(s.reSubjects || '待补充')}</span>
+                    </div>
+                    ${s.formula ? `<p style="margin-top:8px; font-size:13px; color:var(--muted)">${escapeHTML(s.formula)}</p>` : ''}
+                    <div style="margin-top:12px; display:flex; gap:8px;">
+                        <button class="btn btn-ghost btn-sm" onclick="editSchool('${s.id}')"><i class="fas fa-edit"></i> 修改</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteSchool('${s.id}')"><i class="fas fa-trash"></i> 删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function openSchoolDialog(id = null) {
+            const form = $('schoolForm');
+            form.reset();
+            form.querySelector('[name=id]').value = '';
+            if (id) {
+                const s = state.schools.find(x => x.id === id);
+                if (s) fillForm(form, s);
+            }
+            $('schoolDialog').showModal();
+        }
+        
+        window.editSchool = function (id) { openSchoolDialog(id); };
+        
+        window.deleteSchool = function (id) {
+            if (!confirm('确定要删除此院校吗？')) return;
+            state.schools = state.schools.filter(x => x.id !== id);
+            saveState();
+            renderSchools();
+        };
+        
+        $('schoolForm').onsubmit = (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd.entries());
+            if (!data.id) {
+                data.id = uid();
+                state.schools.push(data);
+            } else {
+                const idx = state.schools.findIndex(x => x.id === data.id);
+                if (idx >= 0) state.schools[idx] = data;
+            }
+            saveState();
+            $('schoolDialog').close();
+            renderSchools();
+        };
+        
+        // ================= 时间周期表功能 =================
+        // 辅助函数：解析时间范围字符串
+        function parseRange(rangeStr) {
+            if (!rangeStr) return { startNum: 0, endNum: 0 };
+            const parts = rangeStr.split('-');
+            const startStr = parts[0].trim();
+            const endStr = (parts[1] || parts[0]).trim();
+            const parseNum = (str) => {
+                const p = str.split('.');
+                if (p.length >= 2) return parseInt(p[0]) * 100 + parseInt(p[1]);
+                return parseInt(p[0]) * 100;
+            };
+            return {
+                startNum: parseNum(startStr),
+                endNum: parseNum(endStr)
+            };
+        }
+        function renderTimeline() {
+            // 完善3：排序逻辑 - 根据起始时间升序（最近的在最上面），起始相同则按终止时间升序
+            state.timelines.sort((a, b) => {
+                const ra = parseRange(a.range);
+                const rb = parseRange(b.range);
+                if (ra.startNum !== rb.startNum) {
+                    return ra.startNum - rb.startNum;
+                }
+                return ra.endNum - rb.endNum;
+            });
+            if (!state.timelines.length) {
+                $('timelineList').innerHTML = '<div style="color:var(--muted); text-align:center; padding:20px;">暂无阶段规划</div>';
+                return;
+            }
+            $('timelineList').innerHTML = state.timelines.map(t => `
+                <article class="timeline-step ${t.completed ? 'is-complete' : ''}">
+                    <div class="timeline-heading">
+                        <div class="timeline-copy">
+                            <div class="timeline-period">
+                                <span>${escapeHTML(t.range)}</span>
+                                <span class="badge ${t.completed ? 'badge-综合' : 'badge-政治'}">${t.completed ? '已完成' : '待完成'}</span>
+                            </div>
+                            <h4>${escapeHTML(t.title)}</h4>
+                            <p class="timeline-goals">${escapeHTML(t.goals)}</p>
+                            <div style="margin-top:10px;">
+                                ${(t.subjects || []).map(s => `<span class="tag">${escapeHTML(s)}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="timeline-actions">
+                            ${!t.completed ? `<button class="btn btn-primary btn-icon" onclick="completeTimeline('${t.id}')" title="完成阶段" aria-label="完成阶段"><i class="fas fa-check"></i></button>` : ''}
+                            <button class="btn btn-ghost btn-icon" onclick="editTimeline('${t.id}')" title="修改阶段" aria-label="修改阶段"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-icon" onclick="deleteTimeline('${t.id}')" title="删除阶段" aria-label="删除阶段"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                </article>
+            `).join('');
+        }
+        function openTimelineDialog(id = null) {
+            const form = $('timelineForm');
+            form.reset();
+            form.querySelector('[name=id]').value = '';
+            if (id) {
+                const t = state.timelines.find(x => x.id === id);
+                if (t) {
+                    fillForm(form, t);
+                    form.querySelector('[name=subjects]').value = (t.subjects || []).join(',');
+                }
+            }
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        window.editTimeline = function (id) { openTimelineDialog(id); };
+        window.resetTimelineForm = function () {
+            const form = $('timelineForm');
+            form.reset();
+            form.querySelector('[name=id]').value = '';
+        };
+        window.deleteTimeline = function (id) {
+            if (!confirm('确定删除此阶段？')) return;
+            state.timelines = state.timelines.filter(x => x.id !== id);
+            saveState();
+            renderTimeline();
+        };
+        // 完善2：标记阶段完成功能
+        window.completeTimeline = function (id) {
+            if (!confirm('确定将此阶段标记为已完成吗？')) return;
+            const t = state.timelines.find(x => x.id === id);
+            if (t) {
+                t.completed = true;
+                saveState();
+                renderTimeline();
+                // 同时更新最近时间段的阶段任务
+                seedTasksFromTimeline();
+            }
+        };
+        // 完善1：仅生成当前最近时间段且未完成的阶段任务
+        window.seedTasksFromTimeline = function () {
+            if (!state.timelines.length) {
+                alert('请先添加阶段规划！');
+                return;
+            }
+            const now = currentDate();
+            const nowNum = now.getFullYear() * 100 + (now.getMonth() + 1);
+            let minDist = Infinity;
+            let currentPhases = [];
+            // 筛选出当前时间最近（正在进行或即将开始）的阶段，包含时间重合情况
+            state.timelines.forEach(phase => {
+                if (phase.completed) return; // 忽略已完成的
+                const ra = parseRange(phase.range);
+                let dist;
+                if (nowNum >= ra.startNum && nowNum <= ra.endNum) {
+                    dist = 0; // 当前正在进行
+                } else if (nowNum < ra.startNum) {
+                    dist = ra.startNum - nowNum; // 未来即将开始
+                } else {
+                    dist = Infinity; // 已经过去
+                }
+                if (dist < minDist) {
+                    minDist = dist;
+                    currentPhases = [phase];
+                } else if (dist === minDist && dist !== Infinity) {
+                    currentPhases.push(phase); // 距离相同则视为重合阶段同时生成
+                }
+            });
+            if (currentPhases.length === 0 || minDist === Infinity) {
+                alert('没有可生成的未完成阶段任务！');
+                return;
+            }
+            const today = formatDate(currentDate());
+            let count = 0;
+            currentPhases.forEach(phase => {
+                (phase.subjects || []).forEach(subject => {
+                    const task = {
+                        id: uid(),
+                        title: `${phase.title}：${subject}`,
+                        subject: extractSubject(subject),
+                        priority: '中',
+                        date: today,
+                        done: false,
+                        fromPhase: phase.range
+                    };
+                    // 避免重复添加
+                    if (!state.tasks.some(t => t.title === task.title && t.fromPhase === task.fromPhase)) {
+                        state.tasks.push(task);
+                        count++;
+                    }
+                });
+            });
+            saveState();
+            alert(`已生成 ${count} 个任务！`);
+            renderOverview();
+        };
+        $('timelineForm').onsubmit = (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd.entries());
+            data.subjects = data.subjects ? data.subjects.split(',').map(s => s.trim()) : [];
+            if (!data.id) {
+                data.id = uid();
+                data.completed = false; // 新增阶段默认未完成
+                state.timelines.push(data);
+            } else {
+                const idx = state.timelines.findIndex(x => x.id === data.id);
+                if (idx >= 0) {
+                    data.completed = state.timelines[idx].completed || false; // 保留原完成状态
+                    state.timelines[idx] = data;
+                }
+            }
+            saveState();
+            resetTimelineForm();
+            renderTimeline();
+        };
+        
+        // ================= 成绩追踪功能 =================
+        function scoreValue(value) {
+            if (value == null || String(value).trim() === '') return null;
+            const number = Number(value);
+            return Number.isFinite(number) ? number : null;
+        }
+        function scoreTotal(score) {
+            return Number(['math', 'english', 'politics', 'major'].reduce((sum, key) => sum + (scoreValue(score[key]) ?? 0), 0).toFixed(2));
+        }
+        function scoreComplete(score) {
+            return ['math', 'english', 'politics', 'major'].every(key => scoreValue(score[key]) !== null);
+        }
+        function renderScores(records = state.scores) {
+            renderScoreCharts(records);
+            renderScoreList(records);
+        }
+        
+        function renderScoreCharts(records = state.scores) {
+            const sorted = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const labels = sorted.map(s => s.date);
+            const totals = sorted.map(score => scoreComplete(score) ? scoreTotal(score) : null);
+            if (chartTotal) chartTotal.destroy();
+            chartTotal = new Chart($('totalScoreChart'), {
+                type: 'line',
+                data: { labels, datasets: [{
+                    label: '总分',
+                    data: totals,
+                    borderColor: '#1f7a63',
+                    backgroundColor: 'rgba(31, 122, 99, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 6,
+                    pointHoverRadius: 10
+                }]},
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        y: { min: 0, max: 500, ticks: { stepSize: 50 } }
+                    }
+                }
+            });
+            if (chartSubject) chartSubject.destroy();
+            chartSubject = new Chart($('subjectScoreChart'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: '数学', data: sorted.map(s => scoreValue(s.math)), borderColor: '#2563eb' },
+                        { label: '英语', data: sorted.map(s => scoreValue(s.english)), borderColor: '#dc2626' },
+                        { label: '政治', data: sorted.map(s => scoreValue(s.politics)), borderColor: '#d97706' },
+                        { label: '408', data: sorted.map(s => scoreValue(s.major)), borderColor: '#7c3aed' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: { y: { min: 0, max: 150, ticks: { stepSize: 30 } } }
+                }
+            });
+        }
+        
+        function renderScoreList(records = state.scores) {
+            if (!records.length) {
+                $('scoreList').innerHTML = '<div style="color:var(--muted); text-align:center; padding:20px;">暂无成绩记录</div>';
+                return;
+            }
+            $('scoreList').innerHTML = records.map(s => {
+                const total = scoreTotal(s);
+                return `
+                    <article class="score-record">
+                        <div class="score-record-header">
+                            <div class="score-record-title">
+                                <strong>${escapeHTML(s.name)}</strong>
+                                <time>${escapeHTML(s.date)}</time>
+                            </div>
+                            <div class="score-record-actions">
+                                <span class="score-record-total">${total}</span>
+                                <button class="btn btn-danger btn-icon" onclick="deleteScore('${s.id}')" title="删除成绩" aria-label="删除成绩"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div class="score-subjects">
+                            <span>数学<strong>${escapeHTML(scoreValue(s.math) ?? '--')}</strong></span>
+                            <span>英语<strong>${escapeHTML(scoreValue(s.english) ?? '--')}</strong></span>
+                            <span>政治<strong>${escapeHTML(scoreValue(s.politics) ?? '--')}</strong></span>
+                            <span>408<strong>${escapeHTML(scoreValue(s.major) ?? '--')}</strong></span>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+        
+        function openScoreDialog(id = null) {
+            const form = $('scoreForm');
+            form.reset();
+            form.querySelector('[name=id]').value = '';
+            if (id) {
+                const s = state.scores.find(x => x.id === id);
+                if (s) fillForm(form, s);
+            }
+            $('scoreDialog').showModal();
+        }
+        
+        window.deleteScore = function (id) {
+            if (!confirm('确定删除此成绩？')) return;
+            state.scores = state.scores.filter(x => x.id !== id);
+            saveState();
+            renderScores();
+        };
+        
+        $('scoreForm').onsubmit = (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd.entries());
+            if (!data.id) {
+                data.id = uid();
+                state.scores.push(data);
+            } else {
+                const idx = state.scores.findIndex(x => x.id === data.id);
+                if (idx >= 0) state.scores[idx] = data;
+            }
+            saveState();
+            $('scoreDialog').close();
+            renderScores();
+        };
+        
+        // ================= 每日复盘功能 =================
+        function renderReview() {
+            if (!$('reviewForm').querySelector('[name=id]').value) $('reviewForm').date.value = formatDate(currentDate());
+            $('reviewList').innerHTML = state.reviews.map(r => `
+                <article class="journal-record">
+                    <h4>${escapeHTML(r.date)} <span>状态 ${r.status == null || r.status === '' ? '未记录' : escapeHTML(r.status) + '/10'}</span></h4>
+                    <p><strong>心得</strong> ${escapeHTML(r.insight || '')}</p>
+                    <p><strong>计划</strong> ${escapeHTML(r.plan || '')}</p>
+                    <div class="journal-actions">
+                        <button class="btn btn-ghost btn-sm" onclick="editReview('${r.id}')"><i class="fas fa-edit"></i> 修改</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteReview('${r.id}')"><i class="fas fa-trash"></i> 删除</button>
+                    </div>
+                </article>
+            `).join('') || '<div style="color:var(--muted); text-align:center; padding:20px;">暂无复盘记录</div>';
+        }
+        
+        window.editReview = function (id) { 
+            const r = state.reviews.find(x => x.id === id); 
+            if (r) {
+                fillForm($('reviewForm'), r);
+                $('reviewForm').elements.namedItem('status').value = r.status ?? '';
+            }
+        }
+        
+        window.resetReviewForm = function () { 
+            $('reviewForm').reset(); 
+            $('reviewForm').querySelector('[name=id]').value = ''; 
+            $('reviewForm').date.value = formatDate(currentDate());
+        }
+        
+        window.deleteReview = function (id) {
+            if (confirm('确定要删除这条复盘记录吗？')) {
+                state.reviews = state.reviews.filter(r => r.id !== id);
+                saveState();
+                renderReview();
+            }
+        };
+        
+        $('reviewForm').onsubmit = (e) => {
+            e.preventDefault(); 
+            const data = Object.fromEntries(new FormData(e.target));
+            if (!data.id) { 
+                data.id = uid(); 
+                state.reviews.unshift(data); 
+            } else { 
+                const idx = state.reviews.findIndex(r => r.id === data.id); 
+                state.reviews[idx] = data; 
+            }
+            saveState(); 
+            resetReviewForm(); 
+            renderReview();
+        };
+        
+        // ================= 总览功能 =================
+        function renderOverview() {
+            autoRefreshTasks();
+            const today = formatDate(currentDate());
+            const todayTasks = state.tasks.filter(t => t.date === today && YantuActivity.taskIsActive(t));
+            const doneTasks = state.tasks.filter(t => t.date === today && YantuActivity.taskStatus(t) === 'done');
+            $('statTodo').textContent = todayTasks.length;
+            $('statDone').textContent = doneTasks.length;
+            const recentScore = [...state.scores].filter(scoreComplete).reverse().sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+            if (recentScore) {
+                const total = scoreTotal(recentScore);
+                $('statScore').textContent = total;
+            } else {
+                $('statScore').textContent = '--';
+            }
+            $('statStatus').textContent = {
+                'not-started': '未开始',
+                'active': '进行中',
+                'paused': '已暂停',
+                'exited': '已退出'
+            }[state.prepStatus] || '未开始';
+            renderTaskList();
+            updatePrepControls();
+        }
+        
+        function renderTaskList() {
+            const today = formatDate(currentDate());
+            // 先检查是否需要自动刷新任务（每天第一次打开时）
+            autoRefreshTasks();
+            
+            // 分离已完成和未完成任务
+            const filter = $('taskActivityFilter')?.value || 'all';
+            const matches = t => t.date === today && (filter === 'all' || YantuActivity.activityType(t) === filter);
+            const undoneTasks = state.tasks.filter(t => matches(t) && YantuActivity.taskIsActive(t)).sort((a, b) => {
+                const p = {高: 0, 中: 1, 低: 2};
+                if (Boolean(a.carried) !== Boolean(b.carried)) return a.carried ? -1 : 1;
+                return p[a.priority] - p[b.priority];
+            });
+            const doneTasks = state.tasks.filter(t => matches(t) && YantuActivity.taskStatus(t) === 'done');
+            const cancelledTasks = state.tasks.filter(t => matches(t) && YantuActivity.taskStatus(t) === 'cancelled');
+            const unknownTasks = state.tasks.filter(t => matches(t) && YantuActivity.taskStatus(t) === 'unknown');
+            
+            let html = '';
+            
+            // 未完成任务栏
+            html += '<div style="margin-bottom:20px;">';
+            html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">';
+            html += '<h4 style="color:var(--accent); display:flex; align-items:center; gap:8px;">';
+            html += '<i class="fas fa-circle-dot"></i> 待完成任务 (' + undoneTasks.length + ')';
+            html += '</h4>';
+            if (undoneTasks.length > 0) {
+                html += '<button class="btn btn-danger btn-sm" onclick="showDeleteConfirm(\'deleteTodayUndoneTasks\', \'确定要删除今日所有待完成任务吗？\')"><i class="fas fa-trash"></i> 一键删除</button>';
+            }
+            html += '</div>';
+            
+            if (!undoneTasks.length) {
+                html += '<div class="empty-state compact"><i class="fas fa-calendar-check" aria-hidden="true"></i>';
+                html += '<p>今天暂无待完成任务</p>';
+                html += '</div>';
+            } else {
+                html += undoneTasks.map(t => `
+                    <div class="task-item" style="${t.isReview ? 'border-left:3px solid var(--warn)' : ''}">
+                        <div>
+                            <label style="display:flex; align-items:center; gap:8px;">
+                                <input type="checkbox" ${t.bridgeReadonly ? 'disabled' : ''} onclick="toggleTask('${t.id}')" />
+                                <span>${escapeHTML(t.title)}</span>
+                                ${t.isReview ? '<span class="badge badge-warn" style="font-size:10px;">复习</span>' : ''}
+                            </label>
+                            <div class="task-meta">
+                                <span class="badge badge-${escapeHTML(t.subject)}">${escapeHTML(t.subject)}</span>
+                                <span>优先级: ${escapeHTML(t.priority)}</span>
+                                <span>${YantuActivity.labels[YantuActivity.activityType(t)]}${YantuActivity.taskStatus(t) === 'in_progress' ? ' · 进行中' : ''}</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')" title="删除任务" aria-label="删除任务"><i class="fas fa-trash"></i> 删除</button>
+                    </div>
+                `).join('');
+            }
+            html += '</div>';
+            
+            // 已完成任务栏
+            html += '<div>';
+            html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">';
+            html += '<h4 style="color:var(--muted); display:flex; align-items:center; gap:8px;">';
+            html += '<i class="fas fa-check-circle"></i> 已完成任务 (' + doneTasks.length + ')';
+            html += '</h4>';
+            if (doneTasks.length > 0) {
+                html += '<button class="btn btn-danger btn-sm" onclick="showDeleteConfirm(\'deleteTodayDoneTasks\', \'确定要删除今日所有已完成任务吗？\')"><i class="fas fa-trash"></i> 一键删除</button>';
+            }
+            html += '</div>';
+            
+            if (!doneTasks.length) {
+                html += '<div style="color:var(--muted); text-align:center; padding:16px; background:#f8faf9; border-radius:8px;">';
+                html += '今日暂无已完成任务';
+                html += '</div>';
+            } else {
+                html += doneTasks.map(t => `
+                    <div class="task-item done">
+                        <div>
+                            <label style="display:flex; align-items:center; gap:8px;">
+                                <input type="checkbox" checked ${t.bridgeReadonly ? 'disabled' : ''} onclick="toggleTask('${t.id}')" />
+                                <span style="text-decoration:line-through; color:var(--muted)">${escapeHTML(t.title)}</span>
+                            </label>
+                            <div class="task-meta">
+                                <span class="badge badge-${escapeHTML(t.subject)}" style="opacity:0.6;">${escapeHTML(t.subject)}</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')" title="删除任务" aria-label="删除任务"><i class="fas fa-trash"></i> 删除</button>
+                    </div>
+                `).join('');
+            }
+            html += '</div>';
+            if (cancelledTasks.length) html += '<details><summary>已取消任务 (' + cancelledTasks.length + ')</summary>' + cancelledTasks.map(t => `<div class="task-item" data-record-id="${escapeHTML(t.id)}"><span>${escapeHTML(t.title)}</span><span class="record-meta">已取消</span></div>`).join('') + '</details>';
+            if (unknownTasks.length) html += '<details><summary>状态未识别 (' + unknownTasks.length + ')</summary>' + unknownTasks.map(t => `<div class="task-item" data-record-id="${escapeHTML(t.id)}"><span>${escapeHTML(t.title)}</span><span class="record-meta">只读 · 状态未识别</span></div>`).join('') + '</details>';
+            
+            $('taskList').innerHTML = html;
+        }
+        
+        // 自动刷新任务：每天第一次打开时执行
+        function autoRefreshTasks() {
+            if (state.prepStatus !== 'active') return;
+            const today = formatDate(currentDate());
+            const lastRefresh = state.lastTaskRefresh || '';
+            
+            if (lastRefresh === today) return; // 今天已经刷新过
+            
+            // 将未完成的任务移到今天
+            const yesterday = formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+            state.tasks.forEach(t => {
+                // 如果任务日期是昨天且未完成，移到今天
+                if (t.date < today && YantuActivity.canCarryTask(t)) {
+                    t.originalDate ||= t.date;
+                    t.date = today;
+                    t.carried = true;
+                }
+            });
+            
+            state.lastTaskRefresh = today;
+            saveState();
+        }
+        
+        // 遗忘曲线复习间隔（第1、3、7天）
+        const CURVE_INTERVALS = [1, 3, 7];
+        
+        window.toggleTask = function (id) {
+            const t = state.tasks.find(x => x.id === id);
+            if (t && !t.bridgeReadonly && YantuActivity.taskStatus(t) !== 'cancelled') {
+                t.taskStatus = YantuActivity.taskStatus(t) === 'done' ? 'todo' : 'done';
+                t.done = t.taskStatus === 'done';
+                if (t.done) t.completedDate = formatDate(currentDate());
+                else delete t.completedDate;
+                
+                // 如果任务完成且开启了遗忘曲线，创建复习任务
+                if (t.done && t.useCurve && !YantuActivity.isObsidianRecord(t)) {
+                    createCurveReviewTasks(t);
+                }
+                
+                saveState();
+                renderOverview();
+            }
+        };
+        
+        // 创建遗忘曲线复习任务
+        function createCurveReviewTasks(task) {
+            const baseDate = new Date(task.date);
+            CURVE_INTERVALS.forEach(days => {
+                const reviewDate = new Date(baseDate);
+                reviewDate.setDate(reviewDate.getDate() + days);
+                
+                // 检查是否已存在相同的复习任务
+                const exists = state.tasks.some(t => 
+                    t.title === task.title && 
+                    t.date === formatDate(reviewDate) && 
+                    t.isReview
+                );
+                
+                if (!exists) {
+                    state.tasks.push({
+                        id: uid(),
+                        title: task.title,
+                        subject: task.subject,
+                        priority: task.priority,
+                        date: formatDate(reviewDate),
+                        done: false,
+                        taskStatus: 'todo',
+                        activityType: YantuActivity.activityType(task),
+                        useCurve: false,
+                        isReview: true,
+                        originalId: task.id
+                    });
+                }
+            });
+        }
+        
+        // 创建任务对话框
+        window.openTaskDialog = function (id = null) {
+            const form = $('taskForm');
+            form.reset();
+            form.querySelector('[name=id]').value = '';
+            form.querySelector('[name=date]').value = formatDate(currentDate());
+            if (id) {
+                const t = state.tasks.find(x => x.id === id);
+                if (t) {
+                    if (t.bridgeReadonly) return;
+                    fillForm(form, t);
+                    form.elements.namedItem('activityType').value = YantuActivity.activityType(t);
+                    form.elements.namedItem('taskStatus').value = YantuActivity.taskStatus(t);
+                }
+            }
+            $('taskDialog').showModal();
+        };
+        
+        window.deleteTask = function (id) {
+            if (!confirm('确定删除此任务？')) return;
+            state.tasks = state.tasks.filter(x => x.id !== id);
+            saveState();
+            renderOverview();
+        };
+        
+        $('taskForm').onsubmit = (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd.entries());
+            const existing = state.tasks.find(t => t.id === data.id);
+            if (existing?.bridgeReadonly) return;
+            data.activityType = YantuActivity.activityType(data);
+            data.done = data.taskStatus === 'done';
+            if (data.startDate && data.deadline && data.startDate > data.deadline) { alert('开始日不能晚于截止日'); return; }
+            if (data.done && !existing?.done) data.completedDate = formatDate(currentDate());
+            data.useCurve = fd.get('useCurve') === '1';
+            if (!data.id) {
+                data.id = uid();
+                state.tasks.push(data);
+            } else {
+                const idx = state.tasks.findIndex(x => x.id === data.id);
+                if (idx >= 0) state.tasks[idx] = { ...state.tasks[idx], ...data };
+            }
+            if (!data.done) delete state.tasks.find(t => t.id === data.id)?.completedDate;
+            for (const key of ['startDate', 'deadline']) if (!fd.get(key)) delete state.tasks.find(t => t.id === data.id)?.[key];
+            saveState();
+            $('taskDialog').close();
+            renderOverview();
+        };
+        
+        // ================= 备考状态控制 =================
+        function updatePrepControls() {
+            const btns = {
+                'not-started': ['btnStartPrep'],
+                'active': ['btnPausePrep', 'btnExitPrep'],
+                'paused': ['btnResumePrep', 'btnExitPrep'],
+                'exited': ['btnStartPrep']
+            };
+            ['btnStartPrep', 'btnPausePrep', 'btnResumePrep', 'btnExitPrep'].forEach(id => $(id).style.display = 'none');
+            btns[state.prepStatus]?.forEach(id => $(id).style.display = 'block');
+        }
+        
+        // 显示状态设置对话框
+        window.showStatusDialog = function () {
+            updateStatusDialog();
+            $('statusDialog').showModal();
+        };
+        
+        // 状态标签映射
+        function statusLabel(status) {
+            return {
+                'not-started': '未开始',
+                'active': '正在备考',
+                'paused': '已暂停',
+                'exited': '已退出'
+            }[status] || '未开始';
+        }
+        
+        // 更新状态对话框显示
+        function updateStatusDialog() {
+            const indicator = $('statusIndicator');
+            const statusText = $('currentStatusText');
+            
+            // 更新状态文本
+            statusText.textContent = statusLabel(state.prepStatus);
+            
+            // 更新状态指示器颜色
+            indicator.style.background = {
+                'not-started': 'var(--muted)',
+                'active': 'var(--accent)',
+                'paused': 'var(--warn)',
+                'exited': 'var(--danger)'
+            }[state.prepStatus] || 'var(--muted)';
+            
+            // 根据当前状态显示/隐藏按钮
+            $('statusBtnStart').style.display = (state.prepStatus === 'not-started' || state.prepStatus === 'exited') ? 'block' : 'none';
+            $('statusBtnPause').style.display = state.prepStatus === 'active' ? 'block' : 'none';
+            $('statusBtnResume').style.display = state.prepStatus === 'paused' ? 'block' : 'none';
+            $('statusBtnRestart').style.display = state.prepStatus === 'exited' ? 'block' : 'none';
+            $('statusBtnExit').style.display = (state.prepStatus === 'active' || state.prepStatus === 'paused') ? 'block' : 'none';
+        }
+        
+        // 开始备考
+        window.statusStart = function () {
+            state.prepStart = state.prepStart || formatDate(currentDate());
+            state.prepStatus = 'active';
+            saveState();
+            updateStatusDialog();
+            updatePrepControls();
+            renderOverview();
+            alert('已开始备考，加油！');
+        };
+        
+        // 暂停备考
+        window.statusPause = function () {
+            state.prepStatus = 'paused';
+            saveState();
+            updateStatusDialog();
+            updatePrepControls();
+            renderOverview();
+            alert('已暂停备考');
+        };
+        
+        // 继续备考
+        window.statusResume = function () {
+            state.prepStatus = 'active';
+            saveState();
+            updateStatusDialog();
+            updatePrepControls();
+            renderOverview();
+            alert('已继续备考');
+        };
+        
+        // 重新开始（从已退出状态）
+        window.statusRestart = function () {
+            state.prepStart = formatDate(currentDate());
+            state.prepStatus = 'active';
+            saveState();
+            updateStatusDialog();
+            updatePrepControls();
+            renderOverview();
+            alert('已重新开始备考，加油！');
+        };
+        
+        // ================= 统一删除确认功能 =================
+        let pendingDeleteAction = null;
+        
+        // 显示删除确认对话框
+        window.showDeleteConfirm = function (action, message) {
+            pendingDeleteAction = action;
+            $('deleteConfirmMessage').textContent = message || '确定要删除吗？此操作不可恢复！';
+            // 重置为第一次确认状态
+            $('deleteFirstConfirm').style.display = 'flex';
+            $('deleteSecondConfirm').style.display = 'none';
+            $('deleteConfirmDialog').showModal();
+        };
+        
+        // 显示第二次确认
+        window.showSecondConfirm = function () {
+            $('deleteFirstConfirm').style.display = 'none';
+            $('deleteSecondConfirm').style.display = 'block';
+        };
+        
+        // 关闭删除确认对话框
+        window.closeDeleteConfirm = function () {
+            pendingDeleteAction = null;
+            // 重置为第一次确认状态
+            $('deleteFirstConfirm').style.display = 'flex';
+            $('deleteSecondConfirm').style.display = 'none';
+            $('deleteConfirmDialog').close();
+        };
+        
+        // 确认删除操作
+        window.confirmDelete = function () {
+            if (!pendingDeleteAction) return;
+            
+            const today = formatDate(currentDate());
+            
+            switch (pendingDeleteAction) {
+                // 删除所有数据
+                case 'deleteAllData':
+                    // 清空所有数据
+                    state.tasks = [];
+                    state.timelines = [];
+                    state.mistakes = [];
+                    state.notes = [];
+                    state.resources = [];
+                    state.mindmaps = [];
+                    state.calendarEvents = [];
+                    state.focusSessions = [];
+                    state.reviewAttempts = [];
+                    state.focusTimer = {minutes: 25, remaining: 1500, running: false, endAt: null};
+                    state.papers = [];
+                    state.scores = [];
+                    state.reviews = [];
+                    state.schools = [];
+                    state.prepStatus = 'not-started';
+                    state.prepStart = '';
+                    state.lastTaskRefresh = '';
+                    saveState();
+                    renderOverview();
+                    renderTimeline();
+                    refreshRecords('mistakes');
+                    refreshRecords('notes');
+                    refreshRecords('resources');
+                    renderPapers();
+                    renderScores();
+                    renderReview();
+                    renderSchools();
+                    updatePrepControls();
+                    alert('已删除所有数据');
+                    break;
+                    
+                // 删除今日待完成任务
+                case 'deleteTodayUndoneTasks':
+                    state.tasks = state.tasks.filter(t => !(t.date === today && YantuActivity.taskIsActive(t)));
+                    saveState();
+                    renderTaskList();
+                    alert('已删除今日所有待完成任务');
+                    break;
+                    
+                // 删除今日已完成任务
+                case 'deleteTodayDoneTasks':
+                    state.tasks = state.tasks.filter(t => !(t.date === today && YantuActivity.taskStatus(t) === 'done'));
+                    saveState();
+                    renderTaskList();
+                    alert('已删除今日所有已完成任务');
+                    break;
+                    
+                // 删除所有时间阶段
+                case 'deleteAllTimelines':
+                    state.timelines = [];
+                    saveState();
+                    renderTimeline();
+                    alert('已删除所有阶段');
+                    break;
+                    
+                // 删除所有错题
+                case 'deleteAllMistakes':
+                    state.mistakes = [];
+                    saveState();
+                    refreshRecords('mistakes');
+                    alert('已删除所有错题');
+                    break;
+                    
+                // 删除所有学习笔记
+                case 'deleteAllNotes':
+                    state.notes = [];
+                    saveState();
+                    refreshRecords('notes');
+                    alert('已删除所有学习笔记');
+                    break;
+                    
+                // 删除所有电子资料
+                case 'deleteAllResources':
+                    state.resources = [];
+                    saveState();
+                    refreshRecords('resources');
+                    alert('已删除所有电子资料');
+                    break;
+                    
+                // 删除所有试卷
+                case 'deleteAllPapers':
+                    state.papers = [];
+                    saveState();
+                    renderPapers();
+                    alert('已删除所有试卷');
+                    break;
+                    
+                // 删除所有成绩
+                case 'deleteAllScores':
+                    state.scores = [];
+                    saveState();
+                    renderScores();
+                    alert('已删除所有成绩记录');
+                    break;
+                    
+                // 删除所有复盘
+                case 'deleteAllReviews':
+                    state.reviews = [];
+                    saveState();
+                    renderReview();
+                    alert('已删除所有复盘记录');
+                    break;
+                    
+                // 删除所有院校
+                case 'deleteAllSchools':
+                    state.schools = [];
+                    saveState();
+                    renderSchools();
+                    alert('已删除所有院校');
+                    break;
+            }
+            
+            closeDeleteConfirm();
+        };
+        
+        // 从状态对话框打开结束确认
+        window.showExitConfirmFromStatus = function () {
+            $('statusDialog').close();
+            $('exitConfirmDialog').showModal();
+        };
+        
+        function togglePrep(status) {
+            state.prepStatus = status;
+            if (status === 'active' && !state.prepStart) {
+                state.prepStart = formatDate(currentDate());
+            }
+            saveState();
+            updatePrepControls();
+            renderOverview();
+        }
+        
+        // 显示结束备考确认对话框
+        window.showExitConfirm = function () {
+            $('exitConfirmDialog').showModal();
+        };
+        
+        function exitPrep(clearData = false) {
+            $('exitConfirmDialog').close();
+            
+            if (clearData) {
+                // 清空所有数据并重置状态
+                state.prepStatus = 'not-started';
+                state.prepStart = '';
+                state.tasks = [];
+                state.timelines = [];
+                state.mistakes = [];
+                state.notes = [];
+                state.resources = [];
+                state.mindmaps = [];
+                state.calendarEvents = [];
+                state.focusTimer = {minutes: 25, remaining: 1500, running: false, endAt: null};
+                state.papers = [];
+                state.scores = [];
+                state.reviews = [];
+                state.schools = [];
+                alert('已清空所有数据并重置');
+            } else {
+                // 保留数据，标记为已退出
+                state.prepStatus = 'exited';
+                alert('已结束备考，数据已保留');
+            }
+            
+            saveState();
+            updatePrepControls();
+            renderOverview();
+        }
+        
+        // ================= 提醒功能 =================
+        const MAIL_SETTINGS_KEY = 'nebula-yantu-email-settings-v1';
+        let emailSettings = {};
+        try { emailSettings = JSON.parse(YantuEnvironment.storage.getItem(MAIL_SETTINGS_KEY) || '{}') || {}; } catch (_) {}
+        let {
+            publicKey: EMAILJS_PUBLIC_KEY = '',
+            serviceId: EMAILJS_SERVICE_ID = '',
+            templateTask: EMAILJS_TEMPLATE_TASK = '',
+            templateReview: EMAILJS_TEMPLATE_REVIEW = '',
+        } = emailSettings;
+        function emailConfigured() { return Boolean(EMAILJS_PUBLIC_KEY && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY' && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_TASK && typeof emailjs !== 'undefined'); }
+
+        // 初始化EmailJS
+        (function initEmailJS() {
+            if (emailConfigured()) {
+                emailjs.init(EMAILJS_PUBLIC_KEY);
+            }
+        })();
+        const mailFields = [...document.querySelectorAll('[data-email-field]')];
+        for (const field of mailFields) field.value = emailSettings[field.dataset.emailField] || '';
+        document.getElementById('nebulaSaveEmail').onclick = () => {
+            const next = Object.fromEntries(mailFields.map(field => [field.dataset.emailField, field.value.trim()]));
+            const core = [next.publicKey, next.serviceId, next.templateTask];
+            const status = document.getElementById('nebulaEmailStatus');
+            if (core.some(Boolean) && !core.every(Boolean)) {
+                status.textContent = '请同时填写 Key、服务和提醒模板，或者清空以停用。';
+                return;
+            }
+            try { YantuEnvironment.storage.setItem(MAIL_SETTINGS_KEY, JSON.stringify(next)); }
+            catch (_) { status.textContent = '本机浏览器无法保存设置。'; return; }
+            EMAILJS_PUBLIC_KEY = next.publicKey;
+            EMAILJS_SERVICE_ID = next.serviceId;
+            EMAILJS_TEMPLATE_TASK = next.templateTask;
+            EMAILJS_TEMPLATE_REVIEW = next.templateReview;
+            if (emailConfigured()) emailjs.init(EMAILJS_PUBLIC_KEY);
+            status.textContent = emailConfigured() ? '连接已保存，可发送测试提醒。' : '邮件服务已停用。';
+        };
+
+        // 发送邮件底层逻辑
+        function sendReminderEmail(toEmail, subject, content) {
+            if (!toEmail || !state.reminderSettings?.enabled) return;
+            if (!emailConfigured()) {
+                console.warn('EmailJS未配置，邮件发送跳过');
+                return;
+            }
+            const templateParams = {
+                to_email: toEmail,
+                subject: subject,
+                message: content
+            };
+            emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_TASK, templateParams)
+                .then(() => { console.log('邮件发送成功:', subject); })
+                .catch(err => { console.error('邮件发送失败:', err); });
+        }
+
+        // 显示提醒设置对话框
+        window.showReminderSettings = function () {
+            const settings = state.reminderSettings || {
+                enabled: false,
+                morning: '06:00',
+                noon: '12:00',
+                evening: '18:00',
+                tasks: true,
+                review: true,
+                special: true,
+                restDayMode: 'auto',
+                customRestDays: [],
+                email: ''
+            };
+            
+            $('reminderEnabled').checked = settings.enabled;
+            $('reminderMorning').value = settings.morning;
+            $('reminderNoon').value = settings.noon;
+            $('reminderEvening').value = settings.evening;
+            $('reminderTasks').checked = settings.tasks;
+            $('reminderReview').checked = settings.review;
+            $('reminderSpecial').checked = settings.special;
+            $('restDayMode').value = settings.restDayMode;
+            $('reminderEmail').value = settings.email || '';
+            $('syncSavePath').value = settings.syncFolderName || '';
+            
+            // 显示/隐藏自定义休息日
+            $('customRestDays').style.display = settings.restDayMode === 'custom' ? 'block' : 'none';
+            
+            // 设置自定义休息日勾选
+            document.querySelectorAll('input[name="restDay"]').forEach(el => {
+                el.checked = settings.customRestDays.includes(parseInt(el.value));
+            });
+            
+            $('reminderDialog').showModal();
+        };
+        
+        // 休息日模式切换
+        document.addEventListener('DOMContentLoaded', () => {
+            $('restDayMode')?.addEventListener('change', function() {
+                $('customRestDays').style.display = this.value === 'custom' ? 'block' : 'none';
+            });
+        });
+        
+        // 保存提醒设置
+        window.saveReminderSettings = function () {
+            const customRestDays = Array.from(document.querySelectorAll('input[name="restDay"]:checked'))
+                .map(el => parseInt(el.value));
+            
+            state.reminderSettings = {
+                ...state.reminderSettings,
+                enabled: $('reminderEnabled').checked,
+                morning: $('reminderMorning').value,
+                noon: $('reminderNoon').value,
+                evening: $('reminderEvening').value,
+                tasks: $('reminderTasks').checked,
+                review: $('reminderReview').checked,
+                special: $('reminderSpecial').checked,
+                restDayMode: $('restDayMode').value,
+                customRestDays: customRestDays,
+                email: $('reminderEmail').value.trim(),
+                syncFolderName: $('syncSavePath').value.trim()
+            };
+            
+            saveState();
+            
+            // 如果开启提醒，初始化定时任务
+            if (state.reminderSettings.enabled) {
+                setupReminders();
+            }
+            
+            $('reminderDialog').close();
+            if (window.PrepLocal) PrepLocal.toast('提醒设置已保存');
+            if (window.PrepPush) PrepPush.refresh();
+        };
+        
+        // 判断是否是休息日
+        function isRestDay(date = currentDate()) {
+            const settings = state.reminderSettings || {};
+            const dayOfWeek = window.PrepLocal ? PrepLocal.weekday(date) : date.getDay();
+            
+            if (settings.restDayMode === 'custom') {
+                return settings.customRestDays?.includes(dayOfWeek) || false;
+            }
+            
+            // 自动模式：5天学习2天休息，默认周六日休息
+            return dayOfWeek === 0 || dayOfWeek === 6;
+        }
+        
+        // 测试邮件发送
+        window.testReminderEmail = function () {
+            const email = $('reminderEmail').value.trim();
+            if (!email) {
+                alert('请先输入邮箱地址！');
+                return;
+            }
+            const today = formatDate(currentDate());
+            const tasks = state.tasks.filter(t => t.date === today && YantuActivity.taskIsActive(t));
+            const taskList = tasks.length > 0
+                ? tasks.map(t => t.title).join('\n')
+                : '（当前没有未完成任务，这是测试邮件）';
+            const subject = '今日未完成任务提醒（测试）';
+            const body = `主人主人，今天您还有以下任务还没有完成哦！！！小研会继续默默的督促主人哒(ฅ´ωฅ)\n\n${taskList}`;
+            
+            if (!emailConfigured()) {
+                alert('邮件服务尚未配置，请使用提醒通知中的电脑推送');
+                return;
+            }
+            emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_TASK, {
+                to_email: email,
+                subject: subject,
+                message: body
+            }).then(() => {
+                alert('测试邮件发送成功！请检查邮箱：' + email);
+            }).catch(err => {
+                alert('邮件发送失败：' + (err.text || err.message || JSON.stringify(err)));
+            });
+        };
+        
+        // ===== 数据同步保存路径管理（File System Access API）=====
+        const SYNC_DB_NAME = 'YantuSyncDB';
+        const SYNC_STORE_NAME = 'dirHandles';
+
+        function openSyncDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(YantuEnvironment.database(SYNC_DB_NAME), 1);
+                req.onupgradeneeded = () => req.result.createObjectStore(SYNC_STORE_NAME);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function saveDirHandle(handle) {
+            const db = await openSyncDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(SYNC_STORE_NAME, 'readwrite');
+                tx.objectStore(SYNC_STORE_NAME).put(handle, 'syncDir');
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function getDirHandle() {
+            const db = await openSyncDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(SYNC_STORE_NAME, 'readonly');
+                const req = tx.objectStore(SYNC_STORE_NAME).get('syncDir');
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function verifyDirPermission(handle) {
+            if (!handle) return false;
+            try {
+                if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
+                return (await handle.requestPermission({ mode: 'readwrite' })) === 'granted';
+            } catch { return false; }
+        }
+
+        // 选择同步保存文件夹
+        window.selectSyncFolder = async function () {
+            if (!window.showDirectoryPicker) {
+                alert('当前浏览器不支持文件夹选择功能，请使用 Chrome 或 Edge 浏览器');
+                return;
+            }
+            try {
+                const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                await saveDirHandle(handle);
+                $('syncSavePath').value = handle.name;
+                state.reminderSettings = state.reminderSettings || {};
+                state.reminderSettings.syncFolderName = handle.name;
+                saveState();
+                alert('保存路径设置成功：' + handle.name);
+            } catch (e) {
+                if (e.name !== 'AbortError') alert('选择文件夹失败：' + e.message);
+            }
+        };
+
+        // 自动写入文件到已配置的目录
+        async function autoSaveSyncFile(compressed, fileName) {
+            const handle = await getDirHandle();
+            if (!handle) return false;
+            const permitted = await verifyDirPermission(handle);
+            if (!permitted) return false;
+            try {
+                const fileHandle = await handle.getFileHandle(fileName, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(compressed);
+                await writable.close();
+                return true;
+            } catch (e) {
+                console.error('自动保存失败:', e);
+                return false;
+            }
+        }
+
+        // 测试数据同步邮件
+        window.testSyncEmail = function () {
+            const email = $('reminderEmail').value.trim();
+            if (!email) {
+                alert('请先输入邮箱地址！');
+                return;
+            }
+            
+            // 生成并下载txt文件
+            const { compressed, today } = downloadSyncTxtFile();
+            
+            const subject = `研途备考数据同步 - ${today}（测试）`;
+            const body = `主人~，这是今日的备考数据同步备份哦\n\n导出时间：${currentDate().toLocaleString()}\n设备ID：${state.deviceId}\n\n【使用说明】\n1. 复制下方【同步数据】与【结束标记】之间的所有内容\n2. 在另一台设备上打开研途备考助手\n3. 进入数据管理 → 导入数据\n4. 粘贴内容即可恢复数据\n\n【同步数据】\n${compressed}\n【结束标记】`;
+            
+            if (!emailConfigured()) {
+                alert('邮件服务尚未配置，数据文件已保留，请使用完整备份');
+                return;
+            }
+            emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_TASK, {
+                to_email: email,
+                subject: subject,
+                message: body
+            }).then(() => {
+                alert('数据同步邮件发送成功！txt文件已下载，请检查邮箱：' + email);
+            }).catch(err => {
+                alert('邮件发送失败：' + (err.text || err.message || JSON.stringify(err)));
+            });
+        };
+
+        // 判断是否需要发送提醒（休息日但有任务时仍发送）
+        function shouldSendReminder() {
+            if (state.prepStatus !== 'active') return false;
+            const settings = state.reminderSettings || {};
+            if (!settings.enabled) return false;
+            
+            // 如果不是休息日，发送提醒
+            if (!isRestDay()) return true;
+            
+            // 休息日：检查是否有未完成任务
+            const today = formatDate(currentDate());
+            const undoneTasks = state.tasks.filter(t => t.date === today && YantuActivity.taskIsActive(t));
+            return undoneTasks.length > 0;
+        }
+        
+        // 设置提醒定时器
+        function setupReminders() {
+            const settings = state.reminderSettings || {};
+            
+            // 清除现有定时器
+            if (window.reminderTimer) clearInterval(window.reminderTimer);
+            
+            if (!settings.enabled) return;
+            
+            // 记录已发送的提醒，防止同一分钟重复发送
+            const sentReminders = {};
+            
+            // 每分钟检查一次
+            window.reminderTimer = setInterval(() => {
+                if (state.prepStatus !== 'active') return;
+                const now = currentDate();
+                const currentTime = window.PrepLocal ? PrepLocal.timeText().slice(0, 5) : now.toTimeString().slice(0, 5);
+                const dateKey = formatDate(now);
+                
+                // 检查三次任务提醒时间（上午6:00、下午12:00、晚上22:00）
+                if ([settings.morning, settings.noon, settings.evening].includes(currentTime)) {
+                    const reminderKey = `task_${dateKey}_${currentTime}`;
+                    if (!sentReminders[reminderKey] && shouldSendReminder() && settings.tasks) {
+                        sentReminders[reminderKey] = true;
+                        sendTaskReminder();
+                    }
+                }
+                
+                // 复盘提醒（21:00）
+                if (currentTime === '21:00') {
+                    const reminderKey = `review_${dateKey}`;
+                    if (!sentReminders[reminderKey] && settings.review) {
+                        sentReminders[reminderKey] = true;
+                        sendReviewReminder();
+                    }
+                }
+                
+                // 特殊日期提醒
+                if (settings.special) {
+                    const reminderKey = `special_${dateKey}`;
+                    if (!sentReminders[reminderKey]) {
+                        sentReminders[reminderKey] = true;
+                        checkSpecialDates();
+                    }
+                }
+                
+                // 每日数据同步（23:00）
+                if (currentTime === '23:00') {
+                    const reminderKey = `sync_${dateKey}`;
+                    if (!sentReminders[reminderKey] && settings.email) {
+                        sentReminders[reminderKey] = true;
+                        sendDailySyncEmail();
+                    }
+                }
+            }, 60000);
+        }
+        
+        // 发送任务提醒
+        function sendTaskReminder() {
+            const today = formatDate(currentDate());
+            const tasks = state.tasks.filter(t => t.date === today && YantuActivity.taskIsActive(t));
+            
+            if (tasks.length === 0) return;
+            
+            const taskList = tasks.map(t => t.title).join('\n');
+            const subject = '今日未完成任务提醒';
+            const body = `主人主人，今天您还有以下任务还没有完成哦！！！小研会继续默默的督促主人哒(ฅ´ωฅ)\n\n${taskList}`;
+            
+            // 发送浏览器通知
+            sendNotification(subject, body);
+            
+            // 发送邮件提醒
+            const email = state.reminderSettings?.email;
+            if (email) {
+                sendReminderEmail(email, subject, body);
+            }
+        }
+        
+        // 发送复盘提醒
+        function sendReviewReminder() {
+            const subject = '今日复盘提醒';
+            const body = '主人~，今日复盘任务有没有完成啊，记得完成今日复盘哦(ฅ´ωฅ)`';
+            
+            // 发送浏览器通知
+            sendNotification(subject, body);
+            
+            // 发送邮件提醒
+            const email = state.reminderSettings?.email;
+            if (email) {
+                sendReminderEmail(email, subject, body);
+            }
+        }
+        
+        // 生成同步数据txt文本并触发下载
+        function downloadSyncTxtFile() {
+            const data = {
+                version: 1,
+                deviceId: state.deviceId,
+                exportTime: currentDate().toISOString(),
+                state: {
+                    prepStatus: state.prepStatus,
+                    prepStart: state.prepStart,
+                    tasks: state.tasks,
+                    calendarEvents: state.calendarEvents,
+                    timelines: state.timelines,
+                    mistakes: state.mistakes,
+                    notes: state.notes,
+                    resources: state.resources,
+                    papers: state.papers,
+                    scores: state.scores,
+                    reviews: state.reviews,
+                    schools: state.schools
+                }
+            };
+            const compressed = LZString.compressToBase64(JSON.stringify(data));
+            const today = formatDate(currentDate());
+            const fileName = `研途备考数据同步_${today}.txt`;
+            const blob = new Blob([compressed], { type: 'text/plain;charset=utf-8' });
+            downloadBlob(fileName, blob);
+            return { compressed, today, fileName };
+        }
+
+        // 每日数据同步邮件（23:00）
+        async function sendDailySyncEmail() {
+            const email = state.reminderSettings?.email;
+            
+            // 生成同步数据
+            const data = {
+                version: 1,
+                deviceId: state.deviceId,
+                exportTime: currentDate().toISOString(),
+                state: {
+                    prepStatus: state.prepStatus,
+                    prepStart: state.prepStart,
+                    tasks: state.tasks,
+                    calendarEvents: state.calendarEvents,
+                    timelines: state.timelines,
+                    mistakes: state.mistakes,
+                    notes: state.notes,
+                    resources: state.resources,
+                    papers: state.papers,
+                    scores: state.scores,
+                    reviews: state.reviews,
+                    schools: state.schools
+                }
+            };
+            const compressed = LZString.compressToBase64(JSON.stringify(data));
+            const today = formatDate(currentDate());
+            const fileName = `研途备考数据同步_${today}.txt`;
+            
+            // 优先尝试自动保存到配置目录
+            const autoSaved = await autoSaveSyncFile(compressed, fileName);
+            if (autoSaved) {
+                console.log('数据已自动保存到配置目录');
+            } else if (state.reminderSettings?.syncFolderName) {
+                // 配置了路径但权限失效，回退到普通下载
+                console.log('目录权限已失效，回退到普通下载');
+                const blob = new Blob([compressed], { type: 'text/plain;charset=utf-8' });
+                await downloadBlob(fileName, blob);
+            }
+            
+            // 发送邮件备份
+            if (email && state.reminderSettings?.enabled && emailConfigured()) {
+                const subject = `研途备考数据同步 - ${today}`;
+                const body = `主人~，这是今日的备考数据同步备份哦\n\n导出时间：${currentDate().toLocaleString()}\n设备ID：${state.deviceId}\n\n【使用说明】\n1. 复制下方【同步数据】与【结束标记】之间的所有内容\n2. 在另一台设备上打开研途备考助手\n3. 进入数据管理 → 导入数据\n4. 粘贴内容即可恢复数据\n\n【同步数据】\n${compressed}\n【结束标记】`;
+                emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_TASK, {
+                    to_email: email,
+                    subject: subject,
+                    message: body
+                }).then(() => { console.log('数据同步邮件发送成功'); })
+                  .catch(err => { console.error('数据同步邮件发送失败:', err); });
+            }
+        }
+
+        // 检查特殊日期
+        function checkSpecialDates() {
+            const today = currentDate();
+            const month = today.getMonth() + 1;
+            const day = today.getDate();
+            
+            // 考研相关特殊日期
+            const specialDates = [
+                { month: 9, day: 24, title: '考研预报名', desc: '考研预报名开始' },
+                { month: 10, day: 10, title: '考研正式报名', desc: '考研正式报名开始' },
+                { month: 11, day: 10, title: '报名确认', desc: '考研报名确认开始' },
+                { month: 12, day: 14, title: '准考证打印', desc: '准考证开始打印' },
+                { month: 12, day: 21, title: '考研初试', desc: '考研初试开始！' }
+            ];
+            
+            const matched = specialDates.find(d => d.month === month && d.day === day);
+            if (matched) {
+                sendNotification(matched.title, matched.desc);
+            }
+        }
+        
+        // 发送通知
+        function sendNotification(title, body) {
+            // 浏览器通知API
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, { body });
+            } else if ('Notification' in window && Notification.permission !== 'denied') {
+                Notification.requestPermission().then(perm => {
+                    if (perm === 'granted') {
+                        new Notification(title, { body });
+                    }
+                });
+            }
+            
+            // 备用提醒方式（alert）
+            alert(`${title}\n${body}`);
+        }
+        
+        // 页面加载时初始化提醒
+        document.addEventListener('DOMContentLoaded', () => {
+            if (state.reminderSettings?.enabled) {
+                setupReminders();
+            }
+        });
+        
+        // ================= 数据导出导入 =================
+        function exportData() {
+            const data = {
+                version: 1,
+                deviceId: state.deviceId,
+                exportTime: currentDate().toISOString(),
+                state: {
+                    prepStatus: state.prepStatus,
+                    prepStart: state.prepStart,
+                    tasks: state.tasks,
+                    calendarEvents: state.calendarEvents,
+                    timelines: state.timelines,
+                    mistakes: state.mistakes,
+                    notes: state.notes,
+                    resources: state.resources,
+                    papers: state.papers,
+                    scores: state.scores,
+                    reviews: state.reviews,
+                    schools: state.schools
+                }
+            };
+            const compressed = LZString.compressToBase64(JSON.stringify(data));
+            const blob = new Blob([compressed], { type: 'text/plain' });
+            downloadBlob('kaoyan-data.txt', blob);
+        }
+        
+        function downloadBlob(name, blob) {
+            if (window.NebulaDownloads) return NebulaDownloads.blob(name, blob);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function fillForm(form, data) {
+            Object.keys(data).forEach(key => {
+                const el = form.querySelector(`[name="${key}"]`);
+                if (!el || el.type === 'file') return;
+                if (el.type === 'checkbox') el.checked = Boolean(data[key]);
+                else el.value = data[key] ?? '';
+            });
+        }
+        
+        // ================= 数据导入功能 =================
+        // 显示导入对话框
+        window.showImportDialog = function () {
+            $('importDataInput').value = '';
+            $('importFileInput').value = '';
+            $('importDialog').showModal();
+        };
+        
+        // 处理文件上传导入
+        window.handleImportFile = function (fileInput) {
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const content = e.target.result.trim();
+                $('importDataInput').value = content;
+                // 自动触发导入
+                importData();
+            };
+            reader.onerror = function () {
+                alert('文件读取失败，请重试');
+            };
+            reader.readAsText(file);
+        };
+        
+        // 导入数据
+        window.importData = function () {
+            const input = $('importDataInput').value.trim();
+            if (!input) {
+                alert('请输入要导入的数据');
+                return;
+            }
+            try {
+                const decompressed = LZString.decompressFromBase64(input);
+                const importData = JSON.parse(decompressed);
+                
+                if (!importData.state) {
+                    alert('无效的数据格式');
+                    return;
+                }
+                
+                // 合并数据
+                Object.keys(importData.state).forEach(key => {
+                    if (Array.isArray(importData.state[key]) && Array.isArray(state[key])) {
+                        const existingIds = new Set(state[key].map(item => item.id));
+                        importData.state[key].forEach(item => {
+                            if (!existingIds.has(item.id)) {
+                                state[key].push(item);
+                            }
+                        });
+                    }
+                });
+                
+                saveState();
+                alert('数据导入成功！');
+                $('importDialog').close();
+                renderOverview();
+            } catch (e) {
+                alert('导入失败：' + e.message);
+            }
+        };
+        
+        function formatDate(date) {
+            if (window.PrepLocal) return PrepLocal.dateText(date);
+            return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(date);
+        }
+        
+        // ================= 倒计时 =================
+        function updateCountdown() {
+            const year = parseInt($('examYear').value);
+            const dateString = state.examDate || `${year}-12-21`;
+            const examDate = new Date(`${dateString}T00:00:00+08:00`);
+            const now = currentDate();
+            const diff = Math.ceil((examDate - now) / (1000 * 60 * 60 * 24));
+            $('countdownDays').textContent = diff >= 0 ? diff : 0;
+            $('examDateText').textContent = '预计初试日期';
+            $('examDateInput').value = dateString;
+        }
+        
+        $('examYear').addEventListener('change', () => { state.examYear = parseInt($('examYear').value); state.examDate = `${state.examYear}-12-21`; saveState(); updateCountdown(); });
+        $('examDateInput').addEventListener('change', () => { state.examDate = $('examDateInput').value; saveState(); updateCountdown(); });
+        
+        // ================= 初始化 =================
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (window.PrepLocal) await PrepLocal.boot();
+            initSidebar();
+            $('examYear').value = state.examYear;
+            updateCountdown();
+            renderOverview();
+            updatePrepControls();
+            window.PrepLocal?.ready();
+        });
+    </script>
+    <dialog id="deviceSettings">
+        <div class="dialog-header"><h3>本机 API 与电脑连接</h3><button class="btn btn-icon" onclick="this.closest('dialog').close()" title="返回" aria-label="返回"><i class="fas fa-xmark"></i></button></div>
+        <form id="deviceSettingsForm" class="dialog-body">
+            <label>本机 API 地址<input name="apiUrl" type="url" placeholder="https://服务地址/v1" required /></label>
+            <label>本机 API 模型<input name="apiModel" autocomplete="off" required /></label>
+            <label>本机 API 密钥<input name="apiKey" type="password" autocomplete="new-password" /></label>
+            <label class="assistant-checkbox"><input name="clearKey" type="checkbox" /> 删除本机密钥</label>
+            <label class="assistant-checkbox"><input name="cloudConsent" type="checkbox" /> 允许将学习资料和对话发送到所填 API 服务</label>
+            <label>电脑同步网址<input name="pcUrl" type="url" /></label>
+            <label>电脑配对码<input name="pcCode" inputmode="numeric" maxlength="8" autocomplete="off" /></label>
+            <div class="dialog-actions"><button id="deviceConnectPC" type="button" class="btn btn-ghost" onclick="StudyAI.connectPC()"><i class="fas fa-link"></i> 连接电脑</button><button class="btn btn-ghost" type="button" onclick="this.closest('dialog').close()">返回</button><button class="btn btn-primary" type="submit">保存本机 API</button></div>
+        </form>
+    </dialog>
+    <script src="device-store.js"></script>
+    <script src="workspace-schema.js"></script>
+    <script src="local-runtime.js"></script>
+    <script src="phone-runtime.js?v=20261015.2"></script>
+    <script src="mood-runtime.js"></script>
+    <script src="device-assistant.js"></script>
+    <script src="assistant-runtime.js"></script>
+    <script src="studio-runtime.js"></script>
+    <script src="resource-order.js"></script>
+    <script src="study-library.js"></script>
+    <script src="gradebook-runtime.js"></script>
+    <script src="reliability.js"></script>
+    <script src="study-flow.js"></script>
+    <script src="study-report.js"></script>
+    <script src="annotation-text.js"></script>
+    <script src="annotation-selection.js"></script>
+    <script src="media-preview.js"></script>
+    <script src="media-workspace.js"></script>
+    <script src="offline-safety.js"></script>
+    <script src="workspace-core.js"></script>
+    <script src="reading-workspace.js"></script>
+    <script src="reading-import.js"></script>
+    <script src="school-library.js"></script>
+    <link rel="stylesheet" href="school-library.css" />
+    <script src="restore-ui.js"></script>
+    <script src="connection-diagnostics.js"></script>
+    <script src="rich-notes.js"></script>
+    <script src="capture-inbox.js"></script>
+    <script src="workspace-search.js"></script>
+    <script src="review-cards.js"></script>
+    <script src="knowledge-board.js"></script>
+    <link rel="stylesheet" href="knowledge-board.css" />
+    <script src="practice-workspace.js"></script>
+    <link rel="stylesheet" href="practice-workspace.css" />
+    <script src="storage-workspace.js"></script>
+    <link rel="stylesheet" href="storage-workspace.css" />
+    <script src="planning-score-adapter.js"></script>
+    <script src="planning-workspace.js"></script>
+    <link rel="stylesheet" href="planning-workspace.css" />
+    <script src="exam-workspace.js"></script>
+    <link rel="stylesheet" href="exam-workspace.css" />
+    <script>
+        ExamWorkspace.configure({openAttachment: async (session, file, anchor) => {
+            const index = session.files.findIndex(item => item.id === file.id);
+            if (file.type?.startsWith('image/') || file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+                return ReaderWorkspace.openSnapshot(session, index, anchor?.page, anchor);
+            }
+            downloadBlob(file.name || '原件', await getFile(file.id));
+        }});
+    </script>
+    <script src="subject-tools.js"></script>
+    <link rel="stylesheet" href="subject-tools.css" />
+    <script src="desktop-runtime.js"></script>
+    <link rel="stylesheet" href="desktop-runtime.css" />
+    <script>
+        addEventListener('workspace-ready', () => {
+            const panel = document.createElement('section');
+            panel.id = 'desktopRuntimePanel';
+            panel.hidden = true;
+            document.getElementById('view-connection').append(panel);
+            YantuDesktopRuntime.mount(panel);
+        }, {once: true});
+    </script>
+    <link rel="stylesheet" href="workbench-experience.css" />
+    <link rel="stylesheet" href="assistant-workspace.css" />
+    <script src="assistant-workspace.js"></script>
+    <script src="assistant-integration.js"></script>
+    <script src="workbench-experience.js"></script>
+    <script src="resource-library.js"></script>
+    <script src="resource-backup.js"></script>
+    <link rel="stylesheet" href="obsidian-bridge.css" />
+    <script src="obsidian-bridge.js"></script>
+    <dialog id="download-settings">
+        <div class="dialog-header"><h3>研途 · 下载位置</h3></div>
+        <div class="dialog-body">
+            <p>附件下载和导出使用所选文件夹。研途的学习库仍由本机服务单独保存。</p>
+            <p role="status"></p>
+            <div class="connection-buttons">
+                <button type="button" class="btn btn-primary" data-pick-folder>选择文件夹</button>
+                <button type="button" class="btn btn-ghost" data-clear-folder>使用浏览器设置</button>
+                <form method="dialog"><button class="btn btn-ghost" type="submit">返回</button></form>
+            </div>
+        </div>
+    </dialog>
+    <script src="nebula-downloads.js"></script>
+</body>
+</html>

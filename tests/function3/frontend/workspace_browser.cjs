@@ -1,7 +1,10 @@
 const {assertPalette}=require('./palette_assertions.cjs');
 /* Synthetic browser contracts. Provider fixtures are not evidence of a real cloud Key. */
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE),http=require('node:http'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
-const root=path.resolve(__dirname,'../../..'),output=path.join(root,'build-function3/phase48-ui/workspace');fs.mkdirSync(output,{recursive:true});let generationPosts=0,ownCalls=0;
+const root=path.resolve(__dirname,'../../..'),output=path.join(root,'build-function3/phase48-ui/workspace');fs.mkdirSync(output,{recursive:true});let generationPosts=0,ownCalls=0,siteRole='administrator',adminUsersReads=0;
+let communityFixture=false,trainingAllowed=false;
+const story={id:'81',categoryId:'2',authorId:'1',authorName:'树下旅人',body:'考研复盘的合成文本',createdAt:Date.now(),
+  media:[],tags:[],likes:'0',repliers:'2',treeChannel:true,capabilities:{}};
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost');let body='';for await(const part of req)body+=part;let data={};try{data=JSON.parse(body||'{}');}catch{}
   const json=(value,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(value));};
@@ -12,11 +15,23 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/ai/web/models')return json([{accountId:'1',name:'本站模型',runtime:'onnx'}]);
     if(url.pathname==='/api/ai/web/generations'&&req.method==='POST'){generationPosts++;return json({id:data.requestId,state:'queued'},data.nonConfidentialConsent==='true'?202:403);}
     if(url.pathname.startsWith('/api/ai/web/generations/'))return json(req.method==='DELETE'?{ok:true}:{state:'completed',pieces:['本站模型协议替身回答'],next:1});
-    if(url.pathname==='/api/admin/me')return json({role:'administrator'});
-    if(url.pathname==='/api/admin/users')return json([]);
-    if(url.pathname==='/api/tree/categories')return json([{id:'1',name:'生活'}]);
-    if(url.pathname==='/api/tree/posts')return json({posts:[],total:'0'});
-    if(url.pathname==='/api/tree/ranking')return json({entries:[]});
+    if(url.pathname==='/api/admin/me')return json({id:'1',role:siteRole});
+    if(url.pathname==='/api/admin/users'){adminUsersReads++;return json([],siteRole==='administrator'?200:403);}
+    if(url.pathname==='/api/tree/categories')return json([{id:'1',name:'生活'},{id:'2',name:'考研'}]);
+    if(url.pathname==='/api/tree/posts'){
+      const show=communityFixture&&url.searchParams.get('category')!=='1';
+      return json({posts:show?[story]:[],total:communityFixture?'1':'0'});
+    }
+    if(url.pathname==='/api/tree/ranking')return json({entries:communityFixture&&url.searchParams.get('category')==='2'?[{postId:story.id,score:1}]:[]});
+    if(url.pathname==='/api/activities/81')return json(story);
+    if(url.pathname==='/api/tree/posts/81/replies')return json([
+      {id:'102',authorId:'2',authorName:'同学乙',body:'楼中回答',parentReplyId:'101',replyToName:'同学甲',createdAt:Date.now()},
+      {id:'101',authorId:'3',authorName:'同学甲',body:'主评问题',parentReplyId:'0',createdAt:Date.now()},
+    ]);
+    if(url.pathname==='/api/tree/posts/81/training-consent'){
+      if(req.method==='PATCH')trainingAllowed=data.allowed==='true';
+      return json({allowed:trainingAllowed});
+    }
     if(url.pathname==='/api/me/notification-settings')return json({sound:false,voice:'zf_001'});
     if(url.pathname==='/api/me/speech/status')return json({enabled:false});
     if(url.pathname==='/api/profiles/1')return json({id:'1',username:'traveler',displayName:'树下旅人',self:true,allowTreeFriendRequests:false,audience:'self'});
@@ -46,9 +61,56 @@ const server=http.createServer(async(req,res)=>{
   await page.locator('[name=key]').fill('fixture-only-key');await page.locator('[data-test]').click();await page.waitForFunction(()=>document.querySelector('.model-connection [role=status]')?.textContent.includes('连接成功'));await page.locator('.model-connection [type=submit]').click();
   await page.locator('.assistant-composer textarea').fill('自带接口对话');await page.locator('.assistant-composer [type=submit]').click();await page.waitForFunction(()=>document.querySelector('.assistant-status')?.textContent.includes('回答完成'));assert.equal(ownCalls,3);assert.equal(generationPosts,1,'custom API unexpectedly sent to Linux');
   const stored=await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}));assert(!stored.includes('fixture-only-key'));
-  await page.locator('.sound-menu summary').click();await page.locator('[data-speech-settings]').click();await page.waitForFunction(()=>document.querySelector('.audio-settings-links p')?.textContent.includes('Windows'));
+  await page.locator('.sound-menu summary').click();await page.locator('[data-personal-settings]').click();
+  await page.waitForSelector('#settings-section:not([hidden])');
+  await page.locator('[data-speech-settings]').click();await page.waitForSelector('.speech-settings[open]');
+  await page.locator('.speech-settings header button').click();
+  await page.goto(base+'/phase11/assistant/');await page.waitForSelector('.assistant-composer');
   await page.evaluate(async()=>{const{openTreeAuthor}=await import('/phase11/shared/TreeAuthorCard/TreeAuthorCard.js');const{BusinessApi}=await import('/phase11/shared/BusinessApi/BusinessApi.js');const api=new BusinessApi();await api.restore();await openTreeAuthor(api,{id:'42'});});
   await page.getByRole('button',{name:'申请加为好友',exact:true}).click();await page.getByRole('button',{name:'申请已发送',exact:true}).waitFor();assert(await page.getByRole('button',{name:'申请已发送',exact:true}).isDisabled());await page.getByRole('button',{name:'关闭作者卡'}).click();
-  await page.screenshot({path:path.join(output,'assistant-and-api.png')});assert.deepEqual(errors,[]);report.passed=true;report.checks=['visible light/dark and reload persistence across four pages','mobile no horizontal overflow','theme-assistant-notification order','web consent before upload','server model completion','custom API 401 and successful real HTTP fixture roundtrip','no API key in browser storage or Linux proxy','speech settings discoverability','fruit author friend request UI'];console.log(JSON.stringify(report,null,2));
+  await page.screenshot({path:path.join(output,'assistant-and-api.png')});
+  const before=adminUsersReads;
+  siteRole='user';
+  await page.goto(base+'/phase11/admin/#users');
+  await page.waitForFunction(()=>document.querySelector('#admin-access-message').textContent.includes('没有站点管理权限'));
+  assert.equal(await page.locator('[data-admin-link]').count(),0);
+  assert.equal(await page.locator('#admin-sidebar').isVisible(),false);
+  assert.equal(adminUsersReads,before);
+  siteRole='moderator';
+  await page.goto(base+'/phase11/admin/#speech');await page.reload();
+  await page.waitForSelector('[data-admin-link]');
+  assert.deepEqual(await page.locator('#admin-sidebar [data-view]:visible').evaluateAll(nodes=>nodes.map(node=>node.dataset.view)),['reports','audits','categories']);
+  assert.equal(await page.locator('#title').textContent(),'内容举报');
+  await page.locator('[data-view=users]').evaluate(button=>button.click());
+  assert.equal(adminUsersReads,before);
+  siteRole='administrator';
+  await page.reload();
+  await page.waitForFunction(()=>document.querySelector('#content').textContent.includes('站点公告音色'));
+  assert.equal(await page.getByRole('button',{name:'作为我的公告音色'}).count(),0);
+  await page.goto(base+'/phase11/study/');
+  await page.waitForSelector('#nebula-navigation a[aria-current=page]');
+  await page.getByRole('heading',{name:'暂时无法打开研途'}).waitFor();
+  assert.equal(await page.locator('a[href*="18771"]').count(),0);
+  communityFixture=true;
+  await page.goto(base+'/phase11/tree/?topic='+encodeURIComponent('考研')+'#rank');
+  const ranked=page.locator('#ranking [data-post-id="81"]');
+  await ranked.waitFor();
+  assert.equal(await page.locator('#rank-category').inputValue(),'2');
+  await ranked.click();
+  await page.getByText('主评问题',{exact:true}).waitFor();
+  assert.equal(await page.getByText('楼中回答',{exact:true}).isVisible(),false);
+  await page.locator('.discussion-children summary').click();
+  await page.getByText('楼中回答',{exact:true}).waitFor();
+  const authorTraining=page.getByRole('button',{name:'AI 训练授权'});
+  page.once('dialog',dialog=>dialog.accept());
+  await authorTraining.click();
+  await page.waitForFunction(()=>document.querySelector('#detail-status').textContent.includes('授权已登记'));
+  assert.equal(trainingAllowed,true);
+  page.once('dialog',dialog=>dialog.accept());
+  await authorTraining.click();
+  await page.waitForFunction(()=>document.querySelector('#detail-status').textContent.includes('未授权训练'));
+  assert.equal(trainingAllowed,false);
+  assert.deepEqual(errors,[]);
+  report.passed=true;report.checks=['visible light/dark and reload persistence across four pages','mobile no horizontal overflow','theme-assistant-notification order','web consent before upload','server model completion','custom API 401 and successful real HTTP fixture roundtrip','no API key in browser storage or Linux proxy','personal speech settings discoverability','fruit author friend request UI','site role and admin deep-link gating','embedded study entry and category deep link','nested discussion','author opt-in and revoke'];console.log(JSON.stringify(report,null,2));
  }finally{fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(report,null,2));await browser.close();server.close();}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1;});

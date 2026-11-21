@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import secrets
 import time
+from urllib.parse import urlencode
 import urllib.request
 
 from .observer.store import encode
@@ -16,6 +17,11 @@ def post(base, path, body, token=None):
         headers["Authorization"] = "Bearer " + token
     request = urllib.request.Request(base + path, encode(body).encode(), headers)
     with urllib.request.urlopen(request, timeout=4) as reply:
+        return json.load(reply)
+
+
+def read_observer(base,path):
+    with urllib.request.urlopen(base+path,timeout=4) as reply:
         return json.load(reply)
 
 
@@ -186,6 +192,7 @@ def main():
     cli.add_argument("--observer", default="http://127.0.0.1:18785")
     cli.add_argument("--otlp", default="http://127.0.0.1:14318")
     cli.add_argument("--events-only", action="store_true", help="Exercises the event path without Tempo")
+    cli.add_argument("--verify", action="store_true", help="Read the uploaded event IDs back from Observer")
     args = cli.parse_args()
     builders = {"dag": dag, "dag-failed": lambda: dag(skip=True), "agent": agent, "device": device}
     scenario = builders[args.scenario]()
@@ -197,8 +204,21 @@ def main():
     repeated = post(args.observer, "/ingest/v1/events", scenario.events, token)
     if repeated != {"inserted": 0, "duplicates": len(scenario.events)}:
         raise RuntimeError("Duplicate batch was not idempotent")
+    query = urlencode({"domain":domain,"source":domain+"-sim","from":scenario.start//10**9-1,"to":int(time.time())+1,"limit":200})
+    result_path = "/?"+urlencode({"view":"extensions","domain":domain,"source":domain+"-sim"})
+    if domain != "device":
+        result_path = "/?view=traces&trace="+scenario.trace
+    verified = None
+    if args.verify:
+        received = read_observer(args.observer,"/api/v1/events?"+query)["items"]
+        expected = {item["eventId"] for item in scenario.events}
+        verified = len(expected & {item["eventId"] for item in received
+                       if item["source"]==domain+"-sim" and item["simulated"]})
+        if verified != len(expected) or outcome["inserted"] != len(expected):
+            raise RuntimeError("Observer read-back did not match the uploaded events")
     print(encode({"scenario": args.scenario, "traceId": scenario.trace if domain != "device" else None,
-                  "first": outcome, "repeat": repeated, "simulated": True, "otlp": bool(scenario.spans and not args.events_only)}))
+                  "first": outcome, "repeat": repeated, "readBack":verified,"path":result_path,
+                  "simulated": True, "otlp": bool(scenario.spans and not args.events_only)}))
 
 
 if __name__ == "__main__":

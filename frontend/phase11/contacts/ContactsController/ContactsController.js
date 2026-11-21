@@ -1,4 +1,4 @@
-import { contactsApi } from "../ContactsApi/ContactsApi.js?v=144f1e6009a3d461";
+import { contactsApi } from "../ContactsApi/ContactsApi.js?v=7f8c7f1b31e4435c";
 export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","toast","initials","setButtonBusy","api","paintAvatar","loadConversations","actionListEmpty","createDirectConversation"],"types":[]};
 /** ContactsController: explicit use cases; shared state/other controllers arrive through context. */
 export function createContactsController(context) {

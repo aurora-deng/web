@@ -5,6 +5,7 @@
 namespace webserver::function3 {
 struct RankCandidate { Id post{}; std::string authorName; Milliseconds createdAt{}; std::uint64_t likes{}, repliers{}; };
 struct RankEntry { Id post{}; double score{}; };
+struct CategoryRankEntry { Id category{}; unsigned position{}; RankEntry entry; };
 struct RankSnapshot { Id version{}; Milliseconds settledAt{}; std::vector<RankEntry> entries; };
 inline double heat(const RankCandidate &p,Milliseconds now) {
     if(p.createdAt>now || now-p.createdAt>=7LL*24*60*60*1000) return -1;

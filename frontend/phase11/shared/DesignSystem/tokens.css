@@ -63,27 +63,27 @@
 
   /* ---- 2. 语义层（组件唯一可用层） ------------------------------------ */
   /* 文本 */
-  --text: var(--n-slate-100);
-  --text-2: var(--n-slate-300);
-  --text-3: var(--n-slate-400);
+  --text: #eef6f2;
+  --text-2: #c0d1c9;
+  --text-3: #9fb4aa;
   --text-inverse: var(--n-ink-950);
 
   /* 分隔与描边 */
-  --line: rgba(147, 163, 188, .16);
-  --line-strong: rgba(147, 163, 188, .30);
+  --line: rgba(156, 187, 172, .18);
+  --line-strong: rgba(156, 187, 172, .34);
 
   /* 强调色：全站唯一「这是主操作」信号 */
-  --brand: var(--n-violet-600);          /* 跨工作区导航，永远不跟随工作区 */
-  --brand-text: var(--n-violet-400);
+  --brand: #1e755f;
+  --brand-text: #9de0c4;
   --on-brand: #FFFFFF;
-  --brand-soft: rgba(108, 88, 240, .12);
-  --accent: var(--n-violet-600);
-  --accent-hover: var(--n-violet-500);
-  --accent-text: var(--n-violet-400);    /* 文字形态的强调色 */
-  --accent-soft: rgba(108, 88, 240, .16);
-  --accent-softer: rgba(108, 88, 240, .09);
+  --brand-soft: rgba(98, 203, 163, .15);
+  --accent: #1e755f;
+  --accent-hover: #226f5a;
+  --accent-text: #9de0c4;
+  --accent-soft: rgba(98, 203, 163, .15);
+  --accent-softer: rgba(98, 203, 163, .08);
   --on-accent: #FFFFFF;
-  --focus: var(--n-violet-400);
+  --focus: #9de0c4;
 
   /* 状态色：只表示状态，不用于装饰 */
   --success: var(--n-green-400);
@@ -95,10 +95,10 @@
   --on-danger: #2B0B11;
 
   /* 表面（工作区覆盖） */
-  --bg: var(--n-ink-900);
-  --surface: var(--n-ink-800);
-  --surface-2: var(--n-ink-750);
-  --surface-3: var(--n-ink-700);
+  --bg: #131d1a;
+  --surface: #1a2622;
+  --surface-2: #21302b;
+  --surface-3: #2b3b34;
 
   /* ---- 3. 字号阶梯（9 档，下限 12px） -------------------------------- */
   --fs-micro: 12px;   /* 时间戳 / 徽标计数 / kbd：只读一眼的数字，不是正文 */
@@ -162,24 +162,24 @@
 /* ---- 浅色主题 ---------------------------------------------------------- */
 :root[data-theme=light] {
   color-scheme: light;
-  --text: #16202E;
-  --text-2: #4B5A70;
-  --text-3: #5C6C83;
+  --text: #182821;
+  --text-2: #41574c;
+  --text-3: #52685d;
   --text-inverse: #FFFFFF;
 
-  --line: rgba(28, 46, 74, .13);
-  --line-strong: rgba(28, 46, 74, .26);
+  --line: rgba(24, 59, 44, .15);
+  --line-strong: rgba(24, 59, 44, .28);
 
-  --brand: var(--n-violet-700);
-  --brand-text: var(--n-violet-700);
-  --brand-soft: rgba(91, 58, 224, .10);
-  --accent: #5B3AE0;
-  --accent-hover: #4A2BC8;
-  --accent-text: #5B3AE0;
-  --accent-soft: rgba(91, 58, 224, .10);
-  --accent-softer: rgba(91, 58, 224, .06);
+  --brand: #1c6c56;
+  --brand-text: #155340;
+  --brand-soft: rgba(31, 122, 99, .12);
+  --accent: #1c6c56;
+  --accent-hover: #155340;
+  --accent-text: #155340;
+  --accent-soft: rgba(31, 122, 99, .12);
+  --accent-softer: rgba(31, 122, 99, .07);
   --on-accent: #FFFFFF;
-  --focus: #5B3AE0;
+  --focus: #1c6c56;
 
   --success: var(--n-green-700);
   --warning: var(--n-amber-700);
@@ -188,10 +188,10 @@
   --on-warning: #FFFFFF;
   --on-danger: #FFFFFF;
 
-  --bg: #F5F7FA;
+  --bg: #f3f7f4;
   --surface: #FFFFFF;
-  --surface-2: #EFF2F7;
-  --surface-3: #E6EBF2;
+  --surface-2: #edf4f0;
+  --surface-3: #e3eee8;
 
   --shadow-1: 0 1px 2px rgba(16, 32, 56, .06);
   --shadow-2: 0 8px 24px -10px rgba(16, 32, 56, .18);
@@ -204,8 +204,8 @@
   --panel-glass: color-mix(in srgb, var(--surface) 96%, transparent);
   --shadow-color: #000000;
   --overlay: #050914;
-  --bubble-own-bg: #2E2853;
-  --bubble-own-text: #EEF3FC;
+  --bubble-own-bg: #25473b;
+  --bubble-own-text: #edf7f1;
   --scene-bg: #171D2D;
   --scene-haze: #313044;
   --scene-glow: #A9688A;
@@ -220,8 +220,8 @@
 :root[data-theme=light] {
   --shadow-color: #102038;
   --overlay: #182038;
-  --bubble-own-bg: #E6E2FF;
-  --bubble-own-text: #241C4D;
+  --bubble-own-bg: #dceee3;
+  --bubble-own-text: #18382b;
   --scene-bg: #ECE5F1;
   --scene-haze: #FEF6F5;
   --scene-glow: #C58BAB;

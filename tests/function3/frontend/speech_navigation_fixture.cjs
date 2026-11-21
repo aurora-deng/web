@@ -16,7 +16,7 @@ const server=http.createServer((req,res)=>{
     let body='';req.on('data',chunk=>body+=chunk);req.on('end',()=>{
       let result={},status=200;
       if(url.pathname==='/api/me')result={user:{id:'1',username:'fixture',displayName:'界面验证账号'},csrfToken:'fixture-only'};
-      else if(url.pathname==='/api/admin/me')result={role:'administrator'};
+      else if(url.pathname==='/api/admin/me')result={id:'1',role:'administrator'};
       else if(url.pathname==='/api/local/session/info')result={available:false};
       else if(url.pathname==='/api/tree/categories')result=[{id:'1',name:'生活'}];
       else if(url.pathname==='/api/tree/ranking')result={version:'1',settledAt:Date.now(),entries:posts.slice(0,10).map((p,i)=>({postId:p.id,score:10-i}))};

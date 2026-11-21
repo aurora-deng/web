@@ -1,0 +1,10 @@
+{
+  "verifiedAt": "2026-11-19T11:46:57.937341+00:00",
+  "dailyReadyHttp": 200,
+  "dailyPid": 57254,
+  "dailyBinarySha256": "865fdaefa336d7235132f0da287acea664c04425b552641b529efe71be2b8b99",
+  "dailyServiceChanged": false,
+  "originalDatabaseWritten": false,
+  "coreFilesUnchanged": 152,
+  "scope": "this-review-only"
+}

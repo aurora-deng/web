@@ -1,0 +1,230 @@
+{
+  "dateUtc": "2026-11-19T11:48:55.119450+00:00",
+  "scope": "project-review-R1-R12-conditional-scope",
+  "allProjectFeaturesCertified": false,
+  "binarySha256": "7d225b2dea72135b8afe6f492a4e29990d04a1fc3387af9ef9f960de43c646c4",
+  "sourceFingerprint": "442ca9b5f75acef84e42b09691d92b29fd1b8226fac740bf9442028fdd21e797",
+  "revision": "source-snapshot",
+  "nativeBuildFromEmptyDirectory": false,
+  "communicationBuildFromEmptyDirectory": true,
+  "releaseCtest": {
+    "registered": 122,
+    "passed": 121,
+    "skipped": [
+      "function3_redis_contract"
+    ],
+    "lanes": {
+      "communication": 87,
+      "businessWithoutPostgres": 33,
+      "realPostgres": 2
+    }
+  },
+  "debugUbsan": {
+    "registered": 119,
+    "passed": 118,
+    "skipped": [
+      "function3_redis_contract"
+    ],
+    "lanes": {
+      "communication": 86,
+      "businessWithoutPostgres": 31,
+      "realPostgres": 2
+    },
+    "passedAll": true,
+    "buildType": "Debug",
+    "sanitizer": "UBSan",
+    "haltOnError": true,
+    "migration": 24
+  },
+  "observerHttpContracts": {
+    "windows": 45,
+    "linux": 45
+  },
+  "frontendContracts": 83,
+  "deliveryContracts": 8,
+  "queryContracts": 3,
+  "browser": {
+    "dashboard": {
+      "passed": true,
+      "firstChartMs": 922,
+      "metricRoute": "/api/v1/series/batch",
+      "withheldOptionalRequests": 4,
+      "chartStableOnRetry": true,
+      "failedOnlyRetry": true,
+      "pendingSurvivesMetricRefresh": true,
+      "focusSkippedHiddenQueries": true,
+      "lateGenerationIgnored": true
+    },
+    "logging": {
+      "passed": true,
+      "functionTimings": [
+        {
+          "fn": "写入聊天消息聊天 · ChatService::sendMessage",
+          "p99": "3.33 s"
+        },
+        {
+          "fn": "读取会话列表聊天 · ChatService::conversations",
+          "p99": "39.13 ms"
+        },
+        {
+          "fn": "向后读取历史消息聊天 · ChatService::history",
+          "p99": "9.95 ms"
+        },
+        {
+          "fn": "向前翻历史消息聊天 · ChatService::historyBefore",
+          "p99": "4.98 ms"
+        }
+      ]
+    },
+    "workspace": {
+      "passed": true
+    }
+  },
+  "realMetrics": {
+    "passed": true,
+    "simulatedBackend": false,
+    "businessFixture": "synthetic-disposable-database",
+    "opsAccess": {
+      "verified": true,
+      "anonymous": 401,
+      "ops": 200,
+      "member": 403,
+      "scope": "loopback-and-SSH; not multi-user RBAC"
+    },
+    "source": "Prometheus",
+    "targets": [
+      {
+        "labels": {
+          "app": "nebula",
+          "bc": "lab",
+          "instance": "127.0.0.1:56527",
+          "job": "nebula"
+        },
+        "health": "up"
+      },
+      {
+        "labels": {
+          "app": "nebula",
+          "bc": "lab",
+          "instance": "127.0.0.1:56527",
+          "job": "node"
+        },
+        "health": "up"
+      },
+      {
+        "labels": {
+          "app": "nebula",
+          "bc": "lab",
+          "instance": "127.0.0.1:18798",
+          "job": "observer"
+        },
+        "health": "up"
+      },
+      {
+        "labels": {
+          "app": "nebula",
+          "bc": "lab",
+          "instance": "127.0.0.1:56527",
+          "job": "probe"
+        },
+        "health": "up"
+      },
+      {
+        "labels": {
+          "app": "nebula",
+          "bc": "lab",
+          "instance": "127.0.0.1:19091",
+          "job": "prometheus"
+        },
+        "health": "up"
+      }
+    ],
+    "p99Seconds": [
+      3.437599999999991
+    ],
+    "expression": "histogram_quantile(0.99,sum by(le)(rate(nebula_function_seconds_bucket{function=\"ChatService::sendMessage\"}[5m])))",
+    "functions": 26,
+    "crossProcess": {
+      "traceId": "adf243c5bd4385a3bdee37b0344ff69b",
+      "spanCount": 8,
+      "services": [
+        "nebula-probe",
+        "nebula-webserver"
+      ]
+    },
+    "outage": {
+      "unavailableHttp": 503,
+      "observerStayedAlive": true,
+      "storedTraceReadable": true,
+      "recoveredHttp": 200
+    },
+    "backendManifestSha256": "3549c4684a0bfdb2be8fcbeee37e674384eef3b95ab6815b8e6e275f759758c9",
+    "retentionDays": 7,
+    "dailyServiceChanged": false,
+    "secretsIncluded": false
+  },
+  "slowAck": {
+    "traceId": "28694b1b4dca777bd877b30075f0370b",
+    "faultMs": 1523.4356620057952,
+    "matchingRowsAfterRetry": 1,
+    "capacityClaimed": false
+  },
+  "modelWire": {
+    "passed": true,
+    "provider": "scripted-test-only",
+    "transport": "real-loopback-OTLP-HTTP",
+    "spansReceived": 56,
+    "statusCodes": [
+      0,
+      1,
+      2
+    ],
+    "duplicateSpanIds": false,
+    "cancelledPreparationIsUnset": true,
+    "privateContentFields": false,
+    "exactShutdownFlushClaimed": false,
+    "realModelQualityClaimed": false
+  },
+  "protection": {
+    "verifiedAt": "2026-11-19T11:46:57.937341+00:00",
+    "dailyReadyHttp": 200,
+    "dailyPid": 57254,
+    "dailyBinarySha256": "865fdaefa336d7235132f0da287acea664c04425b552641b529efe71be2b8b99",
+    "dailyServiceChanged": false,
+    "originalDatabaseWritten": false,
+    "coreFilesUnchanged": 152,
+    "scope": "this-review-only"
+  },
+  "retentionDays": 7,
+  "evidenceExportSelected": true,
+  "newDependencies": [
+    "Prometheus 3.13.5",
+    "Node Exporter 1.12.1"
+  ],
+  "notClaimed": [
+    "native-from-empty-directory",
+    "real-model-quality",
+    "real-Tempo-Loki-Pyroscope",
+    "remote-CI-run",
+    "public-multiuser-RBAC",
+    "full-Windows-companion-journey",
+    "24h-soak",
+    "new-controlled-capacity-improvement",
+    "real-DAG-cluster-or-device"
+  ],
+  "reports": {
+    "ack-diagnosis.json": "3006f5cd6c7907003c90eeaaa71111a7dd6f64e76721acb4636b1c470f9bb004",
+    "backend-install.json": "3549c4684a0bfdb2be8fcbeee37e674384eef3b95ab6815b8e6e275f759758c9",
+    "business-live.json": "0241ff9150f72233524e69a0d3cbb2fc0fc9d74ffb6cb0333d2f8596b7dcd03b",
+    "communication.json": "aaf07e5b530bfeced83dc0750d8018c9f3e381d04d0f0dfb4948065706468bb5",
+    "debug-ubsan.json": "22e25b8878623ad3c1e1510de9cad6a8943e3512ad9a295ca67ee3ae012531e6",
+    "faults.json": "e421da27c12f2d9307aa49be000c88e585e9f856808512eeae4d54479b72eccd",
+    "metrics.json": "7f74ea6cbf78dcfc40dd2a52324d19aa7c2647c91649dc903a687ccd2da291bc",
+    "model-wire.json": "6a4b2ba692ef5a9be8525fee173385940ea8c5cdd988d5a37975be783fdf1dd7",
+    "protection.json": "adb5b68df79616353d8a8efcd7878800af633f39dc4991ef064595db9c61b2ba",
+    "release.json": "0c4ba71c26d69190b4d18d72d9a79baad87559a59d2c1e4ec694e9498579b682",
+    "reproduction.json": "facaef6b60cdb5aa1c15c09fd8a881c8d4a7db13cf46da3857f8cad4b0b87574",
+    "source-gate.json": "c56331a1d5bd8884f183e251fd7945de0283cccf9fd8c29118a836179ee4af40"
+  },
+  "sourceGatePassed": true
+}

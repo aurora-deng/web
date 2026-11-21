@@ -1,11 +1,14 @@
-import { accountsApi } from "../AccountsApi/AccountsApi.js?v=144f1e6009a3d461";
-import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=144f1e6009a3d461';
-export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","toast","setButtonBusy","api","uploadFile","formatBytes","updateProfileView","showChat","showLoggedOut"],"types":[],"events":true};
+import { accountsApi } from "../AccountsApi/AccountsApi.js?v=7f8c7f1b31e4435c";
+import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=7f8c7f1b31e4435c';
+import { accountEntry, invalidateAccountSession, readAccountSession } from '../../shared/AccountSession/AccountSession.js?v=7f8c7f1b31e4435c';
+export const dependencies={"resources":["$","elements","state","runtime"],"commands":["setStatus","toast","setButtonBusy","api","uploadFile","formatBytes","updateProfileView","showChat","showLoggedOut"],"types":[],"events":true};
 /** Account UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindAccount(context) {
   const scope=createChatScope(context,dependencies);
-  const {$,elements,state,listen}=scope;
+  const {$,elements,state,listen,runtime}=scope;
   const {setStatus,toast,setButtonBusy,api,uploadFile,formatBytes,updateProfileView,showChat,showLoggedOut}=scope.actions;
+  const view = runtime.accountView;
+  $('#change-chat-account').href = accountEntry('/phase11/', { change: true });
 listen($('#login-form'), 'submit', async event => {
   event.preventDefault();
   // Event.currentTarget 只在浏览器同步派发事件期间可靠。异步处理会跨过
@@ -18,6 +21,11 @@ listen($('#login-form'), 'submit', async event => {
     const result = await api(accountsApi.postAuthLogin({}), {
       method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))),
     });
+    invalidateAccountSession();
+    if (view.returnTo || view.requestedChange) {
+      location.replace(view.returnTo || '/phase11/');
+      return;
+    }
     state.csrf = result.csrfToken;
     setStatus(elements.authStatus);
     await showChat(result.user);
@@ -95,19 +103,29 @@ listen($('#profile-form'), 'submit', async event => {
 listen($('#logout'), 'click', async () => {
   state.leaving = true;
   try { await api(accountsApi.postAuthLogout({}), { method: 'POST' }); }
-  catch (error) { toast(error.message, 'error'); }
+  catch (error) {
+    if (error.status !== 401) { state.leaving = false; toast(error.message, 'error'); return; }
+  }
+  invalidateAccountSession();
   showLoggedOut();
   setStatus(elements.authStatus, '已安全退出。', 'success');
 });
 
 
-(async function restoreSession() {
+async function restoreSession() {
+  view.show('checking');
   try {
-    const result = await api(accountsApi.getMe({}));
+    const result = await readAccountSession(() => api(accountsApi.getMe({})));
+    if (runtime.lifecycle.signal.aborted) return;
+    if (view.returnTo) { location.replace(view.returnTo); return; }
     state.csrf = result.csrfToken;
     await showChat(result.user);
   } catch (error) {
-    if (error.status && error.status !== 401) setStatus(elements.authStatus, error.message, 'error');
+    if (runtime.lifecycle.signal.aborted) return;
+    view.show(error.status === 401 ? 'form' : 'error');
   }
-}());
+}
+listen(view.retry, 'click', restoreSession);
+if (view.requestedChange) view.showChange();
+else restoreSession();
 }

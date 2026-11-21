@@ -8,10 +8,13 @@
 #include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
 #include "backend/application/modules/contacts/application/SocialService/SocialService.h"
 #include "backend/application/modules/chat/application/ChatService/ChatService.h"
+#include "backend/application/modules/chat/application/RealtimeRelay/RealtimeRelay.h"
 #include "backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.h"
 #include "backend/application/modules/messaging/infrastructure/ChatOutboxWriter/ChatOutboxWriter.h"
 #include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
 #include "backend/server/Runtime/ServerRuntime.h"
+#include <optional>
+#include <stdexcept>
 namespace webserver::bootstrap {
 struct RealtimeRuntime::Impl {
     struct DeliveryLifetime {
@@ -22,6 +25,7 @@ struct RealtimeRuntime::Impl {
     // Members are destroyed in reverse order, including on partial construction:
     // stop the outbox pump, then broker callbacks, then destroy the borrowed sink.
     DeliveryLifetime deliveryLifetime;
+    std::optional<phase11::RealtimeRelay> relay;
     std::unique_ptr<phase11::transport::Phase11OutboxPump> pump;
     std::unique_ptr<phase11::transport::Phase11Realtime> commands;
     std::unique_ptr<phase11::transport::Phase11PresenceBridge> presence;
@@ -30,9 +34,19 @@ struct RealtimeRuntime::Impl {
     Impl(StorageRuntime&s,ContactsRuntime&contacts,ChatRuntime&c,AiRuntime&a,ServerRuntime&net,function3::Function3Runtime*community)
     :sink(s.delivery(),s.delivery(),s.delivery(),net.wsManager(),net.sseManager()),deliveryLifetime{community}{
         const char* endpoint=std::getenv("WEB_FUNCTION3_MQ_ENDPOINT");
+        const bool useRelay = flag("WEB_PHASE11_REALTIME_RELAY");
+        if (useRelay && endpoint && *endpoint)
+            throw std::invalid_argument("WEB_PHASE11_REALTIME_RELAY cannot share the RocketMQ chat outbox path");
         if(community&&endpoint&&*endpoint)s.store().setOutboxWriter(std::make_shared<function3::ChatOutboxWriter>(community->commitNotifier()));
         auto& destination=community?community->startMessaging(sink,s.delivery()):static_cast<phase11::IOutboxEventSink&>(sink);
-        pump=std::make_unique<phase11::transport::Phase11OutboxPump>(s.store(),destination);
+        if (useRelay) {
+            relay.emplace(s.delivery(), destination);
+            pump = std::make_unique<phase11::transport::Phase11OutboxPump>([this](std::size_t limit, phase11::TimePoint now) {
+                return relay->dispatchPending(limit, now);
+            });
+        } else {
+            pump = std::make_unique<phase11::transport::Phase11OutboxPump>(s.store(), destination);
+        }
         commands=std::make_unique<phase11::transport::Phase11Realtime>(c.chat(),s.executor(),&a.chat(),notifier());
         commands->registerHandlers(net.wsDispatcher());
         presence=std::make_unique<phase11::transport::Phase11PresenceBridge>(contacts.service(),s.executor(),net.wsManager(),notifier());

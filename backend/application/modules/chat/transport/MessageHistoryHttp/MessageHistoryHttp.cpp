@@ -9,7 +9,11 @@ void MessageHistoryHttp::registerRoutes(Router &router) {
     auto execution=router.withExecutor([this](auto task){return databaseExecutor_.submit(std::move(task));});
     router.POST("/api/conversations/:id/messages", [this](RequestContext &context)
     {
-        return guarded(context, [&]
+        const auto parent = context.request.headers.find("traceparent");
+        telemetry::Span span("POST /api/conversations/:id/messages",
+                             parent == context.request.headers.end() ? std::string_view{} : parent->second,
+                             telemetry::Span::Kind::Server);
+        const bool handled = guarded(context, [&]
         {
             const auto identity = authentication_.authorizeRequest(context, true);
             const auto conversation = unsignedValue(context.param("id"), "conversationId");
@@ -18,11 +22,17 @@ void MessageHistoryHttp::registerRoutes(Router &router) {
             { return chat_.sendText(user, conversation, required(fields, "clientMessageId"), required(fields, "text"), currentTime()); });
             reply(context, 201, messageJson(result.message));
         });
+        finishBusinessHttpSpan(context, span);
+        return handled;
     });
     router.GET("/api/conversations/:id/messages", [this](RequestContext &context)
     {
         const telemetry::Latency latency(telemetry::Series::History);
-        return guarded(context, [&]
+        const auto parent = context.request.headers.find("traceparent");
+        telemetry::Span span("GET /api/conversations/:id/messages",
+                             parent == context.request.headers.end() ? std::string_view{} : parent->second,
+                             telemetry::Span::Kind::Server);
+        const bool handled = guarded(context, [&]
         {
             const auto identity = authentication_.authorizeRequest(context);
             auto recovery=historyBudget_.acquire(identity.user.id);
@@ -42,6 +52,8 @@ void MessageHistoryHttp::registerRoutes(Router &router) {
                 });
             reply(context, 200, arrayJson(messages, messageJson));
         });
+        finishBusinessHttpSpan(context, span);
+        return handled;
     });
 
     router.GET("/api/conversations/:id/messages/by-client-id", [this](RequestContext &context)

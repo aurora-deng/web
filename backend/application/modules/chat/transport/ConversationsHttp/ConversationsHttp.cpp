@@ -12,7 +12,8 @@ void ConversationsHttp::registerRoutes(Router &router) {
         const telemetry::Latency latency(telemetry::Series::Conversations);
         const auto parent = context.request.headers.find("traceparent");
         telemetry::Span span("GET /api/conversations",
-                             parent == context.request.headers.end() ? std::string_view{} : parent->second, true);
+                             parent == context.request.headers.end() ? std::string_view{} : parent->second,
+                             telemetry::Span::Kind::Server);
         const bool handled = guarded(context, [&]
         {
             const auto identity = authentication_.authorizeRequest(context);
@@ -22,8 +23,7 @@ void ConversationsHttp::registerRoutes(Router &router) {
             reply(context, 200,
                   arrayJson(conversations, conversationSummaryJson));
         });
-        if (context.response->status >= 400)
-            span.error();
+        finishBusinessHttpSpan(context, span);
         return handled;
     });
 

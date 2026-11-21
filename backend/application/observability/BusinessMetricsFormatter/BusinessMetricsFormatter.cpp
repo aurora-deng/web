@@ -86,8 +86,12 @@ std::string formatBusinessMetrics(PostgresStore *store, PostgresStore *deliveryS
                      << "webserver_phase11_outbox_batch_high_watermark "
                      << outbox.batchHighWatermark << '\n'
                      << "webserver_phase11_outbox_oldest_attempt_age_microseconds "
-                     << outbox.oldestAttemptAgeMicroseconds << '\n'
-                     << "# TYPE webserver_phase11_ai_requests_total counter\n"
+                     << outbox.oldestAttemptAgeMicroseconds << '\n';
+                if (outbox.recentPendingAgeMicroseconds >= 0)
+                    text << "# TYPE nebula_realtime_pending_age_seconds gauge\n"
+                         << "nebula_realtime_pending_age_seconds "
+                         << static_cast<double>(outbox.recentPendingAgeMicroseconds) / 1'000'000.0 << '\n';
+                text << "# TYPE webserver_phase11_ai_requests_total counter\n"
                      << "webserver_phase11_ai_accepted_total " << aiChat.accepted << '\n'
                      << "webserver_phase11_ai_quota_rejected_total "
                      << aiChat.quotaRejected << '\n'

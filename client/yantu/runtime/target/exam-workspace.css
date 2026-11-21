@@ -1,0 +1,53 @@
+.exam-record-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0;border-bottom:1px solid var(--line)}
+.exam-record-row>button:first-child{flex:1;min-width:160px;justify-content:flex-start;text-align:left;overflow-wrap:anywhere}
+.exam-record-row small{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.exam-workspace{width:min(1220px,calc(100vw - 24px));max-width:none;max-height:calc(100dvh - 24px)}
+.exam-create-dialog,.exam-grade-dialog{width:min(880px,calc(100vw - 24px));max-width:none}
+.exam-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.exam-heading h3{font-size:18px;flex:1;min-width:150px;overflow-wrap:anywhere}
+.exam-heading>span{font-size:13px;font-variant-numeric:tabular-nums}
+.exam-heading #examElapsed{min-width:180px}
+.exam-layout{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:24px}
+.exam-layout>section,.exam-layout>aside{min-width:0}
+.exam-layout>aside{border-left:1px solid var(--line);padding-left:20px}
+.exam-workspace textarea,.exam-create-dialog textarea{width:100%;box-sizing:border-box;line-height:1.8;resize:vertical}
+.exam-workspace input,.exam-workspace select,.exam-create-dialog input,.exam-create-dialog select{max-width:100%;width:100%;box-sizing:border-box}
+.exam-workspace input[type=checkbox],.exam-grade-dialog input[type=checkbox]{width:auto;flex-shrink:0}
+.exam-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.9}
+.exam-text:empty{display:none}
+.exam-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.exam-fields label{min-width:0;display:block;font-size:13px}
+.exam-causes{border:0;border-top:1px solid var(--line);padding:12px 0;display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+.exam-causes legend{font-size:13px}
+.exam-causes label{margin:0;font-size:13px}
+.exam-workspace .workspace-actions,.exam-workspace .dialog-actions,.exam-grade-dialog .dialog-actions{gap:8px;flex-wrap:wrap;margin-top:12px}
+.exam-workspace .workspace-actions>.btn{max-width:100%;overflow-wrap:anywhere}
+#examQuestionNav{display:grid;gap:4px;max-height:38dvh;overflow:auto}
+#examQuestionNav .btn{text-align:left;justify-content:flex-start;min-height:40px;overflow-wrap:anywhere}
+#examQuestionNav [aria-current=step]{outline:1px solid var(--accent);outline-offset:-1px;background:var(--surface-soft)}
+.exam-links{display:grid;gap:6px}
+.exam-links .btn{text-align:left;justify-content:flex-start;overflow-wrap:anywhere}
+#examSaveStatus,#examSourceStatus,#examFinalizedNote,#examGradeResult{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+#examQuestionSetup>fieldset{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);gap:10px;border:0;border-top:1px solid var(--line);padding:12px 0;margin:16px 0}
+#examQuestionSetup label{font-size:13px;min-width:0}
+#examQuestionSetup .exam-wide{grid-column:1/-1}
+.exam-grade-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding:12px 0}
+.exam-grade-row strong{flex-basis:100%;overflow-wrap:anywhere;font-size:14px}
+.exam-grade-row small{font-size:12px;color:var(--muted)}
+.exam-grade-row label{font-size:13px}
+#examGradeSummary{font-weight:600}
+#examSubjectSummary p{font-size:13px}
+@media(max-width:760px){
+ .exam-workspace{inset:0;margin:0;width:100vw;height:100dvh;max-height:100dvh;border:0;border-radius:0}
+ .exam-workspace>.dialog-body,.exam-create-dialog>.dialog-body,.exam-grade-dialog>.dialog-body{padding:16px}
+ .exam-layout{display:block}
+ .exam-layout>aside{border:0;border-top:1px solid var(--line);padding:16px 0 0}
+ #examQuestionNav{grid-template-columns:repeat(2,minmax(0,1fr));max-height:180px}
+ #examQuestionSetup>fieldset{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ #examQuestionSetup label:first-of-type{grid-column:1/-1}
+ .exam-create-dialog,.exam-grade-dialog{width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}
+ .exam-heading h3{flex-basis:100%;font-size:17px}
+ .exam-heading #examElapsed{min-width:0;flex:1}
+ .exam-record-row{gap:8px}
+ .exam-record-row small{flex-basis:100%;order:2}
+}

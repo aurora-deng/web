@@ -1,5 +1,6 @@
 #include "backend/application/storage/postgres/PostgresConversationRepository/PostgresConversationRepository.h"
 #include "backend/application/storage/postgres/PostgresValueCodec/PostgresValueCodec.h"
+#include "backend/application/observability/Telemetry/Telemetry.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -190,7 +191,7 @@ std::vector<Conversation> PostgresConversationRepository::listConversations(PGco
 
 std::vector<ConversationSummary> PostgresConversationRepository::listConversationSummaries(PGconn *connection, UserId user)
 {
-
+    telemetry::Span route("PostgresConversationRepository::listConversationSummaries");
     const auto result = query(connection,
         "SELECT " + std::string(kQualifiedConversationColumns) +
         ",m.last_delivered_sequence,m.last_read_sequence,"

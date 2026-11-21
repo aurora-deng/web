@@ -5,6 +5,14 @@
 namespace webserver::phase11
 {
 
+void OutboxDispatchResult::beginAttempt(const OutboxEvent &event, TimePoint now) noexcept
+{
+    ++attempted;
+    oldestAttemptAge = std::max(oldestAttemptAge,
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            now > event.createdAt ? now - event.createdAt : TimePoint::duration::zero()));
+}
+
 OutboxDispatchResult OutboxDispatcher::dispatchPending(
     std::size_t limit, TimePoint now)
 {
@@ -17,12 +25,7 @@ OutboxDispatchResult OutboxDispatcher::dispatchPending(
     acceptedIds.reserve(limit);
     for (const auto &event : outbox_.pendingOutbox(limit))
     {
-        ++result.attempted;
-        result.oldestAttemptAge = std::max(
-            result.oldestAttemptAge,
-            std::chrono::duration_cast<std::chrono::microseconds>(
-                now > event.createdAt ? now - event.createdAt
-                                      : TimePoint::duration::zero()));
+        result.beginAttempt(event, now);
         bool accepted = false;
         try
         {

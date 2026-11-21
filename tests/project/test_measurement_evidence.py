@@ -11,6 +11,8 @@ ROOT=Path(__file__).resolve().parents[2]
 FILE=ROOT/'scripts/function3/validation/measurement_noise.py'
 spec=importlib.util.spec_from_file_location('measurement_noise',FILE)
 noise=importlib.util.module_from_spec(spec);spec.loader.exec_module(noise)
+sys.path[:0] = [str(FILE.parent), str(ROOT / 'benchmarks')]
+from postgres_commit_observer import correlate_commits, disk_delta, disk_snapshot
 
 
 def calibration(rounds=10):
@@ -92,6 +94,49 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(base['cacheVariables']['WEBSERVER_ENABLE_POSTGRES'],'OFF')
         self.assertEqual(base['cacheVariables']['WEBSERVER_ENABLE_PHASE11'],'ON')
         self.assertTrue(all(p['execution']['noTestsAction']=='error' for p in presets['testPresets']))
+
+
+class CommitEvidenceTests(unittest.TestCase):
+    @staticmethod
+    def poll(start, end, active):
+        return {'queryStartNs': start*1_000_000, 'queryEndNs': end*1_000_000, 'active': active,
+                'disk': {'atNs': end*1_000_000, 'disks': {}}}
+
+    @staticmethod
+    def ack():
+        return ({'sentMonoNs': 10_000_000, 'ackMonoNs': 90_000_000, 'rttMs': 80},
+                {'queueUs': 1000, 'commitUs': 45_000, 'commitBackendPid': 421,
+                 'commitStartedMonoNs': 20_000_000, 'commitFinishedMonoNs': 65_000_000})
+
+    def test_correlates_only_matching_backend_within_commit(self):
+        samples = [self.poll(18, 21, {'421': 'Timeout:before'}),
+                   self.poll(22, 23, {'412': 'IO:WalSync'}),
+                   self.poll(24, 25, {'421': 'IO:WalSync', '412': 'Lock:relation'}),
+                   self.poll(40, 41, {'421': 'active'}),
+                   self.poll(64, 66, {'421': 'Timeout:after'})]
+        result = correlate_commits([self.ack()], samples, {'start': 0, 'end': 100_000_000})
+        self.assertEqual(result['slowCommitsWithBackendSample'], 1)
+        self.assertEqual(result['longestCommits'][0]['pollsWithinCommit'], 3)
+        self.assertEqual(result['slowCommitWaitSamples'], {'IO:WalSync': 1, 'active': 1})
+
+    def test_rejects_missing_or_out_of_window_commit_clock(self):
+        client, trace = self.ack()
+        samples = [self.poll(24, 25, {'421': 'IO:WalSync'})]
+        for invalid in ({'commitBackendPid': 0}, {'commitFinishedMonoNs': 91_000_000}):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(RuntimeError, 'clock/PID'):
+                correlate_commits([(client, {**trace, **invalid})], samples, {'start': 0, 'end': 100_000_000})
+
+    def test_preserves_device_layers_and_optional_flush_counters(self):
+        first = disk_snapshot("8 0 sda 0 0 0 0 4 0 12 8 2 9 10 0 0 0 0 3 11\n"
+                              "8 1 sda1 0 0 0 0 2 0 7 6 0 5 6", {'8:0', '8:1'})
+        last = disk_snapshot("8 0 sda 0 0 0 0 6 0 16 15 1 17 22 0 0 0 0 5 17\n"
+                             "8 1 sda1 0 0 0 0 3 0 8 8 1 9 10", {'8:0', '8:1'})
+        points = [{'atNs': 10_000_000, 'disks': first}, {'atNs': 20_000_000, 'disks': last}]
+        result = disk_delta(points)
+        self.assertEqual((result['8:0']['writeMs'], result['8:0']['flushMs']), (7, 6))
+        self.assertEqual(result['8:0']['inFlightAtEnd'], 1)
+        self.assertNotIn('flushMs', result['8:1'])
+        self.assertNotIn('8:0', disk_delta([dict(points[1], atNs=10), dict(points[0], atNs=20)]))
 
 
 if __name__=='__main__':unittest.main()

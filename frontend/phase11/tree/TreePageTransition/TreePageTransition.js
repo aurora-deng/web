@@ -27,13 +27,20 @@ export class TreePageTransition {
       try{await a.finished;}catch{/* Superseded navigation/dispose cancels the old animation. */}
     };
     try {
-      if(motion)await run([{opacity:1,transform:'translateY(0)'},{opacity:.2,transform:`translateY(${-direction*12}px)`}],100);
+      // Keep a readable surface at the swap point. Only the entering view sharpens again.
+      if(motion)await run([
+        {opacity:1,filter:'blur(0px)',transform:'translateY(0)'},
+        {opacity:.68,filter:'blur(6px)',transform:`translateY(${-direction*8}px)`},
+      ],140);
       if(this.disposed||revision!==this.revision)return false;
       this.apply(view);
       const top=edge==='end'?Math.max(0,this.root.documentElement.scrollHeight-this.viewport.innerHeight):edge==='start'?0:this.positions.get(view)||0;
       this.viewport.scrollTo({top,behavior:'instant'});this.cancel();
       if(source==='keyboard')this.surface.querySelector('h1')?.focus({preventScroll:true});
-      if(motion)await run([{opacity:.2,transform:`translateY(${direction*18}px)`},{opacity:1,transform:'translateY(0)'}],200);
+      if(motion)await run([
+        {opacity:.68,filter:'blur(6px)',transform:`translateY(${direction*8}px)`},
+        {opacity:1,filter:'blur(0px)',transform:'translateY(0)'},
+      ],240);
       return !this.disposed&&revision===this.revision;
     } finally {
       if(revision===this.revision){this.cancel();this.surface.removeAttribute('aria-busy');}

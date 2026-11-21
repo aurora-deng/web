@@ -1,4 +1,6 @@
+#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
 #include "backend/application/modules/chat/application/ChatService/ChatService.h"
+#include "backend/application/observability/Telemetry/Telemetry.h"
 
 #include <algorithm>
 #include <chrono>
@@ -325,6 +327,7 @@ AppendMessageResult ChatService::sendMessage(
     std::string clientMessageId, std::string body,
     std::optional<FileId> file, TimePoint now, MessageModelTrace trace)
 {
+    const telemetry::BusinessOperation observation(telemetry::Series::ChatSend);
     if (clientMessageId.empty() || clientMessageId.size() > 128)
         throw ApplicationError(ErrorCode::InvalidArgument,
                                "invalid client message id");
@@ -501,6 +504,7 @@ void ChatService::markRead(UserId user, ConversationId conversation,
 
 std::vector<ConversationSummary> ChatService::conversations(UserId user) const
 {
+    const telemetry::BusinessOperation observation(telemetry::Series::ChatConversations);
     if (!users_.findUser(user))
         throw ApplicationError(ErrorCode::NotFound, "user not found");
     return conversations_.listConversationSummaries(user);
@@ -529,6 +533,7 @@ std::vector<Message> ChatService::history(UserId user,
                                           std::uint64_t afterSequence,
                                           std::size_t limit) const
 {
+    const telemetry::BusinessOperation observation(telemetry::Series::ChatHistory);
     requireMember(user, conversation);
     if (limit == 0 || limit > 500)
         throw ApplicationError(ErrorCode::InvalidArgument,
@@ -540,6 +545,7 @@ std::vector<Message> ChatService::historyBefore(
     UserId user, ConversationId conversation, std::uint64_t beforeSequence,
     std::size_t limit) const
 {
+    const telemetry::BusinessOperation observation(telemetry::Series::ChatHistoryBefore);
     requireMember(user, conversation);
     if (limit == 0 || limit > 500)
         throw ApplicationError(ErrorCode::InvalidArgument,

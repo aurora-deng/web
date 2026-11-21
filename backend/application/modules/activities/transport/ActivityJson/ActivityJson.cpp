@@ -3,6 +3,9 @@
 namespace webserver::function3 {
 std::string activityJson(const TreePost&p) {
     using namespace http;
+    // canonical_request 由服务端生成。只有站内种子能写入此来源标识。
+    const bool bundledExample=p.content.requestId.starts_with("study-example:v1:") &&
+        p.canonicalRequest==R"({"source":"nebula-study-example-v1"})";
     const auto media=array(p.media,[&](const auto&m){return "{\"fileId\":"+id(m.file)+",\"kind\":"+quote(m.kind==MediaKind::Image?"image":"audio")+",\"url\":"+quote("/api/tree/posts/"+std::to_string(p.id)+"/media/"+std::to_string(m.file))+"}";});
     return "{\"id\":"+id(p.id)+",\"authorId\":"+id(p.author)+",\"authorName\":"+quote(p.authorName)+
         ",\"body\":"+quote(p.content.body)+",\"categoryId\":"+id(p.content.category)+",\"mood\":"+quote(p.content.mood)+
@@ -10,6 +13,7 @@ std::string activityJson(const TreePost&p) {
         ",\"createdAt\":"+std::to_string(p.createdAt)+",\"version\":"+id(p.version)+",\"likes\":"+id(p.likes)+
         ",\"repliers\":"+id(p.repliers)+",\"liked\":"+(p.likedByViewer?"true":"false")+
         ",\"favorited\":"+(p.favoritedByViewer?"true":"false")+
+        ",\"bundledExample\":"+(bundledExample?"true":"false")+
         ",\"treeChannel\":"+(p.content.treeChannel?"true":"false")+
         ",\"profileChannel\":"+(p.content.profileChannel?"true":"false")+
         ",\"visibility\":"+quote(p.content.visibility)+

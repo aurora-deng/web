@@ -1,16 +1,16 @@
-import { createChatScope, assertChatAssembly } from '../ChatScope/ChatScope.js?v=144f1e6009a3d461';
-import { createChatContext } from '../ChatContext/ChatContext.js?v=144f1e6009a3d461';
-import { bindChat } from '../ChatBindings/ChatBindings.js?v=144f1e6009a3d461';
-import { createFeedbackController, dependencies as createFeedbackControllerDependencies } from '../FeedbackController/FeedbackController.js?v=144f1e6009a3d461';
-import { createConversationController, dependencies as createConversationControllerDependencies } from '../ConversationController/ConversationController.js?v=144f1e6009a3d461';
-import { createGroupController, dependencies as createGroupControllerDependencies } from '../GroupController/GroupController.js?v=144f1e6009a3d461';
-import { createAttachmentController, dependencies as createAttachmentControllerDependencies } from '../../files/AttachmentController/AttachmentController.js?v=144f1e6009a3d461';
-import { createMessageController, dependencies as createMessageControllerDependencies } from '../MessageController/MessageController.js?v=144f1e6009a3d461';
-import { createRealtimeController, dependencies as createRealtimeControllerDependencies } from '../RealtimeController/RealtimeController.js?v=144f1e6009a3d461';
-import { createContactsController, dependencies as createContactsControllerDependencies } from '../../contacts/ContactsController/ContactsController.js?v=144f1e6009a3d461';
-import { createAiController, dependencies as createAiControllerDependencies } from '../../ai/AiController/AiController.js?v=144f1e6009a3d461';
-import { createKnowledgeController, dependencies as createKnowledgeControllerDependencies } from '../../knowledge/KnowledgeController/KnowledgeController.js?v=144f1e6009a3d461';
-import { watchRecallExpiry } from '../MessageRecall/MessageRecall.js?v=144f1e6009a3d461';
+import { createChatScope, assertChatAssembly } from '../ChatScope/ChatScope.js?v=7f8c7f1b31e4435c';
+import { createChatContext } from '../ChatContext/ChatContext.js?v=7f8c7f1b31e4435c';
+import { bindChat } from '../ChatBindings/ChatBindings.js?v=7f8c7f1b31e4435c';
+import { createFeedbackController, dependencies as createFeedbackControllerDependencies } from '../FeedbackController/FeedbackController.js?v=7f8c7f1b31e4435c';
+import { createConversationController, dependencies as createConversationControllerDependencies } from '../ConversationController/ConversationController.js?v=7f8c7f1b31e4435c';
+import { createGroupController, dependencies as createGroupControllerDependencies } from '../GroupController/GroupController.js?v=7f8c7f1b31e4435c';
+import { createAttachmentController, dependencies as createAttachmentControllerDependencies } from '../../files/AttachmentController/AttachmentController.js?v=7f8c7f1b31e4435c';
+import { createMessageController, dependencies as createMessageControllerDependencies } from '../MessageController/MessageController.js?v=7f8c7f1b31e4435c';
+import { createRealtimeController, dependencies as createRealtimeControllerDependencies } from '../RealtimeController/RealtimeController.js?v=7f8c7f1b31e4435c';
+import { createContactsController, dependencies as createContactsControllerDependencies } from '../../contacts/ContactsController/ContactsController.js?v=7f8c7f1b31e4435c';
+import { createAiController, dependencies as createAiControllerDependencies } from '../../ai/AiController/AiController.js?v=7f8c7f1b31e4435c';
+import { createKnowledgeController, dependencies as createKnowledgeControllerDependencies } from '../../knowledge/KnowledgeController/KnowledgeController.js?v=7f8c7f1b31e4435c';
+import { watchRecallExpiry } from '../MessageRecall/MessageRecall.js?v=7f8c7f1b31e4435c';
 let active;
 /** Composition only: domain controllers own behavior, context owns mutable resources. */
 export function startChatApplication() {
@@ -37,7 +37,7 @@ export function startChatApplication() {
   const dispose=()=>{
     if(active?.context!==context)return;
     context.state.leaving=true;context.runtime.lifecycle.abort();
-    actions.showLoggedOut();context.history.reset();context.sender.clear();context.messageView.dispose();
+    actions.stopChatSession();context.messageView.dispose();
     context.state.search.controller?.abort();active=null;
   };
   active={context,dispose};window.addEventListener('pagehide',dispose,{once:true});return active;

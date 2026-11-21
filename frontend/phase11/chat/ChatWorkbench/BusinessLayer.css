@@ -103,3 +103,10 @@ body[data-workspace=chat] .composer .ai-target .ai-advanced input {
   border-radius:var(--r-xs);
   font-size:var(--fs-micro);
 }
+#account-check[hidden], #auth-panel[hidden], #chat-panel[hidden], #cancel-account-change[hidden] { display:none !important; }
+.account-check { min-height:calc(100dvh - var(--nav-h)); display:grid; align-content:center; justify-items:center; gap:12px; color:var(--text-2); }
+.account-check p { margin:0; }
+#change-chat-account, #cancel-account-change { text-decoration:none; }
+@media(max-width:760px) {
+  .account-check { min-height:calc(100dvh - var(--nav-h-mobile) - 64px); }
+}

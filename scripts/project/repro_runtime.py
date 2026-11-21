@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import signal
 import shlex
 import shutil
 import socket
@@ -34,7 +35,7 @@ def clean_environment():
 
 
 @contextmanager
-def disposable_database(prefix, source, build):
+def disposable_database(prefix, source, build, *, track_wal_io=False):
     tools = {name: require_tool(prefix / "bin" / name)
              for name in ("initdb", "pg_ctl", "psql", "createdb")}
     require(os.geteuid() != 0, "Business reproduction must run as an unprivileged user")
@@ -50,6 +51,8 @@ def disposable_database(prefix, source, build):
                         "--auth-local=trust", "--auth-host=reject", "--encoding=UTF8",
                         "--locale=C"], check=True, env=env, stdout=subprocess.DEVNULL)
         options = f"-k {shlex.quote(str(temporary))} -p {port} -c listen_addresses='' -c max_connections=40"
+        if track_wal_io:
+            options += " -c track_wal_io_timing=on"
         subprocess.run([tools["pg_ctl"], "-D", str(data), "-l", str(build / "postgres.log"),
                         "-o", options, "-w", "-t", "30", "start"], check=True, env=env)
         started = True
@@ -90,18 +93,21 @@ def get_json(port, route):
 
 
 @contextmanager
-def owned_server_process(binary, root, env, log_path, expected_exit=0):
+def owned_server_process(binary, root, env, log_path, expected_exit=0, prefix=(), startup_seconds=20):
     # The frozen server binds all interfaces. Run in a trusted VM or network namespace.
     with closing(socket.socket()) as reserved:
         reserved.bind(("", 0))
         port = reserved.getsockname()[1]
     env = {**env, "WEB_SERVER_PORT": str(port), "WEB_SERVER_REACTORS": "2",
            "WEB_HTTP_WORKERS": "2", "WEB_WS_WORKERS": "2"}
+    # Native builds also start gRPC. Owned tests must not compete with the daily
+    # service's listener; an explicit test address remains authoritative.
+    env.setdefault("WEB_GRPC_ADDRESS", "127.0.0.1:0")
     with log_path.open("wb") as log:
-        child = subprocess.Popen([str(binary)], cwd=root, env=env,
-                                 stdout=log, stderr=subprocess.STDOUT)
+        child = subprocess.Popen([*map(str,prefix),str(binary)], cwd=root, env=env,
+                                 stdout=log, stderr=subprocess.STDOUT, start_new_session=bool(prefix))
         try:
-            deadline = time.monotonic() + 20
+            deadline = time.monotonic() + startup_seconds
             while time.monotonic() < deadline:
                 require(child.poll() is None, f"Server exited; see {log_path.name}")
                 try:
@@ -116,14 +122,28 @@ def owned_server_process(binary, root, env, log_path, expected_exit=0):
         finally:
             already_failed = sys.exc_info()[0] is not None
             if child.poll() is None:
-                child.terminate()
+                if prefix:
+                    try:
+                        direct=Path(f"/proc/{child.pid}/task/{child.pid}/children").read_text().split()
+                        for pid in direct or [child.pid]:
+                            os.kill(int(pid),signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    except OSError:
+                        os.killpg(child.pid,signal.SIGTERM)
+                else:
+                    child.terminate()
             try:
                 status = child.wait(timeout=20)
             except subprocess.TimeoutExpired:
-                child.kill()
+                if prefix:
+                    os.killpg(child.pid,signal.SIGKILL)
+                else:
+                    child.kill()
                 status = child.wait()
             if not already_failed:
-                require(status == expected_exit, f"Server exited with {status}; see {log_path.name}")
+                expected = (expected_exit,) if isinstance(expected_exit, int) else expected_exit
+                require(status in expected, f"Server exited with {status}; see {log_path.name}")
 
 
 @contextmanager

@@ -1,19 +1,39 @@
-import {fetchWave,playSpeech} from '../../shared/SpeechPlayback/SpeechPlayback.js?v=144f1e6009a3d461';
-import { operationsApi } from "../../shared/OperationsApi/OperationsApi.js?v=144f1e6009a3d461";
-import { notificationsApi } from "../../announcements/NotificationsApi/NotificationsApi.js?v=144f1e6009a3d461";
-import { adminApi } from "../AdminApi/AdminApi.js?v=144f1e6009a3d461";
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=144f1e6009a3d461';
-mountNavigation('admin');
-import {BusinessApi} from '../../shared/BusinessApi/BusinessApi.js?v=144f1e6009a3d461';
-import {AnnouncementPlayer} from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=144f1e6009a3d461';
-import {openSpeechSettings} from '../../shared/SpeechSettings/SpeechSettings.js?v=144f1e6009a3d461';
-const api=new BusinessApi(),$=s=>document.querySelector(s);let view=['users','reports','audits','messaging','categories','models','runtime','speech'].includes(location.hash.slice(1))?location.hash.slice(1):'users',cursor='',rows=[],role,pageToken='',pageTrail=[];
+import {fetchWave,playSpeech} from '../../shared/SpeechPlayback/SpeechPlayback.js?v=7f8c7f1b31e4435c';
+import { operationsApi } from "../../shared/OperationsApi/OperationsApi.js?v=7f8c7f1b31e4435c";
+import { adminApi } from "../AdminApi/AdminApi.js?v=7f8c7f1b31e4435c";
+import { adminViews } from '../AdminAccess/AdminAccess.js?v=7f8c7f1b31e4435c';
+import { mountCommunityTrainingPanel } from '../CommunityTrainingPanel/CommunityTrainingPanel.js?v=7f8c7f1b31e4435c';
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=7f8c7f1b31e4435c';
+import {BusinessApi} from '../../shared/BusinessApi/BusinessApi.js?v=7f8c7f1b31e4435c';
+import {AnnouncementPlayer} from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=7f8c7f1b31e4435c';
+import {openSpeechSettings} from '../../shared/SpeechSettings/SpeechSettings.js?v=7f8c7f1b31e4435c';
+const api=new BusinessApi(),$=s=>document.querySelector(s);
+const authorization = mountNavigation('admin', { api });
+let view, cursor='', rows=[], role, pageToken='', pageTrail=[], player;
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 let previewController=new AbortController();const previewUrls=new Set();
 function stopPreviews(){previewController.abort();previewController=new AbortController();for(const audio of document.querySelectorAll('#content audio'))audio.pause();for(const url of previewUrls)URL.revokeObjectURL(url);previewUrls.clear();}
 addEventListener('pagehide',stopPreviews,{once:true});
-const names={users:'用户与权限',reports:'内容举报',audits:'操作审计',messaging:'消息队列',categories:'内容分类',models:'模型治理',runtime:'运行状态',speech:'公告音色'};
-function failure(error){$('#status').textContent=error.status===401?'请先返回聊天页登录。':error.message;}
+const names={users:'用户与权限',reports:'内容举报',audits:'操作审计',messaging:'消息队列',categories:'内容分类',models:'模型治理',runtime:'运行状态',speech:'公告音色',training:'训练语料审核'};
+function showAccessMessage(message) {
+  role = null;
+  stopPreviews();
+  player?.dispose();
+  $('#admin-sidebar').hidden = true;
+  $('#admin-console').hidden = true;
+  $('#content').replaceChildren();
+  $('[data-admin-link]')?.remove();
+  $('#admin-access').hidden = false;
+  $('#admin-access-message').textContent = message;
+  document.title = '星云 · NEBULA';
+}
+function failure(error){
+  if (error.status === 401) {
+    showAccessMessage('登录已过期，请返回缘续-聊天重新登录。');
+    return;
+  }
+  $('#status').textContent=error.message;
+}
 function action(text,run){const b=el('button',text);b.onclick=async()=>{b.disabled=true;try{await run();}catch(e){failure(e);}finally{b.disabled=false;}};return b;}
 function reason(){const value=prompt('请填写操作原因（最多200字）');if(!value?.trim())throw new Error('已取消：操作需要填写原因。');return value;}
 async function mutate(path,data){await api.request(path,{method:'POST',data});await reloadPages();$('#status').textContent='已由服务器确认保存。';}
@@ -57,13 +77,24 @@ async function load(append=false){
   }
 }
 async function renderView(append=false){$('#status').textContent='';$('#title').textContent=names[view];$('#description').textContent='当前身份：'+({user:'普通用户',moderator:'内容管理员',administrator:'站点管理员'}[role]||'未知');$('#next-page').hidden=true;
+  if (view === 'training') return mountCommunityTrainingPanel($('#content'), api);
   if(view==='runtime'){
-    const [live,ready,metrics]=await Promise.all([api.request(operationsApi.getHealthLive({})),api.request(operationsApi.getHealthReady({})),fetch('/metrics',{credentials:'same-origin',cache:'no-store'}).then(async r=>{if(!r.ok)throw new Error('运行指标暂不可用');return r.text();})]);
-    const values=metrics.split('\n').map(line=>line.trim().split(/\s+/)).filter(parts=>parts.length===2&&parts[0].startsWith('webserver_')).slice(0,200);
-    const cache=await api.request(adminApi.getAdminCache({})).catch(()=>null);const rows=[['进程存活',JSON.stringify(live)],['就绪检查',JSON.stringify(ready)],['Redis 读缓存',cache?JSON.stringify(cache):'需站点管理员权限'],...values];table(['指标','服务器当前值'],rows,r=>r);return;
+    const [live,ready,cache,metrics]=await Promise.all([
+      api.request(operationsApi.getHealthLive({})),api.request(operationsApi.getHealthReady({})),
+      api.request(adminApi.getAdminCache({})),
+      fetch('/metrics',{credentials:'same-origin',cache:'no-store'}).then(async response=>{
+        if(response.status===401||response.status===403)return {note:'此实例的详细指标由 Observer 使用采集权限读取。'};
+        if(!response.ok)return {note:'详细指标暂不可用。'};
+        return {body:await response.text()};
+      }).catch(()=>({note:'详细指标暂不可用。'})),
+    ]);
+    const values=metrics.body?.split('\n').map(line=>line.trim().split(/\s+/)).filter(parts=>parts.length===2&&parts[0].startsWith('webserver_')).slice(0,200) || [];
+    const rows=[['进程存活',JSON.stringify(live)],['就绪检查',JSON.stringify(ready)],['Redis 读缓存',JSON.stringify(cache)]];
+    if(metrics.note)rows.push(['详细指标',metrics.note]);
+    table(['指标','服务器当前值'],rows.concat(values),r=>r);return;
   }
   if(view==='speech'){
-    const box=el('div');box.append(el('h2','本地公告音色'),el('p','试听采用固定文案，不上传语音。首次生成需要加载本地模型；文字公告独立于语音服务。'));
+    const box=el('div');box.append(el('h2','站点公告音色'),el('p','按站点配置试听固定文案。首次生成可能需要加载本地模型。'));
     if(role==='administrator')box.append(action('设置云语音、表达与回退',()=>openSpeechSettings(api,{site:true})));
     for(const [voice,label]of[['zf_001','成熟女声'],['zm_009','青年沉稳男声']]){
       const row=el('section');row.append(el('h3',label+' · '+voice),action('试听预置音色',async()=>{const signal=previewController.signal;
@@ -74,7 +105,7 @@ async function renderView(append=false){$('#status').textContent='';$('#title').
           let player=row.querySelector('audio');if(!player){player=el('audio');player.controls=true;row.append(player);}player.pause();if(player.dataset.blob){URL.revokeObjectURL(player.dataset.blob);previewUrls.delete(player.dataset.blob);}const url=URL.createObjectURL(blob);previewUrls.add(url);player.dataset.blob=url;player.src=url;
           $('#status').textContent=(await playSpeech(player)).message;
         }catch(error){if(row.isConnected&&!signal.aborted)throw error;}
-      }),action('作为我的公告音色',async()=>{const settings=await api.request(notificationsApi.getMeNotificationSettings({}));await api.request(notificationsApi.patchMeNotificationSettings({}),{method:'PATCH',data:{sound:String(settings.sound),voice}});$('#status').textContent='已替换当前账号的公告音色，重新进入页面后生效。';}));box.append(row);
+      }));box.append(row);
     }$('#content').replaceChildren(box);return;
   }
   if(view==='models'){
@@ -109,6 +140,43 @@ async function versions(model,after='0',previous=[]){
   $('#title').textContent=model.name+' · 模型版本';
   if(data.length===50)$('#content').append(action('加载更多版本',()=>versions(model,data.at(-1).id,items)));
 }
-document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;cursor='';pageToken='';pageTrail=[];rows=[];document.querySelectorAll('[data-view]').forEach(n=>n.classList.toggle('selected',n===b));load().catch(failure);});
-$('#refresh').onclick=()=>{cursor='';pageToken='';pageTrail=[];load().catch(failure);};$('#next-page').onclick=()=>{pageTrail.push(pageToken);pageToken=cursor;load(true).catch(failure);};
-(async()=>{try{const user=await api.restore();const identity=await api.request(adminApi.getAdminMe({}));role=identity.role;$('#identity').textContent=user.displayName+' · '+role;if(role==='user')throw new Error('此账号没有站点管理权限。群主身份不会自动成为站点管理员。');if(role==='moderator'){view='reports';for(const name of ['users','models','messaging'])document.querySelector('[data-view='+name+']').hidden=true;document.querySelectorAll('[data-view]').forEach(n=>n.classList.toggle('selected',n.dataset.view==='reports'));}await load();new AnnouncementPlayer(api,$('#announcements'),{connectEvents:true}).start();}catch(e){failure(e);}})();
+function selectView(name) {
+  if (!adminViews(role).includes(name)) return;
+  view = name;
+  cursor = ''; pageToken = ''; pageTrail = []; rows = [];
+  document.querySelectorAll('[data-view]').forEach(button => {
+    button.classList.toggle('selected', button.dataset.view === view);
+  });
+  load().catch(failure);
+}
+document.querySelectorAll('[data-view]').forEach(button => {
+  button.onclick = () => selectView(button.dataset.view);
+});
+$('#refresh').onclick = () => selectView(view);
+$('#next-page').onclick = () => {
+  if (!adminViews(role).includes(view)) return;
+  pageTrail.push(pageToken); pageToken = cursor; load(true).catch(failure);
+};
+(async () => {
+  const session = await authorization;
+  if (!session?.role) {
+    const message = session?.error?.status === 401 || !session?.user && !session?.error
+      ? '请返回缘续-聊天登录。'
+      : session?.error ? '暂时无法确认站点权限，请刷新后重试。' : '此账号没有站点管理权限。';
+    showAccessMessage(message);
+    return;
+  }
+  const user = session.user;
+  role = session.role;
+  const allowed = adminViews(role);
+  for (const button of document.querySelectorAll('[data-view]')) button.hidden = !allowed.includes(button.dataset.view);
+  $('#identity').textContent = user.displayName + (role === 'administrator' ? ' · 站点管理员' : ' · 内容管理员');
+  document.title = '星云 · 管理中心';
+  $('#admin-access').hidden = true;
+  $('#admin-sidebar').hidden = false;
+  $('#admin-console').hidden = false;
+  const requested = location.hash.slice(1);
+  selectView(allowed.includes(requested) ? requested : allowed[0]);
+  player = new AnnouncementPlayer(api,$('#announcements'),{connectEvents:true,playbackOnly:true});
+  player.start();
+})();

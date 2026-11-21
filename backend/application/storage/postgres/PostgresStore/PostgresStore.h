@@ -1,9 +1,10 @@
 #pragma once
 #include "backend/application/modules/chat/ports/IWorkspaceRepository/IWorkspaceRepository.h"
+#include "backend/application/modules/chat/ports/IRealtimeRelayRepository/IRealtimeRelayRepository.h"
 
 #include "backend/application/ports/Ports/Ports.h"
 #include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
-#include "backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.h"
+#include "backend/application/storage/postgres/PostgresUnitOfWork/PostgresUnitOfWork.h"
 #include "backend/application/storage/postgres/PostgresOutboxWriter/PostgresOutboxWriter.h"
 
 #include <optional>
@@ -27,6 +28,7 @@ class PostgresStore final : public IDatabase,
                             public IMessageRepository,
                             public IFileRepository,
                             public IOutboxRepository,
+                            public IRealtimeRelayRepository,
                             public IModelRepository,
                             public IAiGenerationAuditRepository,
                             public IModelEvaluationRepository,
@@ -148,11 +150,14 @@ public:
     std::vector<OutboxEvent> pendingOutbox(std::size_t limit) const override;
     bool markPublished(OutboxEventId id, TimePoint now) override;
     bool markPublishedBatch(const std::vector<OutboxEventId> &ids, TimePoint now) override;
+    std::uint64_t relayHead() const override;
+    void stageRelayBatch(std::size_t limit) override;
+    std::vector<RealtimeRelayEvent> readRelayBatch(std::uint64_t after, std::size_t limit) const override;
 
     /** 只读运行指标，不把 libpq 类型暴露给业务接口。 */
     [[nodiscard]] PostgresConnectionPool::Snapshot poolSnapshot() const noexcept
     {
-        return pool_.snapshot();
+        return context_.snapshot();
     }
 
     ModelNode createModelNode(ModelNode node) override;
@@ -244,16 +249,11 @@ public:
         DatasetVersionId id) const override;
 
 private:
-    class Transaction;
-    struct ConnectionScope
-    {
-        std::optional<PostgresConnectionPool::Lease> lease;
-        PGconn *connection = nullptr;
-    };
+    using ConnectionScope=PostgresUnitOfWork::ConnectionScope;
 
     [[nodiscard]] ConnectionScope connection() const;
 
-    mutable PostgresConnectionPool pool_;
+    PostgresUnitOfWork context_;
     std::shared_ptr<PostgresOutboxWriter>outboxWriter_;
 };
 

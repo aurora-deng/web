@@ -1,0 +1,17 @@
+{
+  "registered": 119,
+  "passed": 118,
+  "skipped": [
+    "function3_redis_contract"
+  ],
+  "lanes": {
+    "communication": 86,
+    "businessWithoutPostgres": 31,
+    "realPostgres": 2
+  },
+  "passedAll": true,
+  "buildType": "Debug",
+  "sanitizer": "UBSan",
+  "haltOnError": true,
+  "migration": 24
+}

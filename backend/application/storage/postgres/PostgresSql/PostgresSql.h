@@ -40,7 +40,7 @@ namespace webserver::phase11::pg {
         };
         std::vector<const char*>values;
         for(const auto&p:parameters)values.push_back(p?p->c_str():nullptr);
-        telemetry::Span span("PostgreSQL command");
+        telemetry::Span span("PostgreSQL command", {}, telemetry::Span::Kind::Client);
         auto*raw=PQexecParams(connection,std::string(sql).c_str(),static_cast<int>(values.size()),nullptr,values.data(),nullptr,nullptr,0);
         if (!raw || (PQresultStatus(raw) != PGRES_TUPLES_OK && PQresultStatus(raw) != PGRES_COMMAND_OK))
             span.error();

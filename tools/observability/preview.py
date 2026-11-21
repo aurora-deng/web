@@ -1,5 +1,6 @@
 """Open the same Observer UI with explicitly labelled synthetic telemetry."""
 import argparse
+import math
 from pathlib import Path
 import time
 
@@ -35,10 +36,26 @@ class PreviewSources:
         by_query = {value[2]:key for key,value in PANELS.items()}
         panel = by_query[args["query"]]
         levels = {"http":470,"memory":23,"cpu":34,"disk":6.9,"ws":16,"sse":8,"queue":7,"pool":8,
-                  "outbox":135,"chat_queue":20,"chat_pool":3,"chat_before_commit":15,"chat_commit":3,"chat_ack_ready":18}
+                  "outbox":135,"chat_queue":20,"chat_pool":3,"chat_before_commit":15,"chat_commit":3,"chat_ack_ready":18,
+                  "threads":18, "network_tx":410 * 1024, "network_rx":240 * 1024,
+                  "http_rate":82, "history_rate":43, "auth_rejected":.3, "rate_limited":.08,
+                  "db_failed":.03, "origin_rejected":0, "outbox_failed":0}
+        for prefix, factor in (("http", 1), ("history", 1.7)):
+            for kind, baseline in (("avg",7),("p50",5),("p90",12),("p95",17),("p99",24)):
+                levels[prefix + "_" + kind] = baseline * factor
         level = levels.get(panel, 12)
-        values = [[stamp,str(round(level * (0.65+(index*13%16)/40 + (0.35 if 0.6 < (stamp-start)/(end-start) < 0.8 else 0)),3))]
-                  for index,stamp in enumerate(range(start,end+1,step))]
+        phase = sum(map(ord, panel)) % 23 / 5
+        values = []
+        for stamp in range(start, end + 1, step):
+            t = (stamp - start) / (end - start)
+            if .34 < t < .41 and panel.endswith(("avg", "p50", "p90", "p95", "p99")):
+                values.append([stamp, "NaN"])
+                continue
+            wave = 0.83 + .11 * math.sin(t * 17 + phase) + .05 * math.sin(t * 170 + phase)
+            value = level * (wave + .43 * math.exp(-((t - .72) / .078) ** 2))
+            if panel in ("threads", "ws", "sse"):
+                value = round(value)
+            values.append([stamp,str(round(value,3))])
         return {"result":[{"metric":{"instance":"模拟实例"},"values":values}]}
 
 

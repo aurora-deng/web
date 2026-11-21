@@ -1,0 +1,17 @@
+.discussion-thread {
+  border-block-end: 1px solid var(--line);
+  padding-block: 8px;
+}
+.discussion-thread:last-child { border-block-end: 0; }
+.discussion-children {
+  margin: 6px 0 6px clamp(10px, 4vw, 28px);
+  padding: 6px 12px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  min-width: 0;
+}
+.discussion-children summary {
+  line-height: 1.8;
+  color: var(--accent-text);
+  cursor: pointer;
+}

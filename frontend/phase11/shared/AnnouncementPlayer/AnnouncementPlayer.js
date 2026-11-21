@@ -1,11 +1,18 @@
-import { fetchWave, playSpeech } from '../SpeechPlayback/SpeechPlayback.js?v=144f1e6009a3d461';
-import { speechApi } from "../../speech/SpeechApi/SpeechApi.js?v=144f1e6009a3d461";
-import { notificationsApi } from "../../announcements/NotificationsApi/NotificationsApi.js?v=144f1e6009a3d461";
-import { announcementsApi } from "../../announcements/AnnouncementsApi/AnnouncementsApi.js?v=144f1e6009a3d461";
-import { ReconnectBackoff } from '../RecoveryBudget/RecoveryBudget.js?v=144f1e6009a3d461';
+import { fetchWave, playSpeech } from '../SpeechPlayback/SpeechPlayback.js?v=7f8c7f1b31e4435c';
+import { speechApi } from "../../speech/SpeechApi/SpeechApi.js?v=7f8c7f1b31e4435c";
+import { notificationsApi } from "../../announcements/NotificationsApi/NotificationsApi.js?v=7f8c7f1b31e4435c";
+import { announcementsApi } from "../../announcements/AnnouncementsApi/AnnouncementsApi.js?v=7f8c7f1b31e4435c";
+import { ReconnectBackoff } from '../RecoveryBudget/RecoveryBudget.js?v=7f8c7f1b31e4435c';
 /** 文字独立于音频。自动播报先取得服务器一次性播放权，多个标签页不会重复播放。 */
 export class AnnouncementPlayer {
-  constructor(api, container,{connectEvents=false}={}) { this.connectEvents=connectEvents;this.api=api;this.container=container;this.after='0';this.pending=new Map();this.playing=false;this.recording=false;this.started=Date.now();this.settings={sound:false,voice:'zf_001'};this.backoff=new ReconnectBackoff();this.audioController=new AbortController();this.audioEpoch=0; }
+  constructor(api, container,{connectEvents=false, playbackOnly=false}={}) { this.connectEvents=connectEvents;this.playbackOnly=playbackOnly;this.api=api;this.container=container;this.after='0';this.pending=new Map();this.playing=false;this.recording=false;this.started=Date.now();this.settings={sound:false,voice:'zf_001'};this.backoff=new ReconnectBackoff();this.audioController=new AbortController();this.audioEpoch=0; }
+  setControlsHost(host) {
+    this.controlsHost = host;
+    if (!this.controls) return;
+    const panel = host || document.getElementById('global-audio-panel') || document.body;
+    panel.querySelector('.audio-placeholder')?.remove();
+    if (this.controls.parentElement !== panel) panel.append(this.controls);
+  }
   async start() {
     try { this.settings=await this.api.request(notificationsApi.getMeNotificationSettings({})); }
     catch { return; } // Function3 未启用时保持旧聊天页正常工作。
@@ -14,7 +21,10 @@ export class AnnouncementPlayer {
     this.controls=document.createElement('div');this.controls.className='announcement-sound';
     this.toggle=document.createElement('button');this.voice=document.createElement('select');this.voice.setAttribute('aria-label','公告音色');
     for(const [value,label] of [['zf_001','温柔女声'],['zm_009','沉稳男声']]){const option=new Option(label,value);this.voice.add(option);}
-    this.voice.value=this.settings.voice;this.note=document.createElement('small');this.resume=document.createElement('button');this.resume.textContent='播放声音 / 继续';this.resume.hidden=true;this.resume.onclick=()=>this.playAudio({manual:true});this.preview=document.createElement('button');this.preview.className='preview-button';this.preview.textContent='▶ 试听当前音色';this.preview.onclick=()=>this.previewVoice();this.controls.append(this.toggle,this.voice,this.preview,this.resume,this.note);const panel=document.getElementById('global-audio-panel');if(panel){panel.querySelector('.audio-placeholder')?.remove();panel.append(this.controls);}else document.body.append(this.controls);
+    this.voice.value=this.settings.voice;this.note=document.createElement('small');this.resume=document.createElement('button');this.resume.textContent='播放声音 / 继续';this.resume.hidden=true;this.resume.onclick=()=>this.playAudio({manual:true});this.preview=document.createElement('button');this.preview.className='preview-button';this.preview.textContent='▶ 试听当前音色';this.preview.onclick=()=>this.previewVoice();
+    if (!this.playbackOnly) this.controls.append(this.toggle, this.voice, this.preview);
+    this.controls.append(this.resume, this.note);
+    this.setControlsHost(this.controlsHost);
     try{const info=await this.api.request(speechApi.getMeSpeechStatus({}));if(typeof info.enabled==='boolean')this.speechInfo=info;}catch{}
     if(this.disposed){this.controls.remove();return;}
     const save=async()=>{try{await this.api.request(notificationsApi.patchMeNotificationSettings({}),{method:'PATCH',data:{sound:String(this.settings.sound),voice:this.settings.voice}});this.paint();}catch(e){this.note.textContent=e.message;}};
@@ -29,7 +39,7 @@ export class AnnouncementPlayer {
     if(this.connectEvents)this.connect();
     addEventListener('pagehide',()=>this.dispose(),{once:true});
   }
-  paint(){this.toggle.textContent=this.settings.sound?'♫ 公告声音已开':'♩ 开启公告声音';this.toggle.setAttribute('aria-pressed',String(this.settings.sound));this.note.textContent=this.speechInfo?.enabled===false?'当前服务未启用语音引擎，只提供文字公告。请使用日常启动入口。':'开启后播报新公告，可先试听确认声音。';}
+  paint(){this.toggle.textContent=this.settings.sound?'♫ 公告声音已开':'♩ 开启公告声音';this.toggle.setAttribute('aria-pressed',String(this.settings.sound));this.note.textContent=this.speechInfo?.enabled===false?'当前服务提供文字公告。':this.playbackOnly?(this.settings.sound?'个人公告声音已开启。':'个人公告声音已关闭。'):'开启后播报新公告，可先试听确认声音。';}
   /** Device speech has no HTML audio element; use an explicit page event so
    * it still participates in the existing one-at-a-time announcement policy. */
   deviceSpeechChanged(active){this.deviceSpeaking=active;if(active){this.audio?.pause();this.playing=false;this.note.textContent='设备正在朗读，公告暂缓播放。';}else this.tick?.();}

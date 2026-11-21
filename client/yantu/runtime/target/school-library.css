@@ -1,0 +1,71 @@
+.school-browser-tabs { margin-bottom:20px; }
+#schoolTargetPanel[hidden], #schoolCatalogPanel[hidden] { display:none!important; }
+.school-catalog-panel { min-width:0; }
+.school-catalog-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+.school-catalog-heading h3 { margin:0; font-size:17px; color:var(--ink); }
+.school-catalog-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-bottom:14px; border-bottom:1px solid var(--line); }
+.school-catalog-toolbar .library-search { flex-basis:260px; }
+.school-catalog-toolbar select, .school-pages select { width:auto; max-width:100%; min-width:0; margin:0; padding:8px; border:1px solid var(--line); border-radius:4px; background:var(--surface,#fff); color:var(--ink); font-size:12px; }
+.school-catalog-toolbar select { max-width:220px; }
+.school-target-search { margin-bottom:18px; }
+.school-muted, .school-scope, .school-location { font-size:12px; color:var(--muted); line-height:1.7; overflow-wrap:anywhere; }
+#schoolCatalogMeta { margin:14px 0; }
+.school-coverage { margin:0 0 16px; color:var(--muted); font-size:12px; line-height:1.8; overflow-wrap:anywhere; }
+.school-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr)); gap:16px; min-width:0; }
+.school-record { margin:0!important; min-width:0; border:1px solid var(--line); border-radius:6px; padding:16px; background:var(--surface,#fff); color:var(--ink); }
+.school-record header { display:flex; flex-direction:column; gap:6px; }
+.school-record h4 { margin:0; font-size:16px; color:var(--ink); }
+.school-name, .school-record h4 button { border:0; background:transparent; color:var(--ink); text-align:left; font:inherit; font-weight:600; padding:0; overflow-wrap:anywhere; }
+.school-name:hover, .school-record h4 button:hover { color:var(--accent-dark,var(--accent)); }
+.school-badges { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0; }
+.school-badges span { background:var(--surface-soft,#eef5f1); color:var(--accent-dark,#466c5b); padding:3px 6px; border-radius:3px; font-size:11px; }
+.school-badges span.school-pending { background:#fff1d9; color:#805b14; }
+.school-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:15px 0; }
+.school-facts div { min-width:0; }
+.school-facts dt { font-size:11px; color:var(--muted); margin-bottom:4px; }
+.school-facts dd { margin:0; font-size:13px; color:var(--ink); overflow-wrap:anywhere; white-space:pre-line; }
+.school-facts .school-fact-wide { grid-column:1/-1; }
+.school-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.school-metrics dd { font-size:12px; line-height:1.75; }
+.school-history details { border-bottom:1px solid var(--line); padding:12px 0; }
+.school-history summary { cursor:pointer; font-size:13px; font-weight:600; line-height:1.8; overflow-wrap:anywhere; }
+.school-history summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.school-disciplines { color:var(--ink); font-size:12px; line-height:1.8; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.school-disciplines strong { font-weight:500; color:var(--muted); }
+.school-notes { white-space:pre-wrap; overflow-wrap:anywhere; color:var(--muted); font-size:12px; line-height:1.8; max-height:110px; overflow:auto; border-top:1px solid var(--line); padding-top:12px; }
+.school-full-notes { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.9; }
+.school-source-links { display:flex; flex-direction:column; gap:7px; margin:12px 0; }
+.school-source-links a { color:var(--accent-dark,#35755d); text-decoration:underline; text-underline-offset:3px; font-size:12px; overflow-wrap:anywhere; }
+.school-source-links i { margin-right:4px; }
+.school-row-actions { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+.school-table-wrap { max-width:100%; overflow:auto; }
+.school-table { width:100%; min-width:680px; border-collapse:collapse; table-layout:fixed; background:var(--surface,#fff); color:var(--ink); }
+.school-table th, .school-table td { border-bottom:1px solid var(--line); text-align:left; padding:14px 12px; vertical-align:top; overflow-wrap:anywhere; font-size:12px; }
+.school-table th { background:var(--surface-soft,#eef5f1); font-size:11px; font-weight:500; color:var(--muted); }
+.school-table th:first-child { width:20%; }
+.school-table th:nth-child(2) { width:28%; }
+.school-table th:nth-child(3) { width:38%; }
+.school-table th:last-child { width:14%; }
+.school-table .school-metrics { margin:0; }
+.school-table small { display:block; margin-top:6px; color:var(--muted); font-size:11px; }
+.school-cell-disciplines, .school-cell-subjects { margin:0; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; line-height:1.8; white-space:pre-line; }
+.school-pages .library-page-range { text-align:left; }
+.school-detail-dialog { width:min(760px,calc(100vw - 24px)); max-width:none; }
+.school-detail-dialog .dialog-header h3 { flex:1; min-width:0; overflow-wrap:anywhere; font-size:18px; }
+.school-detail-dialog section { padding:15px 0; border-top:1px solid var(--line); }
+.school-detail-dialog section h4 { font-size:14px; margin-bottom:12px; }
+.school-detail-dialog .dialog-actions { padding:14px 20px; }
+.school-editor-extra { border-top:1px solid var(--line); margin-top:18px; padding-top:14px; }
+.school-editor-extra label { display:block; min-width:0; }
+.school-editor-extra :is(input,textarea) { width:100%; margin-top:7px; }
+#schoolDialog[data-school-mode=catalog] #subjectSchoolLinks { display:none; }
+@media(max-width:700px) {
+    .school-catalog-toolbar .library-search { flex-basis:100%; }
+    .school-catalog-toolbar select { max-width:100%; }
+    .school-grid { grid-template-columns:minmax(0,1fr); }
+    .school-record { padding:14px; }
+    .school-catalog-heading { gap:8px; }
+}
+@media(max-width:480px) {
+    .school-pages [data-school-action=first], .school-pages [data-school-action=last] { display:none; }
+}

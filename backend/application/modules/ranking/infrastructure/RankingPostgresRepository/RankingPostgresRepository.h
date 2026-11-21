@@ -8,7 +8,9 @@ public:
     Milliseconds databaseNow() const override;
     bool lockSettlementSlot(Milliseconds slot) override;
     RankSnapshot latest() const override;
+    RankSnapshot latestCategory(Id category) const override;
     RankSnapshot save(Milliseconds slot,Milliseconds now,const std::vector<RankEntry>&entries) override;
+    void saveCategories(Id version, const std::vector<CategoryRankEntry>& entries) override;
 private: SqlContext &sql_;
 };
 }

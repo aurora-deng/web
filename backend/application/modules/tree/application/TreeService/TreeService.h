@@ -19,7 +19,7 @@ public:
     TreeCategory category(Id actor,Id category,std::string name,bool active,Milliseconds now);
     TreePost like(Id actor, Id post, bool liked, Milliseconds now);
     TreeReply reply(Id actor, Id post, std::string key, std::string body, Milliseconds now, Id parent=0);
-    std::vector<TreeReply> replies(Id actor, Id post, Id before, std::size_t limit) const;
+    std::vector<TreeReply> replies(Id actor, Id post, Id before, std::size_t limit, bool authorOnly = false) const;
     void removeReply(Id actor, Id reply, Milliseconds now);
     void remove(Id actor, Id post, Milliseconds now, std::string reason = {});
     void hide(Id actor, Id post, std::string reason, Milliseconds now);

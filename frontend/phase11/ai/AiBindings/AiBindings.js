@@ -1,5 +1,5 @@
-import { trainingApi } from "../../training/TrainingApi/TrainingApi.js?v=144f1e6009a3d461";
-import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=144f1e6009a3d461';
+import { trainingApi } from "../../training/TrainingApi/TrainingApi.js?v=7f8c7f1b31e4435c";
+import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=7f8c7f1b31e4435c';
 export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","toast","createClientId","setButtonBusy","api","setRealtimeState","openTrainingConsent","loadTrainingCandidates","sendSocket","loadAiModels"],"types":[],"events":true};
 /** Ai UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindAi(context) {

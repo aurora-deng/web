@@ -32,95 +32,12 @@ namespace
 {
 
 using namespace storage_detail;
-thread_local std::unordered_map<const PostgresStore *, PGconn *> activeTransactions;
 
 } // namespace
 
-class PostgresStore::Transaction final : public ITransaction
-{
-public:
-    Transaction(PostgresStore &store, PostgresConnectionPool::Lease lease)
-        : store_(store), lease_(std::move(lease)), owner_(std::this_thread::get_id())
-    {
-        const auto [_, inserted] = activeTransactions.emplace(&store_, lease_.get());
-        if (!inserted)
-            throw std::logic_error("nested PostgreSQL transactions are not supported");
-        try
-        {
-            command(lease_.get(), "BEGIN");
-        }
-        catch (...)
-        {
-            activeTransactions.erase(&store_);
-            throw;
-        }
-    }
-
-    ~Transaction() override
-    {
-        if (!finished_)
-        {
-            try { rollback(); }
-            catch (...) { activeTransactions.erase(&store_); }
-        }
-    }
-
-    void commit() override { finish("COMMIT"); }
-    void rollback() override { finish("ROLLBACK"); }
-
-private:
-    void finish(std::string_view action)
-    {
-        if (finished_)
-            throw std::logic_error("transaction already completed");
-        if (owner_ != std::this_thread::get_id())
-            throw std::logic_error("transaction completed on a different thread");
-        try
-        {
-            const auto started = action == "COMMIT" ? application::ChatAckTrace::committing()
-                                                   : std::chrono::steady_clock::time_point{};
-            command(lease_.get(), action);
-            application::ChatAckTrace::committed(started);
-        }
-        catch (...)
-        {
-            activeTransactions.erase(&store_);
-            finished_ = true;
-            lease_.reset();
-            throw;
-        }
-        activeTransactions.erase(&store_);
-        finished_ = true;
-        lease_.reset();
-        if(action=="COMMIT"&&store_.outboxWriter_)store_.outboxWriter_->committed();
-    }
-
-    PostgresStore &store_;
-    PostgresConnectionPool::Lease lease_;
-    std::thread::id owner_;
-    bool finished_ = false;
-};
-
-PostgresStore::PostgresStore(PostgresPoolConfig config)
-    : pool_(std::move(config))
-{
-}
-
-PostgresStore::ConnectionScope PostgresStore::connection() const
-{
-    if (const auto found = activeTransactions.find(this);
-        found != activeTransactions.end())
-        return {{}, found->second};
-    ConnectionScope scope;
-    scope.lease.emplace(pool_.acquire());
-    scope.connection = scope.lease->get();
-    return scope;
-}
-
-std::unique_ptr<ITransaction> PostgresStore::beginTransaction()
-{
-    return std::make_unique<Transaction>(*this, pool_.acquire());
-}
+PostgresStore::PostgresStore(PostgresPoolConfig config):context_(std::move(config)){}
+PostgresStore::ConnectionScope PostgresStore::connection() const {return context_.connection();}
+std::unique_ptr<ITransaction> PostgresStore::beginTransaction(){return context_.begin(outboxWriter_);}
 
 std::vector<webserver::chat::UserCard>PostgresStore::searchUsers(UserId user,std::string_view query,UserId after,std::size_t limit)const{auto scope=connection();return PostgresWorkspaceRepository::users(scope.connection,std::move(user),std::move(query),std::move(after),std::move(limit));}
 std::vector<Message>PostgresStore::searchVisibleMessages(UserId user,ConversationId conversation,std::string_view query,MessageId before,std::size_t limit)const{auto scope=connection();return PostgresWorkspaceRepository::search(scope.connection,std::move(user),std::move(conversation),std::move(query),std::move(before),std::move(limit));}
@@ -177,7 +94,7 @@ bool PostgresStore::updateProfile(UserId id, std::string displayName,
 // INSERT的唯一约束在并发确认时等待对方事务；收据成功与资料更新一起提交。
 ProfileWriteResult PostgresStore::writeProfileOnce(UserId user,std::string operation,std::string displayName,std::string biography)
 {
-    auto transaction=activeTransactions.contains(this)?nullptr:beginTransaction();
+    auto transaction=context_.inTransaction()?nullptr:beginTransaction();
     auto scope=connection();
     auto result=PostgresAccountRepository::writeProfileOnce(scope.connection, std::move(user), std::move(operation), std::move(displayName), std::move(biography));
     if(transaction)transaction->commit();
@@ -319,7 +236,7 @@ Conversation PostgresStore::createConversation(
 std::optional<Conversation> PostgresStore::findConversation(ConversationId id) const
 {
     auto scope=connection();
-    return PostgresConversationRepository::findConversation(scope.connection, activeTransactions.contains(this), std::move(id));
+    return PostgresConversationRepository::findConversation(scope.connection, context_.inTransaction(), std::move(id));
 }
 
 std::optional<ConversationMember> PostgresStore::findMember(
@@ -529,6 +446,24 @@ bool PostgresStore::markPublished(OutboxEventId id, TimePoint now)
 {
     auto scope=connection();
     return PostgresOutboxRepository::markPublished(scope.connection, std::move(id), std::move(now));
+}
+
+std::uint64_t PostgresStore::relayHead() const
+{
+    auto scope = connection();
+    return PostgresOutboxRepository::relayHead(scope.connection);
+}
+
+void PostgresStore::stageRelayBatch(std::size_t limit)
+{
+    auto scope = connection();
+    PostgresOutboxRepository::stageRelayBatch(scope.connection, limit);
+}
+
+std::vector<RealtimeRelayEvent> PostgresStore::readRelayBatch(std::uint64_t after, std::size_t limit) const
+{
+    auto scope = connection();
+    return PostgresOutboxRepository::readRelayBatch(scope.connection, after, limit);
 }
 
 ModelNode PostgresStore::createModelNode(ModelNode node)

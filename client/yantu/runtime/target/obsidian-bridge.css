@@ -1,0 +1,71 @@
+.obsidian-bridge { border-top: 1px solid var(--line, #dce2df); padding: 20px 0; margin-top: 20px; color: var(--ink, #202b27); }
+.obsidian-bridge *, .ob-record-meta, .ob-form-source { box-sizing: border-box; letter-spacing: 0; }
+.obsidian-bridge [hidden], .ob-checkbox[hidden] { display: none !important; }
+.ob-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ob-header h3 { font-size: 17px; line-height: 1.5; margin: 0; }
+.obsidian-bridge > .ob-header { position: static; padding: 0; border: 0; background: transparent; }
+.ob-header .btn-icon { margin-left: auto; }
+.ob-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 20px; margin: 12px 0; }
+.ob-summary > div { padding: 12px 0; min-width: 0; border-bottom: 1px solid var(--line, #dce2df); }
+.ob-summary dt { color: var(--muted, #57645e); font-size: 12px; margin-bottom: 5px; }
+.ob-summary dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.ob-config { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; margin-top: 20px; }
+.ob-config label, .ob-preview-range label { display: grid; min-width: 0; gap: 6px; font-size: 13px; }
+.ob-config :is(input:not([type=checkbox]), select), .ob-preview-range input { width: 100%; min-width: 0; min-height: 42px; background: var(--surface, #fff); color: var(--ink, #202b27); border: 1px solid var(--line, #dce2df); border-radius: 4px; padding: 8px 10px; font: inherit; }
+.ob-config input[readonly] { background: var(--surface-soft, #f2f5f3); color: var(--muted, #57645e); }
+.ob-config .ob-wide { grid-column: 1 / -1; }
+.ob-checkbox, .ob-config .ob-checkbox { display: flex; align-items: center; gap: 9px; min-height: 42px; font-size: 13px; margin: 0; }
+.ob-checkbox input { width: 18px; height: 18px; flex: 0 0 18px; margin: 0; accent-color: var(--accent, #217a52); }
+.ob-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.obsidian-bridge .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; border-radius: 4px; }
+.obsidian-bridge .btn-icon, .ob-record-meta .btn-icon, .ob-task-edit { width: 42px; height: 42px; min-width: 42px; flex: 0 0 42px; padding: 8px; }
+.obsidian-bridge :is(button, input, select, summary):focus-visible, .ob-record-meta button:focus-visible, .ob-task-edit:focus-visible { outline: 3px solid var(--wx-focus, #2274b8); outline-offset: 3px; }
+.obsidian-bridge button:disabled { opacity: .55; cursor: not-allowed; }
+.ob-settings-notices { margin: 14px 0 18px; padding-left: 18px; color: var(--muted, #57645e); font-size: 12px; line-height: 1.8; }
+.ob-preview-range { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: end; padding-top: 20px; margin-top: 20px; border-top: 1px solid var(--line, #dce2df); }
+.ob-preview:empty, .ob-conflicts:empty, .ob-issues:empty, .ob-message:empty { display: none; }
+.ob-message, .ob-issues { font-size: 13px; line-height: 1.7; color: var(--danger, #a22e30); overflow-wrap: anywhere; }
+.ob-message[data-kind=success] { color: var(--accent-dark, #205840); }
+.ob-message[data-kind=progress], .ob-observation { color: var(--muted, #57645e); }
+.ob-message[data-kind=warning] { color: var(--ink, #202b27); border-left: 3px solid var(--warn, #8a6010); padding-left: 10px; }
+.ob-observation { font-size: 13px; line-height: 1.6; margin: 8px 0; }
+.ob-observation:empty { display: none; }
+.ob-issues { padding-left: 20px; }
+.ob-table-scroll { max-height: 360px; overflow: auto; margin: 12px 0; }
+.ob-table-scroll table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; table-layout: fixed; }
+.ob-table-scroll :is(th, td) { padding: 10px 8px; border-bottom: 1px solid var(--line, #dce2df); vertical-align: top; overflow-wrap: anywhere; }
+.ob-table-scroll th { position: sticky; top: 0; background: var(--surface, #fff); font-weight: 600; }
+.ob-table-scroll :is(th, td):nth-child(1), .ob-table-scroll :is(th, td):nth-child(4) { width: 16%; }
+.ob-table-scroll :is(th, td):nth-child(2) { width: 24%; }
+.ob-template { border-top: 1px solid var(--line, #dce2df); padding: 12px 0; margin: 12px 0; }
+.ob-template summary { cursor: pointer; font-size: 13px; min-height: 42px; align-content: center; overflow-wrap: anywhere; }
+.ob-template pre, .ob-compare pre { font-family: inherit; font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow: auto; }
+.ob-conflicts h4 { font-size: 16px; margin: 22px 0 8px; }
+.ob-conflict { border-bottom: 1px solid var(--line, #dce2df); padding: 16px 0; }
+.ob-conflict h5 { font-size: 14px; margin: 0 0 8px; }
+.ob-conflict p { font-size: 13px; overflow-wrap: anywhere; }
+.ob-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.ob-compare > section { min-width: 0; }
+.ob-muted { color: var(--muted, #57645e); font-size: 13px; }
+.ob-record-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; max-width: 100%; font-size: 12px; line-height: 1.5; color: var(--muted, #57645e); }
+.ob-source-badge { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-dark, #205840); }
+.ob-sync-state { overflow-wrap: anywhere; }
+.ob-sync-state[data-status=conflict] { color: var(--danger, #a22e30); }
+.ob-sync-state[data-status=waiting-file], .ob-sync-state[data-status=pending] { color: var(--ink, #202b27); }
+.ob-sync-state[data-status=synced] { color: var(--accent-dark, #205840); }
+.ob-readonly { border-left: 1px solid var(--line, #dce2df); padding-left: 8px; }
+.ob-form-source { border-bottom: 1px solid var(--line, #dce2df); padding-bottom: 10px; margin-bottom: 12px; }
+.task-item:has(.ob-record-meta) > div:first-child { flex: 1; min-width: 0; }
+.task-meta:has(.ob-record-meta), .journal-actions:has(.ob-record-meta) { flex-wrap: wrap; }
+.task-meta > .ob-record-meta { flex-basis: 100%; }
+.home-task-check:has(.ob-record-meta) { flex-wrap: wrap; }
+.home-task-check > .ob-record-meta { flex-basis: 100%; padding-left: 26px; }
+@media (max-width: 700px) {
+    .ob-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+    .ob-config, .ob-compare { grid-template-columns: minmax(0, 1fr); }
+    .ob-preview-range { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ob-preview-range > button { grid-column: 1 / -1; justify-self: start; }
+    .task-item:has(.ob-record-meta) { flex-wrap: wrap; }
+    .task-item:has(.ob-record-meta) > div:first-child { flex-basis: 100%; }
+    .ob-table-scroll :is(th, td) { padding: 8px 4px; }
+}

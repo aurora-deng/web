@@ -5,26 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#07101f">
-  <title>Nebula Chat · 星云聊天</title>
-  <link rel="stylesheet" href="/phase11/styles.css?v=144f1e6009a3d461">
-<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/ChatWorkbench.css?v=144f1e6009a3d461">
+  <title>缘续-聊天 · NEBULA</title>
+  <link rel="stylesheet" href="/phase11/styles.css?v=7f8c7f1b31e4435c">
+<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/ChatWorkbench.css?v=7f8c7f1b31e4435c">
 <!-- NEBULA DS v1：token → 基础层 → 工作区桥接。必须放在本页样式之后。 -->
-<link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=144f1e6009a3d461">
-<link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css?v=144f1e6009a3d461">
-<link rel="stylesheet" href="/phase11/shared/DesignSystem/workspaces.css?v=144f1e6009a3d461">
+<link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=7f8c7f1b31e4435c">
+<link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css?v=7f8c7f1b31e4435c">
+<link rel="stylesheet" href="/phase11/shared/DesignSystem/workspaces.css?v=7f8c7f1b31e4435c">
 <!-- 业务层样式：必须排在 workspaces.css 之后，否则压不住 DS 桥接层。回滚 = 删这一行。 -->
-<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/BusinessLayer.css?v=144f1e6009a3d461">
-<link rel="stylesheet" href="/phase11/chat/WorkspaceUi/WorkspaceUi.css?v=144f1e6009a3d461">
-<link rel="stylesheet" href="/phase11/chat/ChatBackdrop/ChatBackdrop.css?v=144f1e6009a3d461">
+<link rel="stylesheet" href="/phase11/chat/ChatWorkbench/BusinessLayer.css?v=7f8c7f1b31e4435c">
+<link rel="stylesheet" href="/phase11/chat/WorkspaceUi/WorkspaceUi.css?v=7f8c7f1b31e4435c">
+<link rel="stylesheet" href="/phase11/chat/ChatBackdrop/ChatBackdrop.css?v=7f8c7f1b31e4435c">
 </head>
 <body data-workspace="chat">
-  <main id="auth-panel" class="auth-view">
+  <section id="account-check" class="account-check" aria-labelledby="account-check-status">
+    <p id="account-check-status" role="status">正在恢复账号会话…</p>
+    <button id="account-check-retry" type="button" class="ghost-button" hidden>重试</button>
+  </section>
+  <main id="auth-panel" class="auth-view hidden" hidden>
     <section class="auth-hero" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="eyebrow"><span></span> NEBULA · 星云</p>
         <h1 id="hero-title">人与故事，<br><em>在这里相遇。</em></h1>
-        <p class="hero-description">和朋友聊聊，在苦情树下留下一段故事，也可以请 AI 助手帮个忙。</p>
-        <ul class="hero-proof" aria-label="星云功能"><li>实时聊天</li><li>苦情树</li><li>AI 助手</li></ul>
+        <p class="hero-description">和朋友聊聊，在缘生-广场留下一段故事，也可以请小研帮个忙。</p>
+        <ul class="hero-proof" aria-label="星云功能"><li>缘续-聊天</li><li>缘生-广场</li><li>小研</li></ul>
       </div>
     </section>
 
@@ -41,17 +45,18 @@
           <button class="primary-button auth-submit" type="submit"><span>登录并进入</span><span aria-hidden="true">→</span></button>
         </form>
         <p class="form-status" id="auth-status" role="status" aria-live="polite"></p>
+        <a id="cancel-account-change" class="ghost-button" href="/phase11/" hidden>返回原页面</a>
         <div class="auth-register"><span>还没有账号？</span><button id="show-register" class="ghost-button" type="button" aria-haspopup="dialog" aria-controls="register-dialog">创建账号</button></div>
       </div>
     </section>
   </main>
 
-  <main id="chat-panel" class="chat-app hidden">
+  <main id="chat-panel" class="chat-app hidden" hidden>
     <aside class="workbench-rail" aria-label="聊天工具栏">
       <section class="profile-card">
         <span id="profile-avatar" class="avatar avatar-large">U</span>
         <div class="profile-copy"><strong id="profile-name">未登录</strong><small id="profile-handle">用户资料</small><span><i class="status-dot online"></i>在线</span></div>
-        <button id="show-profile" class="profile-edit" type="button">个人资料</button><button id="logout" class="profile-logout" type="button">退出</button>
+        <button id="show-profile" class="profile-edit" type="button">个人资料</button><a id="change-chat-account" class="profile-edit" href="/phase11/?account=change">切换账号</a><button id="logout" class="profile-logout" type="button">退出</button>
       </section>
       <nav class="side-actions" aria-label="主要功能">
         <button id="show-conversations" class="side-action active" type="button"><span class="nav-glyph">◉</span><span>最近会话</span><span id="total-unread" class="badge hidden">0</span></button>
@@ -63,7 +68,7 @@
       </nav>
     </aside>
     <aside class="sidebar" aria-label="会话列表">
-      <a class="private-friend-entry" href="/phase11/assistant/"><span>✦</span><div><strong>个人 AI 好友</strong><small>独立对话 · 网页 / Windows 私人模式</small></div><b>↗</b></a>
+      <a class="private-friend-entry" href="/phase11/assistant/"><span><img src="/phase11/shared/XiaoYan/XiaoYan.png" alt="" width="32" height="32" decoding="async"></span><div><strong>小研</strong><small>对话与模型连接</small></div><b aria-hidden="true">↗</b></a>
       <section class="friend-preview" aria-labelledby="friend-preview-title">
         <header>
           <div><span id="friend-preview-title">我的好友</span><small id="sidebar-friend-count">0</small></div>
@@ -109,13 +114,13 @@
     </aside>
   </main>
 
-  <dialog id="register-dialog" aria-labelledby="register-title"><form id="register-form" class="dialog-card auth-dialog"><header><div><p class="eyebrow"><span></span> 账号注册</p><h2 id="register-title">创建你的星云账号</h2><p>加入聊天，也把你的故事留在苦情树下。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>用户名<input name="username" autocomplete="username" placeholder="3–32 个字符" required minlength="3" maxlength="32"><small>用于登录，创建后不可随意修改</small></label><label>显示名称<input name="displayName" placeholder="其他用户看到的名字" required maxlength="64"></label><label>密码<input name="password" type="password" autocomplete="new-password" placeholder="至少 8 位" required minlength="8"></label><p class="form-status" id="register-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>返回登录</button><button type="submit" class="primary-button">创建账号 →</button></footer></form></dialog>
+  <dialog id="register-dialog" aria-labelledby="register-title"><form id="register-form" class="dialog-card auth-dialog"><header><div><p class="eyebrow"><span></span> 账号注册</p><h2 id="register-title">创建你的星云账号</h2><p>在缘续-聊天和朋友联系，也能在缘生-广场分享故事。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><label>用户名<input name="username" autocomplete="username" placeholder="3–32 个字符" required minlength="3" maxlength="32"><small>用于登录，创建后不可随意修改</small></label><label>显示名称<input name="displayName" placeholder="其他用户看到的名字" required maxlength="64"></label><label>密码<input name="password" type="password" autocomplete="new-password" placeholder="至少 8 位" required minlength="8"></label><p class="form-status" id="register-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>返回登录</button><button type="submit" class="primary-button">创建账号 →</button></footer></form></dialog>
 
   <dialog id="friend-dialog"><section class="dialog-card dialog-wide contacts-dialog"><header><div><p class="eyebrow">CONTACTS</p><h2>好友与联系人</h2><p>管理备注、免打扰、黑名单和实时在线状态；好友离线时仍可持久化发送消息。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="dialog-columns friend-columns"><section class="dialog-section"><span class="step-number">1</span><h3>发送好友申请</h3><form id="friend-request-form" class="stack-form compact"><label>对方用户 ID<input name="receiverId" inputmode="numeric" placeholder="输入正整数用户 ID" required></label><button type="submit" class="primary-button">发送好友申请</button></form><p class="form-status" id="friend-status" role="status"></p><div class="blocked-panel"><h3>黑名单 <span id="blocked-count">0</span></h3><ul class="action-list compact-list" id="blocked-list"><li class="list-empty">黑名单为空</li></ul></div></section><section class="dialog-section"><span class="step-number">2</span><h3>待处理申请 <span id="request-count">0</span></h3><ul class="action-list" id="friend-request-list"></ul></section><section class="dialog-section contacts-main"><span class="step-number">3</span><h3>联系人 <span id="friend-count">0</span></h3><ul class="action-list" id="friend-list"></ul></section></div></section></dialog>
 
   <dialog id="conversation-dialog"><section class="dialog-card dialog-wide"><header><div><p class="eyebrow">NEW CONVERSATION</p><h2>创建会话</h2><p>私聊与群聊都支持成员离线时持久化消息。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="conversation-tabs"><button class="active" type="button" data-conversation-tab="direct">新建私聊</button><button type="button" data-conversation-tab="group">新建群聊</button></div><div class="dialog-columns creation-columns"><form id="direct-conversation-form" class="creation-card"><span class="creation-icon">◎</span><h3>和一位好友交流</h3><p>即使好友暂时离线，你仍然可以给该会话发送消息。</p><label>好友用户 ID<input name="peerId" inputmode="numeric" required placeholder="例如 2"></label><button type="submit" class="primary-button">开始私聊</button></form><form id="group-conversation-form" class="creation-card"><span class="creation-icon">◌</span><h3>建立群聊空间</h3><p>创建者可以继续邀请成员，所有消息统一持久化。</p><label>群名称<input name="title" maxlength="80" required placeholder="项目讨论组"></label><label>初始成员 ID<input name="memberIds" required placeholder="2,3,4（英文逗号分隔）"></label><button type="submit" class="primary-button">创建群聊</button></form></div><p class="form-status" id="conversation-status" role="status"></p></section></dialog>
 
-  <dialog id="profile-dialog"><form id="profile-form" class="dialog-card profile-dialog-card"><header><div><p class="eyebrow">PROFILE</p><h2>个人资料</h2><p id="profile-id-hint">用户 ID</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="profile-preview"><span id="profile-dialog-avatar" class="avatar avatar-xl">U</span><p>这些信息会在星云聊天中展示</p></div><label>头像图片<input name="avatar" type="file" accept="image/png,image/jpeg,image/gif,image/webp"><small>PNG/JPEG/GIF/WebP，最大 10 MiB；保存时分片上传。</small></label><label>显示名称<input name="displayName" maxlength="64" required></label><label>个人简介<textarea name="biography" maxlength="240" rows="4" placeholder="介绍一下自己"></textarea></label><p class="form-status" id="profile-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">保存资料</button></footer></form></dialog>
+  <dialog id="profile-dialog"><form id="profile-form" class="dialog-card profile-dialog-card"><header><div><p class="eyebrow">PROFILE</p><h2>个人资料</h2><p id="profile-id-hint">用户 ID</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><div class="profile-preview"><span id="profile-dialog-avatar" class="avatar avatar-xl">U</span><p>这些信息会在缘续-聊天中展示</p></div><label>头像图片<input name="avatar" type="file" accept="image/png,image/jpeg,image/gif,image/webp"><small>PNG/JPEG/GIF/WebP，最大 10 MiB；保存时分片上传。</small></label><label>显示名称<input name="displayName" maxlength="64" required></label><label>个人简介<textarea name="biography" maxlength="240" rows="4" placeholder="介绍一下自己"></textarea></label><p class="form-status" id="profile-status" role="status"></p><footer><button type="button" class="ghost-button" data-close-dialog>取消</button><button type="submit" class="primary-button">保存资料</button></footer></form></dialog>
 
   <dialog id="search-dialog"><section class="dialog-card dialog-wide search-dialog-card"><header><div><p class="eyebrow">HISTORY SEARCH</p><h2>历史消息搜索</h2><p>只搜索当前有权访问的会话内容。</p></div><button class="dialog-close" type="button" data-close-dialog>×</button></header><form id="search-form" class="inline-form"><label>范围<select name="scope"><option value="current">当前会话</option><option value="all">我的全部会话</option></select></label><label>关键词<input name="query" maxlength="120" required placeholder="输入消息关键词"></label><button type="submit" class="primary-button">搜索</button></form><ol id="search-results" class="search-results"></ol><button type="button" id="search-more" class="ghost-button" disabled>加载更多结果</button><p class="form-status" id="search-status" role="status"></p></section></dialog>
 
@@ -133,6 +138,6 @@
 
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <!-- 版本参数让已经打开过旧页面的浏览器重新获取修复后的 ES Module。 -->
-  <script type="module" src="/phase11/app.js?v=144f1e6009a3d461"></script>
+  <script type="module" src="/phase11/app.js?v=7f8c7f1b31e4435c"></script>
 </body>
 </html>

@@ -1,51 +1,230 @@
-import { webAiApi } from "../../ai/WebAiApi/WebAiApi.js?v=144f1e6009a3d461";
-import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=144f1e6009a3d461';
-import { modelConnection,openModelConnection,requestOwnModel,resetModelConnection } from '../ModelConnection/ModelConnection.js?v=144f1e6009a3d461';
-const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
-const id=()=>Array.from(crypto.getRandomValues(new Uint8Array(20)),n=>n.toString(16).padStart(2,'0')).join('');
+import { webAiApi } from '../../ai/WebAiApi/WebAiApi.js?v=7f8c7f1b31e4435c';
+import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=7f8c7f1b31e4435c';
+import { modelConnection, openModelConnection, requestOwnModel, resetModelConnection, restoreModelMode } from '../ModelConnection/ModelConnection.js?v=7f8c7f1b31e4435c';
+import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=7f8c7f1b31e4435c';
+import { WebAssistantHistory } from './WebAssistantHistory.js?v=7f8c7f1b31e4435c';
 
-/** 普通网页可用的非保密助手：与 Windows 的私人资料/记忆/历史完全分离。 */
+const make = (tag, content, className) => {
+  const element = document.createElement(tag);
+  if (content) element.textContent = content;
+  if (className) element.className = className;
+  return element;
+};
+const id = () => Array.from(crypto.getRandomValues(new Uint8Array(20)), number => number.toString(16).padStart(2, '0')).join('');
+
+function waitForUpdate(signal) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    const abort = () => { clearTimeout(timer); reject(signal.reason); };
+    const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, 450);
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
+
 export class WebAssistantPanel {
-  constructor(host,{surface='sidebar',close}={}){
-    this.host=host;this.api=new BusinessApi();this.surface=surface;this.close=close;this.shortcut='Alt+j';this.messages=[];
-    host.innerHTML='<header class="assistant-heading"><span class="assistant-orb">✦</span><div><strong>个人 AI 好友</strong><small>网页版 · 非保密模式</small></div><button type=button data-close aria-label="关闭助手">×</button></header><p class="assistant-status" role=status>正在读取账号与可用模型…</p><div class="web-assistant-notice"><strong>发送前请确认信息范围</strong><p>本站模型会收到输入及本段对话上下文。自带 API 会收到输入及 Key。不要发送密码、隐私文件或保密信息。</p><label><input data-web-consent type=checkbox>我了解信息会上传，只使用非保密内容</label><p>需要私人资料与本地模型，请使用 Windows 客户端并确认推理目标为本机；仅使用客户端并不等于推理完全离线。</p></div><div class="assistant-threadbar"><select data-server-model aria-label="本站模型"></select><button type=button data-connection>模型连接 / 测试</button><button type=button data-clear>新对话</button></div><div class="assistant-messages" aria-live=polite></div><form class="assistant-composer"><textarea required maxlength=8000 rows=3 placeholder="发送非保密的问题，开始与 AI 好友聊天…"></textarea><footer><small data-provider>使用本站模型</small><button type=button data-stop disabled>停止</button><button type=submit>发送 ↗</button></footer></form>';
-    host.querySelector('[data-close]').onclick=()=>close?.();host.querySelector('[data-close]').hidden=!close;
-    this.status=host.querySelector('[role=status]');this.list=host.querySelector('.assistant-messages');this.input=host.querySelector('textarea');
-    host.querySelector('[data-connection]').onclick=()=>openModelConnection({testServer:signal=>this.generateServer([{role:'user',content:'Reply briefly with OK.'}],signal,8),onChange:()=>this.provider()});
-    host.querySelector('[data-clear]').onclick=()=>{if(this.controller){this.status.textContent='请先停止当前生成';return;}this.messages=[];this.paint();this.save();};
-    host.querySelector('[data-stop]').onclick=()=>this.stop();host.querySelector('form').onsubmit=e=>{e.preventDefault();this.send();};
-    this.input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();host.querySelector('form').requestSubmit();}};
+  constructor(host, { close, hasPrivateSpace = false } = {}) {
+    this.host = host;
+    this.api = new BusinessApi();
+    this.models = [];
+    host.innerHTML = `
+      <header class="assistant-heading">
+        <div><strong>小研</strong><small>网页对话</small></div>
+        <a class="assistant-mode" href="/phase11/assistant/" hidden>私人空间</a>
+        <a data-full-view href="/phase11/assistant/?mode=web">展开对话</a>
+        <button type="button" data-close aria-label="关闭小研">×</button>
+      </header>
+      <p class="assistant-status" role="status">正在读取账号与模型…</p>
+      <div class="assistant-threadbar">
+        <select data-web-thread aria-label="小研网页会话"></select>
+        <button type="button" data-new>新对话</button>
+        <button type="button" data-connection>模型连接</button>
+      </div>
+      <details class="web-assistant-notice" open>
+        <summary>对话的发送范围</summary>
+        <p data-route-summary></p>
+        <label><input data-web-consent type="checkbox">我了解发送范围，本站和外部 API 仅用于非保密对话。</label>
+      </details>
+      <div class="assistant-messages" aria-live="polite"></div>
+      <form class="assistant-composer">
+        <textarea required maxlength="8000" rows="3" placeholder="和小研聊聊…" aria-label="给小研的消息"></textarea>
+        <footer><span data-provider></span><button type="button" data-stop disabled>停止</button><button type="submit">发送</button></footer>
+      </form>`;
+    host.querySelector('.assistant-heading').prepend(xiaoYanAvatar());
+    host.querySelector('[data-close]').hidden = !close;
+    host.querySelector('[data-full-view]').hidden = !close;
+    host.querySelector('.assistant-mode').hidden = !hasPrivateSpace;
+    host.querySelector('[data-close]').onclick = () => close?.();
+    this.status = host.querySelector('[role=status]');
+    this.list = host.querySelector('.assistant-messages');
+    this.input = host.querySelector('textarea');
+    this.threads = host.querySelector('[data-web-thread]');
+    this.form = host.querySelector('form');
+    this.consent = host.querySelector('[data-web-consent]');
+    this.threads.onchange = () => { this.history?.select(this.threads.value); this.paint(); };
+    host.querySelector('[data-new]').onclick = () => { if (!this.controller && this.history) { this.history.create(id()); this.paint(); this.input.focus(); } };
+    host.querySelector('[data-connection]').onclick = () => this.connections();
+    host.querySelector('[data-stop]').onclick = () => this.stop();
+    this.form.onsubmit = event => { event.preventDefault(); this.send(); };
+    this.input.onkeydown = event => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); this.form.requestSubmit(); }
+    };
+    this.provider();
   }
-  async start(){if(this.started)return;try{const user=await this.api.restore();this.owner=String(user.id);this.storageKey='nebula:web-chat:'+this.owner+':'+this.surface;
-    try{const saved=JSON.parse(sessionStorage.getItem(this.storageKey)||'[]');if(Array.isArray(saved))this.messages=saved.filter(m=>['user','assistant'].includes(m.role)&&typeof m.content==='string').slice(-30);}catch{}
-    const models=await this.api.request(webAiApi.getAiWebModels({}));const select=this.host.querySelector('[data-server-model]');select.replaceChildren();for(const m of models){const option=node('option',m.name+' · '+m.runtime);option.value=m.accountId;select.append(option);}if(!models.length){const option=node('option','本站暂无已配置模型，可自带 API');option.value='';select.append(option);}
-    this.status.textContent='网页登录已就绪 · 历史仅保留在本标签页会话存储，不与 Windows 私人空间混用';this.started=true;this.paint();this.provider();
-  }catch(e){this.status.textContent=e.status===401?'请先前往消息页面登录，随后重新打开助手。':e.message;}}
-  provider(){const c=modelConnection();this.host.querySelector('[data-provider]').textContent=c.provider==='server'?'本站模型 · 输入发送到 Linux':'自带 API · '+c.model;}
-  save(){try{sessionStorage.setItem(this.storageKey,JSON.stringify(this.messages.slice(-30)));}catch{/* 禁用存储时仍可当前页面对话。 */}}
-  paint(){this.list.replaceChildren(...this.messages.map(m=>{const b=node('article',undefined,'assistant-bubble '+m.role);b.append(node('small',m.role==='user'?'我':'AI 好友'),node('p',m.content));return b;}));if(!this.messages.length)this.list.append(node('div','AI 好友一直在这里，写下你的第一个问题吧。','assistant-empty'));this.list.scrollTop=this.list.scrollHeight;}
-  async generateServer(messages,signal,maxOutputTokens=512,onText=()=>{}){
-    if(!this.host.querySelector('[data-web-consent]').checked)throw Error('请先在助手中确认非保密信息提示。');
-    const aiUserId=this.host.querySelector('[data-server-model]').value;if(!aiUserId)throw Error('本站暂无可用模型，请打开模型连接配置自己的 API。');
-    const requestId=id(),payload={requestId,aiUserId,nonConfidentialConsent:'true',messageCount:String(messages.length),maxOutputTokens:String(maxOutputTokens)};
-    messages.forEach((m,i)=>{payload['role'+i]=m.role;payload['content'+i]=m.content;});let created=false,text='',after=0;
-    try{await this.api.request(webAiApi.postAiWebGenerations({}),{method:'POST',data:payload,signal});created=true;
-      while(true){if(signal.aborted)throw new DOMException('cancelled','AbortError');const result=await this.api.request(webAiApi.getAiWebGenerationsGeneration({"generation":(requestId)}, "after=" + String(after)),{signal});text+=result.pieces.join('');after=result.next;onText(text);
-        if(!['queued','running'].includes(result.state)&&after>=result.next&&result.pieces.length<64){if(result.state!=='completed')throw Error(result.state==='cancelled'?'生成已停止':'本站模型暂时不可用，请检查运行状态或使用自己的 API。');return text;}
-        await new Promise((resolve,reject)=>{const abort=()=>{clearTimeout(timer);reject(new DOMException('cancelled','AbortError'));};const timer=setTimeout(()=>{signal.removeEventListener('abort',abort);resolve();},450);signal.addEventListener('abort',abort,{once:true});});
+
+  start() {
+    if (this.history) return Promise.resolve();
+    this.loading ??= this.load().finally(() => { this.loading = null; });
+    return this.loading;
+  }
+
+  async load() {
+    try {
+      this.owner = String((await this.api.restore()).id);
+      if (this.disposed) return;
+      this.history = new WebAssistantHistory(this.owner);
+      restoreModelMode(this.history.mode,this.history.ollama);
+      let modelError = false;
+      try { this.models = await this.api.request(webAiApi.getAiWebModels({})); }
+      catch { modelError = true; }
+      if (!this.models.some(model => String(model.accountId) === this.history.model)) this.history.model = String(this.models[0]?.accountId || '');
+      this.history.save();
+      this.status.textContent = modelError ? '本站模型目录暂不可用，可以配置其他连接。' : '对话保留在当前浏览器标签页。';
+      this.paint();
+      this.provider();
+    } catch (error) {
+      this.status.textContent = error.status === 401 ? '登录 NEBULA 后即可使用小研。' : error.message;
+    }
+  }
+
+  connections() {
+    if (this.controller) { this.status.textContent = '结束当前回复后再切换模型。'; return; }
+    if (!this.history) { this.start(); return; }
+    if (this.connectionDialog?.open) return;
+    this.connectionDialog = openModelConnection({
+      serverModel: this.history.model,
+      serverModels: this.models,
+      testServer: (signal, model) => this.generateServer([{ role: 'user', content: 'Reply briefly with OK.' }], signal, { model, maxTokens: 8 }),
+      onChange: value => {
+        this.history.setConnection(value);
+        this.consent.checked = false;
+        this.provider();
+      },
+    });
+  }
+
+  provider() {
+    const connection = modelConnection();
+    const name = this.models.find(model => String(model.accountId) === this.history?.model)?.name;
+    this.host.querySelector('[data-provider]').textContent = connection.provider === 'server' ? name || '本站模型'
+      : `${connection.provider === 'ollama' ? '本机 Ollama' : '自带 API'} · ${connection.model || '待配置'}`;
+    this.host.querySelector('[data-route-summary]').textContent = {
+      server: '输入和本段上下文将交给本站 Linux AI。',
+      ollama: '输入和本段上下文由浏览器发给你这台电脑的 Ollama。',
+      custom: '输入、上下文和 API Key 将由浏览器发给你填写的服务商。',
+    }[connection.provider];
+  }
+
+  paint() {
+    this.threads.replaceChildren(...(this.history?.threads || []).map(thread => new Option(thread.title, thread.id)));
+    if (!this.history?.current) this.threads.append(new Option('新对话', ''));
+    this.threads.value = this.history?.selected || '';
+    this.list.replaceChildren(...(this.history?.current?.messages || []).map(message => this.bubble(message)));
+    if (!this.list.children.length) {
+      const empty = make('div', null, 'assistant-empty');
+      empty.append(xiaoYanAvatar(), make('strong', '今天想聊点什么？'));
+      this.list.append(empty);
+    }
+    this.list.scrollTop = this.list.scrollHeight;
+  }
+
+  bubble(message) {
+    const row = make('article', null, `assistant-bubble ${message.role}`);
+    row.append(make('small', message.role === 'user' ? '我' : '小研'), make('p', message.content));
+    return row;
+  }
+
+  async generateServer(messages, signal, { model = this.history?.model, maxTokens = 512, onText = () => {} } = {}) {
+    if (!model) throw new Error('先在模型连接中选择一个可用模型。');
+    const requestId = id();
+    const payload = { requestId, aiUserId: model, nonConfidentialConsent: 'true', messageCount: String(messages.length), maxOutputTokens: String(maxTokens) };
+    messages.forEach((message, index) => { payload[`role${index}`] = message.role; payload[`content${index}`] = message.content; });
+    let created = false;
+    let answer = '';
+    let after = 0;
+    try {
+      await this.api.request(webAiApi.postAiWebGenerations({}), { method: 'POST', data: payload, signal });
+      created = true;
+      while (!signal.aborted) {
+        const result = await this.api.request(webAiApi.getAiWebGenerationsGeneration({ generation: requestId }, `after=${after}`), { signal });
+        answer += result.pieces.join('');
+        after = result.next;
+        onText(answer);
+        if (!['queued', 'running'].includes(result.state) && result.pieces.length < 64) {
+          if (result.state !== 'completed') throw new Error(result.state === 'cancelled' ? '生成已停止' : '本站模型未完成回答，请测试连接。');
+          return answer;
+        }
+        await waitForUpdate(signal);
       }
-    }finally{if(created)await this.api.request(webAiApi.deleteAiWebGenerationsGeneration({"generation":(requestId)}),{method:'DELETE'}).catch(()=>{});}
+      throw signal.reason;
+    } finally {
+      if (created) this.api.request(webAiApi.deleteAiWebGenerationsGeneration({ generation: requestId }), { method: 'DELETE' }).catch(() => {});
+    }
   }
-  async send(){if(this.controller)return;const text=this.input.value.trim();if(!text)return;if(!this.host.querySelector('[data-web-consent]').checked){this.status.textContent='请先确认信息会上传，只使用非保密内容。';return;}
-    if(!this.started){await this.start();if(!this.started)return;}const context=[...this.messages.slice(-12),{role:'user',content:text}];
-    if(context.reduce((n,m)=>n+new TextEncoder().encode(m.content).length,0)>30000){this.status.textContent='当前上下文过长，请新建对话。';return;}
-    this.messages.push({role:'user',content:text});this.input.value='';this.paint();const reply=node('article',undefined,'assistant-bubble assistant');reply.append(node('small','AI 好友'),node('p','正在思考…'));this.list.append(reply);
-    this.controller=new AbortController();this.host.querySelector('[data-stop]').disabled=false;this.status.textContent='正在生成…';const timeout=setTimeout(()=>this.controller?.abort(),180000);
-    try{const value=modelConnection();const output=value.provider==='custom'?await requestOwnModel(value,context,{signal:this.controller.signal}):await this.generateServer(context,this.controller.signal,512,t=>reply.querySelector('p').textContent=t||'正在思考…');
-      this.messages.push({role:'assistant',content:output});this.messages=this.messages.slice(-30);this.paint();this.save();this.status.textContent='回答完成 · 网页非保密模式';
-    }catch(e){reply.querySelector('p').textContent=e.name==='AbortError'?'已停止本次生成。':e.name==='TypeError'?'连接失败，请检查网络、CORS 和模型连接设置。':e.message;this.save();this.status.textContent='本次回答未完成，可检查模型连接后重试。';}
-    finally{clearTimeout(timeout);this.controller=null;this.host.querySelector('[data-stop]').disabled=true;}
+
+  busy(running) {
+    this.threads.disabled = running;
+    this.host.querySelectorAll('[data-new],[data-connection],button[type=submit]').forEach(button => { button.disabled = running; });
+    this.host.querySelector('[data-stop]').disabled = !running;
   }
-  stop(){this.controller?.abort();}
-  dispose(){this.stop();resetModelConnection();}
+
+  async send() {
+    if (this.controller || this.loading) return;
+    const content = this.input.value.trim();
+    if (!content) return;
+    if (!this.consent.checked) { this.status.textContent = '请先确认当前模型的发送范围。'; return; }
+    await this.start();
+    if (!this.history || this.controller || this.disposed) return;
+    const connection = modelConnection();
+    if (connection.provider === 'custom' && !connection.endpoint) { this.status.textContent = '请在模型连接中重新填写外部地址与 Key。'; return; }
+    const thread = this.history.current || this.history.create(id());
+    const message = { role: 'user', content };
+    const context = [...thread.messages.slice(-12), message];
+    if (context.reduce((length, item) => length + new TextEncoder().encode(item.content).length, 0) > 30000) {
+      this.status.textContent = '这段对话的上下文太长，请新建对话。';
+      return;
+    }
+    this.history.append(thread, message);
+    this.input.value = '';
+    this.paint();
+    const bubble = this.bubble({ role: 'assistant', content: '正在思考…' });
+    this.list.append(bubble);
+    this.list.scrollTop = this.list.scrollHeight;
+    this.controller = new AbortController();
+    const signal = this.controller.signal;
+    const timeout = setTimeout(() => this.stop(), 180000);
+    this.busy(true);
+    this.status.textContent = '小研正在回答…';
+    const output = bubble.querySelector('p');
+    try {
+      const answer = connection.provider === 'server'
+        ? await this.generateServer(context, signal, { onText: text => { if (text) output.textContent = text; } })
+        : await requestOwnModel(connection, context, { signal });
+      if (this.disposed) return;
+      if (!answer.trim()) throw new Error('模型没有返回可显示的文字。');
+      this.history.append(thread, { role: 'assistant', content: answer });
+      this.paint();
+      this.status.textContent = '回答已保存到当前标签页。';
+    } catch (error) {
+      if (this.disposed) return;
+      output.textContent = error.name === 'AbortError' ? '已停止。' : error.name === 'TypeError' ? '连接失败，请检查模型地址和浏览器访问限制。' : error.message;
+      this.status.textContent = '本次回答未完成。';
+    } finally {
+      clearTimeout(timeout);
+      this.controller = null;
+      if (!this.disposed) this.busy(false);
+    }
+  }
+
+  stop() { this.controller?.abort(); }
+  dispose() { this.disposed = true; this.stop(); this.connectionDialog?.close(); resetModelConnection(); }
 }

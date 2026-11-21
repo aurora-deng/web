@@ -1,10 +1,16 @@
 # 当前系统架构总览
 
-当前源码为 `Function3.2`，包含社区内容与投递拆分、Linux 两档复现、数据库连接恢复和业务 ACK 分段采样。共享数据库要求迁移 001–024。日常部署记录和本地验证分别见[当前状态](../../../STATUS.md)与[复现验收](../../ops/validation/reproduce.md)。
+Function3.3 的缘续-聊天与缘生-广场继续使用原有业务接口。研途由独立账号工作区服务承载，从固定 NEBULA 上游确认会话，在服务端按账号选存储。网页和 Windows 客户端经同一网关访问。切号时清除旧工作区并重新核验账号。[版本与账号流程](../../releases/function3.3.md)
 
-Phase49 第三轮聊天 ACK P99 从 8.710 ms 升至 15.545 ms（+78.47%），未达到当时的严格性能门槛。社区拆分后的验证覆盖功能与构建，十轮 A/A 校准和逐消息追踪仍待完成。[Phase49 验收](../business/engineering/phase49.md) · [下一阶段](../../roadmap/next-steps.md)
+2026-11-19 增量：AI 编排拆为接纳、准备、终态和审计，共享单一生成状态；PG 工作单元单独管理同连接事务；Observer 由指标/Trace/实验查询服务连接数据源。整体三端架构与通信核心不变。[组件关系与线程/事务说明](../../roadmap/project-review-implementation-2026-11-19.md#2-组件与责任)。
+
+Function3.2 基线包含社区内容与投递拆分、Linux 两档复现、数据库连接恢复和业务 ACK 分段采样，复现档验证了迁移 001–024。后续双实例隔离档追加迁移 025，为共享临时库的 Outbox 提供转发位置。A/B 各自持有客户端连接和投递游标。[日常版本](../../../STATUS.md) · [基线复现](../../ops/validation/reproduce.md) · [双实例架构与验证](../../observability/dual-instance-lab.md)
+
+Phase49 第三轮聊天 ACK P99 从 8.710 ms 升至 15.545 ms（+78.47%），未达到当时的性能门槛。Observer 隔离复盘已保存十对 A/A 和逐消息分段样本，A/A 噪声偏高。性能结论仍以可比实验为准。[Phase49 验收](../business/engineering/phase49.md) · [Observer 实验](../../observability/validation.md)
 
 [目录树](project-layout.md) · [完整端到端图](../business/flows/current-end-to-end.md) · [代码索引](../business/indexes/README.md)
+
+监控开发位于 `feature/observability`。应用埋点与通信处理分开，Observer 独立查询遥测。完整隔离档已实测 Prometheus 指标、Collector 转发、Tempo 回读与本机告警。[监控架构](../../observability/architecture.md) · [技术台账](../../observability/sources.md)
 
 网页个人语音可使用浏览器设备朗读，全站公告由独立语音 Worker 合成。网页、Windows 和站点的配置边界见[语音说明](../../ops/runtime/free-speech.md)。
 
@@ -16,6 +22,7 @@ Phase49 第三轮聊天 ACK P99 从 8.710 ms 升至 15.545 ms（+78.47%），未
 |---|---|---|---|
 |Linux共享服务器|`backend/server`|连接、协议、TLS、Reactor、协程、发送与背压|通信核心152份文件继续冻结|
 |Linux共享业务|`backend/application`|账号、社交聊天、文件、动态/神树、管理、数据库、事件投递|权限与共享状态的权威判断留在服务器|
+|Linux 研途工作区|`backend/study/AccountWorkspace`|核验会话、账号资料同步、附件与场景接线|同一 NEBULA 身份映射同一工作区，独立 Windows 资料归本地|
 |Linux AI核心与任务|`backend/ai`|Provider、模型注册、RAG、评测、私人限时推理、语音及训练/转换任务|默认复用独立ONNX Worker；教学进程内与外部API为可选路径|
 |Windows用户电脑|`client/companion`、`client/assistant`、`client/storage`|本机入口、固定目标代理、私人历史/记忆/词法检索、确认操作、凭据保护|当前不代表Windows已部署本地大模型；授权片段仍可能发到Linux推理|
 |用户浏览器|`frontend/phase11`|页面、交互、请求、实时状态、神树渲染和音频播放|也可直接访问Linux；私人本机功能需要本机入口|
@@ -23,6 +30,8 @@ Phase49 第三轮聊天 ACK P99 从 8.710 ms 升至 15.545 ms（+78.47%），未
 通信核心、共享业务和AI核心的代码边界不等于三个微服务。当前主要是模块化单体，ONNX推理、TTS、显式训练/转换任务具有独立进程边界；不因移动目录就获得性能提升。
 
 ## 2. 装配根与资源所有权
+
+业务观测继续放在通信核心外：统一[业务操作目录与异步计时](../../observability/business-instrumentation.md)覆盖 26 项，业务适配器、服务和数据库实现按各自边界记录；指标、Trace 和日志通过现有有界导出协作。本轮工程化改造见[实施与验收](../../roadmap/project-review-implementation-2026-11-19.md)，剩余条件逐项列明。
 
 ```mermaid
 flowchart TB
@@ -126,9 +135,9 @@ DPAPI保护凭据，私人正文保存于受本机访问权限保护的SQLite，
 
 ## 8. 还缺什么与后续重点
 
-最优先是[Phase50建议](../../roadmap/next-steps.md)：给同一条消息关联DB任务、SQL、COMMIT、ACK形成和客户端往返；没有现成写完成观察点就明确缺测，不解除冻结伪造完整追踪。
+下一步复用已有的逐消息排队、SQL、COMMIT、ACK 就绪和客户端往返样本，按可比负载定位长尾。ACK 就绪对应业务交付出站接口，客户端往返覆盖最终收到 ACK。Phase49 性能门槛仍待复验。[下一阶段计划](../../roadmap/next-steps.md)
 
-当前没有完整逐消息COMMIT到socket发送因果链，严格性能失败保留；后续再做多用户稳定性、接口字段契约、AI质量与取消回收、受控试运行。微服务与集群暂缓，继续采用当前模块化单体加独立重任务Worker的方向。
+应用继续采用模块化单体加独立重任务 Worker。先验收隔离 Envoy 单上游，再演练双上游故障切换和真实跨主机网络。多用户权限、AI 质量与取消回收、受控试运行按独立用例验收。[网关路线](../../roadmap/gateway-and-reliability-next-2026-11-19.md)
 
 ## 9. 源码与讲义入口
 
@@ -137,3 +146,7 @@ DPAPI保护凭据，私人正文保存于受本机访问权限保护的SQLite，
 - [AI装配](../../../backend/ai/bootstrap/AiRuntime/AiRuntime.cpp)、[私人任务](../../../backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp)：Provider、取消和历史边界。
 - [接口教学](../business/guides/phase49-teaching.md)、[代码索引](../business/indexes/phase49-code-index.md)、[协议专题](../communication/README.md)、[目录边界](project-layout.md)。
 - [历史通信详细讲义](../communication/runtime-baseline.md)保留原线程/协程与协议说明，其中早期参数和001–012等阶段标记不作为当前数据模型依据。
+
+## Observer 日志与故障关联补充
+
+业务 HTTP/WS 适配器通过 `BusinessLog` 生成稳定日志，沿用已有遥测有界队列输出到七天轮转文件。Observer 将文件采集、异常记录、SQLite 索引和查询界面分成独立模块，并按 Trace ID 与请求编号关联。函数页读取实际埋点能力，分别展示日常和隔离实例的真实样本。2026-11-19 日常 18090 已授权接入，通信核心 152 个文件保持一致。[日志组件、调用图与接入](../../observability/logging.md) · [日常部署与回退](../../observability/daily-rollout.md) · [当前验收边界](../../observability/validation.md)

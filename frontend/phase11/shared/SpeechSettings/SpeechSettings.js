@@ -1,4 +1,4 @@
-import { playSpeech, requireWave, fetchWave } from '../SpeechPlayback/SpeechPlayback.js?v=144f1e6009a3d461';
+import { playSpeech, requireWave, fetchWave } from '../SpeechPlayback/SpeechPlayback.js?v=7f8c7f1b31e4435c';
 const element=(tag,text)=>{const e=document.createElement(tag);if(text)e.textContent=text;return e;};
 // 云音色目录：浏览器直连时由 cloudVoice 直接决定实际音色，所以这里列出的都能真正生效。
 // 站点公告仍受后端 SiteSpeechRenderer 的两档预置限制，界面上不把这份目录混进去。
@@ -36,12 +36,12 @@ const CLOUD_VOICES={azure:AZURE_VOICES,gemini:[
 /** Same dialog, three explicit boundaries: browser memory, Windows DPAPI, site settings. */
 export async function openSpeechSettings(api,{site=false}={}){
   if(document.querySelector('.speech-settings[open]'))return;
-  if(!document.querySelector('[data-speech-css]')){const css=element('link');css.rel='stylesheet';css.href='/phase11/shared/SpeechSettings/SpeechSettings.css?v=144f1e6009a3d461';css.dataset.speechCss='';document.head.append(css);}
+  if(!document.querySelector('[data-speech-css]')){const css=element('link');css.rel='stylesheet';css.href='/phase11/shared/SpeechSettings/SpeechSettings.css?v=7f8c7f1b31e4435c';css.dataset.speechCss='';document.head.append(css);}
   const web=api.mode==='web',dialog=element('dialog');dialog.className='speech-settings';
   dialog.setAttribute('aria-label',site?'站点公告语音设置':'语音 API 与音色设置');
   dialog.innerHTML=`<header><div><small>VOICE STUDIO</small><h2>${site?'站点公告音色':'语音 API 与音色设置'}</h2></div><button type="button" data-close aria-label="关闭语音设置">×</button></header>
     <p class="speech-scope">${site?'这些设置控制所有人的公告语音。默认 Kokoro 不需要云账号或 Key。选择云服务后，Key 通过 HTTPS 保存到 Linux 私有文件，不回显，也不写入数据库。':web?'默认使用服务器 Kokoro，无需绑定付款方式或申请 Key。也可试听浏览器自带中文音色；Azure/Gemini 仅供已有自有 Key 的用户选择，本站不会替你开通套餐。':'当前是 Windows 私人设置。默认本地 Kokoro 无需 Key；可选云服务的 Key 由本机客户端通过 DPAPI 保存。'}</p>
-    <p class="speech-scope">${site?'个人页面的音色不会覆盖站点配置。':'个人 API 用于此处连接测试与试听；全服公告使用站点管理员配置，公告男女声在“声音与通知”中切换。'}</p>
+    <p class="speech-scope">${site?'这里设置全站公告的语音服务和音色。':'个人 API 用于连接测试与试听。公告播放偏好可在“个人主页 → 设置 → 声音与通知”中切换。'}</p>
     <form><fieldset data-fields disabled><div class="speech-grid">
       <label>语音服务<select name="provider"><option value="local">服务器 Kokoro · 免 Key</option><option value="browser">浏览器设备朗读 · 免 Key</option><option value="azure">Azure Speech · 自有 Key / 可选</option><option value="gemini">Gemini TTS · 自有 Key / 可选</option></select></label>
       <label>预置音色<select name="voice"><option value="zf_001">女声 · Kokoro</option><option value="zm_009">男声 · Kokoro</option></select></label>

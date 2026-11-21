@@ -8,7 +8,11 @@ import time
 
 from .events import Invalid, identifier, utc_ns, validate
 
-DAY = 86400 * 10**9
+DAY_SECONDS = 86400
+DAY = DAY_SECONDS * 10**9
+WEEK_SECONDS = 7 * DAY_SECONDS
+HISTORICAL_STEP = 300
+DENSE_METRIC_SECONDS = 6 * 3600
 
 
 class Conflict(Exception):
@@ -30,6 +34,7 @@ class Store:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.retention = retention_days * DAY
+        self.retention_seconds = retention_days * DAY_SECONDS
         self.max_bytes = max_bytes
         with self.connect() as db:
             db.executescript("""
@@ -85,7 +90,7 @@ class Store:
             raise
         return {"inserted": inserted, "duplicates": len(records) - inserted}
 
-    def events(self, start, end, limit, cursor=None, trace=None, domain=None):
+    def events(self, start, end, limit, cursor=None, trace=None, domain=None, source=None):
         filters, args = ["occurred_ns BETWEEN ? AND ?"], [start, end]
         if trace:
             filters.append("trace=?")
@@ -93,6 +98,9 @@ class Store:
         if domain:
             filters.append("kind LIKE ?")
             args.append(domain + ".%")
+        if source:
+            filters.append("source=?")
+            args.append(source)
         if cursor:
             filters.append("(occurred_ns,id) > (?,?)")
             args.extend(cursor)
@@ -125,7 +133,7 @@ class Store:
             raise Invalid("实验指标无效")
         started, finished = utc_ns(report["startedAt"]), utc_ns(report["finishedAt"])
         now = time.time_ns()
-        if not 0 <= started <= finished <= now + 300_000_000_000:
+        if not now-self.retention <= started <= finished <= now + 300_000_000_000:
             raise Invalid("实验日期范围无效")
         body = encode(report)
         digest = hashlib.sha256(body.encode()).hexdigest()
@@ -155,7 +163,8 @@ class Store:
 
     def run(self, digest):
         with self.connect() as db:
-            row = db.execute("SELECT body FROM runs WHERE digest=?", (digest,)).fetchone()
+            row = db.execute("SELECT body FROM runs WHERE digest=? AND started_ns>=?",
+                             (digest,time.time_ns()-self.retention)).fetchone()
             return json.loads(row["body"]) if row else None
 
     def run_markers(self, start, end):
@@ -175,7 +184,37 @@ class Store:
 
     def prune(self, now=None):
         now = now if now is not None else time.time_ns()
+        cutoff = now - self.retention
+        seconds = cutoff // 10**9
         with self.connect() as db:
-            events = db.execute("DELETE FROM events WHERE occurred_ns < ?", (now - self.retention,)).rowcount
-            runs = db.execute("DELETE FROM runs WHERE received_ns < ?", (now - self.retention,)).rowcount
+            tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            events = db.execute("DELETE FROM events WHERE occurred_ns < ?", (cutoff,)).rowcount
+            runs = db.execute("DELETE FROM runs WHERE started_ns < ?", (cutoff,)).rowcount
+            for table, column, floor in (
+                ("trace_spans", "started", cutoff),
+                ("diagnostic_logs", "stamp", cutoff),
+                ("metric_samples", "stamp", seconds),
+                ("histogram_windows", "stamp", seconds),
+                ("resource_snapshots", "stamp", seconds),
+                ("resource_profiles", "started", seconds),
+                ("source_samples", "ts", seconds),
+                ("alert_transitions", "stamp", seconds),
+            ):
+                if table in tables:
+                    db.execute(f"DELETE FROM {table} WHERE {column} < ?", (floor,))
+            # Keep the most recent actual observation of each older bucket.
+            # The full six-hour window remains available to SLO calculations.
+            for table, dense_seconds in (("metric_samples", DENSE_METRIC_SECONDS),
+                                         ("histogram_windows", DENSE_METRIC_SECONDS),
+                                         ("resource_snapshots", 3600)):
+                if table in tables:
+                    boundary = (now // 10**9 - dense_seconds) // HISTORICAL_STEP * HISTORICAL_STEP
+                    db.execute(f"DELETE FROM {table} WHERE stamp < ? AND stamp NOT IN ("
+                               f"SELECT max(stamp) FROM {table} WHERE stamp < ? GROUP BY stamp/?)",
+                               (boundary, boundary, HISTORICAL_STEP))
+            if "source_samples" in tables:
+                boundary = (now // 10**9 - DENSE_METRIC_SECONDS) // HISTORICAL_STEP * HISTORICAL_STEP
+                db.execute("DELETE FROM source_samples WHERE ts < ? AND (source,ts) NOT IN ("
+                           "SELECT source,max(ts) FROM source_samples WHERE ts < ? GROUP BY source,ts/?)",
+                           (boundary,boundary,HISTORICAL_STEP))
         return events, runs

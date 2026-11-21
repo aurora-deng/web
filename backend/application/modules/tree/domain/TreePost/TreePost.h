@@ -53,6 +53,7 @@ struct PostQuery {
     bool profileOnly{}; // false=树频道；true=主页频道，必须同时提供 author。
     bool allChannels{}; // 本人/好友的主页汇总，必须指定作者；ACL 仍逐条生效。
     std::vector<Id> ids; // 可选有界批量读取，仍先执行频道/可见范围过滤再分页。
+    std::string keyword;
 };
 struct TreeCategory { Id id{}; std::string name; bool active{true}; };
 }

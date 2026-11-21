@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>研途 · NEBULA</title>
+  <link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=7f8c7f1b31e4435c">
+  <link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css?v=7f8c7f1b31e4435c">
+  <link rel="stylesheet" href="/phase11/shared/DesignSystem/workspaces.css?v=7f8c7f1b31e4435c">
+  <link rel="stylesheet" href="/phase11/study/StudyWorkspace/StudyWorkspace.css?v=7f8c7f1b31e4435c">
+</head>
+<body data-workspace="study">
+  <main class="study-workspace">
+    <header class="study-toolbar">
+      <h1>研途</h1>
+      <p id="study-sync-state" role="status">正在检查账号</p>
+      <div class="study-actions">
+        <a id="study-switch-account" href="/phase11/?account=change" hidden>切换账号</a>
+        <button id="study-download-settings" type="button" hidden>下载位置</button>
+        <a href="/phase11/tree/?topic=考研#feed">考研故事广场</a>
+      </div>
+    </header>
+    <section id="study-surface" aria-label="研途工作区"></section>
+    <section id="study-entry" class="study-entry" hidden>
+      <h2 id="study-entry-title"></h2>
+      <p id="study-entry-detail"></p>
+      <a id="study-login" href="/phase11/" hidden>登录 NEBULA</a>
+      <button id="study-retry" type="button" hidden>重试</button>
+    </section>
+  </main>
+  <script type="module" src="/phase11/study/StudyWorkspace/StudyWorkspace.js?v=7f8c7f1b31e4435c"></script>
+</body>
+</html>

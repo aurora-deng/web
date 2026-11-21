@@ -1,3 +1,4 @@
+#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
 #include "backend/ai/models/RagService/RagService.h"
 
 #include <algorithm>
@@ -108,6 +109,7 @@ KnowledgeDocument RagService::registerKnowledgeDocument(
     std::string title, std::string sourceName,
     std::string mediaType, std::string content, TimePoint now)
 {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::RagIndex);
     const auto user = users_.findUser(owner);
     if (!user || user->disabled)
         throw ApplicationError(ErrorCode::Unauthenticated,
@@ -250,6 +252,7 @@ RagContext RagService::retrieveForGeneration(
     ConversationId conversation, std::string_view query,
     std::size_t limit, TimePoint now)
 {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::RagRetrieve);
     if (generationId.empty() || generationId.size() > 125 || query.empty() ||
         query.size() > 16U * 1024U || limit == 0 ||
         limit > config_.maxRetrievedChunks)

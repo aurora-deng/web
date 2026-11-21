@@ -1,6 +1,8 @@
-import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=144f1e6009a3d461";
-import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=144f1e6009a3d461";
-import { openTreeAuthor } from '../TreeAuthorCard/TreeAuthorCard.js?v=144f1e6009a3d461';
+import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=7f8c7f1b31e4435c";
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=7f8c7f1b31e4435c";
+import { openTreeAuthor } from '../TreeAuthorCard/TreeAuthorCard.js?v=7f8c7f1b31e4435c';
+import { paintDiscussion } from '../DiscussionThreads/DiscussionThreads.js?v=7f8c7f1b31e4435c';
+import { trainingConsentControl } from '../../tree/TrainingConsent/TrainingConsent.js?v=7f8c7f1b31e4435c';
 const node=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
 const key=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');
 export class ActivityDetail {
@@ -31,6 +33,8 @@ export class ActivityDetail {
       this.action('分享',async()=>{const data=await this.api.request(activitiesApi.getActivitiesPostShare({"post":(p.id)}));const url=new URL(data.path,location.origin).href;
         if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(url);this.status('链接已复制；访问者仍须登录并有权限。');return;}catch{}}
         this.status(url+'（访问者仍须有权限）');}));
+    const training = trainingConsentControl(this.api, p, text => this.status(text));
+    if (training) actions.append(training);
     if(p.capabilities?.delete)actions.append(this.action('删除动态',async()=>{
       let reason='';if(p.capabilities.deleteReasonRequired){reason=prompt('站点管理员删除原因（必填，最多 200 字）');if(reason===null||!reason.trim())return;}
       if(!confirm('删除这条动态？正文和媒体将从所有展示入口消失。'))return;
@@ -42,9 +46,11 @@ export class ActivityDetail {
     const id=this.post.id;const rows=await this.api.request(treeApi.getTreePostsPostReplies({"post":(id)}, "before=" + String(older?this.before:'0')));
     if(id!==this.post.id)return;if(!older)this.rows=[];
     const seen=new Set(this.rows.map(r=>r.id));this.rows.push(...rows.filter(r=>!seen.has(r.id)));this.before=rows.at(-1)?.id||this.before;
-    const box=this.dialog.querySelector('[data-comments]');box.replaceChildren();
-    for(const r of this.rows){const row=node('div',undefined,'activity-comment');row.append(node('strong',r.authorName),node('p',r.parentReplyId&&r.parentReplyId!=='0'?`回复 @${r.replyToName}：${r.body}`:r.body),
-      this.action('回复',()=>{this.parent=r.id;this.dialog.querySelector('[data-reply-target]').textContent='回复 @'+r.authorName;this.dialog.querySelector('textarea').focus();}));box.append(row);}
+    const box=this.dialog.querySelector('[data-comments]');
+    paintDiscussion(box, this.rows, r => {
+      const row=node('div',undefined,'activity-comment');row.append(node('strong',r.authorName),node('p',r.parentReplyId&&r.parentReplyId!=='0'?`回复 @${r.replyToName}：${r.body}`:r.body),
+        this.action('回复',()=>{this.parent=r.id;this.dialog.querySelector('[data-reply-target]').textContent='回复 @'+r.authorName;this.dialog.querySelector('textarea').focus();}));return row;
+    });
     if(!this.rows.length)box.append(node('p','还没有回应，来说点什么吧。','activity-empty'));
     this.dialog.querySelector('[data-older]').hidden=rows.length<30;
   }

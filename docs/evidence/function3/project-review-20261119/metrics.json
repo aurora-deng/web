@@ -1,0 +1,83 @@
+{
+  "passed": true,
+  "simulatedBackend": false,
+  "businessFixture": "synthetic-disposable-database",
+  "opsAccess": {
+    "verified": true,
+    "anonymous": 401,
+    "ops": 200,
+    "member": 403,
+    "scope": "loopback-and-SSH; not multi-user RBAC"
+  },
+  "source": "Prometheus",
+  "targets": [
+    {
+      "labels": {
+        "app": "nebula",
+        "bc": "lab",
+        "instance": "127.0.0.1:56527",
+        "job": "nebula"
+      },
+      "health": "up"
+    },
+    {
+      "labels": {
+        "app": "nebula",
+        "bc": "lab",
+        "instance": "127.0.0.1:56527",
+        "job": "node"
+      },
+      "health": "up"
+    },
+    {
+      "labels": {
+        "app": "nebula",
+        "bc": "lab",
+        "instance": "127.0.0.1:18798",
+        "job": "observer"
+      },
+      "health": "up"
+    },
+    {
+      "labels": {
+        "app": "nebula",
+        "bc": "lab",
+        "instance": "127.0.0.1:56527",
+        "job": "probe"
+      },
+      "health": "up"
+    },
+    {
+      "labels": {
+        "app": "nebula",
+        "bc": "lab",
+        "instance": "127.0.0.1:19091",
+        "job": "prometheus"
+      },
+      "health": "up"
+    }
+  ],
+  "p99Seconds": [
+    3.437599999999991
+  ],
+  "expression": "histogram_quantile(0.99,sum by(le)(rate(nebula_function_seconds_bucket{function=\"ChatService::sendMessage\"}[5m])))",
+  "functions": 26,
+  "crossProcess": {
+    "traceId": "adf243c5bd4385a3bdee37b0344ff69b",
+    "spanCount": 8,
+    "services": [
+      "nebula-probe",
+      "nebula-webserver"
+    ]
+  },
+  "outage": {
+    "unavailableHttp": 503,
+    "observerStayedAlive": true,
+    "storedTraceReadable": true,
+    "recoveredHttp": 200
+  },
+  "backendManifestSha256": "3549c4684a0bfdb2be8fcbeee37e674384eef3b95ab6815b8e6e275f759758c9",
+  "retentionDays": 7,
+  "dailyServiceChanged": false,
+  "secretsIncluded": false
+}

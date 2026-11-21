@@ -1,7 +1,9 @@
+#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
 #include "RankingService.h"
 #include <algorithm>
 namespace webserver::function3 {
 bool RankingService::settle() {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::RankingSettle, std::source_location::current(), true);
     bool changed=false;
     work_.transact([&]{
         const auto now=repository_.databaseNow(); const auto slot=now/30000;
@@ -21,6 +23,7 @@ bool RankingService::settle() {
         changed=old.entries.size()!=entries.size();
         if(!changed) for(std::size_t i=0;i<entries.size();++i) if(old.entries[i].post!=entries[i].post){changed=true;break;}
         const auto snapshot=repository_.save(slot,now,entries);
+        repository_.saveCategories(snapshot.version, tree_.categoryTop(now));
         // 首轮建立基线，后续只比较成员和位置，分值衰减不会触发全服刷屏。
         if(changed && old.version) announcements_.rankingChanged(snapshot,candidates);
     });

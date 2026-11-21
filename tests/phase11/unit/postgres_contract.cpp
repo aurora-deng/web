@@ -114,6 +114,21 @@ void runExtendedContract(PostgresStore &store, TimePoint now)
 
     const auto direct = store.findDirectConversation(alice->id, bob->id);
     require(direct.has_value(), "direct conversation lookup failed");
+    bool invalidSenderRejected = false;
+    try
+    {
+        (void)store.appendMessage({0, direct->id, 0, 0, "contract-invalid-sender",
+                                   "foreign key must fail", {}, now});
+    }
+    catch (const std::runtime_error &)
+    {
+        invalidSenderRejected = true;
+    }
+    const auto afterFailedAppend = store.findConversation(direct->id);
+    require(invalidSenderRejected && afterFailedAppend &&
+                afterFailedAppend->nextSequence == direct->nextSequence,
+            "failed insert advanced the conversation sequence");
+
     require(store.listConversations(alice->id).size() == 1,
             "conversation membership listing failed");
     require(store.updateDelivered(direct->id, bob->id, 1),
@@ -485,6 +500,22 @@ int main()
         PostgresStore store({connectionString, 4, std::chrono::seconds(2)});
         if (!store.healthy())
             throw std::runtime_error("PostgresStore health check failed");
+
+        {
+            // A one-connection pool must reject nesting before waiting for itself.
+            PostgresStore single({connectionString,1,std::chrono::milliseconds(250)});
+            auto transaction=single.beginTransaction();
+            const auto before=single.poolSnapshot().acquires;
+            bool rejected=false;
+            try{auto nested=single.beginTransaction();}
+            catch(const std::logic_error&){rejected=true;}
+            require(rejected&&single.poolSnapshot().acquires==before,
+                    "nested transaction waited for another lease");
+            require(single.healthy()&&single.poolSnapshot().inUse==1,
+                    "domain read escaped the current transaction");
+            transaction->rollback();
+            require(single.poolSnapshot().inUse==0,"unit of work leaked its lease");
+        }
 
         test::runRepositoryContract(
             {store, store, store, store, store, store, store},

@@ -55,7 +55,7 @@ namespace {
 class HttpClient:public Closeable,public std::enable_shared_from_this<HttpClient>{
     std::weak_ptr<ProxyServer::State>state_;beast::tcp_stream socket_;beast::flat_buffer buffer_{32768};
     http::request_parser<http::string_body>parser_;std::shared_ptr<Ticket>connection_,bodyPermit_;
-    bool localAuthenticated_{};
+    bool localAuthenticated_{},head_{};
 public:
     HttpClient(const std::shared_ptr<ProxyServer::State>&state,tcp::socket socket,std::shared_ptr<Ticket>permit):state_(state),socket_(std::move(socket)),connection_(std::move(permit)){parser_.header_limit(16384);parser_.body_limit(10*1024*1024);}
     void close()override{boost::system::error_code ignored;socket_.socket().shutdown(tcp::socket::shutdown_both,ignored);socket_.socket().close(ignored);}
@@ -64,11 +64,13 @@ public:
         response.keep_alive(false);response.set("X-Content-Type-Options","nosniff");response.set("Referrer-Policy","same-origin");
         for(const auto name:{"Access-Control-Allow-Origin","Access-Control-Allow-Credentials","Access-Control-Allow-Headers","Access-Control-Allow-Methods"})response.erase(name);
         if(auto state=state_.lock();state&&localAuthenticated_){const auto session=state->upstream.session();response.set("X-Nebula-Session-Version",std::to_string(session.epoch));if(!session.account.empty())response.set("X-Nebula-Account",session.account);}
-        response.prepare_payload();auto message=std::make_shared<ProxyResponse>(std::move(response));auto self=shared_from_this();socket_.expires_after(std::chrono::seconds(10));
+        if(head_)response.body().clear();else response.prepare_payload();
+        auto message=std::make_shared<ProxyResponse>(std::move(response));auto self=shared_from_this();socket_.expires_after(std::chrono::seconds(10));
         http::async_write(socket_,*message,[self,message](boost::system::error_code,std::size_t){self->close();});
     }
     void header(){
         auto s=state_.lock();if(!s||s->stopping)return close();const auto&r=parser_.get();const auto path=pathOf(r);
+        head_=r.method()==http::verb::head;
         if(!s->policy.validHost(r)||!s->policy.validOrigin(r,writing(r)||beast::websocket::is_upgrade(r)))return reply(localJson(403,{{"message","本机入口拒绝了未知Host或Origin"}}));
         localAuthenticated_=s->policy.authenticated(r);
         const bool api=path.starts_with("/api/")||path=="/events"||path=="/ws"||path=="/metrics"||path=="/fast"||path.starts_with("/health/");
@@ -117,7 +119,9 @@ public:
             }}))reply(localJson(503,{{"message","本机任务队列已满"}}));return;
         }
         if(path=="/ws"&&beast::websocket::is_upgrade(request))return startWebSocket(s,std::move(socket_),std::move(request),connection_);
-        const bool download=path.starts_with("/api/files/")||path.find("/media/")!=std::string::npos||path.starts_with("/api/announcements/")||path.starts_with("/api/admin/speech/audio/")||path.starts_with("/api/me/speech/audio/");
+        const bool studyDownload=path.starts_with("/api/study/")&&
+            (path.find("/api/files/",11)!=std::string::npos||path.ends_with("/api/export")||path.ends_with("/api/protection/backup-file"));
+        const bool download=studyDownload||path.starts_with("/api/files/")||path.find("/media/")!=std::string::npos||path.starts_with("/api/announcements/")||path.starts_with("/api/admin/speech/audio/")||path.starts_with("/api/me/speech/audio/");
         if(path=="/events"||(download&&request.method()==http::verb::get))return startStream(s,std::move(socket_),std::move(request),connection_);
         if(!(path.starts_with("/api/")||path.starts_with("/health/")||path=="/metrics"||path=="/fast"))return reply(localJson(404,{{"message","没有这个页面或接口"}}));
         auto self=shared_from_this();auto bodyPermit=bodyPermit_;

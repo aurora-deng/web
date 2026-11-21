@@ -1,5 +1,5 @@
-import { sharedApi } from "../../shared/SharedApi/SharedApi.js?v=144f1e6009a3d461";
-import { chatApi } from "../ChatApi/ChatApi.js?v=144f1e6009a3d461";
+import { sharedApi } from "../../shared/SharedApi/SharedApi.js?v=7f8c7f1b31e4435c";
+import { chatApi } from "../ChatApi/ChatApi.js?v=7f8c7f1b31e4435c";
 export const dependencies={"resources":["$","userPickers","unreadWatermarks","elements","state","messageView","history","sender","runtime"],"commands":["savePendingMessages","settleHistoryPending","setStatus","toast","initials","api","paintAvatar","renderConversationMembers","renderGroupGovernance","renderCurrentMessages","acknowledge","applyAiModels","loadAiModels","refreshCancelButton","connectRealtime","refreshPendingBadge","loadFriendsPreview"],"types":["UserPicker","BusinessApi","AnnouncementPlayer","formatChatTime"]};
 /** ConversationController: explicit use cases; shared state/other controllers arrive through context. */
 export function createConversationController(context) {
@@ -95,27 +95,39 @@ async function showChat(me) {
   window.dispatchEvent(new CustomEvent('nebula:user',{detail:me}));
   state.me = me;
   await loadWorkspaceCapabilities();
+  if (state.me !== me || runtime.lifecycle.signal.aborted) return;
   state.leaving = false;
   if (switched) clearConversationView();
   sender.clear();
   try { sender.restore(JSON.parse(sessionStorage.getItem(`phase11:pending:${me.id}`) || '[]')); }
   catch { /* 不信任损坏的缓存；恢复方法还会逐项验证载荷。 */ }
   updateProfileView();
-  elements.authPanel.classList.add('hidden');
-  elements.chatPanel.classList.remove('hidden');
+  runtime.accountView.show('chat');
   connectRealtime();
   startAnnouncements();
   await Promise.allSettled([loadConversations(), loadFriendsPreview(), refreshPendingBadge()]);
 }
 
-function showLoggedOut() {
-  runtime.accountAbort.abort();runtime.accountAbort=new AbortController();
+function stopChatSession() {
+  runtime.accountAbort.abort();
   state.search.controller?.abort();++state.search.version;
   state.activeGenerations.clear();
-  window.dispatchEvent(new CustomEvent('nebula:user',{detail:null}));
   runtime.announcementPlayer?.dispose();
   savePendingMessages();
   sender.clear();
+  state.pendingRecalls.forEach(item => clearTimeout(item.timer));
+  state.pendingRecalls.clear();
+  clearTimeout(state.catchupTimer);
+  clearTimeout(state.reconnectTimer);
+  clearTimeout(runtime.sseTimer);
+  state.socket?.close();
+  state.events?.close();
+}
+
+function showLoggedOut() {
+  stopChatSession();
+  runtime.accountAbort = new AbortController();
+  window.dispatchEvent(new CustomEvent('nebula:user',{detail:null}));
   // 会话区立刻回到「未选择会话」态：showLoggedOut 只隐藏面板不清 DOM，
   // 下一个账号登录时【state.me 已经是 null，账号比对条件不会成立】，
   // 头部就会一直显示上一个账号的对端标题与头像，直到他点开任意会话。
@@ -139,15 +151,7 @@ function showLoggedOut() {
   state.conversationAiMember = 0;
   state.aiTargetManual = false;
   state.seenMessageIds.clear();
-  state.pendingRecalls.forEach(item => clearTimeout(item.timer));
-  state.pendingRecalls.clear();
-  clearTimeout(state.catchupTimer);
-  clearTimeout(state.reconnectTimer);
-  clearTimeout(runtime.sseTimer);
-  state.socket?.close();
-  state.events?.close();
-  elements.chatPanel.classList.add('hidden');
-  elements.authPanel.classList.remove('hidden');
+  runtime.accountView.show('form');
 }
 
 function renderConversations() {
@@ -375,5 +379,5 @@ async function startAnnouncements() {
   } catch {}
 }
 
-  return {advanceConversationSequence,conversationTitle,conversationOrder,bumpUnread,clearConversationView,updateProfileView,showChat,showLoggedOut,renderConversations,loadConversations,paintConversationChrome,openConversation,createDirectConversation,openConversationDialog,loadWorkspaceCapabilities,startAnnouncements};
+  return {advanceConversationSequence,conversationTitle,conversationOrder,bumpUnread,clearConversationView,updateProfileView,showChat,showLoggedOut,stopChatSession,renderConversations,loadConversations,paintConversationChrome,openConversation,createDirectConversation,openConversationDialog,loadWorkspaceCapabilities,startAnnouncements};
 }

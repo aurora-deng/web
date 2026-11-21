@@ -325,6 +325,24 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/tree/training",
+      "domain": "admin",
+      "operation": "getAdminTreeTraining",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeTrainingHttp/TreeTrainingHttp.cpp"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/tree/training/:post/review",
+      "domain": "admin",
+      "operation": "postAdminTreeTrainingPostReview",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeTrainingHttp/TreeTrainingHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/users",
       "domain": "admin",
       "operation": "getAdminUsers",
@@ -1032,6 +1050,24 @@
       "operation": "postTreePostsPostReports",
       "sources": [
         "backend/application/modules/tree/transport/TreeHttp/TreeHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/tree/posts/:post/training-consent",
+      "domain": "tree",
+      "operation": "getTreePostsPostTrainingConsent",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeTrainingHttp/TreeTrainingHttp.cpp"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/tree/posts/:post/training-consent",
+      "domain": "tree",
+      "operation": "patchTreePostsPostTrainingConsent",
+      "sources": [
+        "backend/application/modules/tree/transport/TreeTrainingHttp/TreeTrainingHttp.cpp"
       ]
     },
     {

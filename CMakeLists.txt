@@ -153,7 +153,11 @@ target_link_libraries(webserver_security PUBLIC OpenSSL::Crypto webserver_saniti
 # 构建和验证领域规则。四个外部适配器必须由用户显式打开；CMake 只查找指定环境中
 # 已存在的库，绝不使用 FetchContent 或在配置时联网下载。
 # ==============================================================================
-add_library(webserver_telemetry backend/application/observability/Telemetry/Telemetry.cpp)
+add_library(webserver_telemetry
+    backend/application/observability/Telemetry/Telemetry.cpp
+    backend/application/observability/BusinessOperation/BusinessOperation.cpp
+    backend/application/observability/DetachedSpan/DetachedSpan.cpp
+    backend/application/observability/BusinessLog/BusinessLog.cpp)
 target_include_directories(webserver_telemetry PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(webserver_telemetry PUBLIC Threads::Threads OpenSSL::Crypto webserver_sanitizers)
 if(WEBSERVER_ENABLE_PHASE11)
@@ -205,8 +209,12 @@ if(WEBSERVER_ENABLE_PHASE11)
         backend/application/modules/chat/application/ChatService/ChatService.cpp
         backend/application/modules/files/application/FileService/FileService.cpp
         backend/application/business/AiChatService/AiChatService.cpp
+        backend/application/business/AiGenerationAudit/AiGenerationAudit.cpp
+        backend/application/business/AiGenerationCompletion/AiGenerationCompletion.cpp
+        backend/application/business/AiGenerationPreparation/AiGenerationPreparation.cpp
         backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.cpp
         backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp
+        backend/application/modules/chat/application/RealtimeRelay/RealtimeRelay.cpp
         backend/application/storage/files/LocalFileStorage/LocalFileStorage.cpp)
     target_include_directories(webserver_phase11 PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_phase11 PUBLIC Threads::Threads
@@ -226,6 +234,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         target_sources(webserver_phase11 PRIVATE
             backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp
             backend/application/storage/postgres/PostgresStore/PostgresStore.cpp
+            backend/application/storage/postgres/PostgresUnitOfWork/PostgresUnitOfWork.cpp
             backend/application/storage/postgres/PostgresAccountRepository/PostgresAccountRepository.cpp
             backend/application/storage/postgres/PostgresContactsRepository/PostgresContactsRepository.cpp
             backend/application/storage/postgres/PostgresConversationRepository/PostgresConversationRepository.cpp
@@ -466,6 +475,13 @@ target_link_libraries(webserver_runtime_config PUBLIC webserver_sanitizers)
 add_executable(webserver main.cpp)
 target_link_libraries(webserver PRIVATE webserver_runtime_config)
 if(BUILD_TESTING)
+    add_executable(business_log_contract tests/observability/BusinessLogContract/BusinessLogContract.cpp)
+    target_link_libraries(business_log_contract PRIVATE webserver_telemetry)
+    add_test(NAME business_log_contract COMMAND business_log_contract)
+    add_executable(function3_business_observability_contract tests/observability/BusinessOperationContract/BusinessOperationContract.cpp)
+    target_link_libraries(function3_business_observability_contract PRIVATE webserver_telemetry webserver_core)
+    add_test(NAME function3_business_observability_contract COMMAND function3_business_observability_contract)
+    add_test(NAME function3_business_observability_disabled_contract COMMAND function3_business_observability_contract --disabled)
  add_executable(function3_runtime_config tests/function3/unit/runtime_config.cpp)
  target_link_libraries(function3_runtime_config PRIVATE webserver_runtime_config)
  add_test(NAME function3_runtime_config COMMAND function3_runtime_config)
@@ -637,6 +653,9 @@ if(BUILD_TESTING)
         target_include_directories(function3_commit_wakeup PRIVATE ${PROJECT_SOURCE_DIR})
         target_link_libraries(function3_commit_wakeup PRIVATE webserver_sanitizers)
         add_test(NAME function3_commit_wakeup COMMAND function3_commit_wakeup)
+        add_executable(function3_realtime_relay tests/function3/unit/realtime_relay.cpp)
+        target_link_libraries(function3_realtime_relay PRIVATE webserver_phase11)
+        add_test(NAME function3_realtime_relay COMMAND function3_realtime_relay)
         add_executable(phase39_private_generation_tests tests/function3/unit/private_generation.cpp)
         target_link_libraries(phase39_private_generation_tests PRIVATE webserver_ai)
         add_test(NAME phase39_private_generation_tests COMMAND phase39_private_generation_tests)

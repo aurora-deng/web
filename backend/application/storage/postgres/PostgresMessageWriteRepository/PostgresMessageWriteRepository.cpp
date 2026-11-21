@@ -91,22 +91,25 @@ AppendMessageResult PostgresMessageWriteRepository::appendMessage(PGconn *connec
                     false};
         }
 
-        const auto allocated = query(connection,
-            "UPDATE conversations SET next_sequence=next_sequence+1 WHERE id=$1::bigint "
-            "AND state='active' "
-            "RETURNING next_sequence-1", {number(message.conversationId)});
-        if (!allocated.rows())
-            throw std::invalid_argument("conversation does not exist");
-        const auto sequence = allocated.value(0, 0);
+        // Feed the allocated sequence directly into INSERT on the same round trip.
+        // A missing or inactive conversation yields no row to insert.
         const auto inserted = query(connection,
+            "WITH allocated AS ("
+            " UPDATE conversations SET next_sequence=next_sequence+1"
+            " WHERE id=$1::bigint AND state='active'"
+            " RETURNING next_sequence-1 AS message_sequence"
+            ") "
             "INSERT INTO messages(conversation_id,conversation_seq,sender_id,client_message_id,body,model_node_id,model_version_id,adapter_name,created_at) "
-            "VALUES($1::bigint,$2::bigint,$3::bigint,$4,$5,$6::bigint,$7::bigint,$8,to_timestamp($9::double precision/1000000.0)) RETURNING " +
+            "SELECT $1::bigint,allocated.message_sequence,$2::bigint,$3,$4,$5::bigint,$6::bigint,$7,"
+            "to_timestamp($8::double precision/1000000.0) FROM allocated RETURNING " +
             std::string(kMessageColumns),
-            {number(message.conversationId), sequence, number(message.senderId),
+            {number(message.conversationId), number(message.senderId),
              message.clientMessageId, message.body,
              message.modelTrace.nodeId ? std::optional<std::string>{number(*message.modelTrace.nodeId)} : std::nullopt,
              message.modelTrace.versionId ? std::optional<std::string>{number(*message.modelTrace.versionId)} : std::nullopt,
              message.modelTrace.adapterName, encodeTime(message.createdAt)});
+        if (!inserted.rows())
+            throw std::invalid_argument("conversation does not exist");
         if (localTransaction) command(connection, "COMMIT");
         return {readMessage(inserted, 0), true};
     }

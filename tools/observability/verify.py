@@ -68,11 +68,15 @@ def token(secret, tenant):
     return unsigned + "." + hmac.new(secret.encode(), unsigned.encode(), hashlib.sha256).hexdigest()
 
 
+def captured_spans(batches):
+    return [span for batch in tuple(batches) for resource in batch["resourceSpans"]
+            for scope in resource["scopeSpans"] for span in scope["spans"]]
+
+
 def await_trace(batches, trace_id, seconds=12):
     until = time.monotonic() + seconds
     while time.monotonic() < until:
-        groups = [g for batch in batches for g in batch["resourceSpans"]]
-        spans = [sp for g in groups for sc in g["scopeSpans"] for sp in sc["spans"] if sp["traceId"] == trace_id]
+        spans = [span for span in captured_spans(batches) if span["traceId"] == trace_id]
         if len(spans) >= 3:
             parent = next((sp for sp in spans if sp["name"] == "probe GET /api/conversations"), {})
             server = next((sp for sp in spans if sp["name"] == "GET /api/conversations"), {})
@@ -81,6 +85,41 @@ def await_trace(batches, trace_id, seconds=12):
                 return len(spans), len(db)
         time.sleep(.15)
     return 0, 0
+
+
+def verify_http_sampling(prefix, connection, port, cookie, batches, metric_headers):
+    from .alert_lab import sql, wait_for
+
+    url = "/api/conversations"
+    unparented = {"Cookie": cookie}
+    upstream_unsampled = {**unparented, "traceparent": "00-" + secrets.token_hex(16) + "-" + secrets.token_hex(8) + "-00"}
+    known_ids = {span["traceId"] for span in captured_spans(batches)}
+    for headers in (unparented, upstream_unsampled):
+        require(probe_http(port, url, headers)[0] == 200, "Sampling changed a successful HTTP response")
+
+    # This table belongs to the disposable database. A missing relation gives a
+    # deterministic 500 without waiting for lock or connection pool timeouts.
+    sql(prefix, connection, "ALTER TABLE conversations RENAME TO observer_wire_conversations")
+    try:
+        for headers in (unparented, upstream_unsampled):
+            require(probe_http(port, url, headers)[0] == 500, "Expected the isolated PostgreSQL failure to produce a 500")
+    finally:
+        sql(prefix, connection, "ALTER TABLE observer_wire_conversations RENAME TO conversations")
+
+    def new_spans():
+        return [span for span in captured_spans(batches) if span["traceId"] not in known_ids]
+
+    wait_for(new_spans)
+    require(probe_http(port, url, unparented)[0] == 200, "Sampling test did not recover after schema restoration")
+    code, sample = probe_http(port, "/metrics", metric_headers)
+    require(code == 200 and b"nebula_http_trace_sampling_skipped_total 2\n" in sample and
+            b"nebula_http_trace_failure_roots_total 1\n" in sample, "HTTP sampling and failure counters disagree")
+    roots = new_spans()
+    expected = {"key": "http.response.status_code", "value": {"intValue": "500"}}
+    require(len(roots) == 1 and roots[0]["name"] == "GET /api/conversations" and
+            roots[0]["status"]["code"] == 2 and "parentSpanId" not in roots[0] and
+            expected in roots[0]["attributes"], "Expected one failure root and no children or upstream-rejected spans")
+    return {"locallySkipped": 2, "failureRoots": 1, "upstreamUnsampledHonored": True}
 
 
 def verify_wire(args):
@@ -95,6 +134,7 @@ def verify_wire(args):
                "WEB_PHASE11_DATABASE": connection, "WEB_PHASE11_TOKEN_KEY_FILE": str(key),
                "WEB_PHASE11_FILE_ROOT": str(out / "files"), "WEB_FUNCTION3_MEDIA_ROOT": str(out / "media"),
                "WEB_AUTH_SECRET": secret, "WEB_OBSERVABILITY": "1", "WEB_OBSERVABILITY_QUEUE_CAPACITY":"8"}
+        env.update(WEB_OBSERVABILITY_HTTP_TRACE_EVERY="0", WEB_OBSERVABILITY_LOG="error")
         with otlp_capture() as (receiver_port, data, receiver_ready):
             address = "http://127.0.0.1:" + str(receiver_port)
             with owned_server(args.binary.resolve(), ROOT, {**env, "WEB_OBSERVABILITY_OTLP":address}, out / "nebula.log") as port:
@@ -112,10 +152,11 @@ def verify_wire(args):
                 code, metrics = probe_http(port, "/metrics", headers)
                 require(code == 200 and b'nebula_http_handler_seconds_count{route="conversations"} 1' in metrics,
                         "No route histogram sample after real request")
-                receiver_ready.clear()
                 from repro_runtime import browser_fixture
                 user = browser_fixture(ROOT).BrowserClient("127.0.0.1", port)
                 user.register_and_login("obs_fault_" + secrets.token_hex(4), secrets.token_urlsafe(16))
+                sampling = verify_http_sampling(args.postgres_prefix.resolve(), connection, port, user.cookie, data, headers)
+                receiver_ready.clear()
                 request_headers = {"Cookie": user.cookie, "traceparent": "00-" + secrets.token_hex(16) + "-" + secrets.token_hex(8) + "-01"}
                 for _ in range(8):
                     require(probe_http(port, "/api/conversations", request_headers)[0] == 200,
@@ -141,7 +182,7 @@ def verify_wire(args):
                           "nonOps":member, "ops":authorized, "probeStatus":200,
                           "matchedSpans":total, "postgreSqlSpans":db, "routeHistogram":True,
                           "receiverFailureBusinessStatus":200, "failedExportsCounted":count,
-                          "queueFullDrops":full,"exportResumed":True}
+                          "queueFullDrops":full,"exportResumed":True,"httpSampling":sampling}
     (out / "report.json").write_text(encode(report) + "\n", encoding="utf-8")
     print(encode(report))
 

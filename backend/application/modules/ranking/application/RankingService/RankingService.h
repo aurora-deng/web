@@ -7,6 +7,7 @@ public:
         :work_(work),repository_(repository),tree_(tree),announcements_(announcements){}
     bool settle();
     RankSnapshot latest() const {return repository_.latest();}
+    RankSnapshot latestCategory(Id category) const {return repository_.latestCategory(category);}
 private:
     IUnitOfWork &work_;IRankingRepository &repository_;ITreeRankingSource &tree_;IRankAnnouncement &announcements_;
 };

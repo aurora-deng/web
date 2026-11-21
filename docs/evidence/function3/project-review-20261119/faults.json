@@ -1,0 +1,22 @@
+{
+  "mode": "faults",
+  "binarySha256": "7d225b2dea72135b8afe6f492a4e29990d04a1fc3387af9ef9f960de43c646c4",
+  "existingDatabaseUsed": false,
+  "passed": true,
+  "migration": 24,
+  "checks": {
+    "postgresConnectionTermination": {
+      "terminatedSessions": 10,
+      "errorRepliesBeforeAck": 1,
+      "liveAfterTermination": true,
+      "msToSuccessfulAck": 197.357
+    },
+    "crashAfterDurableAck": {
+      "sameMessageId": true,
+      "duplicateReply": true,
+      "matchingRows": 1,
+      "historyRecovered": true,
+      "msFromKillToVerifiedHistory": 522.076
+    }
+  }
+}

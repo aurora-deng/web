@@ -27,6 +27,14 @@ body {
   -moz-osx-font-smoothing:grayscale;
 }
 
+:root[data-account-suspended] body > :not(.chat-backdrop) { visibility:hidden; }
+
+@view-transition { navigation:auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration:180ms; }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation:none; }
+}
+
 /* A single viewport-sized landscape sits behind the entire workspace. */
 body:has(> .chat-backdrop) {
   min-height: 100dvh;

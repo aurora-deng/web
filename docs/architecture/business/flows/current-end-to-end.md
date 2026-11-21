@@ -1,13 +1,14 @@
 # 当前系统完整架构与消息流
 
-本图对应 `Function3.2` 的源码，数据库要求迁移 001–024。聊天 ACK 的分段与故障恢复见[发布说明](../../../releases/function3.2.md)；日常实例见[当前状态](../../../../STATUS.md)，旧版对照见 [Phase49 阶段图](phase49-end-to-end.md)。
+本图对应 `Function3.3`。共享业务库迁移到 026，研途学习数据由独立账号工作区写入。聊天 ACK 的分段与故障恢复见[基线说明](../../../releases/function3.2.md)，日常实例见[当前状态](../../../../STATUS.md)，旧版对照见 [Phase49 阶段图](phase49-end-to-end.md)。
 
 ## 1. 从用户界面到共享业务、私人资料和模型更新
 
 ```mermaid
 flowchart TB
     subgraph Browser[浏览器：frontend/phase11]
-        UI[聊天 / 神树 / 主页 / 管理 / 助手]
+        UI[缘续-聊天 / 缘生-广场 / 主页 / 管理 / 小研]
+        StudyPage[研途 / 会话检查与切号]
         Voice[个人语音设置 / 试听播放器]
         API[领域XxxApi + BusinessApi]
         Render[HTTP结果 / WS状态 / SSE通知与token]
@@ -22,6 +23,9 @@ flowchart TB
         Personal --> SQLite
     end
     subgraph Backend[Linux服务器：backend]
+        Gateway[Envoy 同源入口]
+        StudyAccount[研途工作区 / 服务端账号作用域]
+        StudyData[(账号学习数据 / SQLite 与附件)]
         Net[TCP / TLS-ALPN / Reactor / 协议Session]
         Rpc[独立gRPC Callback监听与示例服务]
         Ops[共享运维指标与相应认证配置]
@@ -43,6 +47,10 @@ flowchart TB
         Speech[公告与语音任务 / 独立TTS Worker / 可选云适配]
         Assets[用户媒体独立存储 / 每次访问鉴权]
         Rpc -.认证与指标.-> Ops
+        Gateway -->|聊天与共享业务| Net
+        Gateway -->|研途请求| StudyAccount
+        StudyAccount -->|固定上游核验会话| Net
+        StudyAccount -->|经核验的账号| StudyData
         Net --> Adapter --> DBTasks --> Service --> Ports --> Store --> PG
         PG -->|事务提交后| Ack --> Output
         PG -->|同事务事件| Delivery --> Output
@@ -63,6 +71,8 @@ flowchart TB
     Speech -->|站点配置，Key为Linux私有文件| CloudSpeech
     API -->|直接访问Linux| Net
     API -->|从本机入口访问| Entry -->|HTTPS / WSS / SSE| Net
+    StudyPage -->|网页使用同源网关| Gateway
+    StudyPage -->|使用 Windows 本机入口| Entry -->|启用研途的 HTTPS 网关| Gateway
     UI -->|本机助手接口| Personal
     Personal -->|HTTPS：已授权必要片段与上下文| Entry
     Adapter -->|独立私人 / 网页生成契约| PrivateTask

@@ -38,10 +38,36 @@ def main():
     assert len(expect(friend,'GET',f'/api/activities?author={author.user_id}'))==1
     assert expect(stranger,'GET',f'/api/activities?author={author.user_id}')==[]
     image=module.upload(author,'activity.png','image/png',module.png())
-    category=expect(author,'GET','/api/tree/categories')[0]['id']
+    category=expect(admin,'POST','/api/admin/tree/categories',{'name':prefix,'active':'true'})['id']
     publicPayload={**payload,'requestId':prefix+'-public','destination':'both','visibility':'members','categoryId':category,'fileIds':image}
     expect(author,'POST','/api/activities',publicPayload,400)
     public=expect(author,'POST','/api/activities',{**publicPayload,'publicConfirmed':'true'},201)
+    post_id=public['id']
+    consent=f'/api/tree/posts/{post_id}/training-consent'
+    review=f'/api/admin/tree/training/{post_id}/review'
+    corpus='/api/admin/tree/training?approved=true'
+    assert expect(author,'GET',consent)=={'allowed':False}
+    expect(stranger,'PATCH',consent,{'allowed':'true'},404)
+    expect(author,'PATCH',f'/api/tree/posts/{private["id"]}/training-consent',{'allowed':'true'},400)
+    expect(stranger,'GET',corpus,code=403)
+    assert expect(author,'PATCH',consent,{'allowed':'true'})=={'allowed':True}
+    assert not any(row['postId']==post_id for row in expect(admin,'GET',corpus))
+    expect(admin,'POST',review,{'text':'审核后的合成学习心得'})
+    approved=next(row for row in expect(admin,'GET',corpus) if row['postId']==post_id)
+    assert approved['text']=='审核后的合成学习心得'
+    assert expect(author,'PATCH',consent,{'allowed':'false'})=={'allowed':False}
+    assert not any(row['postId']==post_id for row in expect(admin,'GET',corpus))
+    assert expect(author,'PATCH',consent,{'allowed':'true'})=={'allowed':True}
+    assert not any(row['postId']==post_id for row in expect(admin,'GET',corpus))
+    expect(admin,'POST',review,{'text':'重新审核的合成学习心得'})
+    deadline=time.monotonic()+44
+    while time.monotonic()<deadline:
+        rank=expect(friend,'GET',f'/api/tree/ranking?category={category}')
+        if rank['entries']:
+            assert [entry['postId'] for entry in rank['entries']]==[post_id]
+            break
+        time.sleep(1)
+    else:raise AssertionError('The category snapshot did not settle')
     assert int(expect(author,'GET','/api/tree/posts')['total'])==int(before)+1
     batch=expect(stranger,'GET','/api/tree/posts?ids='+','.join([friends['id'],private['id'],public['id']]))
     assert [row['id'] for row in batch['posts']]==[public['id']]
@@ -56,6 +82,8 @@ def main():
     expect(friend,'DELETE','/api/tree/posts/'+public['id'],{},403)
     expect(admin,'DELETE','/api/tree/posts/'+public['id'],{},400)
     expect(admin,'DELETE','/api/tree/posts/'+public['id'],{'reason':'隔离测试：权限与审计'})
+    assert expect(friend,'GET',f'/api/tree/ranking?category={category}')['entries']==[]
+    assert not any(row['postId']==post_id for row in expect(admin,'GET',corpus))
     for route in ['/api/activities/'+public['id'],'/api/tree/posts/'+public['id'],'/api/activities/'+public['id']+'/share']:
         expect(friend,'GET',route,code=404)
     assert expect(friend,'GET','/api/tree/posts?ids='+public['id'])['posts']==[]
@@ -75,7 +103,8 @@ def main():
     report={'passed':True,'database':'function3_runtime_test','port':a.port,
         'checks':['friends/private isolation','shared content ID and interactions','explicit public confirmation',
             'tree count isolation','favorite idempotence','creator/admin deletion ACL','required admin reason and audit',
-            'deleted old media/share/favorites denial','block revokes friends audience','public profile excludes private fields']}
+            'deleted old media/share/favorites denial','block revokes friends audience','public profile excludes private fields',
+            'category snapshot filters removed posts','private post consent denial','review and revocation remove training eligibility']}
     a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print('PASS real HTTP unified activities, profiles, privacy, favorites, media and administrator audit')
 

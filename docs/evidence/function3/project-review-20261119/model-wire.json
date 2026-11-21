@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "provider": "scripted-test-only",
+  "transport": "real-loopback-OTLP-HTTP",
+  "spansReceived": 56,
+  "statusCodes": [
+    0,
+    1,
+    2
+  ],
+  "duplicateSpanIds": false,
+  "cancelledPreparationIsUnset": true,
+  "privateContentFields": false,
+  "exactShutdownFlushClaimed": false,
+  "realModelQualityClaimed": false
+}

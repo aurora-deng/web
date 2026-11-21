@@ -1,3 +1,4 @@
+#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
 #include "backend/application/modules/files/application/FileService/FileService.h"
 
 #include <algorithm>
@@ -214,6 +215,7 @@ FileObject FileService::appendChunk(UserId owner, FileId fileId,
 FileObject FileService::completeUpload(UserId owner, FileId fileId,
                                        TimePoint now)
 {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::FileComplete);
     auto file = files_.findFile(fileId);
     if (!file) throw ApplicationError(ErrorCode::NotFound, "file not found");
     if (file->ownerId != owner)
@@ -267,6 +269,7 @@ FileObject FileService::completeUpload(UserId owner, FileId fileId,
 
 FileDownload FileService::download(UserId requester, FileId fileId) const
 {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::FileDownload);
     const auto file = files_.findFile(fileId);
     if (!file || file->state != FileState::Ready)
         throw ApplicationError(ErrorCode::NotFound, "file not found");

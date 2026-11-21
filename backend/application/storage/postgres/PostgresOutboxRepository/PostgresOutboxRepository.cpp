@@ -63,6 +63,41 @@ bool PostgresOutboxRepository::markPublished(PGconn *connection, OutboxEventId i
         "WHERE id=$1::bigint RETURNING 1", {number(id), encodeTime(now)}).rows() == 1;
 }
 
+std::uint64_t PostgresOutboxRepository::relayHead(PGconn *connection)
+{
+    const auto result = query(connection, "SELECT COALESCE(max(relay_position),0) "
+        "FROM outbox_events WHERE relay_position IS NOT NULL");
+    return std::stoull(result.value(0, 0));
+}
+
+void PostgresOutboxRepository::stageRelayBatch(PGconn *connection, std::size_t limit)
+{
+    // Transaction-scoped lock serializes assignment and commit of relay positions.
+    // It is independent of message creation and is acquired only when work exists.
+    command(connection,
+        "WITH gate AS MATERIALIZED (SELECT pg_try_advisory_xact_lock(1313161813,1) AS acquired "
+        "WHERE EXISTS (SELECT 1 FROM outbox_events WHERE published_at IS NULL)), "
+        "picked AS MATERIALIZED (SELECT id FROM outbox_events WHERE published_at IS NULL "
+        "AND EXISTS (SELECT 1 FROM gate WHERE acquired) ORDER BY id LIMIT $1::bigint), "
+        "staged AS MATERIALIZED (SELECT id,nextval('phase11_realtime_relay_position') AS position FROM picked ORDER BY id) "
+        "UPDATE outbox_events AS outbox SET relay_position=staged.position,published_at=statement_timestamp() "
+        "FROM staged WHERE outbox.id=staged.id AND outbox.published_at IS NULL", {number(limit)});
+}
+
+std::vector<RealtimeRelayEvent> PostgresOutboxRepository::readRelayBatch(
+    PGconn *connection, std::uint64_t after, std::size_t limit)
+{
+    const auto result = query(connection,
+        "SELECT " + std::string(kOutboxColumns) + ",relay_position FROM outbox_events "
+        "WHERE relay_position>$1::bigint ORDER BY relay_position LIMIT $2::bigint",
+        {number(after), number(limit)});
+    std::vector<RealtimeRelayEvent> rows;
+    rows.reserve(result.rows());
+    for (int row = 0; row < result.rows(); ++row)
+        rows.push_back({std::stoull(result.value(row, 7)), readOutbox(result, row)});
+    return rows;
+}
+
 }
 
 namespace webserver::phase11 {

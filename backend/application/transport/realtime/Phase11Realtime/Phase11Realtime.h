@@ -156,9 +156,12 @@ public:
         std::size_t lastBatch = 0;
         std::size_t batchHighWatermark = 0;
         std::uint64_t oldestAttemptAgeMicroseconds = 0;
+        std::int64_t recentPendingAgeMicroseconds = -1;
     };
 
+    using Cycle = std::function<OutboxDispatchResult(std::size_t, TimePoint)>;
     Phase11OutboxPump(IOutboxRepository &outbox, IOutboxEventSink &sink);
+    explicit Phase11OutboxPump(Cycle cycle);
     ~Phase11OutboxPump();
 
     Phase11OutboxPump(const Phase11OutboxPump &) = delete;
@@ -172,7 +175,7 @@ public:
 private:
     void run() noexcept;
 
-    OutboxDispatcher dispatcher_;
+    Cycle dispatch_;
     std::atomic<bool> stopping_{false};
     std::mutex mutex_;
     std::condition_variable wake_;
@@ -187,6 +190,7 @@ private:
     std::atomic<std::size_t> lastBatch_{0};
     std::atomic<std::size_t> batchHighWatermark_{0};
     std::atomic<std::uint64_t> oldestAttemptAgeMicroseconds_{0};
+    std::atomic<std::int64_t> recentPendingAgeMicroseconds_{-1};
     // Start last: run() must never observe counters before their construction.
     // The destructor joins the worker before any of these fields are destroyed.
     std::thread worker_;

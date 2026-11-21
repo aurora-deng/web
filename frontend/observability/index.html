@@ -3,38 +3,70 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>NEBULA · 研发监控</title>
+  <title>NEBULA Observer · 研发监控</title>
   <link rel="stylesheet" href="/style.css">
-  <script defer src="/echarts.js"></script>
   <script defer src="/app.js"></script>
 </head>
 <body>
-  <aside>
-    <div class="brand"><span class="mark">N</span><div><strong>NEBULA</strong><small>研发监控</small></div></div>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="NEBULA Observer 首页"><span class="mark">N</span><div><strong>NEBULA</strong><small>Observer</small></div></a>
     <nav aria-label="监控导航">
-      <button data-view="overview" aria-current="page">运行总览</button>
-      <button data-view="service">业务性能</button>
-      <button data-view="traces">链路追踪</button>
-      <button data-view="runs">研发实验</button>
-      <button data-view="extensions">扩展遥测</button>
+      <button data-view="overview" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>运行总览</button>
+      <button data-view="service"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19h18M4 14l4-4 4 4 6-8 3 3"/></svg>业务性能</button>
+      <button data-view="reliability">服务目标与采集质量</button>
+      <button data-view="resources">主机与进程</button>
+      <button data-view="profiles">函数与内核剖析</button>
+      <button data-view="boards">自定义仪表盘</button>
+      <button data-view="sources">数据源</button>
+      <button data-view="explore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg>指标探索</button>
+      <button data-view="alerts">告警规则</button>
+      <button data-view="logs">日志工作台</button>
+      <button data-view="traces"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h10M8 12h12m-7 7h8"/><circle cx="4" cy="5" r="1"/><circle cx="8" cy="12" r="1"/><circle cx="13" cy="19" r="1"/></svg>链路追踪</button>
+      <button data-view="distributed">分布式排障</button>
+      <button data-view="runs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8M10 3v7l-6 10h16l-6-10V3M8 14h8"/></svg>研发实验</button>
+      <button data-view="extensions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 5v8l-8 5-8-5V8zM4 8l8 5 8-5m-8 5v8"/></svg>扩展遥测</button>
     </nav>
-    <div class="env" id="environment">隔离开发环境</div>
   </aside>
   <main>
-    <header>
-      <div><p class="eyebrow">可观测性工作区</p><h1 id="title">运行总览</h1></div>
+    <header class="topbar">
+      <div class="breadcrumb"><span>监控</span><span aria-hidden="true">/</span><strong id="title">运行总览</strong></div>
       <div class="controls">
-        <label>时间范围 <select id="range">
-          <option value="900">最近 15 分钟</option><option value="3600">最近 1 小时</option>
-          <option value="21600">最近 6 小时</option><option value="custom">自定义</option>
-        </select></label>
-        <button id="refresh">刷新</button><button id="pause" aria-pressed="false">暂停刷新</button>
+        <span class="environment" id="environment">连接中</span>
+        <div class="time-inputs">
+          <button class="icon-button" id="back" aria-label="上一段时间" title="上一段时间">‹</button>
+          <select id="range" aria-label="时间范围">
+            <option value="300">最近 5 分钟</option><option value="900" selected>最近 15 分钟</option><option value="3600">最近 1 小时</option>
+            <option value="21600">最近 6 小时</option><option value="86400">最近 24 小时</option><option value="604800">最近 7 天</option><option value="custom">固定窗口</option>
+          </select>
+          <button class="icon-button" id="forward" aria-label="下一段时间" title="下一段时间">›</button>
+        </div>
+        <div class="time-inputs">
+          <button id="refresh" class="icon-button" aria-label="立即刷新" title="立即刷新">↻</button>
+          <select id="interval" aria-label="自动刷新间隔">
+            <option value="5">5 秒</option><option value="15" selected>15 秒</option>
+            <option value="30">30 秒</option><option value="60">1 分钟</option><option value="0">关闭</option>
+          </select>
+        </div>
+        <button id="pause" aria-pressed="false">暂停</button>
       </div>
     </header>
     <form id="custom" hidden><label>起始 <input type="datetime-local" id="from" required></label>
       <label>结束 <input type="datetime-local" id="to" required></label><button type="submit">应用</button></form>
-    <section id="status" role="status" aria-live="polite"></section>
+    <div class="toolbar">
+      <div class="scope" id="scope">
+        <label><span>BC</span><select id="bc" aria-label="业务集群 BC"><option value="">全部 BC</option></select></label>
+        <label><span>APP</span><select id="app" aria-label="应用 APP"><option value="">全部 APP</option></select></label>
+        <label><span>INSTANCE</span><select id="instance" aria-label="监控实例 INSTANCE"><option value="">全部实例</option></select></label>
+        <label><span>指标事务</span><select id="transaction"><option value="http">会话列表</option><option value="history">消息历史</option></select></label>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </div>
+    <div id="boot-status" role="status" class="notice">正在载入监控工作区…</div>
     <div id="body"></div>
   </main>
+  <dialog id="inspector" aria-labelledby="inspect-title">
+    <header class="drawer-header"><h2 id="inspect-title"></h2><form method="dialog"><button aria-label="关闭检查">×</button></form></header>
+    <div id="inspect-body"></div>
+  </dialog>
 </body>
 </html>

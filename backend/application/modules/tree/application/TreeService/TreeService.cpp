@@ -1,3 +1,4 @@
+#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
 #include "backend/application/modules/tree/domain/TreeContentPolicy/TreeContentPolicy.h"
 #include "TreeService.h"
 #include "backend/application/modules/shared/TextRules/TextRules.h"
@@ -41,6 +42,7 @@ void TreeService::changed(const TreePost &post, std::string type, Milliseconds n
         {{"postId", std::to_string(post.id)}, {"authorId", std::to_string(post.author)}}, now});
 }
 TreePost TreeService::publish(Id user, PublishPost request, Milliseconds now) {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::TreePublish);
     requestKey(request.requestId);
     request.body = trimText(std::move(request.body));
     request.mood = trimText(std::move(request.mood));
@@ -89,6 +91,7 @@ TreePost TreeService::publish(Id user, PublishPost request, Milliseconds now) {
     return capabilities(std::move(result),activeActor(actors_,user));
 }
 TreePost TreeService::get(Id actor, Id post) const {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::TreeGet);
     const auto viewer=activeActor(actors_,actor);
     return capabilities(requirePublished(post, actor),viewer);
 }
@@ -99,7 +102,10 @@ TreePost TreeService::capabilities(TreePost post, const Actor &viewer) const {
     return post;
 }
 std::vector<TreePost> TreeService::list(Id actor, PostQuery query) const {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::TreeList);
     const auto viewer = activeActor(actors_, actor); pageSize(query.limit);textLength(query.tag,16);textLength(query.mood,16);
+    query.keyword = trimText(std::move(query.keyword));
+    textLength(query.keyword, 64);
     if(query.ids.size()>100||std::find(query.ids.begin(),query.ids.end(),Id{0})!=query.ids.end())
         throw BusinessError(Failure::Invalid,"invalid post batch");
     if ((query.profileOnly || query.allChannels) && !query.author) throw BusinessError(Failure::Invalid,"profile author required");
@@ -123,17 +129,21 @@ TreeCategory TreeService::category(Id actor,Id id,std::string name,bool active,M
         events_.appendEvent({0,"admin.audit","tree.category",result.id,static_cast<std::uint64_t>(now),{{"actorId",std::to_string(actor)},{"action","category"},{"reason",name+(active?" enabled":" disabled")}},now});});return result;
 }
 TreePost TreeService::like(Id user, Id id, bool liked, Milliseconds now) {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::TreeLike);
     TreePost result;
     work_.transact([&] {
-        activeActor(actors_, user); result = requirePublished(id, user);
+        const auto viewer = activeActor(actors_, user);
+        result = requirePublished(id, user);
         if (repository_.setLike(id, user, liked)) {
             result = requirePublished(id, user); ++result.version; repository_.savePost(result);
             changed(result, "tree.post.updated", now);
         }
+        result = capabilities(std::move(result), viewer);
     });
     return result;
 }
 TreeReply TreeService::reply(Id user, Id id, std::string key, std::string body, Milliseconds now, Id parent) {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::TreeReply);
     requestKey(key); body = trimText(std::move(body));
     if (!textLength(body, 1000)) throw BusinessError(Failure::Invalid, "reply required");
     TreeReply result;
@@ -151,9 +161,12 @@ TreeReply TreeService::reply(Id user, Id id, std::string key, std::string body, 
     });
     return result;
 }
-std::vector<TreeReply> TreeService::replies(Id user, Id id, Id before, std::size_t limit) const {
-    activeActor(actors_, user); requirePublished(id, user); pageSize(limit);
-    return repository_.replies(id, before, limit);
+std::vector<TreeReply> TreeService::replies(Id user, Id id, Id before, std::size_t limit, bool authorOnly) const {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::TreeReplies);
+    activeActor(actors_, user);
+    const auto post = requirePublished(id, user);
+    pageSize(limit);
+    return repository_.replies(id, before, limit, authorOnly ? std::optional<Id>(post.author) : std::nullopt);
 }
 void TreeService::removeReply(Id user, Id id, Milliseconds now) {
     work_.transact([&] {
@@ -167,6 +180,7 @@ void TreeService::removeReply(Id user, Id id, Milliseconds now) {
     });
 }
 void TreeService::remove(Id user, Id id, Milliseconds now, std::string reason) {
+    const webserver::telemetry::BusinessOperation observation(webserver::telemetry::Series::TreeRemove);
     reason = trimText(std::move(reason));
     work_.transact([&] {
         const auto actor = activeActor(actors_, user); const auto value = repository_.post(id, user);

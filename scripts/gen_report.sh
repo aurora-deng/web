@@ -1206,7 +1206,7 @@ TOOL=wrk2 TOOL_BIN=/path/to/wrk2 RATE=50000 THREADS=8 CONNECTIONS=256 \
 
 # 对比两个版本
 BASELINE_URL=http://127.0.0.1:8081/ \
-  BASELINE_PID=$(pgrep -n nginx) \
+  BASELINE_PID="$REFERENCE_PID" \
   bash scripts/benchmark.sh
 ```
 

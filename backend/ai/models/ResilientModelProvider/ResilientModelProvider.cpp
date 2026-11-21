@@ -1,4 +1,6 @@
 #include "backend/ai/models/ResilientModelProvider/ResilientModelProvider.h"
+#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
+#include <optional>
 
 #include <condition_variable>
 #include <mutex>
@@ -32,6 +34,7 @@ public:
 
     struct Attempt
     {
+        telemetry::AsyncBusinessOperation observation;
         std::mutex mutex;
         GenerationRequest request;
         TokenSink onToken;
@@ -167,7 +170,7 @@ public:
     }
 
     void finish(const std::shared_ptr<Attempt> &attempt,
-                GenerationCompletion completion) noexcept
+                GenerationCompletion completion,std::optional<telemetry::Outcome> outcome=std::nullopt) noexcept
     {
         CompletionSink completionSink;
         {
@@ -184,6 +187,10 @@ public:
             attempts.erase(attempt->request.requestId);
         }
         changed.notify_all();
+        // Logical duration includes provider retries/fallback. Ending is atomic and
+        // independent of the callback thread; no prompt/token content is recorded.
+        attempt->observation.finish(outcome.value_or(completion.cancelled?telemetry::Outcome::Cancelled:
+            completion.success?telemetry::Outcome::Success:telemetry::Outcome::Error));
         try
         {
             completionSink(std::move(completion));
@@ -394,6 +401,7 @@ public:
             ++metrics.requests;
             ++metrics.active;
             attempts.emplace(request.requestId, attempt);
+            attempt->observation.start(telemetry::Series::ModelGeneration,true);
         }
         start(attempt, false);
         return {request.requestId, std::move(cancellation)};
@@ -431,7 +439,7 @@ public:
             start(attempt, true);
             return;
         }
-        finish(attempt, {false, false, "model provider deadline exceeded", {}});
+        finish(attempt, {false, false, "model provider deadline exceeded", {}},telemetry::Outcome::Timeout);
     }
 
     void cancelExternally(const std::shared_ptr<Attempt> &attempt) noexcept

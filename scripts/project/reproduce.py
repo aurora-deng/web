@@ -12,6 +12,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 
 from ci_checks import test_matrix
+from runtime_inventory import inventory
 from repro_runtime import (browser_fixture, business_smoke, clean_environment,
                            disposable_database, http_smoke, owned_server, require)
 
@@ -27,14 +28,20 @@ def cache_values(path):
 def run_build(args, build, business):
     command = ["cmake", "-S", str(ROOT), "-B", str(build), "-G", args.generator,
                "-DCMAKE_BUILD_TYPE=Release", "-DWEBSERVER_ENABLE_PHASE11=ON"]
+    if args.initial_cache:
+        command += ["-C",str(args.initial_cache.resolve())]
+    native=args.profile=="native"
     on = "ON" if business else "OFF"
     command += [f"-D{key}={on}" for key in
                 ("BUILD_TESTING", "WEBSERVER_ENABLE_POSTGRES", "WEBSERVER_ENABLE_SODIUM")]
+    command.append(f"-DWEBSERVER_ENABLE_CURL_CLIENT={'ON' if args.with_otlp else 'OFF'}")
     for key, value in (("PostgreSQL_ROOT", args.postgres_prefix),
                        ("WEBSERVER_SODIUM_ROOT", args.sodium_prefix), ("GTest_DIR", args.gtest_dir),
-                       ("OPENSSL_INCLUDE_DIR", args.openssl_include)):
+                       ("OPENSSL_INCLUDE_DIR", args.openssl_include), ("WEBSERVER_CURL_ROOT", args.curl_root)):
         if value:
             command.append(f"-D{key}={value.resolve()}")
+    for feature in ("GRPC","ONNX_GENAI","ROCKETMQ","SHERPA_TTS","ASAN","UBSAN","TSAN"):
+        command.append("-DWEBSERVER_ENABLE_"+feature+"="+("ON" if native and feature in ("GRPC","ONNX_GENAI","ROCKETMQ","SHERPA_TTS") else "OFF"))
     if args.openssl_lib_dir:
         for part in ("ssl", "crypto"):
             library = args.openssl_lib_dir.resolve() / f"lib{part}.so"
@@ -44,36 +51,42 @@ def run_build(args, build, business):
     subprocess.run(["cmake", "--build", str(build), "--parallel", str(args.jobs)], check=True)
 
 
-def verify_config(build, business):
+def verify_config(build, business, with_otlp, native=False):
     cache = cache_values(build / "CMakeCache.txt")
     require(Path(cache["CMAKE_HOME_DIRECTORY"]).resolve() == ROOT, "Build uses another checkout")
     require(cache["CMAKE_BUILD_TYPE"] == "Release", "Reproduction requires a Release build")
     expected = "ON" if business else "OFF"
     for flag in ("BUILD_TESTING", "WEBSERVER_ENABLE_POSTGRES", "WEBSERVER_ENABLE_SODIUM"):
         require(cache.get(flag) == expected, f"{flag} must be {expected}")
-    for option in ("GRPC", "CURL_CLIENT", "ONNX_GENAI", "ROCKETMQ", "SHERPA_TTS", "ASAN", "UBSAN", "TSAN"):
-        require(cache.get("WEBSERVER_ENABLE_" + option, "OFF") == "OFF",
-                f"Reference profile requires {option} off")
+    curl_setting = "ON" if with_otlp else "OFF"
+    require(cache.get("WEBSERVER_ENABLE_CURL_CLIENT", "OFF") == curl_setting,
+            f"WEBSERVER_ENABLE_CURL_CLIENT must be {curl_setting}")
+    for option in ("GRPC", "ONNX_GENAI", "ROCKETMQ", "SHERPA_TTS", "ASAN", "UBSAN", "TSAN"):
+        expected="ON" if native and option in ("GRPC","ONNX_GENAI","ROCKETMQ","SHERPA_TTS") else "OFF"
+        require(cache.get("WEBSERVER_ENABLE_" + option, "OFF") == expected,
+                f"Selected profile requires {option} {expected}")
     return {"buildType": "Release", "generator": cache["CMAKE_GENERATOR"],
             "compiler": subprocess.check_output([cache["CMAKE_CXX_COMPILER"], "--version"],
                                                 text=True).splitlines()[0],
             "cmake": subprocess.check_output(["cmake", "--version"], text=True).splitlines()[0]}
 
 
-def verify_ctest(build, connection):
+def verify_ctest(build, connection, redis_port=None):
     tests = json.loads(subprocess.check_output(
         ["ctest", "--test-dir", str(build), "--show-only=json-v1"], text=True))["tests"]
     lanes = test_matrix([case["name"] for case in tests])
-    env = {**clean_environment(), "PHASE11_POSTGRES_CONNECTION": connection}
-    with tempfile.TemporaryDirectory(prefix="nebula-ctest-") as scratch:
-        junit = Path(scratch) / "ctest.xml"
-        subprocess.run(["ctest", "--test-dir", str(build), "--output-on-failure",
-                        "--no-tests=error", "--output-junit", str(junit), "-j", "1"],
-                       check=True, env=env)
-        cases = ET.parse(junit).findall(".//testcase")
+    env = {**clean_environment(), "PHASE11_POSTGRES_CONNECTION": connection, "FUNCTION3_TEST_CONNECTION": connection}
+    if redis_port:
+        env["FUNCTION3_REDIS_TEST_PORT"] = str(redis_port)
+    junit = build / "ctest.xml"
+    subprocess.run(["ctest", "--test-dir", str(build), "--output-on-failure",
+                    "--no-tests=error", "--output-junit", str(junit), "-j", "1"],
+                   check=True, env=env)
+    cases = ET.parse(junit).findall(".//testcase")
     skipped = [case.attrib["name"] for case in cases if case.find("skipped") is not None]
     require(len(cases) == len(tests), "CTest report does not cover the discovered matrix")
-    require(set(skipped) <= {"function3_redis_contract"},
+    allowed_skips = set() if redis_port else {"function3_redis_contract"}
+    require(set(skipped) <= allowed_skips,
             f"Unexpected skipped business/protocol tests: {skipped}")
     return {"registered": len(tests), "passed": len(cases) - len(skipped),
             "skipped": skipped, "lanes": {name: len(items) for name, items in lanes.items()}}
@@ -81,7 +94,7 @@ def verify_ctest(build, connection):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("profile", choices=("transport", "business"))
+    parser.add_argument("profile", choices=("transport", "communication", "business", "native"))
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--verify-existing-build", action="store_true",
                         help="Use an explicitly selected, matching pre-built checkout")
@@ -92,14 +105,23 @@ def main():
     parser.add_argument("--gtest-dir", type=Path, help="Optional installed GTest CMake config directory")
     parser.add_argument("--openssl-include", type=Path, help="Explicit OpenSSL headers if discovery is ambiguous")
     parser.add_argument("--openssl-lib-dir", type=Path, help="Directory with the matching libssl.so and libcrypto.so")
+    parser.add_argument("--with-otlp", action="store_true", help="Build libcurl and require the real OTLP wire/fault tests")
+    parser.add_argument("--curl-root", type=Path, help="Installed libcurl development prefix")
+    parser.add_argument("--test-redis-port", type=int, help="Explicit loopback port of a disposable Redis fixture")
+    parser.add_argument("--initial-cache",type=Path,help="Existing, operator-owned dependency CMake cache; no downloads")
     args = parser.parse_args()
+    if args.profile=="native":args.with_otlp=True
     if not sys.platform.startswith("linux"):
         parser.error("Linux server only; use the source checks and Windows client build on Windows")
-    business = args.profile == "business"
+    business = args.profile not in ("transport", "communication")
     if business and not args.postgres_prefix:
         parser.error("business requires --postgres-prefix; no existing database DSN is accepted")
     if bool(args.openssl_include) != bool(args.openssl_lib_dir):
         parser.error("Specify both OpenSSL locations together")
+    if args.with_otlp and not business or args.curl_root and not args.with_otlp:
+        parser.error("--with-otlp requires business and --curl-root requires --with-otlp")
+    if args.test_redis_port is not None and (not business or not 1 <= args.test_redis_port <= 65535):
+        parser.error("--test-redis-port requires business and a valid loopback port")
     for command in ("cmake", "ctest"):
         if not shutil.which(command):
             parser.error(f"Missing existing command: {command}")
@@ -115,16 +137,19 @@ def main():
     try:
         if not args.verify_existing_build:
             run_build(args, build, business)
-        report["build"] = verify_config(build, business)
+        report["build"] = verify_config(build, business, args.with_otlp,args.profile=="native")
         binary = build / "webserver"
         report["binarySha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+        if args.profile=="native":
+            report["nativeInventory"]=inventory(build,"native",environment={})
+            require(report["nativeInventory"]["passed"],"Native runtime preflight failed; see reproduction report")
         database = (disposable_database(args.postgres_prefix.resolve(), ROOT, build)
                     if business else nullcontext(("", None)))
         with database as (connection, migration), tempfile.TemporaryDirectory(prefix="nebula-runtime-") as work:
             env = clean_environment()
             if business:
                 report["migration"] = migration
-                report["ctest"] = verify_ctest(build, connection)
+                report["ctest"] = verify_ctest(build, connection, args.test_redis_port)
                 key = Path(work) / "token.key"
                 key.touch(mode=0o600, exist_ok=False)
                 key.write_text(secrets.token_hex(32), encoding="ascii")
@@ -147,6 +172,15 @@ def main():
                     require(status == 200 and str(found["id"]) == post,
                             "Story or session not preserved after restart")
                 report["checks"].append("session and story recovered after restart")
+        if args.with_otlp:
+            wire = Path(tempfile.mkdtemp(prefix="otlp-", dir=build))
+            try:
+                subprocess.run([sys.executable, "-m", "tools.observability.verify", "wire",
+                                "--binary", str(binary), "--postgres-prefix", str(args.postgres_prefix.resolve()),
+                                "--output", str(wire / "run")], cwd=ROOT, env=clean_environment(), check=True)
+                report["otlpWire"] = json.loads((wire / "run/report.json").read_text(encoding="utf-8"))
+            finally:
+                shutil.rmtree(wire)
         report["passed"] = True
     finally:
         (build / "reproduction.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

@@ -1,1 +1,44 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>星云 · 管理中心</title><link rel="stylesheet" href="/phase11/admin/AdminApp/AdminApp.css?v=144f1e6009a3d461"><link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=144f1e6009a3d461"><link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css?v=144f1e6009a3d461"><link rel="stylesheet" href="/phase11/shared/DesignSystem/workspaces.css?v=144f1e6009a3d461"></head><body data-workspace="admin"><aside><a class="brand" href="/phase11/">✧ NEBULA <small>管理中心</small></a><p class="section-label">工作空间</p><nav><button data-view="users" class="selected">◎ 用户与权限</button><button data-view="reports">⚑ 内容举报</button><button data-view="audits">≡ 操作审计</button><button data-view="messaging">⇄ 消息队列</button><button data-view="categories">✿ 内容分类</button><button data-view="runtime">◉ 运行状态</button><button data-view="speech">♫ 公告音色</button><button data-view="models">◇ 模型治理</button></nav><footer><a href="/phase11/tree/">← 回到苦情树</a><a href="/phase11/">← 回到聊天</a></footer></aside><main><header><div><p class="section-label">NEBULA / CONSOLE</p><h1 id="title">管理中心</h1></div><span id="identity">正在确认身份</span></header><section class="notice"><span>◈</span><div><strong>每一次操作，都有迹可循</strong><p>站点权限与群聊权限独立。所有写操作需要填写原因，并由服务器核验权限。</p></div></section><div class="toolbar"><span id="description">请先登录</span><button id="refresh">↻ 刷新</button></div><p id="status" role="status"></p><section id="content" class="content"></section><button id="next-page" hidden>加载下一页</button></main><div id="announcements" class="announcements" aria-live="polite"></div><script type="module" src="/phase11/admin/AdminApp/AdminApp.js?v=144f1e6009a3d461"></script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>星云 · NEBULA</title>
+  <link rel="stylesheet" href="/phase11/admin/AdminApp/AdminApp.css?v=7f8c7f1b31e4435c">
+  <link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=7f8c7f1b31e4435c">
+  <link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css?v=7f8c7f1b31e4435c">
+  <link rel="stylesheet" href="/phase11/shared/DesignSystem/workspaces.css?v=7f8c7f1b31e4435c">
+</head>
+<body data-workspace="admin">
+  <section id="admin-access" class="notice" aria-label="站点权限">
+    <div>
+      <p id="admin-access-message" role="status">正在确认站点权限…</p>
+      <a href="/phase11/">返回缘续-聊天</a>
+    </div>
+  </section>
+  <aside id="admin-sidebar" hidden>
+    <a class="brand" href="/phase11/">✧ NEBULA <small>管理中心</small></a>
+    <nav aria-label="管理功能">
+      <button data-view="users">◎ 用户与权限</button>
+      <button data-view="reports">⚑ 内容举报</button>
+      <button data-view="audits">≡ 操作审计</button>
+      <button data-view="messaging">⇄ 消息队列</button>
+      <button data-view="categories">✿ 内容分类</button>
+      <button data-view="runtime">◉ 运行状态</button>
+      <button data-view="speech">♫ 公告音色</button>
+      <button data-view="models">◇ 模型治理</button>
+      <button data-view="training">训练语料审核</button>
+    </nav>
+    <footer><a href="/phase11/tree/">← 回到缘生-广场</a><a href="/phase11/">← 回到缘续-聊天</a></footer>
+  </aside>
+  <main id="admin-console" hidden>
+    <header><h1 id="title">管理中心</h1><span id="identity"></span></header>
+    <div class="toolbar"><span id="description"></span><button id="refresh">↻ 刷新</button></div>
+    <p id="status" role="status"></p>
+    <section id="content" class="content"></section>
+    <button id="next-page" hidden>加载下一页</button>
+  </main>
+  <div id="announcements" class="announcements" aria-live="polite"></div>
+  <script type="module" src="/phase11/admin/AdminApp/AdminApp.js?v=7f8c7f1b31e4435c"></script>
+</body>
+</html>

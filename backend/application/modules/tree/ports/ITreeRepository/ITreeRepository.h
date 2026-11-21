@@ -22,7 +22,7 @@ public:
     virtual TreeReply insertReply(TreeReply reply) = 0;
     virtual std::optional<TreeReply> reply(Id id) const = 0;
     virtual void deleteReply(Id id) = 0;
-    virtual std::vector<TreeReply> replies(Id post, Id before, std::size_t limit) const = 0;
+    virtual std::vector<TreeReply> replies(Id post, Id before, std::size_t limit, std::optional<Id> author) const = 0;
 };
 /** 媒体元数据只能来自已完成校验的存储，不能相信浏览器申报的时长和类型。 */
 class ITreeMediaCatalog {
