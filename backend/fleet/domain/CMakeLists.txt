@@ -1,0 +1,6 @@
+add_library(nebula_fleet_domain FleetTypes/FleetTypes.cpp)
+target_compile_features(nebula_fleet_domain PUBLIC cxx_std_20)
+target_include_directories(nebula_fleet_domain PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+if(TARGET webserver_sanitizers)
+    target_link_libraries(nebula_fleet_domain PUBLIC webserver_sanitizers)
+endif()

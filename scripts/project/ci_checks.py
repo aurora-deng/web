@@ -16,7 +16,7 @@ def test_matrix(names):
         stage=re.match(r'phase(\d+)_',name)
         return name.startswith('function3_') or (stage is not None and int(stage[1])>=11)
     matrix={
-        'communication':[n for n in names if not business(n)],
+        'communication':[n for n in names if not business(n) and not n.startswith('nebula_')],
         'businessWithoutPostgres':[n for n in names if business(n) and 'postgres' not in n],
         'realPostgres':[n for n in names if 'postgres' in n],
     }
@@ -30,6 +30,7 @@ def test_matrix(names):
         raise RuntimeError('Required test lanes/suites missing: '+','.join(sorted(missing)))
     if not any(n.startswith('HttpParserTest.') for n in names) or not any('WebSocket' in n and '.' in n for n in names):
         raise RuntimeError('Required HTTP/WebSocket protocol tests not registered; check installed GTest')
+    matrix['cppSystems'] = [n for n in names if n.startswith('nebula_')]
     return matrix
 def source_checks(report, observer_http):
     checks = report['checks'] = {}

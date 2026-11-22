@@ -1,0 +1,2 @@
+add_executable(nebula_fleet_ack_bench FleetAckBenchmark/FleetAckBenchmark.cpp)
+target_link_libraries(nebula_fleet_ack_bench PRIVATE nebula_fleet_rpc)

@@ -1,5 +1,7 @@
 # 当前状态
 
+**C++ 系统阶段**。通用 DAG、独立 gRPC 协调器、边缘账本、断线恢复与 Observer 已在 Windows 和 Linux 验证。原生 TSan、ASan/UBSan 通过。CentOS 协调器与 Ubuntu_ros 边缘实现跨虚拟机派发和重启对账，200 次混合接收 0 错误，P99 为 30.59 ms。工作停在具身 Agent 开发前。 [架构](docs/architecture/overview/cpp-systems.md) · [运行与验收](docs/ops/validation/cpp-systems.md) · [跨机实测](docs/ops/validation/cpp-systems-cross-vm.md)
+
 **Function3.5 源码发布**涵盖小研 DAG、长会话记忆、Envoy 映射和 Observer 增量刷新。日常入口和源码分支的版本记录各自可查。[本版验收](docs/releases/function3.5.md) · [逐文件清单](docs/releases/function3.5-files.md) · [后续路线](docs/roadmap/next-steps.md)
 
 小研使用应用层 DAG、长上下文压缩、按账号的偏好记忆和词法召回。Observer 已验证历史快路径、压缩及大盘自动更新。真实模型表现和新版日常环境测量单独验收。[小研进度](docs/reports/xiaoyan-personalization-progress.md) · [Observer 测试](docs/observability/validation.md#查询速度与自动刷新)

@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "date": "2026-11-23",
+  "sourceSha256": "46aaa58e26e6a3055210a202dca484ce0495ba6808e4b04e1c9c1cd28bdc5297",
+  "topology": {
+    "coordinator": "CentOS Stream 9",
+    "edges": [
+      "local simulated beta",
+      "remote Ubuntu ROS 2 Humble alpha"
+    ],
+    "transport": "Ubuntu-to-CentOS SSH local port forward carrying the native gRPC stream",
+    "sshHostKeyVerified": true,
+    "rosDomain": 89
+  },
+  "functional": {
+    "alphaNavigationCompleted": 5,
+    "betaNavigationCompleted": 5,
+    "rosActionTransport": "DDS",
+    "navigationFixture": "simulated Action server"
+  },
+  "ack": {
+    "samples": 200,
+    "accepted": 200,
+    "errors": 0,
+    "p50Ms": 18.0869,
+    "p95Ms": 28.5417,
+    "p99Ms": 30.5932,
+    "periodMs": 100,
+    "elapsedSeconds": 20.0787,
+    "scope": "mixed local and remote durable acceptance"
+  },
+  "recovery": {
+    "taskId": "crossvm-cut",
+    "epoch": 223,
+    "traceId": "e76a72ab65f7303611ddc63e8f473021",
+    "disrupted": "coordinator killed after durable acceptance and before edge consumed echo",
+    "stateAfterCoordinatorRestart": "accepted; needs reconciliation",
+    "finalState": "succeeded",
+    "edgeLogicalStarts": 1
+  },
+  "observer": {
+    "traces": 2,
+    "events": 44,
+    "storedAfterSecondImport": 44,
+    "source": "ubuntu-ros-lab"
+  }
+}

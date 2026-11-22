@@ -12,6 +12,7 @@
 |---|---|
 |了解当前功能、实现边界和未通过项|[当前状态](../STATUS.md)、[复现验收](ops/validation/reproduce.md#这次的验证记录)、[Phase49 历史验收](architecture/business/engineering/phase49.md)|
 |从空目录构建和启动|[两档复现指南](ops/validation/reproduce.md)|
+|运行 C++ DAG 和隔离车队|[C++ 系统运行与验收](ops/validation/cpp-systems.md)|
 |日常启动/停止与客户端入口|[运行文档](ops/runtime/README.md)|
 |研途客户端与网页同步、故事广场、七日榜、小研与训练授权|[接入改造、启动与验收](ops/runtime/nebula-yantu-community.md)|
 |学习小研怎样识别偏好、召回个人要点和组织回答|[个性化记忆进度](reports/xiaoyan-personalization-progress.md)|

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-21",
+  "generated": "2026-11-23",
   "scope": "public human-readable documents; raw evidence and local account files excluded",
   "documents": [
     {
@@ -706,6 +706,12 @@
       "kind": "index"
     },
     {
+      "path": "docs/architecture/overview/cpp-systems.md",
+      "title": "C++ DAG 与车队系统架构",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
       "path": "docs/architecture/overview/project-layout.md",
       "title": "项目目录与构建边界",
       "category": "architecture",
@@ -1018,6 +1024,18 @@
       "kind": "index"
     },
     {
+      "path": "docs/ops/validation/cpp-systems-cross-vm.md",
+      "title": "CentOS 与 Ubuntu_ros 的跨机车队验收",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/validation/cpp-systems.md",
+      "title": "C++ 系统运行与验收",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
       "path": "docs/ops/validation/function3.1.md",
       "title": "Function3.1 · 开发快照",
       "category": "ops",
@@ -1178,6 +1196,108 @@
       "title": "计划、阶段与扩展学习",
       "category": "roadmap",
       "kind": "index"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/README.md",
+      "title": "NEBULA 系统开发与具身智能总学习方案",
+      "category": "roadmap",
+      "kind": "index"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/architecture.md",
+      "title": "NEBULA 车队系统目标架构与任务分工",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/job-market.md",
+      "title": "岗位 JD 对照与学习投入",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m00-engineering-closeout.md",
+      "title": "M0 工程收口 · TSan、CI、Tag 与 Agent 位置",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m01-agent.md",
+      "title": "M1 Agent 研发 · 母子职责、工具与评估",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m02-skill-library.md",
+      "title": "M2 Skill 颗粒度与技能库 · 能力合同",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m03-model-training-serving.md",
+      "title": "M3 模型训练与调度 · 数据、推理与部署",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m04-dag-runtime.md",
+      "title": "M4 C++ DAG 执行引擎 · 生命周期与调度",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m05-fleet-orchestration.md",
+      "title": "M5 分布式调度指挥 · 租约、幂等与对账",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m06-communication.md",
+      "title": "M6 通信骨架 · gRPC、背压与断线恢复",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m07-observability.md",
+      "title": "M7 可观测与数据闭环 · 从症状回到同一任务",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m08-ros-robot-executive.md",
+      "title": "M8 ROS 2 与本体大脑 · 子 Agent 的任务执行",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m09-actuator-control.md",
+      "title": "M9 执行器与实时控制 · 周期、抖动和失效",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m10-hardware.md",
+      "title": "M10 机器人实体构建 · 盘点、台架与增量扩展",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m11-time-consistency.md",
+      "title": "M11 时间同步与一致性 · 时效、顺序与归因",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m12-safety.md",
+      "title": "M12 安全架构 · 任务授予、本体仲裁和应急证据",
+      "category": "roadmap",
+      "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/m13-simulation-hil.md",
+      "title": "M13 仿真、回放与 HIL · 验证阶段",
+      "category": "roadmap",
+      "kind": "document"
     },
     {
       "path": "docs/roadmap/engineering-credibility.md",

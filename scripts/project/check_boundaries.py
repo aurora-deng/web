@@ -4,6 +4,31 @@ import json
 from pathlib import Path
 import re
 ROOT=Path(__file__).resolve().parents[2]
+
+def systems_boundaries():
+    workflow = ROOT / 'backend/workflow'
+    fleet = ROOT / 'backend/fleet'
+    locations = {
+        workflow: (workflow,),
+        fleet / 'domain': (fleet / 'domain',),
+        fleet / 'ports': (fleet / 'ports', fleet / 'domain'),
+        fleet / 'application': (fleet / 'application', fleet / 'ports', fleet / 'domain', workflow),
+    }
+    for layer, allowed in locations.items():
+        for source in layer.rglob('*'):
+            if source.suffix not in ('.h', '.cpp'):
+                continue
+            includes = re.findall(r'^\s*#\s*include\s*([<"])([^>"\n]+)',
+                                  source.read_text(encoding='utf-8'), re.M)
+            for delimiter, header in includes:
+                if delimiter == '<':
+                    assert not any(part in header for part in ('grpc', 'sqlite', 'rclcpp', 'nav2', 'onnx')), (
+                        f'infrastructure leaked into {source}: {header}')
+                    continue
+                local = (ROOT / header if header.startswith('backend/') else source.parent / header).resolve()
+                assert local.is_file() and any(local.is_relative_to(parent) for parent in allowed), (
+                    f'C++ systems dependency crosses a layer: {source}: {header}')
+
 def main():
     expected=json.loads((ROOT/'docs/architecture/communication/frozen-core-sha256.json').read_text())['files']
     current={p.relative_to(ROOT).as_posix():hashlib.sha256(p.read_bytes().replace(b"\r\n",b"\n")).hexdigest() for p in (ROOT/'backend/server').rglob('*') if p.is_file()}
@@ -31,5 +56,6 @@ def main():
             text=p.read_text(encoding='utf-8')
             assert not re.search(r'#include[^\n]*'+facade,text),f'Driver depends on all-purpose facade: {p}'
             assert not re.search(r'\b(?:pool_\.acquire|PQconnectdb|beginTransaction)\s*\(',text),f'Driver acquired an independent transaction: {p}'
-    print('PASS frozen communication core (152 files) and chat domain/port/application dependency boundaries')
+    systems_boundaries()
+    print('PASS frozen communication core (152 files), business boundaries and C++ systems layers')
 if __name__=='__main__':main()

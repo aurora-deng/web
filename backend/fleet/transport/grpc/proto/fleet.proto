@@ -1,0 +1,79 @@
+syntax = "proto3";
+package nebula.fleet.v1;
+
+enum Station {
+  STATION_UNSPECIFIED = 0;
+  STATION_ALPHA = 1;
+  STATION_BETA = 2;
+}
+
+enum Phase {
+  PHASE_UNSPECIFIED = 0;
+  PHASE_QUEUED = 1;
+  PHASE_LEASED = 2;
+  PHASE_ACCEPTED = 3;
+  PHASE_EXECUTING = 4;
+  PHASE_SUCCEEDED = 5;
+  PHASE_FAILED = 6;
+  PHASE_UNCERTAIN = 7;
+}
+
+message TaskRequest {
+  string task_id = 1;
+  Station station = 2;
+}
+
+message TaskQuery { string task_id = 1; }
+
+message Command {
+  string task_id = 1;
+  string trace_id = 2;
+  Station station = 3;
+  int64 epoch = 4;
+}
+
+message Receipt {
+  string task_id = 1;
+  int64 epoch = 2;
+  Phase phase = 3;
+  string outcome = 4;
+}
+
+message TaskStatus {
+  Command command = 1;
+  string robot_id = 2;
+  Phase phase = 3;
+  string outcome = 4;
+  bool connected = 5;
+  bool needs_reconciliation = 6;
+}
+
+message Hello {
+  uint32 version = 1;
+  string boot_id = 2;
+  uint32 stations = 3;
+}
+
+message Heartbeat {}
+
+message EdgeFrame {
+  oneof message {
+    Hello hello = 1;
+    Heartbeat heartbeat = 2;
+    Receipt receipt = 3;
+  }
+}
+
+message CoordinatorFrame {
+  uint32 version = 1;
+  Command command = 2;
+  Receipt confirmed = 3;
+}
+
+service Fleet {
+  rpc Submit(TaskRequest) returns (TaskStatus);
+  rpc Status(TaskQuery) returns (TaskStatus);
+  // Each streamed upstream frame receives one downstream frame. A reconnect
+  // starts with Hello and then resumes receipts from the durable edge inbox.
+  rpc Exchange(stream EdgeFrame) returns (stream CoordinatorFrame);
+}

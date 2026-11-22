@@ -40,3 +40,5 @@ python -B tests/project/test_observability.py ObserverContract.test_executable_m
 `retry` 演示观测失败后使用同一幂等编号再次尝试，安全审核成功后返回待确认提案。`stale` 演示过期观测让规划跳过并返回等待。Observer 测试将执行器当场生成的事件通过已认证的上传入口写入 SQLite，再用同一个 Trace ID 查回节点、边和尝试。浏览器执行器开放事件回调，日常小研页面由现有业务接口服务，长期后台采集与真实设备接入需各自验收。[可执行示例](../../../../examples/agent-coordination.mjs) · [Observer 事件契约](../../../observability/architecture.md)
 
 后续 Linux 汇聚层可以把这四个端口分别接到模型 Worker、视觉元数据、任务状态和安全服务。跨进程调度需额外提供持久任务、租约、重放、消息顺序和独立执行确认。在真实系统接入相机、执行器或 ROS 2 前，应以事件回放证明时间戳与帧编号一致，并保留独立的设备安全控制。
+
+当前通用工单已由独立 C++ DAG 和车队进程执行。上文讲述既有小研本地上下文与合成提案流程。后续 Agent 可通过固定技能合同接入 C++ 系统。 [当前 C++ 架构](../../overview/cpp-systems.md)

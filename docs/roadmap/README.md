@@ -1,5 +1,7 @@
 # 计划、阶段与扩展学习
 
+- [NEBULA 系统开发与具身智能总学习方案](embodied-systems/README.md)包含 C++ 就业优先级、车队架构、岗位 JD 对照和 M0–M13 模块指导。
+
 - [下一阶段计划](next-steps.md)从 ACK 长尾入手，按证据推进 Envoy 原生、同机双上游、异机与稳定性验证。
 - [Envoy 网关与可靠性路线](gateway-and-reliability-next-2026-11-19.md)列出原生入口、双上游、可选 C++ Wasm 和回退条件。
 - [技术应用与版本台账](../observability/sources.md)说明各组件职责、实测范围和更新复验方式。

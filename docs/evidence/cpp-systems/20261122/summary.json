@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "date": "2026-11-22",
+  "baseline": "ac2c1dd",
+  "cxxSourceSha256": "46aaa58e26e6a3055210a202dca484ce0495ba6808e4b04e1c9c1cd28bdc5297",
+  "checks": [
+    {
+      "environment": "CentOS Stream 9 / GCC 11.5.0",
+      "profile": "Release gRPC",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "environment": "CentOS Stream 9 / GCC 11.5.0",
+      "profile": "Native TSan",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "environment": "CentOS Stream 9 / GCC 11.5.0",
+      "profile": "Native ASan+UBSan",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "environment": "Windows / MinGW GCC 15.2.0",
+      "profile": "Debug",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "environment": "Windows / MinGW GCC 15.2.0",
+      "profile": "Release gRPC",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "environment": "Ubuntu_ros / Ubuntu 22.04.5 / ROS Humble / nav2_msgs 1.1.20",
+      "profile": "Release gRPC and ROS",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "environment": "Ubuntu_ros / Ubuntu 22.04.5 / ROS Humble",
+      "profile": "ROS tests repeated",
+      "suites": 2,
+      "repeats": 3,
+      "passed": 6,
+      "failed": 0
+    }
+  ],
+  "processFixture": {
+    "capabilityRoutes": 30,
+    "acceptanceEchoInterruptions": 20,
+    "logicalStartsPerReplayedCommand": 1,
+    "coordinatorRestart": true,
+    "edgeCrashDuringExecution": true,
+    "replayedObserverEventsPerRun": 22,
+    "mixedRosRoutes": 5
+  },
+  "ackBenchmark": {
+    "environment": "CentOS Stream 9, 4 vCPU",
+    "sourceSha256": "8bf84c9f4e1a54521bbda0f8b659486ad0f0c2450805890fd5d352a663ced095",
+    "samples": 4000,
+    "accepted": 4000,
+    "periodMs": 100,
+    "navigationMs": 5,
+    "observerSpool": false,
+    "latency": "Submit start to first Status observing durable acceptance",
+    "rounds": [
+      {
+        "robots": 2,
+        "round": 1,
+        "accepted": 1000,
+        "errors": 0,
+        "p50Ms": 17.2199,
+        "p95Ms": 28.9434,
+        "p99Ms": 33.6613,
+        "seconds": 100.42
+      },
+      {
+        "robots": 2,
+        "round": 2,
+        "accepted": 1000,
+        "errors": 0,
+        "p50Ms": 17.2627,
+        "p95Ms": 28.5463,
+        "p99Ms": 33.4458,
+        "seconds": 100.476
+      },
+      {
+        "robots": 2,
+        "round": 3,
+        "accepted": 1000,
+        "errors": 0,
+        "p50Ms": 17.9717,
+        "p95Ms": 29.2341,
+        "p99Ms": 37.5173,
+        "seconds": 100.509
+      },
+      {
+        "robots": 3,
+        "round": 1,
+        "accepted": 1000,
+        "errors": 0,
+        "p50Ms": 13.6588,
+        "p95Ms": 24.5847,
+        "p99Ms": 30.8844,
+        "seconds": 100.431
+      }
+    ]
+  },
+  "limits": [
+    "The installed uninstrumented gRPC/Abseil SDK still reports a TSan diagnostic during startup",
+    "The ROS navigation result comes from an Action fixture with a simulated clock; physical movement is outside the tested scope",
+    "The benchmark predates the build layout and Humble SDK compatibility changes; the timed wait implementation is the same"
+  ]
+}

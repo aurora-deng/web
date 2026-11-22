@@ -2,7 +2,7 @@
 
 本轮新增同名组件目录：`business/AiGenerationState`、`AiGenerationPreparation`、`AiGenerationCompletion`、`AiGenerationAudit`，以及 `storage/postgres/PostgresUnitOfWork`。Observer 查询拆到 `metric_queries.py`、`trace_queries.py`、`experiment_queries.py`，固定 Prometheus 查询由 `prometheus_queries.py` 有界执行；交付增加 `runtime_inventory.py`、`release_preflight.py`、`run_release.py`。[职责和调用图](../../roadmap/project-review-implementation-2026-11-19.md#2-组件与责任)。
 
-目录以 `Function3.3` 为基准。聊天 ACK 采样位于 `backend/application/observability/ChatAckTrace/`，隔离演练位于 `scripts/function3/validation/function32_lab.py`。[本版范围](../../releases/function3.3.md)
+现有 Web 目录以 `Function3.3` 为基准。新增 C++ 系统可独立启动。聊天 ACK 采样位于 `backend/application/observability/ChatAckTrace/`，车队 ACK 使用独立工单。 [Web 版范围](../../releases/function3.3.md) · [C++ 系统架构](cpp-systems.md)
 
 ```text
 项目根目录
@@ -43,10 +43,14 @@
 │  ├─ ai/
 │  │  ├─ bootstrap/、models/           AI 装配、Provider、模型治理与 RAG
 │  │  └─ private/、speech/、training/   私人生成、语音、训练与转换
-│  └─ study/AccountWorkspace/           研途会话、分账号同步与网关装配
-│     ├─ AccountWorkspace.py           账号核验、作用域与存储入口
-│     ├─ FrontendSnapshot.py           经清单校验的前端快照
-│     └─ GatewayConfig.py、LabRunner.py、ReleaseBundle.py
+│  ├─ study/AccountWorkspace/           研途会话、分账号同步与网关装配
+│  │  ├─ AccountWorkspace.py           账号核验、作用域与存储入口
+│  │  ├─ FrontendSnapshot.py           经清单校验的前端快照
+│  │  └─ GatewayConfig.py、LabRunner.py、ReleaseBundle.py
+│  ├─ systems/                         C++ 系统独立 CMake 入口
+│  ├─ workflow/                        DAG 图校验、执行器、Worker 与事件适配
+│  └─ fleet/                           领域、应用、账本、gRPC 进程
+├─ robotics/nav2_gateway/              ROS 2 仿真导航适配
 ├─ client/                            Windows 客户端与独立 CMake 入口
 │  ├─ companion/、assistant/、storage/  本机代理、私人助手、SQLite 与 DPAPI
 │  └─ yantu/

@@ -139,6 +139,8 @@ if(WEBSERVER_ENABLE_TSAN)
     target_link_options(webserver_sanitizers INTERFACE -fsanitize=thread)
 endif()
 
+add_subdirectory(backend/systems)
+
 # 跨 HTTP/SSE/WebSocket/gRPC 共用的安全基础层。独立成库后，gRPC 组件测试
 # 不必为了复用令牌校验而链接 Linux epoll 网络核心。
 add_library(webserver_security
