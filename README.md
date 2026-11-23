@@ -1,6 +1,6 @@
 # NEBULA · C++20 高级 Web 服务器与实时应用
 
-**最新开发分支 [Function3.3](https://github.com/aurora-deng/web/tree/Function3.3)**。源码、构建入口和验收文档都在该分支。本页用于查找各版本。
+**最新发布 [Function3.6](https://github.com/aurora-deng/web/releases/tag/Function3.6)**。提供 C++ 后端 DAG、gRPC 车队、Agent 审批与 Observer 回放，以及可校验的 Linux ZIP 和离线 Web/Fleet Docker 镜像。 [源码分支](https://github.com/aurora-deng/web/tree/Function3.6) · [部署与回退](https://github.com/aurora-deng/web/blob/Function3.6/docs/ops/runtime/function3.6-deployment.md) · [与 Function3.5 的区别](https://github.com/aurora-deng/web/blob/Function3.6/docs/releases/function3.6.md)
 
 NEBULA 在 Linux 使用 epoll、Multi-Reactor 和 C++20 协程，支持 HTTP、WebSocket、SSE、HTTP/2、TLS/ALPN 和 gRPC。缘续-聊天、缘生-广场、研途和小研提供可复放的业务场景，Observer 用指标、结构化日志和调用链帮助定位故障。Windows Companion 提供本机入口与私人资料管理。
 
@@ -11,16 +11,18 @@ NEBULA 在 Linux 使用 epoll、Multi-Reactor 和 C++20 协程，支持 HTTP、W
 ## 获取并运行
 
 ```bash
-git clone --branch Function3.3 --single-branch https://github.com/aurora-deng/web.git
+git clone --branch Function3.6 --single-branch https://github.com/aurora-deng/web.git
 cd web
 ```
 
-按运行指南选择通信档或临时 PostgreSQL 业务档。研途客户端连接启用了研途路由的 HTTPS 网关。日常部署版本与隔离验证结果见状态页。[文档首页](https://github.com/aurora-deng/web/blob/Function3.3/docs/README.md) · [研途启动与切号](https://github.com/aurora-deng/web/blob/Function3.3/docs/ops/runtime/nebula-yantu-community.md) · [当前状态](https://github.com/aurora-deng/web/blob/Function3.3/STATUS.md)
+从发布页下载镜像或 ZIP 并核对 `SHA256SUMS`。Docker 归档使用 Linux x86-64 主机现有兼容库，网页业务连接外部 PostgreSQL。源码构建可选择通信档、PostgreSQL 业务档和独立车队验证。 [文档首页](https://github.com/aurora-deng/web/blob/Function3.6/docs/README.md) · [验收](https://github.com/aurora-deng/web/blob/Function3.6/docs/ops/validation/m00-m07.md) · [研途运行](https://github.com/aurora-deng/web/blob/Function3.6/docs/ops/runtime/nebula-yantu-community.md)
 
 ## 主要版本
 
 | 分支 | 阶段 | 主要内容 |
 |---|---|---|
+| [Function3.6](https://github.com/aurora-deng/web/tree/Function3.6) | C++ 调度和可验证交付 | 后端 DAG、gRPC 车队、Agent 审批、Docker 与 ZIP |
+| [Function3.5](https://github.com/aurora-deng/web/tree/Function3.5) | 个性化与诊断 | 小研偏好、会话压缩、Envoy 路由和 Observer 增量刷新 |
 | [Function3.3](https://github.com/aurora-deng/web/tree/Function3.3) | 账号工作区与诊断 | 研途账号同步、Observer、小研、界面切换和 Envoy 实验 |
 | [Function3.2](https://github.com/aurora-deng/web/tree/Function3.2) | 复现与诊断 | 社区模块拆分、隔离复现、连接池恢复、ACK 分段测量 |
 | [Function3.1](https://github.com/aurora-deng/web/tree/Function3.1) | 界面与治理 | 统一水岸主题、三分钟撤回、语音、AI 与社区体验 |
