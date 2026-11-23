@@ -1,6 +1,7 @@
 add_library(nebula_workflow
     WorkflowGraph/WorkflowGraph.cpp
     DagExecutor/DagExecutor.cpp
+    DurableWorkflow/DurableWorkflow.cpp
     WorkerPool/WorkerPool.cpp)
 target_compile_features(nebula_workflow PUBLIC cxx_std_20)
 target_include_directories(nebula_workflow PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../..")

@@ -796,6 +796,18 @@
       "kind": "index"
     },
     {
+      "path": "docs/learning/langgraph-nebula-lab.md",
+      "title": "从 NEBULA 的审批流程学 LangGraph",
+      "category": "learning",
+      "kind": "document"
+    },
+    {
+      "path": "docs/learning/nebula-fleet-agent-and-skills.md",
+      "title": "用 NEBULA 学母 Agent、工具与 Skill",
+      "category": "learning",
+      "kind": "document"
+    },
+    {
       "path": "docs/learning/nebula-performance-and-reliability.md",
       "title": "NEBULA 实战学习：性能定位与故障恢复",
       "category": "learning",
@@ -1038,6 +1050,12 @@
     {
       "path": "docs/ops/validation/function3.1.md",
       "title": "Function3.1 · 开发快照",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/validation/m00-m07.md",
+      "title": "M00–M07 软件系统交付与复验",
       "category": "ops",
       "kind": "document"
     },
@@ -1298,6 +1316,12 @@
       "title": "M13 仿真、回放与 HIL · 验证阶段",
       "category": "roadmap",
       "kind": "document"
+    },
+    {
+      "path": "docs/roadmap/embodied-systems/skills/README.md",
+      "title": "NEBULA Skill 合同 v1",
+      "category": "roadmap",
+      "kind": "index"
     },
     {
       "path": "docs/roadmap/engineering-credibility.md",

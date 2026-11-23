@@ -105,6 +105,16 @@ void retriesAndBranchFailure() {
             node(result, "idempotent").state == State::success, "retry or branch isolation failed");
     require(node(result, "other").errorCode == "execution_exception" &&
             node(result, "join").state == State::skipped, "failed branch was forwarded");
+
+    const auto operationKey = [&](std::string run, std::string nodeId) {
+        auto action = simple(std::move(nodeId));
+        action.execute = [](const NodeContext& context) {
+            return WorkResult{WorkStatus::success, std::string(context.idempotencyKey), {}};
+        };
+        return executor.run(WorkflowGraph("identities.v1", {action}), {.runId = std::move(run)}).nodes.front().value;
+    };
+    require(operationKey("work.batch", "write") != operationKey("work", "batch.write"),
+            "different run and node identities shared an operation key");
 }
 
 void deadlineAndLateResult() {
@@ -121,6 +131,18 @@ void deadlineAndLateResult() {
     const auto result = executor.run(graph, {.runId = "timeout"});
     require(left && result.state == State::timeout && node(result, "late").value.empty() &&
             node(result, "next").state == State::skipped, "late completion escaped timeout fence");
+
+    std::atomic_int ticks{0};
+    slow.execute = [&](const NodeContext&) {
+        ticks.store(30);
+        return WorkResult{WorkStatus::success, "virtual-late", {}};
+    };
+    const WorkflowGraph virtualGraph("virtual_deadline.v1", {slow, simple("next", {"late"})});
+    const auto virtualResult = executor.run(virtualGraph, {.runId = "virtual-timeout", .now = [&] {
+        return Clock::time_point{Milliseconds{ticks.load()}};
+    }});
+    require(virtualResult.state == State::timeout && node(virtualResult, "next").state == State::skipped,
+            "injected clock did not fence a late result");
 }
 
 void cancellationAndAdmission() {

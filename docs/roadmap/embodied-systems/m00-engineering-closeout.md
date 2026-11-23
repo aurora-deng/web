@@ -15,7 +15,7 @@ P0 · S0。目标是拿到一个能复验的 C++ 项目版本，并为下一步�
 ## 已有基础与待补能力
 
 - **已有**。当前发布提交为 `ac2c1dd`。项目有 CMake configure/build/test 的 `tsan` preset、源码 CI、Linux 业务和原生打包工作流，以及通信核心文件摘要检查。工作区包含发布之后的安全与运维改动，按来源分批核对。
-- **本阶段结果**。原生 TSan 和 ASan/UBSan 已复验，CI 增加独立 C++ 与 sanitizer 档。预编译 gRPC/Abseil 的全链路 TSan 诊断仍保留。版本可用本地复现快照和源码摘要定位。 [C++ 验收记录](../../ops/validation/cpp-systems.md) · [CI](../../../.github/workflows/ci.yml) · [历史 TSan 证据](../../observability/validation.md)
+- **本阶段结果**。CentOS 软件路径 Release 9/9，原生 TSan 与 ASan/UBSan 各 4/4；Windows Release 与原生 Debug 分别 9/9、4/4。缺用例控制在 `test-discovery` 失败。完整 gRPC TSan 在预编译 Abseil 的线程诊断处停止。旧标签 `cpp-systems-pre-agent-20261123` 指向 `df9fd89`，保留为回退基线。 [本轮验收](../../ops/validation/m00-m07.md) · [CI](../../../.github/workflows/ci.yml) · [原基线证据](../../evidence/cpp-systems/20261122/summary.json)
 
 ## 学习内容与目标深度
 

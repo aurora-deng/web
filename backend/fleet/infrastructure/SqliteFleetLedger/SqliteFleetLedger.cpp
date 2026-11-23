@@ -36,6 +36,7 @@ SqliteFleetLedger::SqliteFleetLedger(const std::filesystem::path& path, std::siz
     if (!queueLimit_ || queueLimit_ > 4096) throw Error(ErrorCode::invalid, "invalid fleet queue limit");
     sqlite::Transaction create(db_);
     db_.exec(schema);
+    createReviewTable();
     create.commit();
 }
 
@@ -57,6 +58,13 @@ Task SqliteFleetLedger::submit(std::string_view taskId, Station station, std::st
         write.commit();
         return *prior;
     }
+    if (taskId.starts_with(replacementPrefix)) throw Error(ErrorCode::invalid, "reserved Agent work order ID");
+    auto created = insertTask(taskId, station, traceId);
+    write.commit();
+    return created;
+}
+
+Task SqliteFleetLedger::insertTask(std::string_view taskId, Station station, std::string_view traceId) {
     sqlite::Statement count(db_, "SELECT (SELECT COUNT(*) FROM tasks WHERE phase=1), (SELECT MAX(epoch) FROM tasks)");
     if (!count.next() || count.integer(0) >= static_cast<std::int64_t>(queueLimit_) || count.integer(1) >= 50000) {
         throw Error(ErrorCode::exhausted, "fleet queue or archive is full");
@@ -65,7 +73,6 @@ Task SqliteFleetLedger::submit(std::string_view taskId, Station station, std::st
         .bind(1, taskId).bind(2, static_cast<int>(station)).bind(3, traceId).run();
     auto created = lookup(taskId);
     if (!created) throw Error(ErrorCode::storage, "task was not stored");
-    write.commit();
     return *created;
 }
 
@@ -105,6 +112,7 @@ std::optional<Command> SqliteFleetLedger::dispatch(std::string_view robotId, Cap
 
 void SqliteFleetLedger::apply(std::string_view robotId, const Receipt& receipt) {
     checkReceipt(receipt);
+    if (receipt.outcome == supersededOutcome) throw Error(ErrorCode::invalid, "reserved Agent outcome");
     sqlite::Transaction write(db_);
     const auto task = lookup(receipt.taskId);
     if (!task || task->robotId != robotId || task->command.epoch != receipt.epoch) {
@@ -120,5 +128,15 @@ void SqliteFleetLedger::apply(std::string_view robotId, const Receipt& receipt) 
     sqlite::Statement(db_, "UPDATE tasks SET phase=?,outcome=? WHERE epoch=?")
         .bind(1, static_cast<int>(receipt.phase)).bind(2, receipt.outcome).bind(3, receipt.epoch).run();
     write.commit();
+}
+
+FleetLoad SqliteFleetLedger::load() {
+    sqlite::Statement row(db_, R"SQL(
+        SELECT (SELECT COUNT(*) FROM tasks WHERE phase=1),
+               (SELECT COUNT(*) FROM tasks WHERE phase IN (2,3,4,7))
+    )SQL");
+    if (!row.next()) throw Error(ErrorCode::storage, "missing fleet queue counters");
+    return {static_cast<unsigned>(row.integer(0)), static_cast<unsigned>(row.integer(1)), 0,
+            static_cast<unsigned>(queueLimit_)};
 }
 }

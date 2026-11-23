@@ -12,7 +12,7 @@ P2 · S5。模型工程优先服务于有明确定义的任务失败。前两个
 ## 已有基础与待补能力
 
 - **已有**。项目有 Ollama、ONNX 同进程与 gRPC Worker 接入，模型注册与故障降级，文本训练数据导出以及取消示例。[模型端口](../../../backend/ai/models/ModelProvider/ModelProvider.h) · [模型注册](../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) · [文本数据导出](../../../backend/ai/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp)
-- **待补**。绑定机器人任务的 episode 记录、多模态时间对齐、按负载类别隔离的调度，以及能复验的策略训练和部署报告。硬件、GPU、采集权限和模型许可在接入前盘点。
+- **本轮**。合成状态与测距记录按任务编号关联，使用 40 ms 对齐窗，低质量样本离开训练和评估集合。规则和两个 CPU 策略复用三轮评估，模型注册、摘要校验和回滚均可复验。单独的 Python 推理进程验证过载拒绝与超时后停步。真实设备、GPU 和实际策略迁移另行验收。 [数据回放](../../../tools/agent/episode_recording.py) · [训练到回滚](../../../tools/agent/simulation_models.py) · [复验报告](../../ops/validation/m00-m07.md)
 
 ## 学习内容与目标深度
 

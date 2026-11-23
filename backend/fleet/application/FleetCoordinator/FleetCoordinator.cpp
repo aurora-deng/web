@@ -1,8 +1,15 @@
 #include "FleetCoordinator.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace nebula::fleet {
+namespace {
+std::int64_t reviewTime() {
+    using namespace std::chrono;
+    return duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+}
+}
 
 FleetCoordinator::FleetCoordinator(FleetLedger& ledger, std::chrono::milliseconds heartbeatLimit,
                                    std::function<Clock::time_point()> clock)
@@ -28,6 +35,31 @@ Task FleetCoordinator::status(std::string_view taskId) {
     auto task = ledger_.lookup(taskId);
     if (!task) throw Error(ErrorCode::missing, "unknown fleet task");
     return withConnection(std::move(*task));
+}
+
+FleetLoad FleetCoordinator::load() {
+    std::lock_guard lock(mutex_);
+    auto load = ledger_.load();
+    const auto now = clock_();
+    load.connected = static_cast<unsigned>(std::ranges::count_if(connections_, [&](const auto& entry) {
+        return now - entry.second.lastSeen < heartbeatLimit_;
+    }));
+    return load;
+}
+
+SimulationReview FleetCoordinator::stageReview(const ReviewDraft& draft) {
+    std::lock_guard lock(mutex_);
+    return ledger_.stageReview(draft, reviewTime());
+}
+
+SimulationReview FleetCoordinator::inspectReview(std::string_view traceId) {
+    std::lock_guard lock(mutex_);
+    return ledger_.inspectReview(traceId, reviewTime());
+}
+
+SimulationReview FleetCoordinator::decideReview(std::string_view traceId, Decision decision) {
+    std::lock_guard lock(mutex_);
+    return ledger_.decideReview(traceId, decision, reviewTime());
 }
 
 Session FleetCoordinator::connect(std::string robotId, Capabilities capabilities) {

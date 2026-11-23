@@ -14,7 +14,7 @@ P0 · S1 定事件，S2 打通链路，P1 · S3 做 ROS 回放。Observer 面向
 ## 已有基础与待补能力
 
 - **已有**。Observer 已处理指标、Trace、结构化日志和资源视图。 `device.window`、`device.command`、`device.safety`、`device.recording` 及 DAG 事件已有契约和样例。历史 19.51% 是某轮 A/A 的噪声量级，不能直接套用到车队。[设备事件契约](../../../tools/observability/observer/events.py) · [历史测量](../../observability/validation.md)
-- **待补**。真实 C++ coordinator/ROS 接入、记录 ID 到本地回放的核对、从一次告警追到节点/设备、失败片段用于后续模型任务。现有 SQLite 事件库继续承载有界事件和索引。
+- **本轮**。C++ 边缘、Agent 审批和 90 秒合成设备回放可通过独立 Observer API 按 Trace 查询。测试覆盖事件重复导入、低质量样本、回放摘要、满配额整批回滚和观察端停止时的业务隔离。真实 ROS 记录接入和生产告警联动留在后续现场验收。 [隔离采集链路](../../ops/validation/m00-m07.md) · [记录和质量规则](../../../tools/agent/episode_recording.py)
 
 ## 学习内容与目标深度
 

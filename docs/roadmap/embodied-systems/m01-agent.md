@@ -2,6 +2,8 @@
 
 P1 · S4，S1 先参与定义接口。把 AI Native 的作品定义为「运行时有能力调用、权限、状态和评估」，首版让母 Agent 在车队证据之上给出可解释提案。
 
+**当前已到 ROS 2 交接边界**。C++ 母 Agent 从车队证据创建模拟重排草稿，审批后由协调器原子入队，确定性边缘执行器收到并进入导航端口。Ollama 适配已用本机 HTTP 夹具验证，真实模型的提案质量单独取样。 [运行、代码导读与习题](../../learning/nebula-fleet-agent-and-skills.md) · [LangGraph 学习](../../learning/langgraph-nebula-lab.md) · [Skill 合同](skills/README.md)
+
 ## 技术要求
 
 - 母 Agent 读取任务、失败摘要和能力目录，输出受限的结构化提案。提案携带证据引用、任务模板、参数和候选原因。
@@ -12,7 +14,8 @@ P1 · S4，S1 先参与定义接口。把 AI Native 的作品定义为「运行�
 ## 已有基础与待补能力
 
 - **已有**。小研网页端有偏好、上下文分层与会话 DAG；Windows 端有个人会话及推理适配，合成多 Agent 示例能产生建议。已有模型调用和有界队列可接入。[小研进度](../../reports/xiaoyan-personalization-progress.md) · [DAG 与协作](../../architecture/business/ai/agent-workflow-runtime.md)
-- **待补**。服务端运行记录、可验证的提案合同、工具注册和权限判定、工作流恢复及母/子任务边界。已核对的原型证据按模拟级记录，独立机器人执行另验。
+- **本轮**。独立的只读、起草和审批凭据已接通。审批账本记录不可变草稿和终态决议，对相同提案重放时返回已保存结果。已为原单提前领取、拒绝、到期和协调器重启准备回归。 [母 Agent 源码](../../../backend/agent/application/FleetAgent/FleetAgent.cpp) · [审批事务](../../../backend/fleet/infrastructure/SqliteFleetLedger/SimulationReviewSql.cpp)
+- **模型实测**。CentOS 复用本地 Qwen2.5-0.5B INT4，24 个固定分类案例命中 13 个，规则命中 24 个。模型给出的候选只有 8 个通过 C++ 校验，P95 约 1.50 秒。正式路径维持规则默认；子 Agent 继续由确定性执行器负责。Ubuntu_ros 的新审批链路留在 M08 的现场复验。 [模型实验与边界](../../learning/nebula-fleet-agent-and-skills.md)
 
 ## 学习内容与目标深度
 

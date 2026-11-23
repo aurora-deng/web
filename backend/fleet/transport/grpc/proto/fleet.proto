@@ -25,11 +25,17 @@ message TaskRequest {
 
 message TaskQuery { string task_id = 1; }
 
+message SkillVersion {
+  string id = 1;
+  uint32 version = 2;
+}
+
 message Command {
   string task_id = 1;
   string trace_id = 2;
   Station station = 3;
   int64 epoch = 4;
+  SkillVersion skill = 5;
 }
 
 message Receipt {
@@ -48,10 +54,48 @@ message TaskStatus {
   bool needs_reconciliation = 6;
 }
 
+message ReviewDraft {
+  string trace_id = 1;
+  string source_task_id = 2;
+  int64 source_epoch = 3;
+}
+
+enum ReviewState {
+  REVIEW_UNSPECIFIED = 0;
+  REVIEW_PENDING = 1;
+  REVIEW_APPROVED = 2;
+  REVIEW_REJECTED = 3;
+  REVIEW_STALE = 4;
+  REVIEW_EXPIRED = 5;
+}
+
+enum ReviewDecision {
+  DECISION_UNSPECIFIED = 0;
+  DECISION_APPROVE = 1;
+  DECISION_REJECT = 2;
+}
+
+message ReviewQuery { string trace_id = 1; }
+
+message ReviewRequest {
+  string trace_id = 1;
+  ReviewDecision decision = 2;
+}
+
+message SimulationReview {
+  ReviewDraft draft = 1;
+  Station station = 2;
+  ReviewState state = 3;
+  int64 created_at = 4;
+  int64 expires_at = 5;
+  string replacement_task_id = 6;
+}
+
 message Hello {
   uint32 version = 1;
   string boot_id = 2;
   uint32 stations = 3;
+  repeated SkillVersion skills = 4;
 }
 
 message Heartbeat {}
@@ -70,9 +114,31 @@ message CoordinatorFrame {
   Receipt confirmed = 3;
 }
 
+message LoadQuery {}
+
+message LoadWatch {
+  uint32 interval_ms = 1;
+}
+
+message LoadUpdate {
+  uint32 queued = 1;
+  uint32 active = 2;
+  uint32 connected = 3;
+  uint32 queue_limit = 4;
+  uint32 watchers = 5;
+  uint64 watch_rejections = 6;
+  uint32 sequence = 7;
+  uint32 skipped_samples = 8;
+}
+
 service Fleet {
   rpc Submit(TaskRequest) returns (TaskStatus);
   rpc Status(TaskQuery) returns (TaskStatus);
+  rpc StageReview(ReviewDraft) returns (SimulationReview);
+  rpc InspectReview(ReviewQuery) returns (SimulationReview);
+  rpc DecideReview(ReviewRequest) returns (SimulationReview);
+  rpc Load(LoadQuery) returns (LoadUpdate);
+  rpc WatchLoad(stream LoadWatch) returns (stream LoadUpdate);
   // Each streamed upstream frame receives one downstream frame. A reconnect
   // starts with Hello and then resumes receipts from the durable edge inbox.
   rpc Exchange(stream EdgeFrame) returns (stream CoordinatorFrame);

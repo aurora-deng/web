@@ -22,6 +22,10 @@ public:
 
     Task submit(std::string_view taskId, Station station, std::string_view traceId);
     Task status(std::string_view taskId);
+    FleetLoad load();
+    SimulationReview stageReview(const ReviewDraft& draft);
+    SimulationReview inspectReview(std::string_view traceId);
+    SimulationReview decideReview(std::string_view traceId, Decision decision);
     Session connect(std::string robotId, Capabilities capabilities);
     void disconnect(const Session& session);
     std::optional<Command> exchange(const Session& session, const std::optional<Receipt>& report);

@@ -90,7 +90,8 @@ class Store:
                                 int(item["occurredAt"]), now, body))
                     inserted += 1
         except sqlite3.Error as error:
-            if getattr(error, "sqlite_errorcode", None) in (sqlite3.SQLITE_FULL, sqlite3.SQLITE_BUSY) or str(error) in (
+            # Python 3.9 exposes only the message for these SQLite failures.
+            if getattr(error, "sqlite_errorname", None) in ("SQLITE_FULL", "SQLITE_BUSY") or str(error) in (
                     "database or disk is full", "database is locked"):
                 raise Capacity("事件存储配额已满或正在忙") from error
             raise

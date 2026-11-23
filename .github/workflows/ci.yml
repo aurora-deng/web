@@ -67,6 +67,15 @@ jobs:
           persist-credentials: false
       - name: Build and run the finite native test set
         run: python scripts/project/cpp_systems.py --build-dir build/ci-systems --config ${{ matrix.config }} --sanitizer ${{ matrix.sanitizer }}
+      - name: Verify that missing CTest coverage fails CI
+        if: matrix.profile == 'linux-release'
+        shell: bash
+        run: |
+          if python scripts/project/cpp_systems.py --build-dir build/ci-systems-negative --require-test nebula_fixture_deliberately_absent; then
+            echo "::error::A deliberately missing CTest case was accepted"
+            exit 1
+          fi
+          python -c 'import json; from pathlib import Path; result = json.loads(Path("build/ci-systems-negative/cpp-systems-evidence.json").read_text()); assert result["phase"] == "test-discovery" and result["passed"] is False'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
@@ -75,6 +84,7 @@ jobs:
             build/ci-systems/cpp-systems-evidence.json
             build/ci-systems/ctest.xml
             build/ci-systems/Testing/Temporary/LastTest.log
+            build/ci-systems-negative/cpp-systems-evidence.json
           if-no-files-found: error
           retention-days: 7
 

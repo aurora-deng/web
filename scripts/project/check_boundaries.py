@@ -8,11 +8,15 @@ ROOT=Path(__file__).resolve().parents[2]
 def systems_boundaries():
     workflow = ROOT / 'backend/workflow'
     fleet = ROOT / 'backend/fleet'
+    agent = ROOT / 'backend/agent'
     locations = {
         workflow: (workflow,),
         fleet / 'domain': (fleet / 'domain',),
         fleet / 'ports': (fleet / 'ports', fleet / 'domain'),
         fleet / 'application': (fleet / 'application', fleet / 'ports', fleet / 'domain', workflow),
+        agent / 'domain': (agent / 'domain', fleet / 'domain'),
+        agent / 'ports': (agent / 'ports', agent / 'domain'),
+        agent / 'application': (agent / 'application', agent / 'ports', agent / 'domain', workflow),
     }
     for layer, allowed in locations.items():
         for source in layer.rglob('*'):

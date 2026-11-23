@@ -2,6 +2,8 @@
 
 阶段以 2026-11-22 的 Function3.5 工作区为基线。工作区已有安全与网关改动，验收对象是本轮 C++ 系统源码及匹配的测试夹具。运行使用独立 SQLite 文件和回环 gRPC 端口。
 
+M00–M07 的最新测试矩阵、恢复语义和测量口径单列在交付报告。本页下方的早期 2 项 Sanitizer 和跨机结果保留作历史基线。 [M00–M07 软件交付与复验](m00-m07.md)
+
 ## 一、按环境构建
 
 需要支持 C++20 的现有工具链、CMake 3.21+、Python 3.9+。Windows 使用系统自带的 `winsqlite3.dll`，Linux 启用车队时需要已有 SQLite 开发头和库。gRPC 可选档要求已有 gRPC C++、Protobuf、`protoc` 和 `grpc_cpp_plugin`。Windows 的 MinGW 与 protoc 组合遇到中文路径时，可使用 ASCII 路径的源码副本、SDK 前缀和构建目录。

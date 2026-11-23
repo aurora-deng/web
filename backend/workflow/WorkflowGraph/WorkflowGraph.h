@@ -30,6 +30,7 @@ struct DependencyValue {
 struct NodeContext {
     std::string_view runId;
     std::string_view traceId;
+    // Stable across attempts. Treat the run and node identity as an opaque key.
     std::string_view idempotencyKey;
     unsigned attempt;
     Clock::time_point deadline;

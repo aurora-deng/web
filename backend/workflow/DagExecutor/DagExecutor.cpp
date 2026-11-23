@@ -53,8 +53,12 @@ bool terminal(State state) {
            state == State::skipped || state == State::cancelled;
 }
 
-WorkResult execute(const Node& node, const NodeContext& context) {
-    if (context.stop.stop_requested() || Clock::now() >= context.deadline) {
+Clock::time_point clockNow(const std::function<Clock::time_point()>& clock) {
+    return clock ? clock() : Clock::now();
+}
+
+WorkResult execute(const Node& node, const NodeContext& context, const std::function<Clock::time_point()>& clock) {
+    if (context.stop.stop_requested() || clockNow(clock) >= context.deadline) {
         return {WorkStatus::failure, {}, "stopped"};
     }
     try {
@@ -73,7 +77,7 @@ class Run {
 public:
     Run(const WorkflowGraph& graph, RunOptions options, WorkerPool& workers)
         : graph_(graph), options_(std::move(options)), workers_(workers),
-          deadline_(Clock::now() + options_.timeout), signals_(std::make_shared<Wakeup>()) {
+          deadline_(clockNow(options_.now) + options_.timeout), signals_(std::make_shared<Wakeup>()) {
         slots_.resize(graph_.steps().size());
         for (std::size_t i = 0; i < slots_.size(); ++i) slots_[i].result.nodeId = graph_.steps()[i].node.id;
     }
@@ -100,7 +104,7 @@ public:
         }
 
         for (;;) {
-            const auto now = Clock::now();
+            const auto now = clockNow(options_.now);
             if (stop_ == State::pending) {
                 if (options_.stop.stop_requested()) stop_ = State::cancelled;
                 else if (now >= deadline_) stop_ = State::timeout;
@@ -112,7 +116,13 @@ public:
                 return terminal(slot.result.state);
             })) break;
 
-            signals_->waitUntil(nextWake);
+            if (options_.now && nextWake != Clock::time_point::max()) {
+                const auto remaining = std::clamp(nextWake - clockNow(options_.now), Clock::duration::zero(),
+                                                  Clock::duration(Milliseconds{2}));
+                signals_->waitUntil(Clock::now() + remaining);
+            } else {
+                signals_->waitUntil(nextWake);
+            }
         }
 
         RunResult result{outcome(), options_.traceId, {}, peakActive_, peakReady_};
@@ -220,8 +230,9 @@ private:
         peakReady_ = std::max(peakReady_, ready);
 
         for (std::size_t i = 0; i < slots_.size() && active_ < workers_.capacity(); ++i) {
-            if (options_.stop.stop_requested() || Clock::now() >= deadline_) {
-                nextWake = std::min(nextWake, Clock::now());
+            const auto current = clockNow(options_.now);
+            if (options_.stop.stop_requested() || current >= deadline_) {
+                nextWake = std::min(nextWake, current);
                 return;
             }
             if (slots_[i].result.state == State::queued) {
@@ -240,20 +251,20 @@ private:
         auto& slot = slots_[index];
         const auto& step = graph_.steps()[index];
         auto attempt = std::make_shared<Attempt>();
-        attempt->start = Clock::now();
+        attempt->start = clockNow(options_.now);
         attempt->deadline = std::min(deadline_, attempt->start + step.node.timeout);
         std::vector<DependencyValue> inputs;
         for (const auto dep : step.dependencies) {
             inputs.push_back({graph_.steps()[dep].node.id, slots_[dep].result.value});
         }
-        auto key = options_.runId + "." + step.node.id;
+        auto key = options_.runId + ":" + step.node.id;
         transition(index, State::started);
         workers_.submit([node = &step.node, attempt, wakeup = signals_, runId = options_.runId,
-                         trace = options_.traceId, key = std::move(key), number = slot.result.attempts,
+                         trace = options_.traceId, key = std::move(key), number = slot.result.attempts, clock = options_.now,
                          inputs = std::move(inputs)] {
             const NodeContext context{runId, trace, key, number, attempt->deadline, attempt->stop.get_token(), inputs};
-            auto result = execute(*node, context);
-            const auto finished = Clock::now();
+            auto result = execute(*node, context, clock);
+            const auto finished = clockNow(clock);
             {
                 std::lock_guard lock(wakeup->mutex);
                 attempt->completion.emplace(Completion{std::move(result), finished});

@@ -11,13 +11,28 @@ using namespace std::chrono_literals;
 int main(int argc, char* argv[]) {
     try {
         const auto command = argc >= 3 ? std::string_view(argv[2]) : "";
-        if (!((argc == 4 && command == "status") || (argc == 5 && command == "submit"))) {
-            throw Error(ErrorCode::invalid, "usage: nebula_fleet_ctl 127.0.0.1:PORT (status ID | submit ID alpha|beta)");
+        if (!((argc == 3 && command == "load") || (argc == 4 && command == "status") ||
+              (argc == 5 && command == "submit"))) {
+            throw Error(ErrorCode::invalid, "usage: nebula_fleet_ctl 127.0.0.1:PORT (load | status ID | submit ID alpha|beta)");
         }
         grpc::ClientContext context;
         context.AddMetadata(tokenHeader, environmentToken("NEBULA_FLEET_OPERATOR_TOKEN"));
         context.set_deadline(std::chrono::system_clock::now() + 2s);
         auto stub = v1::Fleet::NewStub(localChannel(argv[1]));
+        if (command == "load") {
+            v1::LoadQuery query;
+            v1::LoadUpdate load;
+            const auto status = stub->Load(&context, query, &load);
+            if (!status.ok()) {
+                std::cerr << "rpc_status=" << status.error_code() << ' ' << status.error_message() << '\n';
+                return 2;
+            }
+            std::cout << "{\"queued\":" << load.queued() << ",\"active\":" << load.active()
+                      << ",\"connected\":" << load.connected() << ",\"queueLimit\":" << load.queue_limit()
+                      << ",\"watchers\":" << load.watchers() << ",\"watchRejections\":" << load.watch_rejections()
+                      << "}\n";
+            return 0;
+        }
         v1::TaskStatus task;
         grpc::Status result;
         if (command == "status") {

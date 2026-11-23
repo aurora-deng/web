@@ -9,6 +9,9 @@
 |掌握测试方法|[测试讲义](../testing/learning/README.md)|
 |性能定位与故障恢复|[Obsidian 实战计划与可复用助教提示词](nebula-performance-and-reliability.md)|
 |C++ 开发、Agent 与具身智能|[总学习方案和模块指导](../roadmap/embodied-systems/README.md)|
+|从工单证据到 Agent 建议|[母 Agent、工具与 Skill 实验](nebula-fleet-agent-and-skills.md)|
+|练习后端 DAG 恢复、慢流背压与故障回放|[M00–M07 可执行实验](../ops/validation/m00-m07.md)|
+|练习 LangGraph 人工审批与恢复|[StateGraph、检查点与断点恢复](langgraph-nebula-lab.md)|
 |练习与自检|[架构习题](exercises/README.md)|
 |按开发历史回顾|[阶段时间线](../roadmap/stage-index.md)|
 

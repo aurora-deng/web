@@ -14,7 +14,8 @@ SANITIZERS = {"none": "", "tsan": "thread", "asan-ubsan": "address,undefined"}
 
 def source_digest():
     digest = sha256()
-    for part in ("backend/systems", "backend/workflow", "backend/fleet", "robotics/nav2_gateway", "tests/cpp_systems"):
+    for part in ("backend/systems", "backend/workflow", "backend/fleet", "backend/agent", "robotics/nav2_gateway",
+                 "tests/cpp_systems", "benchmarks/cpp_systems", "tools/agent"):
         paths = sorted((ROOT / part).rglob("*"), key=lambda path: path.relative_to(ROOT).parts)
         for path in paths:
             if path.suffix in (".txt", ".h", ".cpp", ".proto", ".py"):
@@ -31,7 +32,9 @@ def main():
     parser.add_argument("--sanitizer", choices=SANITIZERS, default="none")
     parser.add_argument("--with-grpc", action="store_true")
     parser.add_argument("--with-nav2", action="store_true", help="Build and exercise ROS 2 in a sourced Linux environment")
+    parser.add_argument("--benchmarks", action="store_true", help="Build standalone DAG and optional Fleet benchmarks")
     parser.add_argument("--prefix", type=Path, help="Already installed gRPC/Protobuf prefix")
+    parser.add_argument("--require-test", action="append", default=[], help="Require an extra named CTest test")
     args = parser.parse_args()
     if args.sanitizer != "none" and not sys.platform.startswith("linux"):
         parser.error("this sanitizer profile requires a supported Linux compiler and runtime")
@@ -47,6 +50,7 @@ def main():
         "sanitizer": args.sanitizer,
         "grpc": args.with_grpc,
         "nav2": args.with_nav2,
+        "benchmarks": args.benchmarks,
         "platform": platform.platform(),
         "sourceSha256": source_digest(),
         "tests": [],
@@ -68,6 +72,8 @@ def main():
         "-DNEBULA_ENABLE_FLEET=ON",
         f"-DNEBULA_FLEET_GRPC={'ON' if args.with_grpc else 'OFF'}",
         f"-DNEBULA_FLEET_NAV2={'ON' if args.with_nav2 else 'OFF'}",
+        f"-DNEBULA_WORKFLOW_BENCHMARK={'ON' if args.benchmarks else 'OFF'}",
+        f"-DNEBULA_FLEET_BENCHMARK={'ON' if args.benchmarks and args.with_grpc else 'OFF'}",
         f"-DCMAKE_PREFIX_PATH={args.prefix.resolve() if args.prefix else ''}",
     ]
     try:
@@ -83,11 +89,13 @@ def main():
         discovered = json.loads(subprocess.check_output([*ctest, "--show-only=json-v1"], env=env))
         names = {entry["name"] for entry in discovered["tests"]}
         evidence["tests"] = sorted(names)
-        required = {"nebula_workflow_contract", "nebula_fleet_contract"}
+        required = {"nebula_workflow_contract", "nebula_workflow_recovery", "nebula_fleet_contract", "nebula_agent_contract"}
         if args.with_grpc:
-            required.add("nebula_fleet_process_contract")
+            required.update({"nebula_fleet_process_contract", "nebula_fleet_backpressure", "nebula_agent_approval_handoff",
+                             "nebula_agent_model_adapter", "nebula_simulation_models_and_replay"})
         if args.with_nav2:
             required.update({"nebula_nav2_contract", "nebula_nav2_fleet_process"})
+        required.update(args.require_test)
         if required - names:
             raise RuntimeError(f"missing native tests: {sorted(required - names)}")
         evidence["phase"] = "ctest"

@@ -47,9 +47,10 @@
 │  │  ├─ AccountWorkspace.py           账号核验、作用域与存储入口
 │  │  ├─ FrontendSnapshot.py           经清单校验的前端快照
 │  │  └─ GatewayConfig.py、LabRunner.py、ReleaseBundle.py
-│  ├─ systems/                         C++ 系统独立 CMake 入口
-│  ├─ workflow/                        DAG 图校验、执行器、Worker 与事件适配
-│  └─ fleet/                           领域、应用、账本、gRPC 进程
+│  ├─ systems/                         C++ 系统独立 CMake 入口与工作流检查点适配
+│  ├─ workflow/                        DAG 图校验、Worker、执行、恢复端口与事件编码
+│  ├─ agent/                           母 Agent 提案规则、Skill 注册、证据端口与 CLI
+│  └─ fleet/                           领域、技能目录、应用、账本与有界 gRPC
 ├─ robotics/nav2_gateway/              ROS 2 仿真导航适配
 ├─ client/                            Windows 客户端与独立 CMake 入口
 │  ├─ companion/、assistant/、storage/  本机代理、私人助手、SQLite 与 DPAPI

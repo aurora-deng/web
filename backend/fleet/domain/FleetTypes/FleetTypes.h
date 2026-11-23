@@ -46,6 +46,13 @@ struct Task {
     bool needsReconciliation{};
 };
 
+struct FleetLoad {
+    unsigned queued{};
+    unsigned active{};
+    unsigned connected{};
+    unsigned queueLimit{};
+};
+
 bool validId(std::string_view value);
 bool validTrace(std::string_view value);
 bool validStation(Station station);

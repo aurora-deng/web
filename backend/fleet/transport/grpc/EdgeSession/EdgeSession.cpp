@@ -43,6 +43,7 @@ grpc::Status session(v1::Fleet::Stub& coordinator, const Peer& peer, EdgeLedger&
     request.mutable_hello()->set_version(protocolVersion);
     request.mutable_hello()->set_boot_id(peer.boot);
     request.mutable_hello()->set_stations(peer.capabilities);
+    declareRobotSkills(*request.mutable_hello());
     std::optional<Receipt> outstanding;
     while (!stop.stop_requested() && worker.healthy() && stream->Write(request)) {
         v1::CoordinatorFrame reply;

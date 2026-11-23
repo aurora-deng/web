@@ -15,7 +15,7 @@ P0 · S1–S2。控制流只承载有限的任务、回执和对账。低频设�
 ## 已有基础与待补能力
 
 - **已有**。后端教学 proto 有 gRPC 双向 Chat，推理 provider 有客户端 deadline、取消以及流式接入。现有 Envoy、TLS 和 Observer 可作为接入经验。[教学协议](../../../backend/server/grpc/proto/web_learning.proto) · [gRPC 推理客户端](../../../backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp)
-- **待补**。车队协议、边缘长连接客户端、控制/状态数据预算、真正的重连接力和协议兼容测试。教学聊天协议的字段由机器人合同另行定义。
+- **本轮**。车队 v1 保留控制流和既有兼容字段。状态流每张读取许可只返回一个当前快照，未领取的中间帧合并，第三条活动流明确被拒绝。测试覆盖旧连接释放、20 次回执不读即断连及 30 秒慢读期间的独立工单。回环协议的跨主机实验仍使用既有 SSH 接入方式。 [车队 v1 协议](../../../backend/fleet/transport/grpc/proto/fleet.proto) · [隔离验证](../../ops/validation/m00-m07.md)
 
 ## 学习内容与目标深度
 

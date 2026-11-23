@@ -1,4 +1,5 @@
 #include "FleetWire.h"
+#include "../../../domain/RobotSkills/RobotSkills.h"
 
 #include <charconv>
 #include <cstdlib>
@@ -8,6 +9,10 @@
 namespace nebula::fleet::wire {
 
 Command decode(const v1::Command& value) {
+    if (value.has_skill() && (value.skill().id() != navigateToSimStation.id ||
+                              value.skill().version() != navigateToSimStation.version)) {
+        throw Error(ErrorCode::invalid, "unsupported navigation skill version");
+    }
     Command command{value.task_id(), value.trace_id(), static_cast<Station>(value.station()), value.epoch()};
     checkCommand(command);
     return command;
@@ -24,6 +29,29 @@ void encode(const Command& command, v1::Command& value) {
     value.set_trace_id(command.traceId);
     value.set_station(static_cast<v1::Station>(command.station));
     value.set_epoch(command.epoch);
+    auto* skill = value.mutable_skill();
+    skill->set_id(navigateToSimStation.id.data(), navigateToSimStation.id.size());
+    skill->set_version(navigateToSimStation.version);
+}
+
+void declareRobotSkills(v1::Hello& hello) {
+    for (const auto& source : robotSkills) {
+        auto* skill = hello.add_skills();
+        skill->set_id(source.id.data(), source.id.size());
+        skill->set_version(source.version);
+    }
+}
+
+bool acceptsRobotSkills(const v1::Hello& hello) {
+    // An omitted list is the deployed v1 peer. An explicit list is validated in full.
+    if (!hello.skills_size()) return true;
+    if (hello.skills_size() != static_cast<int>(robotSkills.size())) return false;
+    std::array<SkillReference, robotSkills.size()> list;
+    for (std::size_t i = 0; i < list.size(); ++i) {
+        const auto& skill = hello.skills(static_cast<int>(i));
+        list[i] = {skill.id(), skill.version()};
+    }
+    return validRobotSkills(list);
 }
 
 void encode(const Receipt& receipt, v1::Receipt& value) {
@@ -40,6 +68,18 @@ void encode(const Task& task, v1::TaskStatus& value) {
     value.set_outcome(task.outcome);
     value.set_connected(task.connected);
     value.set_needs_reconciliation(task.needsReconciliation);
+}
+
+void encode(const SimulationReview& review, v1::SimulationReview& value) {
+    auto* draft = value.mutable_draft();
+    draft->set_trace_id(review.draft.traceId);
+    draft->set_source_task_id(review.draft.sourceTaskId);
+    draft->set_source_epoch(review.draft.sourceEpoch);
+    value.set_station(static_cast<v1::Station>(review.station));
+    value.set_state(static_cast<v1::ReviewState>(review.state));
+    value.set_created_at(review.createdAt);
+    value.set_expires_at(review.expiresAt);
+    value.set_replacement_task_id(review.replacementTaskId);
 }
 
 unsigned localPort(std::string_view address, bool allowEphemeral) {

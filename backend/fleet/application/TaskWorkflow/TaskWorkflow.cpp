@@ -30,6 +30,8 @@ Outcome TaskWorkflow::run(const Command& command, std::stop_token stop, std::fun
             return WorkResult{};
         }},
         {"navigate", {"status", "capability"}, [&](const NodeContext& context) {
+            auto chassis = navigation_.claimChassis();
+            if (!chassis.owns_lock()) return WorkResult{WorkStatus::failure, {}, "chassis_busy"};
             switch (navigation_.navigate(command.station, context.stop, context.deadline)) {
             case NavigationResult::arrived: return WorkResult{};
             case NavigationResult::rejected: return WorkResult{WorkStatus::failure, {}, "navigation_rejected"};
@@ -52,7 +54,7 @@ Outcome TaskWorkflow::run(const Command& command, std::stop_token stop, std::fun
     if (result.state == State::success) return {Phase::succeeded, "arrived"};
     const auto navigation = std::ranges::find(result.nodes, "navigate", &NodeResult::nodeId);
     if (navigation->state == State::success ||
-        (navigation->attempts && navigation->errorCode != "navigation_rejected" &&
+        (navigation->attempts && navigation->errorCode != "chassis_busy" && navigation->errorCode != "navigation_rejected" &&
          navigation->errorCode != "navigation_stopped")) {
         return {Phase::uncertain, "navigation_uncertain"};
     }

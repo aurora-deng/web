@@ -51,6 +51,8 @@ struct RunOptions {
     // Called on the scheduling thread. The view is valid during the callback.
     // Use a bounded, short callback and perform I/O outside the scheduler.
     std::function<void(const Event&)> onEvent{};
+    // Optional monotonic clock for deterministic tests. Called by the scheduler and by workers.
+    std::function<Clock::time_point()> now{};
 };
 
 class DagExecutor {

@@ -14,13 +14,12 @@ using namespace nebula::fleet::wire;
 using namespace std::chrono_literals;
 
 namespace {
-FleetService::Robots registrations(int argc, char* argv[], const std::string& operatorToken) {
-    if (argc < 6 || (argc - 3) % 3 != 0 || (argc - 3) / 3 > 16) {
-        throw Error(ErrorCode::invalid, "usage: nebula_fleet_coordinator 127.0.0.1:PORT LEDGER [ROBOT STATIONS TOKEN_ENV]...");
+FleetService::Robots registrations(int argc, char* argv[], int first, std::set<std::string>& tokens) {
+    if (argc - first < 3 || (argc - first) % 3 != 0 || (argc - first) / 3 > 16) {
+        throw Error(ErrorCode::invalid, "usage: nebula_fleet_coordinator 127.0.0.1:PORT LEDGER [--agent-sim] [ROBOT STATIONS TOKEN_ENV]...");
     }
-    std::set<std::string> tokens{operatorToken};
     FleetService::Robots robots;
-    for (int i = 3; i < argc; i += 3) {
+    for (int i = first; i < argc; i += 3) {
         const std::string_view id(argv[i]);
         const std::string_view mask(argv[i + 1]);
         if (!validId(id) || (mask != "1" && mask != "2" && mask != "3") || !validId(argv[i + 2])) {
@@ -34,16 +33,28 @@ FleetService::Robots registrations(int argc, char* argv[], const std::string& op
     }
     return robots;
 }
+
+AgentCredentials simulationCredentials(bool enabled, std::set<std::string>& tokens) {
+    if (!enabled) return {};
+    AgentCredentials agent{environmentToken(agentReadEnv), environmentToken(agentDraftEnv), environmentToken(agentReviewEnv)};
+    if (!tokens.insert(agent.read).second || !tokens.insert(agent.draft).second || !tokens.insert(agent.review).second) {
+        throw Error(ErrorCode::conflict, "fleet credentials must be distinct");
+    }
+    return agent;
+}
 }
 
 int main(int argc, char* argv[]) {
     try {
         auto token = environmentToken("NEBULA_FLEET_OPERATOR_TOKEN");
-        auto robots = registrations(argc, argv, token);
+        const bool agentSim = argc > 3 && std::string_view(argv[3]) == "--agent-sim";
+        std::set<std::string> tokens{token};
+        auto agent = simulationCredentials(agentSim, tokens);
+        auto robots = registrations(argc, argv, agentSim ? 4 : 3, tokens);
         localPort(argv[1], true);
         SqliteFleetLedger ledger{std::filesystem::path(argv[2])};
         FleetCoordinator coordinator(ledger);
-        FleetService service(coordinator, std::move(token), std::move(robots));
+        FleetService service(coordinator, std::move(token), std::move(robots), std::move(agent));
 
         process::installStopHandlers();
         grpc::ServerBuilder builder;

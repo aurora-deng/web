@@ -37,11 +37,12 @@ flowchart TD
 | `backend/server/`（现有） | 冻结门禁保护自研通信核心。保留已有 HTTP/WS/SSE 和 gRPC 教学资产。[边界检查](../../../scripts/project/check_boundaries.py) |
 | `backend/application/`、`frontend/phase11/`（现有） | 日常业务、账号和页面。车队接入后页面提交工单并订阅状态，小研会话继续使用自身会话逻辑。 |
 | `backend/ai/`（现有） | 模型推理、注册、评测与 RAG 端口。Agent 通过适配层申请模型推理。 |
-| `backend/workflow/`（现有） | 通用 C++ 图执行与 Worker 池，可独立链接。未来 Agent 的计划装配通过该执行器运行。 |
+| `backend/workflow/`（现有） | 通用 C++ 图执行与 Worker 池，可独立链接。母 Agent 的证据读取和提案复核已复用该执行器。可选持久化接口的 SQLite 实现在 `backend/systems/`。 |
 | `backend/fleet/domain/`、`backend/fleet/application/`、`backend/fleet/transport/`（现有） | 机器人身份、调度、租约、任务账本和对账的领域接口。传输适配器使用 Protobuf/gRPC，存储实现留在基础设施。 |
 | `robotics/nav2_gateway/`（适配已接入） | 实现导航 Skill 的 ROS 2 仿真适配，仿真 bringup、URDF/SDF 与其他本体能力按后续环境落包。 |
-| `backend/agent/planning/`（后续位置） | 审核和结构化计划引用已注册技能及业务 Port。 |
+| `backend/agent/`（M01） | `domain` 管提案验证和技能版本，`ports` 声明证据读取和 Provider，`application` 装配 DAG，`infrastructure` 连接 gRPC。CLI 按角色起草与审批，协调器同事务入队。Python 模型适配器可选。 [实现导读](../../learning/nebula-fleet-agent-and-skills.md) |
 | `tools/observability/`、`frontend/observability/`（现有） | 复用事件与查询，负责汇聚证据。机器人原始数据独立保存，按记录 ID 和时间段定位。 |
+| `tools/agent/`（实验） | Python 离线训练、策略评估、推理隔离和合成数据回放。使用固定样本和独立进程，保留摘要与评估记录。 |
 | `tests/` 与 `docs/evidence/` | 保留合成场景、可复现配置、报告和摘要。大文件存放由 M0 的证据策略决定。 |
 
 首版只需要协调器、边缘协议进程和现有 Observer。DAG、调度、持久化适配和 gRPC 服务可以装配在同一协调器进程中。边缘模拟程序和真实 ROS 节点实现同一边缘合同。领域层依赖自定义类型与端口，Protobuf、ROS 和模型 SDK 由适配层引入。Linux 发布、现场部署和 ROS 构建分别形成包和版本记录。

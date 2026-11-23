@@ -1,0 +1,1159 @@
+{
+  "recordedOn": "2026-11-23",
+  "baseCommit": "df9fd89",
+  "sourceSha256": "607435388ffe89535ab7941ba269a9f8ae204f3aab8666bd54ff7d87b1ce1cdd",
+  "scope": "M00–M07 isolated software paths, ending at the NavigationSkill boundary",
+  "limits": {
+    "rosRetested": false,
+    "liveRobots": false,
+    "productionDeployed": false,
+    "githubActionsExecuted": false
+  },
+  "checks": {
+    "windows": {
+      "release": {
+        "config": "Release",
+        "sanitizer": "none",
+        "grpc": true,
+        "nav2": false,
+        "benchmarks": true,
+        "platform": "Windows-11-10.0.26200-SP0",
+        "sourceSha256": "607435388ffe89535ab7941ba269a9f8ae204f3aab8666bd54ff7d87b1ce1cdd",
+        "tests": [
+          "nebula_agent_approval_handoff",
+          "nebula_agent_contract",
+          "nebula_agent_model_adapter",
+          "nebula_fleet_backpressure",
+          "nebula_fleet_contract",
+          "nebula_fleet_process_contract",
+          "nebula_simulation_models_and_replay",
+          "nebula_workflow_contract",
+          "nebula_workflow_recovery"
+        ],
+        "passed": true,
+        "phase": "complete",
+        "ctest": {
+          "tests": "9",
+          "failures": "0",
+          "skipped": "0",
+          "time": "152"
+        }
+      },
+      "debug": {
+        "config": "Debug",
+        "sanitizer": "none",
+        "grpc": false,
+        "nav2": false,
+        "benchmarks": false,
+        "platform": "Windows-11-10.0.26200-SP0",
+        "sourceSha256": "607435388ffe89535ab7941ba269a9f8ae204f3aab8666bd54ff7d87b1ce1cdd",
+        "tests": [
+          "nebula_agent_contract",
+          "nebula_fleet_contract",
+          "nebula_workflow_contract",
+          "nebula_workflow_recovery"
+        ],
+        "passed": true,
+        "phase": "complete",
+        "ctest": {
+          "tests": "4",
+          "failures": "0",
+          "skipped": "0",
+          "time": "7"
+        }
+      },
+      "negative": {
+        "config": "Debug",
+        "sanitizer": "none",
+        "grpc": false,
+        "nav2": false,
+        "benchmarks": false,
+        "platform": "Windows-11-10.0.26200-SP0",
+        "sourceSha256": "607435388ffe89535ab7941ba269a9f8ae204f3aab8666bd54ff7d87b1ce1cdd",
+        "tests": [
+          "nebula_agent_contract",
+          "nebula_fleet_contract",
+          "nebula_workflow_contract",
+          "nebula_workflow_recovery"
+        ],
+        "passed": false,
+        "phase": "test-discovery",
+        "exitCode": 1,
+        "requestedTest": "nebula_fixture_deliberately_absent"
+      }
+    },
+    "linux": {
+      "release": {
+        "config": "Release",
+        "sanitizer": "none",
+        "grpc": true,
+        "nav2": false,
+        "benchmarks": true,
+        "platform": "Linux-5.14.0-631.el9.x86_64-x86_64-with-glibc2.34",
+        "sourceSha256": "607435388ffe89535ab7941ba269a9f8ae204f3aab8666bd54ff7d87b1ce1cdd",
+        "tests": [
+          "nebula_agent_approval_handoff",
+          "nebula_agent_contract",
+          "nebula_agent_model_adapter",
+          "nebula_fleet_backpressure",
+          "nebula_fleet_contract",
+          "nebula_fleet_process_contract",
+          "nebula_simulation_models_and_replay",
+          "nebula_workflow_contract",
+          "nebula_workflow_recovery"
+        ],
+        "passed": true,
+        "phase": "complete",
+        "ctest": {
+          "tests": "9",
+          "failures": "0",
+          "skipped": "0",
+          "time": "50"
+        },
+        "failedTests": []
+      },
+      "debug-native": {
+        "config": "Debug",
+        "sanitizer": "none",
+        "grpc": false,
+        "nav2": false,
+        "benchmarks": false,
+        "platform": "Linux-5.14.0-631.el9.x86_64-x86_64-with-glibc2.34",
+        "sourceSha256": "607435388ffe89535ab7941ba269a9f8ae204f3aab8666bd54ff7d87b1ce1cdd",
+        "tests": [
+          "nebula_agent_contract",
+          "nebula_fleet_contract",
+          "nebula_workflow_contract",
+          "nebula_workflow_recovery"
+        ],
+        "passed": true,
+        "phase": "complete",
+        "ctest": {
+          "tests": "4",
+          "failures": "0",
+          "skipped": "0",
+          "time": "1"
+        },
+        "failedTests": []
+      },
+      "tsan-native": {
+        "config": "Debug",
+        "sanitizer": "tsan",
+        "grpc": false,
+        "nav2": false,
+        "benchmarks": false,
+        "platform": "Linux-5.14.0-631.el9.x86_64-x86_64-with-glibc2.34",
+        "sourceSha256": "607435388ffe89535ab7941ba269a9f8ae204f3aab8666bd54ff7d87b1ce1cdd",
+        "tests": [
+          "nebula_agent_contract",
+          "nebula_fleet_contract",
+          "nebula_workflow_contract",
+          "nebula_workflow_recovery"
+        ],
+        "passed": true,
+        "phase": "complete",
+        "ctest": {
+          "tests": "4",
+          "failures": "0",
+          "skipped": "0",
+          "time": "2"
+        },
+        "failedTests": []
+      },
+      "asan-ubsan": {
+        "config": "Debug",
+        "sanitizer": "asan-ubsan",
+        "grpc": false,
+        "nav2": false,
+        "benchmarks": false,
+        "platform": "Linux-5.14.0-631.el9.x86_64-x86_64-with-glibc2.34",
+        "sourceSha256": "607435388ffe89535ab7941ba269a9f8ae204f3aab8666bd54ff7d87b1ce1cdd",
+        "tests": [
+          "nebula_agent_contract",
+          "nebula_fleet_contract",
+          "nebula_workflow_contract",
+          "nebula_workflow_recovery"
+        ],
+        "passed": true,
+        "phase": "complete",
+        "ctest": {
+          "tests": "4",
+          "failures": "0",
+          "skipped": "0",
+          "time": "1"
+        },
+        "failedTests": []
+      },
+      "tsan-grpc": {
+        "config": "Debug",
+        "sanitizer": "tsan",
+        "grpc": true,
+        "nav2": false,
+        "benchmarks": false,
+        "platform": "Linux-5.14.0-631.el9.x86_64-x86_64-with-glibc2.34",
+        "sourceSha256": "607435388ffe89535ab7941ba269a9f8ae204f3aab8666bd54ff7d87b1ce1cdd",
+        "tests": [
+          "nebula_agent_approval_handoff",
+          "nebula_agent_contract",
+          "nebula_agent_model_adapter",
+          "nebula_fleet_backpressure",
+          "nebula_fleet_contract",
+          "nebula_fleet_process_contract",
+          "nebula_simulation_models_and_replay",
+          "nebula_workflow_contract",
+          "nebula_workflow_recovery"
+        ],
+        "passed": false,
+        "phase": "ctest",
+        "ctest": {
+          "tests": "9",
+          "failures": "5",
+          "skipped": "0",
+          "time": "5"
+        },
+        "failedTests": [
+          "nebula_fleet_process_contract",
+          "nebula_agent_approval_handoff",
+          "nebula_agent_model_adapter",
+          "nebula_fleet_backpressure",
+          "nebula_simulation_models_and_replay"
+        ]
+      }
+    },
+    "communicationFilesVerified": 152,
+    "fleetProcessRepeat": 2,
+    "observerQueries": 3,
+    "observerHttp": 51
+  },
+  "toolchain": {
+    "linux": {
+      "architecture": "x86_64",
+      "visibleCpus": 4,
+      "gcc": "11.5.0-15.el9",
+      "cmake": "3.31.8",
+      "python": "3.9.23",
+      "grpc": "1.82.0",
+      "abseil": "20250512"
+    }
+  },
+  "hashes": {
+    "observerStore": "36561312137e26403e14bf1836919e139ff68992fb45e798280b8a64138391fd",
+    "modelProbe": "38f5866e91d6bc95f7500f78afa15ea4525897089b26b225613eb3690c98227e",
+    "coordinatorBinary": "76525081328db10935d56135ffc3a5c00cc63f71dff051c2edcd9d26a7dd5857"
+  },
+  "grpcTsan": {
+    "status": "failed",
+    "summaryLines": 10,
+    "dependencyInstrumentationVerified": false,
+    "observedStack": [
+      "memcpy",
+      "absl::container_internal::GrowToNextCapacityAndPrepareInsert",
+      "grpc_core::Thread (event_engine)"
+    ],
+    "notes": "Fatal diagnostics preserved; stack alone cannot distinguish a dependency race from missing instrumentation."
+  },
+  "backpressure": {
+    "linux": {
+      "controlCompleted": 30,
+      "slowSecondsPerWatcher": 30,
+      "watchers": [
+        {
+          "samples": 65,
+          "coalesced": 260
+        },
+        {
+          "samples": 65,
+          "coalesced": 260
+        }
+      ],
+      "refusedStreams": 1,
+      "activeWatchersAfterClose": 0
+    },
+    "windows": {
+      "controlCompleted": 30,
+      "slowSecondsPerWatcher": 30,
+      "watchers": [
+        {
+          "samples": 65,
+          "coalesced": 260
+        },
+        {
+          "samples": 65,
+          "coalesced": 260
+        }
+      ],
+      "refusedStreams": 1,
+      "activeWatchersAfterClose": 0
+    }
+  },
+  "onnxEvaluation": {
+    "model": "Qwen2.5-0.5B-Instruct ONNX INT4 CPU",
+    "data": "fixed software fleet classification cases",
+    "onlineProvider": false,
+    "cases": [
+      {
+        "case": 1,
+        "expected": "B",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 125,
+        "outputTokens": 1
+      },
+      {
+        "case": 2,
+        "expected": "A",
+        "modelChoice": "A",
+        "nativeGateAccepted": true,
+        "inputTokens": 171,
+        "outputTokens": 1
+      },
+      {
+        "case": 3,
+        "expected": "C",
+        "modelChoice": "A",
+        "nativeGateAccepted": false,
+        "inputTokens": 146,
+        "outputTokens": 1
+      },
+      {
+        "case": 4,
+        "expected": "B",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 125,
+        "outputTokens": 1
+      },
+      {
+        "case": 5,
+        "expected": "A",
+        "modelChoice": "A",
+        "nativeGateAccepted": true,
+        "inputTokens": 171,
+        "outputTokens": 1
+      },
+      {
+        "case": 6,
+        "expected": "C",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 128,
+        "outputTokens": 1
+      },
+      {
+        "case": 7,
+        "expected": "B",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 125,
+        "outputTokens": 1
+      },
+      {
+        "case": 8,
+        "expected": "A",
+        "modelChoice": "A",
+        "nativeGateAccepted": true,
+        "inputTokens": 171,
+        "outputTokens": 1
+      },
+      {
+        "case": 9,
+        "expected": "C",
+        "modelChoice": "A",
+        "nativeGateAccepted": false,
+        "inputTokens": 146,
+        "outputTokens": 1
+      },
+      {
+        "case": 10,
+        "expected": "B",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 125,
+        "outputTokens": 1
+      },
+      {
+        "case": 11,
+        "expected": "A",
+        "modelChoice": "A",
+        "nativeGateAccepted": true,
+        "inputTokens": 171,
+        "outputTokens": 1
+      },
+      {
+        "case": 12,
+        "expected": "C",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 128,
+        "outputTokens": 1
+      },
+      {
+        "case": 13,
+        "expected": "B",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 125,
+        "outputTokens": 1
+      },
+      {
+        "case": 14,
+        "expected": "A",
+        "modelChoice": "A",
+        "nativeGateAccepted": true,
+        "inputTokens": 171,
+        "outputTokens": 1
+      },
+      {
+        "case": 15,
+        "expected": "C",
+        "modelChoice": "A",
+        "nativeGateAccepted": false,
+        "inputTokens": 146,
+        "outputTokens": 1
+      },
+      {
+        "case": 16,
+        "expected": "B",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 125,
+        "outputTokens": 1
+      },
+      {
+        "case": 17,
+        "expected": "A",
+        "modelChoice": "A",
+        "nativeGateAccepted": true,
+        "inputTokens": 171,
+        "outputTokens": 1
+      },
+      {
+        "case": 18,
+        "expected": "C",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 128,
+        "outputTokens": 1
+      },
+      {
+        "case": 19,
+        "expected": "B",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 125,
+        "outputTokens": 1
+      },
+      {
+        "case": 20,
+        "expected": "A",
+        "modelChoice": "A",
+        "nativeGateAccepted": true,
+        "inputTokens": 171,
+        "outputTokens": 1
+      },
+      {
+        "case": 21,
+        "expected": "C",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 146,
+        "outputTokens": 1
+      },
+      {
+        "case": 22,
+        "expected": "B",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 125,
+        "outputTokens": 1
+      },
+      {
+        "case": 23,
+        "expected": "A",
+        "modelChoice": "A",
+        "nativeGateAccepted": true,
+        "inputTokens": 171,
+        "outputTokens": 1
+      },
+      {
+        "case": 24,
+        "expected": "C",
+        "modelChoice": "C",
+        "nativeGateAccepted": false,
+        "inputTokens": 128,
+        "outputTokens": 1
+      }
+    ],
+    "ruleCorrect": 24,
+    "modelCorrect": 13,
+    "modelAcceptedProposals": 8,
+    "invalidModelFormat": 0,
+    "modelLatencyMs": {
+      "p50": 1158.7459345,
+      "p95": 1495.166623,
+      "p99": 1502.686029
+    },
+    "provider": "ONNX Runtime GenAI",
+    "providerVersion": "0.17.0",
+    "modelConfigSha256": "a023918fb6dfdf680b0267bdb4ead00083a954194d8178d8fb1af7a0d9adbe63"
+  },
+  "syntheticLab": {
+    "dataSource": "generated simulation data",
+    "linux": {
+      "data": {
+        "recordingId": "sim-4ce1597247dcefaeba55",
+        "sha256": "4ce1597247dcefaeba55a5635292c359ba0bdd65696068dc48f2427026b331ed",
+        "trainFrames": 768,
+        "evalFrames": 384,
+        "qualityRejected": {
+          "missing_frame": 2,
+          "low_clock_quality": 9
+        }
+      },
+      "rules": {
+        "actionAgreement": 1,
+        "rollouts": [
+          {
+            "seed": 701,
+            "tasks": 24,
+            "completed": 24,
+            "safetyRefusals": 28,
+            "calls": 487,
+            "p50Ms": 0.001498,
+            "p95Ms": 0.001671,
+            "p99Ms": 0.002149,
+            "residentBytes": 30392320
+          },
+          {
+            "seed": 1701,
+            "tasks": 24,
+            "completed": 24,
+            "safetyRefusals": 19,
+            "calls": 512,
+            "p50Ms": 0.00152,
+            "p95Ms": 0.002562,
+            "p99Ms": 0.003799,
+            "residentBytes": 30392320
+          },
+          {
+            "seed": 2701,
+            "tasks": 24,
+            "completed": 23,
+            "safetyRefusals": 21,
+            "calls": 495,
+            "p50Ms": 0.001454,
+            "p95Ms": 0.001574,
+            "p99Ms": 0.001857,
+            "residentBytes": 30392320
+          }
+        ]
+      },
+      "models": {
+        "grid-1": {
+          "artifactSha256": "d7c238988cd5e4c2a96a7b798004233f03ddcce1923c7811f59bdcd8670330f7",
+          "actionAgreement": 1,
+          "rollouts": [
+            {
+              "seed": 701,
+              "tasks": 24,
+              "completed": 24,
+              "safetyRefusals": 28,
+              "calls": 487,
+              "p50Ms": 0.002138,
+              "p95Ms": 0.003788,
+              "p99Ms": 0.005514,
+              "residentBytes": 30392320
+            },
+            {
+              "seed": 1701,
+              "tasks": 24,
+              "completed": 24,
+              "safetyRefusals": 19,
+              "calls": 512,
+              "p50Ms": 0.002094,
+              "p95Ms": 0.002257,
+              "p99Ms": 0.002442,
+              "residentBytes": 30392320
+            },
+            {
+              "seed": 2701,
+              "tasks": 24,
+              "completed": 23,
+              "safetyRefusals": 21,
+              "calls": 495,
+              "p50Ms": 0.002106,
+              "p95Ms": 0.003571,
+              "p99Ms": 0.003886,
+              "residentBytes": 30392320
+            }
+          ]
+        },
+        "grid-2": {
+          "artifactSha256": "090708311a99490139bd60b03f22aa3eb966941ce31b6b04d789411494d387d0",
+          "actionAgreement": 1,
+          "rollouts": [
+            {
+              "seed": 701,
+              "tasks": 24,
+              "completed": 24,
+              "safetyRefusals": 28,
+              "calls": 487,
+              "p50Ms": 0.002105,
+              "p95Ms": 0.002258,
+              "p99Ms": 0.003072,
+              "residentBytes": 30392320
+            },
+            {
+              "seed": 1701,
+              "tasks": 24,
+              "completed": 24,
+              "safetyRefusals": 19,
+              "calls": 512,
+              "p50Ms": 0.002116,
+              "p95Ms": 0.003603,
+              "p99Ms": 0.004309,
+              "residentBytes": 30392320
+            },
+            {
+              "seed": 2701,
+              "tasks": 24,
+              "completed": 23,
+              "safetyRefusals": 21,
+              "calls": 495,
+              "p50Ms": 0.002095,
+              "p95Ms": 0.002269,
+              "p99Ms": 0.002529,
+              "residentBytes": 30392320
+            }
+          ]
+        }
+      },
+      "rollbackReproduced": true,
+      "audit": [
+        [
+          "activate",
+          "grid-1"
+        ],
+        [
+          "activate",
+          "grid-2"
+        ],
+        [
+          "rollback",
+          "grid-1"
+        ]
+      ],
+      "replay": {
+        "windowSeconds": 90,
+        "range": {
+          "received": 899,
+          "unique": 898,
+          "duplicate": 1,
+          "late": 1,
+          "gaps": 2
+        },
+        "replayedDigestsMatch": true,
+        "actionSha256": "595c8f8b61b8218db2da031e40fb643e091e1d0f15a4badd006489f9ba7d0d61",
+        "observerReplayed": 3,
+        "observerCapacityReachedAt": 1664
+      },
+      "isolation": {
+        "baseline": {
+          "operations": 14,
+          "p95Ms": 220.66430799895898,
+          "p99Ms": 220.66430799895898
+        },
+        "busy": {
+          "operations": 14,
+          "p95Ms": 186.84589500480797,
+          "p99Ms": 186.84589500480797
+        },
+        "workerTimeout": true,
+        "overloadRefusal": true,
+        "observerStopped": true
+      }
+    },
+    "windows": {
+      "data": {
+        "recordingId": "sim-4ce1597247dcefaeba55",
+        "sha256": "4ce1597247dcefaeba55a5635292c359ba0bdd65696068dc48f2427026b331ed",
+        "trainFrames": 768,
+        "evalFrames": 384,
+        "qualityRejected": {
+          "missing_frame": 2,
+          "low_clock_quality": 9
+        }
+      },
+      "rules": {
+        "actionAgreement": 1,
+        "rollouts": [
+          {
+            "seed": 701,
+            "tasks": 24,
+            "completed": 24,
+            "safetyRefusals": 28,
+            "calls": 487,
+            "p50Ms": 0.0012,
+            "p95Ms": 0.0013,
+            "p99Ms": 0.0015,
+            "residentBytes": 35045376
+          },
+          {
+            "seed": 1701,
+            "tasks": 24,
+            "completed": 24,
+            "safetyRefusals": 19,
+            "calls": 512,
+            "p50Ms": 0.002,
+            "p95Ms": 0.0028,
+            "p99Ms": 0.0039,
+            "residentBytes": 35045376
+          },
+          {
+            "seed": 2701,
+            "tasks": 24,
+            "completed": 23,
+            "safetyRefusals": 21,
+            "calls": 495,
+            "p50Ms": 0.0017,
+            "p95Ms": 0.002,
+            "p99Ms": 0.0023,
+            "residentBytes": 35049472
+          }
+        ]
+      },
+      "models": {
+        "grid-1": {
+          "artifactSha256": "37838c0e7ef6e541ac4954a01b362d5235717c558f0ad0d4ffc968f828437d28",
+          "actionAgreement": 1,
+          "rollouts": [
+            {
+              "seed": 701,
+              "tasks": 24,
+              "completed": 24,
+              "safetyRefusals": 28,
+              "calls": 487,
+              "p50Ms": 0.0033,
+              "p95Ms": 0.0039,
+              "p99Ms": 0.0058,
+              "residentBytes": 35053568
+            },
+            {
+              "seed": 1701,
+              "tasks": 24,
+              "completed": 24,
+              "safetyRefusals": 19,
+              "calls": 512,
+              "p50Ms": 0.002,
+              "p95Ms": 0.0022,
+              "p99Ms": 0.0036,
+              "residentBytes": 35053568
+            },
+            {
+              "seed": 2701,
+              "tasks": 24,
+              "completed": 23,
+              "safetyRefusals": 21,
+              "calls": 495,
+              "p50Ms": 0.0024,
+              "p95Ms": 0.0093,
+              "p99Ms": 0.049,
+              "residentBytes": 35053568
+            }
+          ]
+        },
+        "grid-2": {
+          "artifactSha256": "090708311a99490139bd60b03f22aa3eb966941ce31b6b04d789411494d387d0",
+          "actionAgreement": 1,
+          "rollouts": [
+            {
+              "seed": 701,
+              "tasks": 24,
+              "completed": 24,
+              "safetyRefusals": 28,
+              "calls": 487,
+              "p50Ms": 0.0031,
+              "p95Ms": 0.0037,
+              "p99Ms": 0.0048,
+              "residentBytes": 35057664
+            },
+            {
+              "seed": 1701,
+              "tasks": 24,
+              "completed": 24,
+              "safetyRefusals": 19,
+              "calls": 512,
+              "p50Ms": 0.0032,
+              "p95Ms": 0.0038,
+              "p99Ms": 0.0054,
+              "residentBytes": 35057664
+            },
+            {
+              "seed": 2701,
+              "tasks": 24,
+              "completed": 23,
+              "safetyRefusals": 21,
+              "calls": 495,
+              "p50Ms": 0.003,
+              "p95Ms": 0.0037,
+              "p99Ms": 0.0042,
+              "residentBytes": 35057664
+            }
+          ]
+        }
+      },
+      "rollbackReproduced": true,
+      "audit": [
+        [
+          "activate",
+          "grid-1"
+        ],
+        [
+          "activate",
+          "grid-2"
+        ],
+        [
+          "rollback",
+          "grid-1"
+        ]
+      ],
+      "replay": {
+        "windowSeconds": 90,
+        "range": {
+          "received": 899,
+          "unique": 898,
+          "duplicate": 1,
+          "late": 1,
+          "gaps": 2
+        },
+        "replayedDigestsMatch": true,
+        "actionSha256": "595c8f8b61b8218db2da031e40fb643e091e1d0f15a4badd006489f9ba7d0d61",
+        "observerReplayed": 3,
+        "observerCapacityReachedAt": 1664
+      },
+      "isolation": {
+        "baseline": {
+          "operations": 14,
+          "p95Ms": 656.0000000026776,
+          "p99Ms": 656.0000000026776
+        },
+        "busy": {
+          "operations": 14,
+          "p95Ms": 656.9999999919673,
+          "p99Ms": 656.9999999919673
+        },
+        "workerTimeout": true,
+        "overloadRefusal": true,
+        "observerStopped": true
+      }
+    }
+  },
+  "benchmarks": {
+    "isolatedSequenceStartUtc": "2026-11-23T06:06:39Z",
+    "isolatedSequenceFinishUtc": "2026-11-23T06:14:54Z",
+    "workflow": {
+      "workload": "five-node fork/join with two runnable branches",
+      "firstSeries": [
+        {
+          "workers": 1,
+          "round": 1,
+          "operations": 200,
+          "p50_ms": 13.5976,
+          "p95_ms": 61.4922,
+          "p99_ms": 76.4856,
+          "peak_active": 1,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3801088
+        },
+        {
+          "workers": 1,
+          "round": 2,
+          "operations": 200,
+          "p50_ms": 11.0232,
+          "p95_ms": 62.0278,
+          "p99_ms": 76.6986,
+          "peak_active": 1,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3801088
+        },
+        {
+          "workers": 1,
+          "round": 3,
+          "operations": 200,
+          "p50_ms": 14.9659,
+          "p95_ms": 62.0003,
+          "p99_ms": 76.4516,
+          "peak_active": 1,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3801088
+        },
+        {
+          "workers": 2,
+          "round": 1,
+          "operations": 200,
+          "p50_ms": 0.366098,
+          "p95_ms": 47.3442,
+          "p99_ms": 60.733,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3932160
+        },
+        {
+          "workers": 2,
+          "round": 2,
+          "operations": 200,
+          "p50_ms": 13.5378,
+          "p95_ms": 46.9616,
+          "p99_ms": 60.4467,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3932160
+        },
+        {
+          "workers": 2,
+          "round": 3,
+          "operations": 200,
+          "p50_ms": 0.325909,
+          "p95_ms": 31.2036,
+          "p99_ms": 46.4881,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3932160
+        },
+        {
+          "workers": 4,
+          "round": 1,
+          "operations": 200,
+          "p50_ms": 14.621,
+          "p95_ms": 46.2521,
+          "p99_ms": 60.6359,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3932160
+        },
+        {
+          "workers": 4,
+          "round": 2,
+          "operations": 200,
+          "p50_ms": 15.6097,
+          "p95_ms": 46.3943,
+          "p99_ms": 61.0342,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3932160
+        },
+        {
+          "workers": 4,
+          "round": 3,
+          "operations": 200,
+          "p50_ms": 1.30821,
+          "p95_ms": 45.6202,
+          "p99_ms": 47.4525,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3932160
+        }
+      ],
+      "repeatSeries": [
+        {
+          "workers": 1,
+          "round": 1,
+          "operations": 200,
+          "p50_ms": 3.3449,
+          "p95_ms": 66.3179,
+          "p99_ms": 83.3736,
+          "peak_active": 1,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3801088
+        },
+        {
+          "workers": 1,
+          "round": 2,
+          "operations": 200,
+          "p50_ms": 1.16858,
+          "p95_ms": 66.2998,
+          "p99_ms": 81.6216,
+          "peak_active": 1,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3801088
+        },
+        {
+          "workers": 1,
+          "round": 3,
+          "operations": 200,
+          "p50_ms": 16.8381,
+          "p95_ms": 81.0466,
+          "p99_ms": 83.8691,
+          "peak_active": 1,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 3801088
+        },
+        {
+          "workers": 2,
+          "round": 1,
+          "operations": 200,
+          "p50_ms": 0.294849,
+          "p95_ms": 48.5069,
+          "p99_ms": 66.1125,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 4063232
+        },
+        {
+          "workers": 2,
+          "round": 2,
+          "operations": 200,
+          "p50_ms": 0.364878,
+          "p95_ms": 34.19,
+          "p99_ms": 49.3713,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 4063232
+        },
+        {
+          "workers": 2,
+          "round": 3,
+          "operations": 200,
+          "p50_ms": 0.303128,
+          "p95_ms": 33.5102,
+          "p99_ms": 49.1796,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 4063232
+        },
+        {
+          "workers": 4,
+          "round": 1,
+          "operations": 200,
+          "p50_ms": 17.0344,
+          "p95_ms": 50.0188,
+          "p99_ms": 50.7094,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 4063232
+        },
+        {
+          "workers": 4,
+          "round": 2,
+          "operations": 200,
+          "p50_ms": 16.9235,
+          "p95_ms": 49.9797,
+          "p99_ms": 66.0474,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 4063232
+        },
+        {
+          "workers": 4,
+          "round": 3,
+          "operations": 200,
+          "p50_ms": 16.1452,
+          "p95_ms": 49.004,
+          "p99_ms": 50.3985,
+          "peak_active": 2,
+          "peak_ready": 2,
+          "process_peak_rss_bytes": 4063232
+        }
+      ]
+    },
+    "fleet": {
+      "workload": "sequential submit followed by Status polling, 100 ms target period, Observer spool off",
+      "ackP99BudgetMs": 50,
+      "ackP99WithinBudget": false,
+      "configurations": [
+        {
+          "nodes": 2,
+          "periodMs": 100,
+          "navigationMs": 5,
+          "elapsedSeconds": 322.02194197900826,
+          "rounds": [
+            {
+              "round": 1,
+              "attempted": 1000,
+              "accepted": 1000,
+              "errors": 0,
+              "p50_ms": 32.9907,
+              "p95_ms": 53.2484,
+              "p99_ms": 66.5357,
+              "elapsed_s": 107.105
+            },
+            {
+              "round": 2,
+              "attempted": 1000,
+              "accepted": 1000,
+              "errors": 0,
+              "p50_ms": 33.9602,
+              "p95_ms": 63.8439,
+              "p99_ms": 68.4271,
+              "elapsed_s": 107.01
+            },
+            {
+              "round": 3,
+              "attempted": 1000,
+              "accepted": 1000,
+              "errors": 0,
+              "p50_ms": 34.2714,
+              "p95_ms": 61.9694,
+              "p99_ms": 71.748,
+              "elapsed_s": 106.213
+            }
+          ],
+          "resourceSamples": 314,
+          "peakSampleQueue": 1,
+          "processes": {
+            "coordinator": {
+              "peakSampleRssBytes": 17084416,
+              "cpuSeconds": 22.88
+            },
+            "alpha": {
+              "peakSampleRssBytes": 14680064,
+              "cpuSeconds": 12.42
+            },
+            "beta": {
+              "peakSampleRssBytes": 14680064,
+              "cpuSeconds": 12.37
+            }
+          }
+        },
+        {
+          "nodes": 3,
+          "periodMs": 100,
+          "navigationMs": 5,
+          "elapsedSeconds": 106.64058227700298,
+          "rounds": [
+            {
+              "round": 1,
+              "attempted": 1000,
+              "accepted": 1000,
+              "errors": 0,
+              "p50_ms": 25.7671,
+              "p95_ms": 53.9048,
+              "p99_ms": 69.3311,
+              "elapsed_s": 105.018
+            }
+          ],
+          "resourceSamples": 104,
+          "peakSampleQueue": 1,
+          "processes": {
+            "coordinator": {
+              "peakSampleRssBytes": 16887808,
+              "cpuSeconds": 8.32
+            },
+            "alpha": {
+              "peakSampleRssBytes": 14155776,
+              "cpuSeconds": 3.08
+            },
+            "beta": {
+              "peakSampleRssBytes": 14417920,
+              "cpuSeconds": 3.12
+            },
+            "extra": {
+              "peakSampleRssBytes": 14680064,
+              "cpuSeconds": 3.62
+            }
+          }
+        }
+      ]
+    }
+  }
+}

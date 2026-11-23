@@ -7,12 +7,13 @@
 | 区域 | 职责 | 可定位的实现 |
 |---|---|---|
 | 构建入口 | Standalone 构建与总工程集成，独立选择 gRPC、Nav2 及 ACK 基准 | [backend/systems](../../../backend/systems/CMakeLists.txt) |
-| 通用 DAG | 图校验、确定的拓扑顺序、并发预算、重试、取消和超时 | [WorkflowGraph](../../../backend/workflow/WorkflowGraph/WorkflowGraph.cpp) · [DagExecutor](../../../backend/workflow/DagExecutor/DagExecutor.cpp) · [WorkerPool](../../../backend/workflow/WorkerPool/WorkerPool.cpp) |
+| 通用 DAG | 图校验、确定的拓扑顺序、并发预算、重试、取消和超时；可选检查点恢复 | [WorkflowGraph](../../../backend/workflow/WorkflowGraph/WorkflowGraph.cpp) · [DagExecutor](../../../backend/workflow/DagExecutor/DagExecutor.cpp) · [DurableWorkflow](../../../backend/workflow/DurableWorkflow/DurableWorkflow.cpp) · [SQLite 实现](../../../backend/systems/SqliteWorkflowJournal/SqliteWorkflowJournal.cpp) |
 | 车队应用 | 工单分配、连接代号、心跳和状态查询；边缘按技能合同执行五节点图 | [FleetCoordinator](../../../backend/fleet/application/FleetCoordinator/FleetCoordinator.cpp) · [TaskWorkflow](../../../backend/fleet/application/TaskWorkflow/TaskWorkflow.cpp) · [EdgeWorker](../../../backend/fleet/application/EdgeWorker/EdgeWorker.cpp) |
 | 持久化 | 协调器握有任务账本；每个边缘视实例拥有独立收件账本 | [FleetLedger Port](../../../backend/fleet/ports/FleetLedger/FleetLedger.h) · [协调器 SQLite](../../../backend/fleet/infrastructure/SqliteFleetLedger/SqliteFleetLedger.cpp) · [边缘 SQLite](../../../backend/fleet/infrastructure/SqliteEdgeLedger/SqliteEdgeLedger.cpp) |
-| 传输 | Protobuf 生成代码、gRPC 流、身份与能力授予、进程装配 | [v1 协议](../../../backend/fleet/transport/grpc/proto/fleet.proto) · [gRPC 服务](../../../backend/fleet/transport/grpc/FleetService/FleetService.cpp) · [边缘连接](../../../backend/fleet/transport/grpc/EdgeSession/EdgeSession.cpp) |
+| 传输 | Protobuf 生成代码、gRPC 控制流与有界状态流、身份与能力授予、进程装配 | [v1 协议](../../../backend/fleet/transport/grpc/proto/fleet.proto) · [gRPC 服务](../../../backend/fleet/transport/grpc/FleetService/FleetService.cpp) · [边缘连接](../../../backend/fleet/transport/grpc/EdgeSession/EdgeSession.cpp) |
 | 导航适配 | 模拟器与 Nav2 实现同一个端口，调度器只了解能力和阶段 | [NavigationSkill](../../../backend/fleet/ports/NavigationSkill/NavigationSkill.h) · [模拟实现](../../../backend/fleet/infrastructure/SimNavigation/SimNavigation.cpp) · [Nav2 适配](../../../robotics/nav2_gateway/Nav2Navigation/Nav2Navigation.cpp) |
-| 诊断 | DAG 事件按既有 Observer 契约编码并重放 | [C++ 事件编码](../../../backend/workflow/ObserverEvents/ObserverEvents.cpp) · [上传工具](../../../scripts/project/fleet_observer.py) |
+| 母 Agent | 独立 CLI 使用回环 gRPC 读取车队状态，C++ DAG 复核规则或 Ollama 候选，人工审批后交给现有边缘 | [Agent 编排](../../../backend/agent/application/FleetAgent/FleetAgent.cpp) · [审批事务](../../../backend/fleet/infrastructure/SqliteFleetLedger/SimulationReviewSql.cpp) · [实验讲义](../../learning/nebula-fleet-agent-and-skills.md) |
+| 诊断 | DAG 与 Agent 事件按 Observer 契约编码、导入并查询；录制回放只上报摘要 | [C++ 事件编码](../../../backend/workflow/ObserverEvents/ObserverEvents.cpp) · [上传工具](../../../scripts/project/fleet_observer.py) · [本地回放](../../../tools/agent/episode_recording.py) |
 
 领域层和 Port 只依赖 C++ 标准库。应用层依赖领域、Port 与 Workflow。gRPC、SQLite、ROS 各在适配器一侧。顶层 Web 入口的测试会检查通信核心文件摘要，源码门禁同时校验新模块的 include 方向。 [分层规则](../../../scripts/project/check_boundaries.py)
 
@@ -59,4 +60,4 @@ Observer 事件只含受限 ID、状态、时长和错误码。边缘先提交�
 
 两台虚拟机的联调由 CentOS 跑协调器和 beta，Ubuntu_ros 跑 ROS 2 边缘 alpha。Ubuntu_ros 通过已验证主机公钥的 SSH 转发连接协调器，gRPC 保持回环监听。Observer 在 CentOS 按工单回查 Ubuntu_ros 生成的 DAG 事件。 [两台虚拟机的运行和故障复验](../../ops/validation/cpp-systems-cross-vm.md)
 
-[运行、测量与验收](../../ops/validation/cpp-systems.md) · [阶段路线](../../roadmap/embodied-systems/README.md)
+[运行、测量与验收](../../ops/validation/cpp-systems.md) · [M00–M07 软件交付与复验](../../ops/validation/m00-m07.md) · [阶段路线](../../roadmap/embodied-systems/README.md)

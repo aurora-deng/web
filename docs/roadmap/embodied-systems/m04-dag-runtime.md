@@ -12,7 +12,7 @@ P0 · S1。五工序任务像一张有箭头的工单，没有完成前置工序
 ## 已有基础与待补能力
 
 - **已有**。JS `DagExecutor` 已表达依赖校验、effect、deadline、取消与受控重试；Observer 已能读 `dag.run`、`dag.edge`、`dag.node` 等事件。C++ 项目有 `BoundedExecutor`，可参考线程与任务生命周期。[现有 DAG](../../../frontend/phase11/shared/AgentRuntime/DagExecutor.js) · [调用边界](../../architecture/business/ai/agent-workflow-runtime.md)
-- **待补**。独立 C++ 工作流内核、可注入时钟、确定性的状态测试和崩溃恢复接口。浏览器原型的单进程承诺与 C++ 多线程的所有权需要重新核对。
+- **本轮**。C++ 多线程内核独立构建，支持可注入单调钟、确定性时限与有界调度。SQLite 检查点记录节点动作前的尝试与动作后的确认结果。未知外部操作阻塞下游，核实后继续；幂等动作在预算内复用操作键。 [恢复实现](../../../backend/workflow/DurableWorkflow/DurableWorkflow.cpp) · [基准与崩溃复验](../../ops/validation/m00-m07.md)
 
 ## 学习内容与目标深度
 

@@ -1,5 +1,9 @@
 # 当前状态
 
+**当前 M00–M07 · 软件路径到达 M08 的 ROS 2 调用边界**。后端 DAG 检查点、技能版本、gRPC 背压、Agent 审批以及合成数据训练和回放均有隔离验收。CentOS 和 Windows 的 Release 各通过 9 项，CentOS 原生 TSan 与 ASan/UBSan 各通过 4 项。完整 gRPC TSan 在现有 Abseil 调用栈报竞态，单列未通过。真实 ONNX 测试命中 13/24，规则仍为默认。 [本轮验收](docs/ops/validation/m00-m07.md) · [Agent 教学](docs/learning/nebula-fleet-agent-and-skills.md) · [LangGraph 实验](docs/learning/langgraph-nebula-lab.md)
+
+**M00–M07 本机车队压测**。4,000 次接收 ACK，零失败。各轮 P99 为 66.54–71.75 ms，超过 50 ms 参考预算。源码验收锚点为 `cpp-systems-m00-m07-lab-20261123`。 [负载及细项](docs/evidence/cpp-systems/20261123/m00-m07.json)
+
 **C++ 系统阶段**。通用 DAG、独立 gRPC 协调器、边缘账本、断线恢复与 Observer 已在 Windows 和 Linux 验证。原生 TSan、ASan/UBSan 通过。CentOS 协调器与 Ubuntu_ros 边缘实现跨虚拟机派发和重启对账，200 次混合接收 0 错误，P99 为 30.59 ms。工作停在具身 Agent 开发前。 [架构](docs/architecture/overview/cpp-systems.md) · [运行与验收](docs/ops/validation/cpp-systems.md) · [跨机实测](docs/ops/validation/cpp-systems-cross-vm.md)
 
 **Function3.5 源码发布**涵盖小研 DAG、长会话记忆、Envoy 映射和 Observer 增量刷新。日常入口和源码分支的版本记录各自可查。[本版验收](docs/releases/function3.5.md) · [逐文件清单](docs/releases/function3.5-files.md) · [后续路线](docs/roadmap/next-steps.md)

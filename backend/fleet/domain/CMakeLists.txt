@@ -1,4 +1,4 @@
-add_library(nebula_fleet_domain FleetTypes/FleetTypes.cpp)
+add_library(nebula_fleet_domain FleetTypes/FleetTypes.cpp RobotSkills/RobotSkills.cpp)
 target_compile_features(nebula_fleet_domain PUBLIC cxx_std_20)
 target_include_directories(nebula_fleet_domain PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
 if(TARGET webserver_sanitizers)

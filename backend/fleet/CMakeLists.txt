@@ -9,6 +9,7 @@ target_link_libraries(nebula_fleet_application PUBLIC nebula_fleet_domain nebula
 add_library(nebula_fleet_ledger
     infrastructure/SqliteDatabase/SqliteDatabase.cpp
     infrastructure/SqliteFleetLedger/SqliteFleetLedger.cpp
+    infrastructure/SqliteFleetLedger/SimulationReviewSql.cpp
     infrastructure/SqliteEdgeLedger/SqliteEdgeLedger.cpp)
 target_link_libraries(nebula_fleet_ledger PUBLIC nebula_fleet_domain Threads::Threads)
 if(NOT WIN32)
