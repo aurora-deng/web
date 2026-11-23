@@ -20,3 +20,7 @@
 - Web、Fleet 容器的实际启动、ZIP 内文件、二进制与镜像对应关系记录在 Release 附件 `delivery-verification.json`。选择部署路径前，先核对附件中的架构、修订、迁移和图像 ID。
 
 [M00–M07 复跑及测量](../ops/validation/m00-m07.md) · [结构化实验数据](../evidence/cpp-systems/20261123/m00-m07.json) · [Docker、ZIP 与迁移运行手册](../ops/runtime/function3.6-deployment.md)
+
+## 托管 CI 复验
+
+发布分支补齐了两项跨平台兼容。静态资源清单按固定的路径组件顺序计算，Linux 和 Windows 使用相同的摘要 `4364119c78f60e44`，已有资源版本号沿用。Windows 独立 C++ 构建保留 CMake 的编译器默认参数，并明确启用 MSVC 的 `/EHsc`，使预期拒绝抛出的异常能释放 RAII 锁。原发布标签和已校验的 Linux 镜像与 ZIP 保留在交付提交。 [初次托管结果](https://github.com/aurora-deng/web/actions/runs/45135564538)

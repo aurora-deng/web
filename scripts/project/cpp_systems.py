@@ -67,7 +67,6 @@ def main():
         env["PATH"] = str(args.prefix.resolve() / "bin") + os.pathsep + env["PATH"]
     cache = [
         f"-DCMAKE_BUILD_TYPE={args.config}",
-        f"-DCMAKE_CXX_FLAGS={flags}",
         "-DBUILD_TESTING=ON",
         "-DNEBULA_ENABLE_FLEET=ON",
         f"-DNEBULA_FLEET_GRPC={'ON' if args.with_grpc else 'OFF'}",
@@ -76,6 +75,8 @@ def main():
         f"-DNEBULA_FLEET_BENCHMARK={'ON' if args.benchmarks and args.with_grpc else 'OFF'}",
         f"-DCMAKE_PREFIX_PATH={args.prefix.resolve() if args.prefix else ''}",
     ]
+    if sys.platform.startswith("linux"):
+        cache.append(f"-DCMAKE_CXX_FLAGS={flags}")
     try:
         evidence["phase"] = "configure"
         subprocess.run(["cmake", "-S", str(ROOT / "backend/systems"), "-B", str(build), *cache],

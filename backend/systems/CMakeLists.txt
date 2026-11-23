@@ -7,6 +7,11 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(NEBULA_SYSTEMS_STANDALONE ON)
 endif()
 
+if(MSVC)
+    # Fleet uses RAII locks and transactions in paths that reject requests.
+    add_compile_options(/EHsc)
+endif()
+
 option(NEBULA_ENABLE_FLEET "Build the C++ fleet coordinator and SQLite ledgers" ${NEBULA_SYSTEMS_STANDALONE})
 option(NEBULA_FLEET_GRPC "Build the fleet gRPC executables using an installed SDK" OFF)
 option(NEBULA_FLEET_NAV2 "Build the fleet edge's optional ROS 2 Nav2 simulation adapter" OFF)
