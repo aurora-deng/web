@@ -982,6 +982,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/ops/runtime/function3.6-deployment.md",
+      "title": "Function3.6 部署与回退",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
       "path": "docs/ops/runtime/nebula-yantu-community.md",
       "title": "NEBULA 研途接入与故事广场改造",
       "category": "ops",
@@ -1152,6 +1158,12 @@
     {
       "path": "docs/releases/function3.5.md",
       "title": "Function3.5 · 小研记忆、DAG 与网关映射",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/function3.6.md",
+      "title": "Function3.6 发布说明与 Function3.5 对比",
       "category": "releases",
       "kind": "document"
     },

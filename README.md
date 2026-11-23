@@ -1,10 +1,10 @@
-# NEBULA · C++20 Web Server / Function3.5
+# NEBULA · C++20 Web Server / Function3.6
 
 工程化改造：[原生包复现/预检](docs/ops/validation/native-delivery.md)、[真实 Prometheus 与慢 ACK 排查](docs/observability/ack-diagnosis.md)、[R1–R12 实施和验收边界](docs/roadmap/project-review-implementation-2026-11-19.md)。保持通信核心与原业务库，新增依赖仍单项授权。
 
 NEBULA 用 Linux C++20 服务器运行缘续-聊天、缘生-广场、研途和小研，并用 Observer 观测这些业务的真实流量。
 
-**Function3.5** 增加小研个性化记忆、长会话压缩和 DAG 调度，补齐 Envoy 入口映射及 Observer 增量刷新。具身多 Agent 示例验证观测、规划、安全审核和待确认提案的协作过程。[本版说明](docs/releases/function3.5.md) · [全部更新文件](docs/releases/function3.5-files.md) · [Function3.3 基线](docs/releases/function3.3.md) · [当前日常版本](STATUS.md)
+**Function3.6** 增加后端 C++ DAG 检查点、独立 gRPC 车队、Agent 提案审批、技能版本和 Observer 回放。发布分为离线 Web/Fleet Docker 镜像、可运行的 Linux ZIP 和源码 ZIP。 [发布说明与 Function3.5 对比](docs/releases/function3.6.md) · [部署、校验与回退](docs/ops/runtime/function3.6-deployment.md) · [下载](https://github.com/aurora-deng/web/releases/tag/Function3.6)
 
 [文档分类](docs/README.md) · [当前架构](docs/architecture/overview/ARCHITECTURE.md) · [完整调用图](docs/architecture/business/flows/current-end-to-end.md) · [当前状态](STATUS.md) · [后续计划](docs/roadmap/next-steps.md)
 
@@ -48,6 +48,11 @@ Windows client
 
 Observer
   → Prometheus 指标、Tempo 调用链和结构化日志的排查工作区
+
+独立 C++ 车队
+  → backend/agent 读取工单与提案，backend/workflow 执行与检查点
+  → backend/fleet 协调器通过 gRPC 向边缘下发，SQLite 保存工单与回执
+  → software edge / NavigationSkill，ROS 2 仿真独立验证
 ```
 
 服务采用模块化单体，推理、语音与显式训练任务各有独立进程边界。社区内容装配负责神树、动态、举报和媒体，社区投递装配负责 Outbox、Broker、重放和通知。[目录与依赖规则](docs/architecture/overview/project-layout.md) · [社区模块说明](docs/architecture/business/engineering/community-runtime-modules.md)
@@ -67,6 +72,7 @@ Observer
 
 |需要做什么|入口|
 |---|---|
+|从 Release 安装 Docker 或 Linux ZIP|[Function3.6 交付、校验与部署](docs/ops/runtime/function3.6-deployment.md)|
 |Linux日常启动/停止，原账号库与端口|[运行说明](docs/ops/runtime/function3-runtime.md)|
 |Linux 从源码复现通信档、业务档|[复现命令和验证结果](docs/ops/validation/reproduce.md)|
 |Windows 本机入口、研途 TLS 与账号切换|[客户端构建](docs/ops/runtime/phase36-41-local-preview.md) · [研途连接](docs/ops/runtime/nebula-yantu-community.md#function33-首次绑定与切号)|
@@ -86,6 +92,8 @@ python scripts/project/ci_checks.py source
 新增公开文档后使用 `check_doc_links.py --refresh-catalog` 显式刷新目录；历史证据、私有账号文件和冻结核心不由文档改链工具重写。
 
 ## 验收状态
+
+M00–M07 的 CentOS 和 Windows 独立 Release 各通过 9 项，CentOS 原生 TSan 与 ASan/UBSan 各通过 4 项，完整 gRPC TSan 仍有依赖线程告警。车队固定负载 4,000 次接收 ACK 无失败，P99 为 66.54–71.75 ms，超过 50 ms 参考预算。 [本轮软件验收](docs/ops/validation/m00-m07.md)
 
 复现分支的两个 Linux Release 档位均从空构建目录完成构建与启动。业务档 112 项 CTest 通过，跳过 1 项可选 Redis 契约。注册登录、WebSocket、果实幂等发布、Outbox/SSE 和重启恢复均通过。干净 Git 检出通过 79 项前端测试和 23 项 Python 工程检查。[复现记录](docs/ops/validation/reproduce.md#这次的验证记录)
 

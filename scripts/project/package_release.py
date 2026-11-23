@@ -8,12 +8,15 @@ from pathlib import Path, PurePosixPath
 import platform
 import re
 import secrets
+import stat
 import subprocess
 import sys
 import tarfile
 import tempfile
+import zipfile
 
 from build_stamp import fingerprint
+from cpp_systems import source_digest as fleet_source_digest
 from repro_runtime import clean_environment, disposable_database, http_smoke, owned_server, require
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,7 +37,14 @@ RUNTIME_FILES = {
                              ".json", ".png", ".woff", ".woff2", ".ttf", ".pfb", ".bcmap", ".icc", ".wasm", ".svg", ".gif"},
     "config/gateway": {".json"},
 }
-RUNTIME_ENTRY_FILES = {"tools/observability/gateway.py"}
+FLEET_PROGRAMS = {
+    "fleet/nebula_fleet_coordinator": "fleet/transport/grpc/nebula_fleet_coordinator",
+    "fleet/nebula_fleet_edge": "fleet/transport/grpc/nebula_fleet_edge",
+    "fleet/nebula_fleet_ctl": "fleet/transport/grpc/nebula_fleet_ctl",
+    "fleet/nebula_fleet_agent": "agent/nebula_fleet_agent",
+}
+FLEET_EVIDENCE = "fleet/cpp-systems-evidence.json"
+RUNTIME_ENTRY_FILES = {"tools/observability/gateway.py", "prepare-runtime-libs.py", *FLEET_PROGRAMS, FLEET_EVIDENCE}
 
 
 def sha256(data):
@@ -91,12 +101,30 @@ def validate_reproduction(report, binary_hash, revision):
                 "Business evidence belongs to another Git revision")
 
 
-def runtime_payload(build):
+def validate_fleet(report, digest=None):
+    require(report.get("passed") is True and report.get("phase") == "complete"
+            and report.get("config") == "Release" and report.get("grpc") is True
+            and report.get("sanitizer") == "none" and report.get("nav2") is False
+            and {"nebula_fleet_process_contract", "nebula_fleet_backpressure", "nebula_agent_approval_handoff",
+                 "nebula_simulation_models_and_replay"} <= set(report.get("tests", ())),
+            "A successful Release gRPC fleet check is required")
+    require(digest is None or report["sourceSha256"] == digest, "Fleet evidence belongs to another source tree")
+
+
+def runtime_payload(build, fleet_build=None):
     payload = {"webserver": (build / "webserver").read_bytes(),
                "reproduction.json": (build / "reproduction.json").read_bytes(),
                "LICENSE": (ROOT / "LICENSE").read_bytes(),
                "release_preflight.py":(ROOT/'scripts/project/release_preflight.py').read_bytes(),
                "run-nebula.py":(ROOT/'scripts/project/run_release.py').read_bytes()}
+    if fleet_build is not None:
+        evidence = (fleet_build / "cpp-systems-evidence.json").read_bytes()
+        validate_fleet(json.loads(evidence), fleet_source_digest())
+        payload[FLEET_EVIDENCE] = evidence
+        for name, path in FLEET_PROGRAMS.items():
+            binary = (fleet_build / path).read_bytes()
+            require(binary.startswith(b"\x7fELF"), f"Fleet entry is not a Linux ELF program: {name}")
+            payload[name] = binary
     report=json.loads(payload['reproduction.json'])
     if report.get('profile')=='native':
         native=json.loads(json.dumps(report['nativeInventory']))
@@ -114,48 +142,106 @@ def runtime_payload(build):
                 require(file.is_file() and not file.is_symlink(), f"Invalid runtime file: {relative}")
                 payload[relative.as_posix()] = file.read_bytes()
     for name in RUNTIME_ENTRY_FILES:
+        if name in FLEET_PROGRAMS or name in (FLEET_EVIDENCE, "prepare-runtime-libs.py"):
+            continue
         file = ROOT / name
         require(file.is_file() and not file.is_symlink(), f"Invalid runtime entry: {name}")
         payload[name] = file.read_bytes()
+    payload["prepare-runtime-libs.py"] = (ROOT / "scripts/project/runtime_libs.py").read_bytes()
     return payload
 
 
+def members(archive):
+    if archive.suffix.lower() == ".zip":
+        with zipfile.ZipFile(archive) as bundle:
+            for item in bundle.infolist():
+                mode = item.external_attr >> 16
+                require(stat.S_ISREG(mode), f"Release member is not a regular file: {item.filename}")
+                yield item.filename, stat.S_IMODE(mode), bundle.read(item)
+    else:
+        with tarfile.open(archive, "r:gz") as bundle:
+            for item in bundle.getmembers():
+                require(item.isfile(), f"Release member is not a regular file: {item.name}")
+                with bundle.extractfile(item) as data:
+                    yield item.name, item.mode, data.read()
+
+
+def verified_payload(archive, revision):
+    payload = {}
+    for name, mode, data in members(archive):
+        require(name == "release.json" or runtime_path(name), "Release archive has a non-runtime path")
+        require(name not in payload, "Release archive has unexpected or repeated paths")
+        payload[name] = (mode, data)
+    manifest = json.loads(payload["release.json"][1])
+    require(manifest.get("schemaVersion") in (1, 2), "Unsupported release manifest version")
+    files = manifest["files"]
+    require(payload.keys() == files.keys() | {"release.json"}, "Release archive has unexpected or repeated paths")
+    for name, expected in files.items():
+        require(sha256(payload[name][1]) == expected, f"Changed release member: {name}")
+    require(payload["webserver"][0] == 0o755, "Server is not executable")
+    require(revision is None or manifest["revision"] == revision, "Release manifest revision does not match")
+    report = json.loads(payload["reproduction.json"][1])
+    validate_reproduction(report, files["webserver"], revision)
+    if manifest["schemaVersion"] == 2:
+        require({"release_preflight.py", "run-nebula.py"} <= files.keys(), "Release preflight is missing")
+    fleet_files = FLEET_PROGRAMS.keys() | {FLEET_EVIDENCE}
+    if fleet_files & files.keys():
+        require(fleet_files <= files.keys(), "Fleet payload is incomplete")
+        validate_fleet(json.loads(payload[FLEET_EVIDENCE][1]))
+        require(all(payload[name][0] == 0o755 for name in FLEET_PROGRAMS), "Fleet program is not executable")
+    if report["profile"] == "native":
+        required = {"native-runtime.json", "workers/webserver-onnx-worker", "workers/function3-tts-worker"}
+        require(required <= files.keys(), "Native runtime payload is missing")
+        native = json.loads(payload["native-runtime.json"][1])
+        require(set(native.get("programs", {})) == {"server", "onnx", "speech"}, "Native programs are incomplete")
+        for name, row in native["programs"].items():
+            tested = report["nativeInventory"]["programs"][name]
+            expected = "webserver" if name == "server" else "workers/" + Path(tested["path"]).name
+            require(row["path"] == expected and files.get(expected) == row["sha256"] == tested["sha256"],
+                    "Native manifest differs from tested programs")
+            require(payload[expected][0] == 0o755, "Native program is not executable")
+    return manifest, payload
+
+
 def verify_archive(archive, revision):
-    with tarfile.open(archive, "r:gz") as bundle:
-        names = bundle.getnames()
-        require(all(name == "release.json" or runtime_path(name) for name in names),
-                "Release archive has a non-runtime path")
-        manifest = json.load(bundle.extractfile("release.json"))
-        require(manifest.get('schemaVersion') in (1,2),'Unsupported release manifest version')
-        files = manifest["files"]
-        require(len(names) == len(files) + 1 and set(names) == files.keys() | {"release.json"},
-                "Release archive has unexpected or repeated paths")
-        for member in bundle.getmembers():
-            require(member.isfile(), f"Release member is not a regular file: {member.name}")
-            if member.name in files:
-                actual = sha256(bundle.extractfile(member).read())
-                require(actual == files[member.name], f"Changed release member: {member.name}")
-        require(bundle.getmember("webserver").mode == 0o755, "Server is not executable")
-        require(revision is None or manifest["revision"] == revision, "Release manifest revision does not match")
-        report = json.load(bundle.extractfile("reproduction.json"))
-        validate_reproduction(report, files["webserver"], revision)
-        if manifest.get('schemaVersion')==2:
-            require({'release_preflight.py','run-nebula.py'} <= files.keys(),'Release preflight is missing')
-        if report['profile']=='native':
-            required={'native-runtime.json','workers/webserver-onnx-worker','workers/function3-tts-worker'}
-            require(required <= files.keys(),'Native runtime payload is missing')
-            native=json.load(bundle.extractfile('native-runtime.json'))
-            require(set(native.get('programs',{}))=={'server','onnx','speech'},'Native programs are incomplete')
-            for name,row in native['programs'].items():
-                expected='webserver' if name=='server' else 'workers/'+Path(report['nativeInventory']['programs'][name]['path']).name
-                require(row['path']==expected and files.get(expected)==row['sha256']==report['nativeInventory']['programs'][name]['sha256'],
-                        'Native manifest differs from tested programs')
-                require(bundle.getmember(expected).mode==0o755,'Native program is not executable')
+    return verified_payload(archive, revision)[0]
+
+
+def executable_mode(name):
+    return 0o755 if name == "webserver" or name in FLEET_PROGRAMS or name.startswith("workers/") else 0o644
+
+
+def write_archive(archive, payload):
+    if archive.suffix == ".zip":
+        with zipfile.ZipFile(archive, "x") as bundle:
+            for name, data in sorted(payload.items()):
+                item = zipfile.ZipInfo(name)
+                item.create_system = 3
+                item.external_attr = (stat.S_IFREG | executable_mode(name)) << 16
+                bundle.writestr(item, data, compress_type=zipfile.ZIP_DEFLATED, compresslevel=6)
+    else:
+        with archive.open("xb") as raw, gzip.GzipFile(fileobj=raw, filename="", mode="wb", mtime=0) as compressed:
+            with tarfile.open(fileobj=compressed, mode="w") as bundle:
+                for name, data in sorted(payload.items()):
+                    member = tarfile.TarInfo(name)
+                    member.size = len(data)
+                    member.mode = executable_mode(name)
+                    bundle.addfile(member, io.BytesIO(data))
+
+
+def extract_payload(archive, destination, revision=None):
+    manifest, payload = verified_payload(archive, revision)
+    destination.mkdir(parents=True, exist_ok=False)
+    for name, (mode, data) in payload.items():
+        target = destination / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        target.chmod(mode & 0o777)
     return manifest
 
 
-def package(build, output, revision):
-    payload = runtime_payload(build)
+def package(build, output, revision, archive_format="tar.gz", fleet_build=None):
+    payload = runtime_payload(build, fleet_build)
     report = json.loads(payload["reproduction.json"])
     binary_hash = sha256(payload["webserver"])
     validate_reproduction(report, binary_hash, revision)
@@ -173,14 +259,8 @@ def package(build, output, revision):
                 "migration": report["migration"], "files": {name: sha256(data) for name, data in payload.items()}}
     payload["release.json"] = as_json(manifest)
     output.mkdir(parents=True, exist_ok=False)
-    archive = output / f"nebula-linux-{platform.machine()}.tar.gz"
-    with archive.open("wb") as raw, gzip.GzipFile(fileobj=raw, filename="", mode="wb", mtime=0) as compressed:
-        with tarfile.open(fileobj=compressed, mode="w") as bundle:
-            for name, data in sorted(payload.items()):
-                member = tarfile.TarInfo(name)
-                member.size = len(data)
-                member.mode = 0o755 if name == "webserver" or name.startswith('workers/') else 0o644
-                bundle.addfile(member, io.BytesIO(data))
+    archive = output / f"nebula-linux-{platform.machine()}.{archive_format}"
+    write_archive(archive, payload)
     verify_archive(archive, revision)
     (output / "release.json").write_bytes(payload["release.json"])
     (output / "SHA256SUMS").write_text(f"{sha256(archive.read_bytes())}  {archive.name}\n", encoding="ascii")
@@ -193,18 +273,7 @@ def smoke_archive(archive, manifest, postgres_prefix):
     with tempfile.TemporaryDirectory(prefix="nebula-delivery-") as directory:
         work = Path(directory)
         source = work / "runtime"
-        source.mkdir()
-        with tarfile.open(archive, "r:gz") as bundle:
-            for member in bundle.getmembers():
-                require(member.isfile() and (member.name == "release.json" or runtime_path(member.name)),
-                        f"Invalid release member: {member.name}")
-                data = bundle.extractfile(member).read()
-                require(member.name == "release.json" or sha256(data) == manifest["files"].get(member.name),
-                        f"Changed release member: {member.name}")
-                target = source / member.name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(data)
-                target.chmod(member.mode & 0o777)
+        require(extract_payload(archive, source) == manifest, "Archive changed after verification")
         key = work / "token.key"
         key.touch(mode=0o600, exist_ok=False)
         key.write_text(secrets.token_hex(32), encoding="ascii")
@@ -233,12 +302,14 @@ def main():
     create = mode.add_parser("package")
     create.add_argument("--build", type=Path, required=True)
     create.add_argument("--output", type=Path, required=True)
+    create.add_argument("--format", choices=("tar.gz", "zip"), default="tar.gz")
+    create.add_argument("--fleet-build", type=Path, help="Optional verified independent Linux C++ Fleet build")
     check = mode.add_parser("verify")
     check.add_argument("archive", type=Path)
     check.add_argument("--postgres-prefix", type=Path, help="Also unpack and smoke-test with a disposable database")
     args = parser.parse_args()
     if args.mode == "package":
-        package(args.build, args.output, args.revision)
+        package(args.build, args.output, args.revision, args.format, args.fleet_build)
     else:
         manifest = verify_archive(args.archive, args.revision)
         print(f"Verified {len(manifest['files'])} files for revision {manifest['revision']}")

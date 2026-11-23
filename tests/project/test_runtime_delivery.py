@@ -13,6 +13,7 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'scripts/project'))
 sys.path.insert(0,str(ROOT))
 from runtime_inventory import inventory,WORKERS,NATIVE
+from package_release import members, write_archive
 from release_preflight import check
 from tools.observability.observer.access_preflight import metrics_access,private_file,prometheus_baseline
 from tools.observability.retention import mark,prune
@@ -57,6 +58,16 @@ class Delivery(unittest.TestCase):
         self.assertFalse(result['passed']);self.assertNotIn('not-present',json.dumps(result))
         (self.root/'webserver').write_bytes(b'changed')
         self.assertFalse(check(self.root,{},False)['passed'])
+
+    def test_zip_modes_match_the_existing_tar_delivery(self):
+        contents = {"webserver": b"server", "fleet/nebula_fleet_edge": b"edge", "data.json": b"data"}
+        tar_path = self.root / "runtime.tar.gz"
+        zip_path = self.root / "runtime.zip"
+        for path in (tar_path, zip_path):
+            write_archive(path, contents)
+        self.assertEqual(list(members(tar_path)), list(members(zip_path)))
+        self.assertEqual([(name, mode) for name, mode, _ in members(zip_path)],
+                         [("data.json", 0o644), ("fleet/nebula_fleet_edge", 0o755), ("webserver", 0o755)])
 
     def test_native_manifest_and_library_changes(self):
         manifest=self.release();manifest['profile']='native'

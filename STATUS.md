@@ -1,5 +1,7 @@
 # 当前状态
 
+**Function3.6 交付**。可检查的 Linux x86-64 ZIP 和离线 Web/Fleet 镜像按发布提交归档。日常网站状态请查下方运行记录。 [发布与对比](docs/releases/function3.6.md) · [部署、校验与回退](docs/ops/runtime/function3.6-deployment.md)
+
 **当前 M00–M07 · 软件路径到达 M08 的 ROS 2 调用边界**。后端 DAG 检查点、技能版本、gRPC 背压、Agent 审批以及合成数据训练和回放均有隔离验收。CentOS 和 Windows 的 Release 各通过 9 项，CentOS 原生 TSan 与 ASan/UBSan 各通过 4 项。完整 gRPC TSan 在现有 Abseil 调用栈报竞态，单列未通过。真实 ONNX 测试命中 13/24，规则仍为默认。 [本轮验收](docs/ops/validation/m00-m07.md) · [Agent 教学](docs/learning/nebula-fleet-agent-and-skills.md) · [LangGraph 实验](docs/learning/langgraph-nebula-lab.md)
 
 **M00–M07 本机车队压测**。4,000 次接收 ACK，零失败。各轮 P99 为 66.54–71.75 ms，超过 50 ms 参考预算。源码验收锚点为 `cpp-systems-m00-m07-lab-20261123`。 [负载及细项](docs/evidence/cpp-systems/20261123/m00-m07.json)

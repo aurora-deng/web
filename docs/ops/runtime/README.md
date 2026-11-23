@@ -6,6 +6,7 @@
 
 |内容|文件|
 |---|---|
+|[Function3.6 Docker、ZIP、校验与回退](function3.6-deployment.md)|function3.6-deployment.md|
 |[Function3 日常启动：原账号库、18090 与语音](function3-runtime.md)|function3-runtime.md|
 |[从干净目录复现通信档与业务档](../validation/reproduce.md)|reproduce.md|
 |[Phase36–41本地成果如何复现](phase36-41-local-preview.md)|phase36-41-local-preview.md|

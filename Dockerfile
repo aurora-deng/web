@@ -1,30 +1,24 @@
-# STATUS: DRAFT — container image build and startup are not yet verified.
-# Transport demo only. For the PostgreSQL workflow use scripts/project/reproduce.py.
-FROM ubuntu:24.04 AS builder
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential cmake ninja-build python3 libssl-dev libnghttp2-dev \
-    && rm -rf /var/lib/apt/lists/*
-WORKDIR /src
-COPY CMakeLists.txt CMakePresets.json main.cpp ./
-COPY backend ./backend
-COPY client ./client
-COPY frontend ./frontend
-COPY scripts/project ./scripts/project
-COPY static ./static
-RUN cmake --preset docker && cmake --build --preset docker -j2
-
-FROM ubuntu:24.04 AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl libssl3t64 libnghttp2-14 libstdc++6 \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --shell /usr/sbin/nologin nebula
+# Build context is staged from an already verified Linux archive by offline_docker.py.
+# Only application files enter these images. Mount compatible host libraries read-only.
+FROM scratch AS web
+ARG NEBULA_REVISION
+LABEL org.opencontainers.image.source="https://github.com/aurora-deng/web" \
+      org.opencontainers.image.revision="${NEBULA_REVISION}" \
+      org.opencontainers.image.title="NEBULA Web"
 WORKDIR /app
-COPY --from=builder /src/build/docker/webserver /usr/local/bin/webserver
-COPY --from=builder /src/frontend ./frontend
-COPY --from=builder /src/static ./static
-USER 10001
+COPY app/ /app/
+USER 10001:10001
 ENV WEB_SERVER_PORT=8080
 EXPOSE 8080
-HEALTHCHECK --interval=15s --timeout=3s --retries=3 \
-    CMD curl -fsS "http://127.0.0.1:${WEB_SERVER_PORT}/health/live" || exit 1
-ENTRYPOINT ["/usr/local/bin/webserver"]
+ENTRYPOINT ["/runtime/ld-linux-x86-64.so.2", "--library-path", "/runtime", "/app/webserver"]
+
+FROM scratch AS fleet
+ARG NEBULA_REVISION
+LABEL org.opencontainers.image.source="https://github.com/aurora-deng/web" \
+      org.opencontainers.image.revision="${NEBULA_REVISION}" \
+      org.opencontainers.image.title="NEBULA C++ Fleet"
+WORKDIR /state
+COPY fleet/ /app/
+USER 10001:10001
+ENTRYPOINT ["/runtime/ld-linux-x86-64.so.2", "--library-path", "/runtime"]
+CMD ["/app/nebula_fleet_ctl"]

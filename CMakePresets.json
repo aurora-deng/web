@@ -78,7 +78,7 @@
     {
       "name": "docker",
       "displayName": "Docker 构建目标",
-      "description": "容器候选配置：Release、无测试、无数据库适配器。实际镜像构建与启动尚未验收。",
+      "description": "保留的主机通信构建配置。Function3.6 镜像从通过验收的 Linux 交付包离线构建。",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",

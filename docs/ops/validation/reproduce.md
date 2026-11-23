@@ -38,7 +38,7 @@ Windows 可运行 `python scripts/project/ci_checks.py source --observer-http`�
 
 ## CI 与交付
 
-- [Dockerfile](../../../Dockerfile) 是通信层演示镜像草案，`docker build -t nebula:transport .` 会尝试获取基础镜像和软件包；尚未在本轮构建。运行命令可用 `docker run --rm -p 127.0.0.1:8080:8080 nebula:transport`，此镜像不启用 PostgreSQL 账号业务。
+- Function3.6 从通过真实 PostgreSQL 验收的运行包构建独立 Web 与 Fleet 镜像。使用 [隔离交付脚本](../../../scripts/project/offline_docker.py) 生成 Docker 构建上下文。预制镜像和主机库准备方法见 [部署手册](../runtime/function3.6-deployment.md)。
 - [GitHub Actions 工作流](../../../.github/workflows/ci.yml) 在 push 和 PR 跑 Ubuntu 24.04、Windows 2025 双平台门禁。两端检查业务前端、Observer 的全部 JavaScript 文件，以及真实本机 HTTP 契约。各平台分别上传 `ci-report.json`，显示实际通过、失败和本地可选检查。
 - 在 Actions 手动勾选 `run_business` 后，隔离 runner 等两平台通过再构建启动，执行协议与业务 CTest、PostgreSQL 冒烟、重启恢复和 OTLP 鉴权、采样、失败恢复。环境中设置 `WEB_CI_POSTGRES_PREFIX`，按需设置 `WEB_CI_SODIUM_PREFIX`、`WEB_CI_GTEST_DIR`、`WEB_CI_CURL_PREFIX` 与成对的 `WEB_CI_OPENSSL_INCLUDE`、`WEB_CI_OPENSSL_LIB_DIR`。制品 `business-evidence-*` 收录 `reproduction.json` 和 `ctest.xml`。Redis 可在本地通过 `--test-redis-port` 指定一次性 fixture。未指定时，报告明确列出该项跳过。
 - CD 交付包来自同一受测二进制。打包校验源码指纹、提交号、前端版本与迁移版本。包内有服务、两套前端、Observer 查询服务、迁移、预置面板和校验清单。上传前从解包目录应用迁移并启动，检查服务就绪、登录页、静态资源版本及 Observer 入口。Actions 的 `nebula-delivery-*` 仅在通过这些检查后出现，保留 7 天。本轮的远端工作流执行状态详见 [Observer 验收记录](../../observability/validation.md)。[GitHub 构建产物文档](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts)

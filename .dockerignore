@@ -1,4 +1,4 @@
-# STATUS: DRAFT — verify with the transport image before relying on this context.
+# Function3.6 builds from a generated application-only context.
 .git
 .gitignore
 .github
