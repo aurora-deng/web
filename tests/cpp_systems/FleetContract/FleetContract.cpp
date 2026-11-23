@@ -34,16 +34,19 @@ void expect(ErrorCode code, F&& execute) {
     throw std::runtime_error("fleet operation should have failed");
 }
 
-void testScheduler(const std::filesystem::path& database) {
+void testScheduler(const std::filesystem::path& database, const char*& scenario) {
     auto now = std::chrono::steady_clock::now();
     SqliteFleetLedger ledger(database, 2);
     FleetCoordinator coordinator(ledger, 10ms, [&] { return now; });
+    scenario = "scheduler initial submission";
     coordinator.submit("a", Station::alpha, trace);
+    scenario = "scheduler queue limit and idempotency";
     coordinator.submit("b", Station::beta, trace);
     expect(ErrorCode::exhausted, [&] { coordinator.submit("c", Station::alpha, trace); });
     require(coordinator.submit("a", Station::alpha, trace).phase == Phase::queued, "replay failed at queue limit");
     expect(ErrorCode::conflict, [&] { coordinator.submit("a", Station::beta, trace); });
 
+    scenario = "scheduler connect and route";
     auto alice = coordinator.connect("alice", 1);
     auto bob = coordinator.connect("bob", 2);
     expect(ErrorCode::conflict, [&] { coordinator.connect("bob", 2); });
@@ -51,6 +54,7 @@ void testScheduler(const std::filesystem::path& database) {
     auto b = coordinator.exchange(bob, {});
     require(a && b && a->taskId == "a" && b->taskId == "b" && a->epoch != b->epoch, "capability routing failed");
 
+    scenario = "scheduler validate receipt and retain the active task";
     Receipt aAccepted{"a", a->epoch, Phase::accepted, ""};
     expect(ErrorCode::conflict, [&] { coordinator.exchange(bob, aAccepted); });
     auto stale = aAccepted;
@@ -60,6 +64,7 @@ void testScheduler(const std::filesystem::path& database) {
     coordinator.exchange(alice, aAccepted);
     coordinator.submit("c", Station::alpha, trace);
     require(!coordinator.exchange(alice, {}), "active robot received another task");
+    scenario = "scheduler expire, reattach and reconcile";
     now += 11ms;
     require(coordinator.status("a").needsReconciliation, "heartbeat expiry is invisible");
     const auto replacement = coordinator.connect("alice", 1);
@@ -262,9 +267,9 @@ int main() {
     const auto edge = stem.string() + "-edge.sqlite";
     const auto worker = stem.string() + "-worker.sqlite";
     int exit = 0;
-    const char* scenario = "scheduler";
+    const char* scenario = "scheduler initialization";
     try {
-        testScheduler(fleet);
+        testScheduler(fleet, scenario);
         scenario = "simulation approval";
         testSimulationReview(review);
         scenario = "edge recovery";
