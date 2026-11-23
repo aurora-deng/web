@@ -198,7 +198,7 @@ class LocalMetrics:
 
     def histogram_rows(self,start,end,step):
         if self.store:
-            with self.store.connect() as db:
+            with self.store.read() as db:
                 rows=db.execute("SELECT stamp,body FROM histogram_windows WHERE stamp IN ("
                                 "SELECT max(stamp) FROM histogram_windows WHERE stamp BETWEEN ? AND ? "
                                 "GROUP BY (stamp-?)/?) ORDER BY stamp",(start,end,start,step)).fetchall()

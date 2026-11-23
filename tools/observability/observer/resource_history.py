@@ -149,7 +149,7 @@ class ResourceHistory:
 
     def reports(self,ident=None):
         floor=int(time.time())-self.store.retention_seconds
-        with self.store.connect() as db:
+        with self.store.read() as db:
             if ident:
                 if not PROFILE_ID.fullmatch(ident):
                     raise Invalid("报告 ID 无效")

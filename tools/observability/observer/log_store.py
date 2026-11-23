@@ -178,7 +178,7 @@ class LogStore:
                 raise Invalid("日志游标超出时间窗口")
             where.append("(stamp,id)<(?,?)")
             values.extend((stamp, ident))
-        with self.store.connect() as db:
+        with self.store.read() as db:
             rows = db.execute("SELECT * FROM diagnostic_logs WHERE " + " AND ".join(where) +
                               " ORDER BY stamp DESC,id DESC LIMIT ?", (*values, int(limit)+1)).fetchall()
             counts = dict(db.execute("SELECT level,count(*) FROM diagnostic_logs WHERE " +

@@ -100,7 +100,7 @@ class CustomAlerts:
         return result
 
     def history(self):
-        with self.store.connect() as db:
+        with self.store.read() as db:
             return [json.loads(row["body"]) for row in db.execute(
                 "SELECT body FROM alert_transitions WHERE stamp>=? ORDER BY id DESC LIMIT 60",
                 (int(time.time())-HISTORY_SECONDS,))]

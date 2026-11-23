@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+from threading import Lock
 import time
 
 from .events import Invalid, identifier, utc_ns, validate
@@ -13,6 +14,7 @@ DAY = DAY_SECONDS * 10**9
 WEEK_SECONDS = 7 * DAY_SECONDS
 HISTORICAL_STEP = 300
 DENSE_METRIC_SECONDS = 6 * 3600
+SQLITE_WAIT_SECONDS = 1
 
 
 class Conflict(Exception):
@@ -36,7 +38,9 @@ class Store:
         self.retention = retention_days * DAY
         self.retention_seconds = retention_days * DAY_SECONDS
         self.max_bytes = max_bytes
+        self._write_lock = Lock()
         with self.connect() as db:
+            db.execute("PRAGMA journal_mode=DELETE")
             db.executescript("""
               CREATE TABLE IF NOT EXISTS events(
                 id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL,
@@ -53,13 +57,18 @@ class Store:
 
     @contextmanager
     def connect(self):
-        with closing(sqlite3.connect(str(self.path), timeout=1)) as db, db:
-            db.row_factory = sqlite3.Row
-            db.execute("PRAGMA journal_mode=DELETE")
-            db.execute("PRAGMA synchronous=FULL")
-            page_size = db.execute("PRAGMA page_size").fetchone()[0]
-            db.execute("PRAGMA max_page_count=" + str(self.max_bytes // page_size))
-            yield db
+        """Serialize this Observer's writable connections through commit and close."""
+        if not self._write_lock.acquire(timeout=SQLITE_WAIT_SECONDS):
+            raise sqlite3.OperationalError("database is locked")
+        try:
+            with closing(sqlite3.connect(str(self.path), timeout=SQLITE_WAIT_SECONDS)) as db, db:
+                db.row_factory = sqlite3.Row
+                db.execute("PRAGMA synchronous=FULL")
+                page_size = db.execute("PRAGMA page_size").fetchone()[0]
+                db.execute("PRAGMA max_page_count=" + str(self.max_bytes // page_size))
+                yield db
+        finally:
+            self._write_lock.release()
 
     @contextmanager
     def read(self):
@@ -112,7 +121,7 @@ class Store:
             filters.append("(occurred_ns,id) > (?,?)")
             args.extend(cursor)
         args.append(limit + 1)
-        with self.connect() as db:
+        with self.read() as db:
             rows = db.execute("SELECT * FROM events WHERE " + " AND ".join(filters) +
                               " ORDER BY occurred_ns,id LIMIT ?", args).fetchall()
         page = [{"receivedAt": str(r["received_ns"]), **json.loads(r["body"])} for r in rows[:limit]]
@@ -151,7 +160,7 @@ class Store:
 
     def latest_device_windows(self, since):
         # Limit labels to provisioned sources and a fixed stream vocabulary.
-        with self.connect() as db:
+        with self.read() as db:
             rows = db.execute("SELECT body FROM events WHERE occurred_ns >= ? AND kind='device.window'"
                               " ORDER BY occurred_ns DESC,id DESC LIMIT 256", (since,)).fetchall()
         latest = {}
@@ -163,20 +172,20 @@ class Store:
         return latest.values()
 
     def runs(self, start, end, limit=100):
-        with self.connect() as db:
+        with self.read() as db:
             rows = db.execute("SELECT digest,body FROM runs WHERE started_ns BETWEEN ? AND ?"
                               " ORDER BY started_ns DESC,id DESC LIMIT ?", (start, end, limit))
             return [{"id": r["digest"], **json.loads(r["body"])} for r in rows]
 
     def run(self, digest):
-        with self.connect() as db:
+        with self.read() as db:
             row = db.execute("SELECT body FROM runs WHERE digest=? AND started_ns>=?",
                              (digest,time.time_ns()-self.retention)).fetchone()
             return json.loads(row["body"]) if row else None
 
     def run_markers(self, start, end):
         # Include a finish even when a long run started before the visible window.
-        with self.connect() as db:
+        with self.read() as db:
             rows = db.execute("SELECT digest,body FROM runs WHERE started_ns <= ? "
                               "ORDER BY started_ns DESC,id DESC LIMIT 100", (end,)).fetchall()
         markers = []

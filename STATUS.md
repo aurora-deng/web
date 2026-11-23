@@ -6,6 +6,8 @@
 
 **本次隔离回归**。CentOS 业务档 122 项 CTest 通过，零跳过，包含临时 Redis。发布身份、迁移和静态资源联机预检已用真实二进制复验。Windows 源码检查通过，包含 106 项前端测试和 Observer HTTP；研途账号同步测试另行通过。 [测试范围与复验入口](docs/business/release-matrix.md)
 
+**Observer 告警配置**。源码分支修复了托管 Windows 发现的告警配置与诊断日志并发写入冲突，报表查询走只读连接。并发保存和事务边界专项已连续复跑 12 轮。 [故障与复验](docs/observability/validation.md#配置与诊断日志并发写入)
+
 **当前 M00–M07 · 软件路径到达 M08 的 ROS 2 调用边界**。后端 DAG 检查点、技能版本、gRPC 背压、Agent 审批以及合成数据训练和回放均有隔离验收。CentOS 和 Windows 的 Release 各通过 9 项，CentOS 原生 TSan 与 ASan/UBSan 各通过 4 项。完整 gRPC TSan 在现有 Abseil 调用栈报竞态，单列未通过。真实 ONNX 测试命中 13/24，规则仍为默认。 [本轮验收](docs/ops/validation/m00-m07.md) · [Agent 教学](docs/learning/nebula-fleet-agent-and-skills.md) · [LangGraph 实验](docs/learning/langgraph-nebula-lab.md)
 
 **M00–M07 本机车队压测**。4,000 次接收 ACK，零失败。各轮 P99 为 66.54–71.75 ms，超过 50 ms 参考预算。源码验收锚点为 `cpp-systems-m00-m07-lab-20261123`。 [负载及细项](docs/evidence/cpp-systems/20261123/m00-m07.json)

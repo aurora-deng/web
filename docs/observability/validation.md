@@ -4,6 +4,16 @@
 
 [可复核的 JSON 汇总](validation-evidence.json) 收录各轮性能、分段和故障结果。
 
+## 配置与诊断日志并发写入
+
+Function3.6 托管 Windows 回归中，同时写入诊断日志和保存告警规则，配置接口曾返回 503。源码分支将同一 Observer 进程的可写连接串行到提交或回滚结束，仅在初始化设置回滚日志模式。查询继续使用 SQLite 只读连接。等待耗尽时服务保留繁忙响应，多个进程的文件锁仍由 SQLite 管理。
+
+```text
+python tests/project/test_observability.py LocalMetricContract.test_sqlite_write_gate_bounds_wait_without_blocking_readers ObserverContract.test_concurrent_alert_edits_with_diagnostic_writes_preserve_revisions
+```
+
+验证包括写入口等待有界、读者只能看到已提交数据，以及四个并发客户端各更新六次告警版本。本机 Windows 连续复跑 12 轮，两项专项共 24 次执行均通过。初次失败记录可查对应 GitHub 运行。 [托管 Windows 失败记录](https://github.com/aurora-deng/web/actions/runs/45144750284/job/137591148763)
+
 ## 查询速度与自动刷新
 
 2026-11-21。日常 Linux Observer 的旧版本在 VM 回环接口读取 15 分钟、6 小时和 7 天总览，各 3 次中位数分别为 23.73 ms、56.89 ms 和 338.62 ms。该组数据用于定位慢段。

@@ -119,7 +119,7 @@ class TraceIndex:
             db.execute("DELETE FROM trace_spans WHERE started < ?", (time.time_ns()-TTL_NS,))
 
     def raw(self, trace):
-        with self.store.connect() as db:
+        with self.store.read() as db:
             rows = db.execute("SELECT * FROM trace_spans WHERE trace=? AND started>=? ORDER BY started LIMIT 1001",
                               (trace,time.time_ns()-TTL_NS)).fetchall()
         if not rows:
@@ -173,7 +173,7 @@ class TraceIndex:
             where.append("ended - started >= ?")
             args.append(int(min_ms * 1e6))
         sort = "ended-started DESC,started DESC" if slowest else "started DESC"
-        with self.store.connect() as db:
+        with self.store.read() as db:
             rows = db.execute(
                 "SELECT trace, span, name, service, started, ended, status, http_status FROM ("
                 "SELECT *, row_number() OVER (PARTITION BY trace ORDER BY (parent='') DESC,started) AS priority "

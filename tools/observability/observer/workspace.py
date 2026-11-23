@@ -50,7 +50,7 @@ class Workspace:
         return {**json.loads(row["body"]), "id":row["id"], "revision":row["revision"]}
 
     def list(self, kind):
-        with self.store.connect() as db:
+        with self.store.read() as db:
             return self._list(db, kind)
 
     def _list(self, db, kind):
@@ -58,7 +58,7 @@ class Workspace:
             "SELECT * FROM observer_configs WHERE kind=? ORDER BY rowid",(kind,))]
 
     def get(self, kind, ident):
-        with self.store.connect() as db:
+        with self.store.read() as db:
             return self._get(db, kind, ident)
 
     def _get(self, db, kind, ident):

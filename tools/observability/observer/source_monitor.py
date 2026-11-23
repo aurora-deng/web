@@ -188,7 +188,7 @@ class SourceMonitor:
         found={}
         buckets={}
         start=max(start,int(time.time())-self.workspace.store.retention_seconds)
-        with self.workspace.store.connect() as db:
+        with self.workspace.store.read() as db:
             rows=db.execute("SELECT ts,body FROM source_samples WHERE source=? AND ts IN ("
                             "SELECT max(ts) FROM source_samples WHERE source=? AND ts BETWEEN ? AND ? "
                             "GROUP BY (ts-?)/?) ORDER BY ts",

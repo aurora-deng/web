@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import secrets
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -59,6 +60,26 @@ class ExternalFixture:
 
 
 class LocalMetricContract(unittest.TestCase):
+    def test_sqlite_write_gate_bounds_wait_without_blocking_readers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = Store(Path(directory) / "observer.sqlite")
+
+            def second_writer():
+                with store.connect():
+                    pass
+
+            with store.connect() as writer:
+                with patch("tools.observability.observer.store.SQLITE_WAIT_SECONDS", 0):
+                    with ThreadPoolExecutor(max_workers=1) as worker:
+                        with self.assertRaisesRegex(sqlite3.OperationalError, "database is locked"):
+                            worker.submit(second_writer).result(timeout=3)
+                writer.execute("INSERT INTO runs(digest,started_ns,received_ns,body) VALUES ('check',1,1,'{}')")
+                with store.read() as reader:
+                    self.assertEqual(reader.execute("SELECT count(*) FROM runs").fetchone()[0], 0)
+            second_writer()
+            with store.read() as reader:
+                self.assertEqual(reader.execute("SELECT count(*) FROM runs").fetchone()[0], 1)
+
     def test_fixed_business_catalog_and_outcome_metrics_do_not_turn_absence_into_zero(self):
         from tools.observability.observer.operation_catalog import FUNCTION_DEFINITIONS,FUNCTION_CALLS,FUNCTION_IN_FLIGHT
         from tools.observability.observer.measurement_quality import empty_diagnostic
