@@ -2,6 +2,8 @@
 
 **最新发布 [Function3.6](https://github.com/aurora-deng/web/releases/tag/Function3.6)**。提供 C++ 后端 DAG、gRPC 车队、Agent 审批与 Observer 回放，以及可校验的 Linux ZIP 和离线 Web/Fleet Docker 镜像。 [源码分支](https://github.com/aurora-deng/web/tree/Function3.6) · [部署与回退](https://github.com/aurora-deng/web/blob/Function3.6/docs/ops/runtime/function3.6-deployment.md) · [与 Function3.5 的区别](https://github.com/aurora-deng/web/blob/Function3.6/docs/releases/function3.6.md)
 
+[各业务说明与学习](https://github.com/aurora-deng/web/blob/Function3.6/docs/business/README.md) · [业务上线台账](https://github.com/aurora-deng/web/blob/Function3.6/docs/business/release-matrix.md) · [参与维护](CONTRIBUTING.md)
+
 NEBULA 在 Linux 使用 epoll、Multi-Reactor 和 C++20 协程，支持 HTTP、WebSocket、SSE、HTTP/2、TLS/ALPN 和 gRPC。缘续-聊天、缘生-广场、研途和小研提供可复放的业务场景，Observer 用指标、结构化日志和调用链帮助定位故障。Windows Companion 提供本机入口与私人资料管理。
 
 - 缘续-聊天与缘生-广场共用账号和导航。会话检查期间保留加载状态，广场滚轮换页加入视觉过渡。研途用同一个 NEBULA 账号打开对应学习工作区，客户端可以切号后返回原模块。[Function3.3 变更与验收](https://github.com/aurora-deng/web/blob/Function3.3/docs/releases/function3.3.md)
