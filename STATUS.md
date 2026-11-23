@@ -2,6 +2,10 @@
 
 **Function3.6 交付**。可检查的 Linux x86-64 ZIP 和离线 Web/Fleet 镜像按发布提交归档。日常网站状态请查下方运行记录。 [发布与对比](docs/releases/function3.6.md) · [部署、校验与回退](docs/ops/runtime/function3.6-deployment.md)
 
+**2026-11-23 交付维护**。业务文档按 17 个模块维护说明和实操，并在 CI 核对全部已登记的 HTTP 业务域。已清理两台虚拟机中的重复发布和实验归档。CentOS 日常站点、网关和 Observer 端口本次均无监听，隔离交付记录见下。 [上线台账](docs/business/release-matrix.md) · [维护记录](docs/ops/runtime/function3.6-artifact-maintenance.md)
+
+**本次隔离回归**。CentOS 业务档 122 项 CTest 通过，零跳过，包含临时 Redis。发布身份、迁移和静态资源联机预检已用真实二进制复验。Windows 源码检查通过，包含 106 项前端测试和 Observer HTTP；研途账号同步测试另行通过。 [测试范围与复验入口](docs/business/release-matrix.md)
+
 **当前 M00–M07 · 软件路径到达 M08 的 ROS 2 调用边界**。后端 DAG 检查点、技能版本、gRPC 背压、Agent 审批以及合成数据训练和回放均有隔离验收。CentOS 和 Windows 的 Release 各通过 9 项，CentOS 原生 TSan 与 ASan/UBSan 各通过 4 项。完整 gRPC TSan 在现有 Abseil 调用栈报竞态，单列未通过。真实 ONNX 测试命中 13/24，规则仍为默认。 [本轮验收](docs/ops/validation/m00-m07.md) · [Agent 教学](docs/learning/nebula-fleet-agent-and-skills.md) · [LangGraph 实验](docs/learning/langgraph-nebula-lab.md)
 
 **M00–M07 本机车队压测**。4,000 次接收 ACK，零失败。各轮 P99 为 66.54–71.75 ms，超过 50 ms 参考预算。源码验收锚点为 `cpp-systems-m00-m07-lab-20261123`。 [负载及细项](docs/evidence/cpp-systems/20261123/m00-m07.json)
@@ -14,7 +18,7 @@
 
 网关候选版增加小研的显式资源和业务路由，HTTPS 可使用校验证书的应用上游。DAG 执行器加入并发预算、节点时限、受控重试和标准遥测，具身协作已覆盖合成观测、规划、审核和待确认提案。[网关映射](docs/ops/runtime/nebula-yantu-community.md#小研路由与资源映射) · [工作流与协作](docs/architecture/business/ai/agent-workflow-runtime.md)
 
-**当前日常网页**。`18095` 已启用 Function3.3 的网页和研途账号服务，资源版本 `7f8c7f1b31e4435c`。Windows 原地址已通过 Edge 核对新名称。直连 `18090` 继续提供上一轮资源版本 `d7a3142ac64b5ae6`，仍是网关的业务与身份上游。[当前网关与回退](docs/ops/runtime/nebula-yantu-community.md#日常发布与回退)
+**日常网页的历史发布记录**。`18095` 曾启用 Function3.3 的网页和研途账号服务，资源版本 `7f8c7f1b31e4435c`。Windows 原地址已通过 Edge 核对新名称。该次网关使用 `18090` 上的资源版本 `d7a3142ac64b5ae6` 作为业务与身份上游。 [网关启停与回退](docs/ops/runtime/nebula-yantu-community.md#日常发布与回退)
 
 Linux 双实例隔离验收通过。25 条消息跨实例送达，A 在最后一次持久化 ACK 后强杀，B 仍可接收、查历史并按原键去重。Prometheus 双实例查询、Tempo 链路回读、Collector 中断恢复和本机 Alertmanager 通知均通过实测。[双实例验收](docs/observability/validation.md#双实例实时投递与告警验收)
 

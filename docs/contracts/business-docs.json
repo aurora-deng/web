@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "modules": {
+    "identity": [
+      "accounts",
+      "profiles",
+      "contacts"
+    ],
+    "chat": [
+      "chat"
+    ],
+    "files": [
+      "files"
+    ],
+    "community": [
+      "activities",
+      "tree"
+    ],
+    "admin": [
+      "admin"
+    ],
+    "speech": [
+      "announcements",
+      "notifications",
+      "speech"
+    ],
+    "assistant": [
+      "ai",
+      "privateAi",
+      "webAi"
+    ],
+    "model-governance": [
+      "knowledge",
+      "training"
+    ],
+    "study": [],
+    "delivery": [],
+    "observer": [
+      "operations"
+    ],
+    "gateway": [],
+    "windows-client": [
+      "shared"
+    ],
+    "workflow": [],
+    "fleet": [],
+    "fleet-agent": [],
+    "skills": []
+  }
+}

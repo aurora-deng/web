@@ -6,6 +6,8 @@ NEBULA 用 Linux C++20 服务器运行缘续-聊天、缘生-广场、研途和�
 
 **Function3.6** 增加后端 C++ DAG 检查点、独立 gRPC 车队、Agent 提案审批、技能版本和 Observer 回放。发布分为离线 Web/Fleet Docker 镜像、可运行的 Linux ZIP 和源码 ZIP。 [发布说明与 Function3.5 对比](docs/releases/function3.6.md) · [部署、校验与回退](docs/ops/runtime/function3.6-deployment.md) · [下载](https://github.com/aurora-deng/web/releases/tag/Function3.6)
 
+[各业务说明与学习](docs/business/README.md) · [上线台账](docs/business/release-matrix.md) · [参与维护](CONTRIBUTING.md)
+
 [文档分类](docs/README.md) · [当前架构](docs/architecture/overview/ARCHITECTURE.md) · [完整调用图](docs/architecture/business/flows/current-end-to-end.md) · [当前状态](STATUS.md) · [后续计划](docs/roadmap/next-steps.md)
 
 [项目文件架构](docs/architecture/overview/project-layout.md) · [从干净目录复现](docs/ops/validation/reproduce.md) · [Obsidian 学习计划与助教提示词](docs/learning/nebula-performance-and-reliability.md)

@@ -1,5 +1,7 @@
 # Function3 实施与验收台账
 
+Function3.6 交付后端 C++ DAG、gRPC 车队、Agent 提案审批与 Skill 合同。GitHub Release 可下载 Linux ZIP 和离线 Web/Fleet 镜像。各业务附有说明、实操与上线复验条件。 [发布记录](../releases/function3.6.md) · [业务学习入口](../business/README.md) · [上线台账](../business/release-matrix.md)
+
 Function3.3 整理了缘续-聊天、缘生-广场命名与切页，新增研途首次账号绑定和 Windows 返回原模块的切号流程。监控、接口、目录与运行证据继续按原主题维护。[版本说明](../releases/function3.3.md) · [目录](../architecture/overview/project-layout.md)
 
 Function3.5 汇集小研个性化记忆与 DAG、Envoy 映射及 Observer 查询优化。小研已验证账号隔离、跨页面恢复和模型调用载荷，模型准确率另列验收。Observer 隔离验收覆盖历史读取、压缩传输和自动刷新节点复用。[Function3.5 发布说明](../releases/function3.5.md) · [小研进度](../reports/xiaoyan-personalization-progress.md) · [监控测试](../observability/validation.md#查询速度与自动刷新)

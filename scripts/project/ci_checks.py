@@ -51,6 +51,7 @@ def source_checks(report, observer_http):
         ('presentation', 'scripts/project/check_presentation.py'),
         ('apiVersions', 'scripts/project/sync_api_contracts.py', '--check'),
         ('docs', 'scripts/project/check_doc_links.py'),
+        ('businessDocs', 'scripts/project/check_business_docs.py'),
         ('apiContracts', 'tests/project/test_api_contracts.py'),
         ('releaseGates', 'tests/project/test_ci_gates.py'),
         ('runtimeDelivery', 'tests/project/test_runtime_delivery.py'),

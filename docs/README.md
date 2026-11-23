@@ -1,6 +1,6 @@
 # 项目文档分类
 
-**Function3.5**。[版本与测试范围](releases/function3.5.md) · [完整更新文件](releases/function3.5-files.md) · [账号绑定、切换与回退](ops/runtime/nebula-yantu-community.md) · [下一阶段实施顺序](roadmap/next-steps.md)
+**Function3.6**。[版本与测试范围](releases/function3.6.md) · [部署与回退](ops/runtime/function3.6-deployment.md) · [按业务学习](business/README.md) · [业务上线台账](business/release-matrix.md) · [下一阶段实施顺序](roadmap/next-steps.md)
 
 本轮工程化收口：[全项目实施清单](roadmap/project-review-implementation-2026-11-19.md) · [原生交付与预检](ops/validation/native-delivery.md) · [真实慢 ACK 排查讲义](observability/ack-diagnosis.md)。
 
@@ -12,6 +12,7 @@
 |---|---|
 |了解当前功能、实现边界和未通过项|[当前状态](../STATUS.md)、[复现验收](ops/validation/reproduce.md#这次的验证记录)、[Phase49 历史验收](architecture/business/engineering/phase49.md)|
 |从空目录构建和启动|[两档复现指南](ops/validation/reproduce.md)|
+|逐项学习业务和复验|[业务说明与实操入口](business/README.md)、[上线台账](business/release-matrix.md)|
 |运行 C++ DAG 和隔离车队|[C++ 系统运行与验收](ops/validation/cpp-systems.md)、[M00–M07 软件交付与复验](ops/validation/m00-m07.md)|
 |学习母 Agent 和 Skill|[运行与代码导读](learning/nebula-fleet-agent-and-skills.md)、[LangGraph 实验](learning/langgraph-nebula-lab.md)、[Skill 合同](roadmap/embodied-systems/skills/README.md)|
 |日常启动/停止与客户端入口|[运行文档](ops/runtime/README.md)|

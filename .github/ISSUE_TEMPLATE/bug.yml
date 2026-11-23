@@ -1,0 +1,45 @@
+name: 问题报告
+description: 提供其他人可以复跑的故障信息。
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: 业务模块
+      options:
+        - 账号与站点管理
+        - 聊天、广场与附件
+        - 研途与 Windows Companion
+        - 小研、语音与模型
+        - Observer、网关与投递
+        - DAG、车队、Agent 与 Skill
+        - 打包与 CI
+        - 通信核心
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 标签或 Git 提交
+      placeholder: Function3.6 或提交号
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现条件与步骤
+      description: 写明操作系统、部署档、相关依赖和最短复现步骤。附可共享的测试输入。
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: 预期与实际结果
+      description: 写明是否稳定复现。性能问题请提供样本量、延迟分位数和对照方式。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 已脱敏的日志或证据
+      description: 可附状态码、traceId 或 CI 链接。清除 Cookie、凭据、私有附件和账号数据。

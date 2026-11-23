@@ -1,0 +1,22 @@
+name: 功能与改进建议
+description: 讨论一个明确的业务场景或工程改进。
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景与现有阻碍
+      description: 谁在什么情况下遇到问题？
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 目标与验证方法
+      description: 写明希望改变的行为及如何证明改进有效。
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 涉及的模块和兼容性
+      description: 可列出接口、配置、资料权限、存储迁移或可接受的替代路线。

@@ -7,7 +7,7 @@ import platform
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'scripts/project'))
@@ -58,6 +58,57 @@ class Delivery(unittest.TestCase):
         self.assertFalse(result['passed']);self.assertNotIn('not-present',json.dumps(result))
         (self.root/'webserver').write_bytes(b'changed')
         self.assertFalse(check(self.root,{},False)['passed'])
+
+    def test_running_business_matches_manifest_and_rejects_stale_assets(self):
+        release = self.release()
+        assets = b'{"version":"f36"}\n'
+        asset_path = 'frontend/phase11/asset-manifest.json'
+        manifest = self.root / asset_path
+        manifest.parent.mkdir(parents=True)
+        manifest.write_bytes(assets)
+        release['files'][asset_path] = hashlib.sha256(assets).hexdigest()
+        release.update(revision='a' * 40, sourceFingerprint='b' * 64, migration=26)
+        (self.root / 'release.json').write_text(json.dumps(release))
+        version = {
+            'revision': 'a' * 12, 'sourceFingerprint': 'b' * 64,
+            'requiredMigration': 26, 'schemaVerifiedAtStartup': True,
+        }
+        responses = {
+            '/health/live': (200, b'{"status":"alive"}'),
+            '/health/ready': (200, b'{"status":"ready"}'),
+            '/health/version': (200, json.dumps(version).encode()),
+            '/phase11/asset-manifest.json': (200, assets),
+            '/api/me': (401, b''),
+        }
+
+        def serve():
+            method, path = connection.request.call_args.args
+            self.assertEqual(method, 'GET')
+            response = MagicMock()
+            response.__enter__.return_value = response
+            response.status, body = responses[path]
+            response.read.return_value = body
+            return response
+
+        with patch('release_preflight.http.client.HTTPConnection') as connect:
+            connection = connect.return_value
+            connection.getresponse.side_effect = serve
+            report = check(self.root, {}, False, business_port=18096)
+            self.assertTrue(report['passed'])
+            self.assertTrue(report['localBusinessMatched'])
+            connect.assert_called_with('127.0.0.1', 18096, timeout=3)
+            self.assertEqual(connect.call_count, 5)
+            responses['/phase11/asset-manifest.json'] = (200, b'{"version":"stale"}')
+            responses['/health/version'] = (200, json.dumps({**version, 'requiredMigration': 25}).encode())
+            responses['/api/me'] = (200, b'sensitive-content-never-read')
+            report = check(self.root, {}, False, business_port=18096)
+            self.assertFalse(report['localBusinessMatched'])
+            self.assertEqual(len(report['problems']), 3)
+            self.assertNotIn('sensitive-content-never-read', json.dumps(report))
+            manifest.write_bytes(b'damaged')
+            connect.reset_mock()
+            self.assertFalse(check(self.root, {}, False, business_port=18096)['localBusinessProbed'])
+            connect.assert_not_called()
 
     def test_zip_modes_match_the_existing_tar_delivery(self):
         contents = {"webserver": b"server", "fleet/nebula_fleet_edge": b"edge", "data.json": b"data"}

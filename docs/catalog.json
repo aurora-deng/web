@@ -742,6 +742,222 @@
       "kind": "document"
     },
     {
+      "path": "docs/business/README.md",
+      "title": "按业务学习与复验",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/admin/README.md",
+      "title": "站点管理、权限与审计 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/admin/learning.md",
+      "title": "站点管理、权限与审计 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/assistant/README.md",
+      "title": "小研、网页推理与私人推理 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/assistant/learning.md",
+      "title": "小研、网页推理与私人推理 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/chat/README.md",
+      "title": "缘续聊天、群组与消息可靠性 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/chat/learning.md",
+      "title": "缘续聊天、群组与消息可靠性 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/community/README.md",
+      "title": "缘生广场、统一动态、榜单与内容治理 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/community/learning.md",
+      "title": "缘生广场、统一动态、榜单与内容治理 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/delivery/README.md",
+      "title": "Outbox、消息队列、重放与缓存 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/delivery/learning.md",
+      "title": "Outbox、消息队列、重放与缓存 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/files/README.md",
+      "title": "文件、聊天附件与社区媒体 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/files/learning.md",
+      "title": "文件、聊天附件与社区媒体 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/fleet-agent/README.md",
+      "title": "车队 Agent、提案、审批与模型适配 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/fleet-agent/learning.md",
+      "title": "车队 Agent、提案、审批与模型适配 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/fleet/README.md",
+      "title": "gRPC 车队调度、边缘接收与对账 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/fleet/learning.md",
+      "title": "gRPC 车队调度、边缘接收与对账 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/gateway/README.md",
+      "title": "Envoy 网关与环境入口 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/gateway/learning.md",
+      "title": "Envoy 网关与环境入口 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/identity/README.md",
+      "title": "账号、个人资料与联系人 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/identity/learning.md",
+      "title": "账号、个人资料与联系人 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/model-governance/README.md",
+      "title": "知识库、RAG、模型评测与训练 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/model-governance/learning.md",
+      "title": "知识库、RAG、模型评测与训练 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/observer/README.md",
+      "title": "Observer、监控告警与故障诊断 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/observer/learning.md",
+      "title": "Observer、监控告警与故障诊断 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/release-matrix.md",
+      "title": "业务上线台账",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/skills/README.md",
+      "title": "机器人 Skill、能力声明与执行适配 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/skills/learning.md",
+      "title": "机器人 Skill、能力声明与执行适配 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/speech/README.md",
+      "title": "公告、通知偏好与语音 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/speech/learning.md",
+      "title": "公告、通知偏好与语音 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/study/README.md",
+      "title": "研途账号工作区与跨端同步 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/study/learning.md",
+      "title": "研途账号工作区与跨端同步 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/windows-client/README.md",
+      "title": "Windows Companion 与私人资料 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/windows-client/learning.md",
+      "title": "Windows Companion 与私人资料 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
+      "path": "docs/business/workflow/README.md",
+      "title": "后端 C++ DAG 与可恢复工作流 · 业务说明",
+      "category": "business",
+      "kind": "index"
+    },
+    {
+      "path": "docs/business/workflow/learning.md",
+      "title": "后端 C++ DAG 与可恢复工作流 · 学习与复验",
+      "category": "business",
+      "kind": "document"
+    },
+    {
       "path": "docs/contracts/README.md",
       "title": "接口契约",
       "category": "contracts",
@@ -978,6 +1194,12 @@
     {
       "path": "docs/ops/runtime/function3-runtime.md",
       "title": "Function3 日常启动：原账号库、18090 与语音",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/runtime/function3.6-artifact-maintenance.md",
+      "title": "Function3.6 交付件保留与虚拟机维护",
       "category": "ops",
       "kind": "document"
     },

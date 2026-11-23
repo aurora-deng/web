@@ -73,6 +73,8 @@ curl -fsS http://127.0.0.1:18096/health/version
 
 SELinux 可能限制主机日常 PostgreSQL 套接字的容器访问。正式连接可改用专供容器访问的已授权 TCP/TLS 端点与对应凭据，按已有 PostgreSQL 和防火墙规则配置；避免重新标记原服务目录。隔离验收只重标记临时套接字和临时密钥。Web 镜像内运行网页业务，Observer、Envoy、研途独立服务、外部语音或模型按自己的运行文档接入。
 
+对已启动的 Web 候选，可使用源码分支的联机预检同时核对修订、迁移、静态资源和匿名拒绝；其他业务按实际拓扑复验。 [业务上线台账与联机预检](../../business/release-matrix.md)
+
 Fleet 容器挂载 `nebula-fleet-libs` 到 `/runtime`。加入 `--network none` 后，协调器、边缘和 CLI 在同一容器内使用回环协议。复验脚本完成一次真实派发、到站、幂等重试及 Agent 查询提案。手工运行的身份变量、命令和临时账本要求见 [车队启动说明](../validation/cpp-systems.md#二启动本机演示)。跨主机的现有 SSH 转发拓扑见 [跨虚拟机实验](../validation/cpp-systems-cross-vm.md)。
 
 ## 四、复验、停止与回退

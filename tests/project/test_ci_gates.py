@@ -11,6 +11,7 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts/project'))
 from package_release import runtime_path, validate_reproduction
+from check_business_docs import check as check_business_docs
 
 spec=importlib.util.spec_from_file_location('project_ci',ROOT/'scripts/project/ci_checks.py')
 ci=importlib.util.module_from_spec(spec);spec.loader.exec_module(ci)
@@ -79,5 +80,25 @@ class CiGates(unittest.TestCase):
                      'frontend/phase11/back\\slash.js'):
             with self.subTest(name=name):
                 self.assertFalse(runtime_path(name))
+
+    def test_business_docs_gate_rejects_missing_domain_and_learning_guide(self):
+        with tempfile.TemporaryDirectory(dir=self.temporaryRoot) as path:
+            root = Path(path)
+            contract = root / 'docs/contracts'
+            business = root / 'docs/business/example'
+            contract.mkdir(parents=True)
+            business.mkdir(parents=True)
+            (contract / 'business-routes.json').write_text('{"routes":[{"domain":"one"}]}')
+            registry = contract / 'business-docs.json'
+            registry.write_text('{"version":1,"modules":{"example":["one"]}}')
+            (business.parent / 'README.md').write_text('[Reference](example/README.md) [Learn](example/learning.md)')
+            (business.parent / 'release-matrix.md').write_text('[Example](example/README.md)')
+            (business / 'README.md').write_text('# Example')
+            self.assertIn('Missing titled business document: example/learning.md',
+                          check_business_docs(root)['problems'])
+            (business / 'learning.md').write_text('# Learn')
+            self.assertTrue(check_business_docs(root)['passed'])
+            registry.write_text('{"version":1,"modules":{"example":[]}}')
+            self.assertIn('one: documentation missing', check_business_docs(root)['problems'])
 
 if __name__=='__main__':unittest.main()

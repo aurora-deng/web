@@ -1,6 +1,7 @@
-"""Verify an extracted release and its external prerequisites without starting it."""
+"""Verify an extracted release and optionally match it to a running local business server."""
 import argparse
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path
@@ -17,7 +18,62 @@ def digest(path):
     return result.hexdigest()
 
 
-def check(root,environment=None,check_linkage=True):
+def probe_business(port, release):
+    """Check the served profile, build, schema and assets using anonymous read-only requests."""
+    revision = release.get('revision')
+    fingerprint = release.get('sourceFingerprint')
+    migration = release.get('migration')
+    expected_assets = release['files'].get('frontend/phase11/asset-manifest.json')
+    if (not isinstance(revision, str) or not revision or not isinstance(fingerprint, str)
+            or not fingerprint or type(migration) is not int or not expected_assets):
+        return ['release manifest lacks a verified business identity']
+
+    def fetch(path, status, read_body=True):
+        conn = http.client.HTTPConnection('127.0.0.1', port, timeout=3)
+        try:
+            conn.request('GET', path, headers={'Cache-Control': 'no-cache'})
+            with conn.getresponse() as reply:
+                if reply.status != status:
+                    raise ValueError(f'{path} returned HTTP {reply.status}, expected {status}')
+                if read_body:
+                    body = reply.read(16385)
+                    if len(body) > 16384:
+                        raise ValueError(f'{path} returned an oversized response')
+                    return body
+        finally:
+            conn.close()
+
+    checks = (
+        ('/health/live', 200, lambda b: json.loads(b) == {'status': 'alive'}),
+        ('/health/ready', 200, lambda b: json.loads(b) == {'status': 'ready'}),
+        ('/health/version', 200, lambda b: matches_build(b, revision, fingerprint, migration)),
+        ('/phase11/asset-manifest.json', 200, lambda b: hashlib.sha256(b).hexdigest() == expected_assets),
+        ('/api/me', 401, None),
+    )
+    problems = []
+    for path, status, matches in checks:
+        try:
+            body = fetch(path, status, read_body=matches is not None)
+            if matches is not None and not matches(body):
+                problems.append(path + ' does not match the verified business release')
+        except (UnicodeError, json.JSONDecodeError):
+            problems.append(path + ' returned invalid JSON')
+        except (OSError, http.client.HTTPException):
+            problems.append(path + ' could not be read from the local business server')
+        except ValueError as error:
+            problems.append(str(error))
+    return problems
+
+
+def matches_build(body, revision, fingerprint, migration):
+    version = json.loads(body)
+    return (isinstance(version, dict) and version.get('schemaVerifiedAtStartup') is True
+            and version.get('requiredMigration') == migration
+            and version.get('sourceFingerprint') == fingerprint
+            and version.get('revision') in (revision, revision[:12]))
+
+
+def check(root,environment=None,check_linkage=True,*,business_port=None):
     root=Path(root).resolve();env=os.environ if environment is None else environment
     release=json.loads((root/'release.json').read_text());problems=[]
     for relative,expected in release['files'].items():
@@ -58,16 +114,24 @@ def check(root,environment=None,check_linkage=True):
         problems.append('configured ONNX model directory missing')
     if release.get('profile','business')!='native' and any(configured[k] for k in ('WEB_PHASE11_ONNX_MODEL_ROOT','WEB_FUNCTION3_TTS_WORKER')):
         problems.append('native runtime configured in a business-only release')
+    probe_ran = business_port is not None and not problems
+    if probe_ran:
+        problems.extend(probe_business(business_port, release))
     return {'passed':not problems,'profile':release.get('profile','business'),'problems':problems,
             'externalLibrariesChecked':libraries_checked,'runtimeConfigured':configured,
             'databaseConnectionProbed':False,'modelWarmupProbed':False,'qualityVerified':False,
+            'localBusinessProbed':probe_ran,'localBusinessMatched':probe_ran and not problems,
             'secretsIncluded':False}
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root',type=Path,default=Path(__file__).resolve().parent)
-    args=parser.parse_args();report=check(args.root)
+    parser.add_argument('--business-port',type=int,help='Also verify the running business release at 127.0.0.1:PORT')
+    args=parser.parse_args()
+    if args.business_port is not None and not 1 <= args.business_port <= 65535:
+        parser.error('--business-port must be in 1..65535')
+    report=check(args.root,business_port=args.business_port)
     print(json.dumps(report,indent=2))
     return 0 if report['passed'] else 1
 
