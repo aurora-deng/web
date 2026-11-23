@@ -262,16 +262,22 @@ int main() {
     const auto edge = stem.string() + "-edge.sqlite";
     const auto worker = stem.string() + "-worker.sqlite";
     int exit = 0;
+    const char* scenario = "scheduler";
     try {
         testScheduler(fleet);
+        scenario = "simulation approval";
         testSimulationReview(review);
+        scenario = "edge recovery";
         testEdgeRecovery(edge);
+        scenario = "navigation workflow";
         testNavigation();
+        scenario = "skill contract";
         testSkillContract();
+        scenario = "worker shutdown";
         testWorkerShutdown(worker);
         std::cout << "Fleet contracts passed: bounded dispatch, durable review, sessions, recovery and native workflow\n";
     } catch (const std::exception& error) {
-        std::cerr << error.what() << '\n';
+        std::cerr << scenario << ": " << error.what() << '\n';
         exit = 1;
     }
     std::error_code cleanup;

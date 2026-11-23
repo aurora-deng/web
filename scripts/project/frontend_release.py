@@ -14,7 +14,13 @@ ROOT=Path(__file__).resolve().parents[2];FRONT=ROOT/'frontend/phase11'
 REF=re.compile(r'''(?P<quote>["'])(?P<url>(?:/phase11/|\./|\.\./)[^"'<>\s]*?\.(?:js|css|html))(?:\?v=[^"'<>\s]*)?(?P=quote)''')
 def main():
     p=argparse.ArgumentParser();p.add_argument('--check',action='store_true');a=p.parse_args()
-    files=[p for p in sorted(FRONT.rglob('*')) if p.suffix in ('.html','.js','.css') and 'vendor' not in p.relative_to(FRONT).parts]
+    files=[p for p in FRONT.rglob('*') if p.suffix in ('.html','.js','.css') and 'vendor' not in p.relative_to(FRONT).parts]
+    # Match the existing release's component order on both case-sensitive
+    # and case-insensitive filesystems. Preserve spelling in the actual hash.
+    def asset_order(path):
+        parts = path.relative_to(FRONT).parts
+        return tuple(part.lower() for part in parts), parts
+    files.sort(key=asset_order)
     texts={p:REF.sub(lambda m:m['quote']+m['url']+m['quote'],p.read_text(encoding='utf-8')) for p in files}
     # Ignore the generated version in its own hash; fixed point after a single run.
     payload='\n'.join(p.relative_to(FRONT).as_posix()+':'+hashlib.sha256(s.encode()).hexdigest() for p,s in texts.items())
