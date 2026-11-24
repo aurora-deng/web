@@ -127,7 +127,7 @@ std::optional<NodeLease> PostgresWorkflowQueue::claim(std::string_view run, cons
     if (PQntuples(definition.get()) != 1 || PQgetvalue(definition.get(), 0, 0) != definitionOf(graph)) {
         throw std::invalid_argument("worker has a different registered workflow");
     }
-    const auto result = impl_->query("SELECT * FROM workflow_cluster_claim($1,$2,$3)",
+    const auto result = impl_->query("SELECT * FROM workflow_cluster_claim_v2($1,$2,$3)",
                                      {id, std::string(owner), std::to_string(lease.count())});
     if (!PQntuples(result.get())) return std::nullopt;
     NodeLease claim{id, PQgetvalue(result.get(), 0, 0), std::string(owner), PQgetvalue(result.get(), 0, 2),
@@ -154,6 +154,30 @@ std::optional<NodeLease> PostgresWorkflowQueue::claim(std::string_view run, cons
     return claim;
 }
 
+std::vector<ReadyWorkflow> PostgresWorkflowQueue::readyRuns(std::span<const WorkflowGraph> registered) {
+    if (registered.empty() || registered.size() > 64) throw std::invalid_argument("invalid workflow registry");
+    std::string names;
+    for (const auto& graph : registered) {
+        if (!names.empty()) names += ',';
+        names += graph.name();
+    }
+    const auto result = impl_->query("SELECT * FROM workflow_cluster_ready_runs(string_to_array($1,','),16)", {names});
+    std::vector<ReadyWorkflow> ready;
+    for (int i = 0; i < PQntuples(result.get()); ++i) {
+        ready.push_back({PQgetvalue(result.get(), i, 0), PQgetvalue(result.get(), i, 1)});
+    }
+    return ready;
+}
+
+bool PostgresWorkflowQueue::renew(const NodeLease& lease, Milliseconds extension) {
+    if (extension < Milliseconds{50} || extension > Milliseconds{30000}) {
+        throw std::invalid_argument("invalid workflow lease extension");
+    }
+    const auto renewed = impl_->query("SELECT workflow_cluster_renew($1,$2,$3,$4,$5)",
+        {lease.run, lease.node, lease.owner, std::to_string(lease.attempt), std::to_string(extension.count())});
+    return std::string_view(PQgetvalue(renewed.get(), 0, 0)) == "t";
+}
+
 bool PostgresWorkflowQueue::finish(const NodeLease& lease, const WorkResult& result) {
     if (result.value.size() > 4096 || result.value.find('\0') != result.value.npos ||
         (!result.errorCode.empty() && !validIdentifier(result.errorCode))) {
@@ -165,17 +189,23 @@ bool PostgresWorkflowQueue::finish(const NodeLease& lease, const WorkResult& res
     return std::string_view(PQgetvalue(written.get(), 0, 0)) == "t";
 }
 
+bool PostgresWorkflowQueue::reconcile(std::string_view run, std::string_view node, unsigned attempt,
+                                      bool succeeded, std::string_view evidenceRef, std::string_view value) {
+    validateRun(run);
+    if (!validIdentifier(node) || attempt < 1 || attempt > 3 || !validIdentifier(evidenceRef) ||
+        value.size() > 4096 || value.find('\0') != value.npos || (!succeeded && !value.empty())) {
+        throw std::invalid_argument("invalid workflow verification");
+    }
+    const auto saved = impl_->query("SELECT workflow_cluster_reconcile($1,$2,$3,$4,$5,$6)",
+        {std::string(run), std::string(node), std::to_string(attempt), succeeded ? "success" : "failed",
+         std::string(evidenceRef), std::string(value)});
+    return std::string_view(PQgetvalue(saved.get(), 0, 0)) == "t";
+}
+
 std::string PostgresWorkflowQueue::state(std::string_view run) {
     validateRun(run);
-    const auto result = impl_->query(R"SQL(
-        SELECT CASE WHEN bool_or(state IN ('queued','started')) THEN 'started'
-                    WHEN bool_or(state = 'uncertain') THEN 'uncertain'
-                    WHEN bool_or(state = 'timeout') THEN 'timeout'
-                    WHEN bool_or(state = 'failed') THEN 'failed'
-                    ELSE 'success' END
-        FROM workflow_cluster_node WHERE run_id=$1 HAVING count(*) > 0
-    )SQL", {std::string(run)});
-    if (!PQntuples(result.get())) throw std::runtime_error("unknown workflow run");
+    const auto result = impl_->query("SELECT workflow_cluster_run_state($1)", {std::string(run)});
+    if (PQgetisnull(result.get(), 0, 0)) throw std::runtime_error("unknown workflow run");
     return PQgetvalue(result.get(), 0, 0);
 }
 

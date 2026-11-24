@@ -26,18 +26,30 @@ def post_events(port, records, token):
         connection.close()
 
 
+def local_observer_port(endpoint):
+    url = urlsplit(endpoint)
+    if url.scheme != "http" or not re.fullmatch(r"127\.0\.0\.1:[0-9]{1,5}", url.netloc) or (
+            not url.port or url.path or url.query or url.fragment):
+        raise ValueError("choose a local http://127.0.0.1:PORT Observer endpoint")
+    return url.port
+
+
+def producer_token():
+    token = os.environ.get("NEBULA_FLEET_OBSERVER_TOKEN", "")
+    if not token or len(token) > 256 or not all("!" <= char <= "~" for char in token):
+        raise ValueError("set the authorized DAG producer token in NEBULA_FLEET_OBSERVER_TOKEN")
+    return token
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("spool", type=Path)
     parser.add_argument("--observer", required=True)
     args = parser.parse_args()
-    url = urlsplit(args.observer)
-    if url.scheme != "http" or not re.fullmatch(r"127\.0\.0\.1:[0-9]{1,5}", url.netloc) or (
-            not url.port or url.path or url.query or url.fragment):
-        parser.error("choose a local http://127.0.0.1:PORT Observer endpoint")
-    token = os.environ.get("NEBULA_FLEET_OBSERVER_TOKEN", "")
-    if not token or len(token) > 256 or not all("!" <= char <= "~" for char in token):
-        parser.error("set the authorized DAG producer token in NEBULA_FLEET_OBSERVER_TOKEN")
+    try:
+        port, token = local_observer_port(args.observer), producer_token()
+    except ValueError as error:
+        parser.error(str(error))
     max_bytes = 8 * 1024 * 1024
     with args.spool.open("rb") as file:
         payload = file.read(max_bytes + 1)
@@ -55,7 +67,7 @@ def main():
             parser.error("the fleet spool only accepts DAG events")
         records.append(event)
     for at in range(0, len(records), 64):
-        post_events(url.port, records[at:at + 64], token)
+        post_events(port, records[at:at + 64], token)
     print(json.dumps({"eventsSent": len(records), "traceCount": len({e["traceId"] for e in records})}))
 
 
