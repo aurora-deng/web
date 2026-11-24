@@ -35,7 +35,8 @@ void SqliteFleetLedger::createReviewTable() {
             created_at INTEGER NOT NULL,
             expires_at INTEGER NOT NULL CHECK(expires_at > created_at),
             replacement_task_id TEXT NOT NULL DEFAULT ''
-        )
+        );
+        CREATE INDEX IF NOT EXISTS agent_sim_reviews_pending ON agent_sim_reviews(expires_at) WHERE state=1;
     )SQL");
 }
 
@@ -65,8 +66,10 @@ SimulationReview SqliteFleetLedger::stageReview(const ReviewDraft& draft, std::i
     const auto source = lookup(draft.sourceTaskId);
     if (!currentSource(source, draft.sourceEpoch)) throw Error(ErrorCode::conflict, "proposal evidence has changed");
     {
-        sqlite::Statement count(db_, "SELECT COUNT(*) FROM agent_sim_reviews");
-        if (!count.next() || count.integer(0) >= 4096) throw Error(ErrorCode::exhausted, "proposal archive is full");
+        sqlite::Statement capacity(db_, "SELECT 1 FROM agent_sim_reviews "
+                                        "WHERE state=1 AND expires_at>? AND created_at<=? LIMIT 1 OFFSET 4095");
+        capacity.bind(1, now).bind(2, now);
+        if (capacity.next()) throw Error(ErrorCode::exhausted, "pending proposal limit reached");
     }
     const auto expiresAt = now + reviewLifetimeSeconds;
     sqlite::Statement(db_, R"SQL(

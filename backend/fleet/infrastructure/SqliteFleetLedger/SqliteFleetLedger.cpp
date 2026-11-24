@@ -12,7 +12,8 @@ constexpr auto schema = R"SQL(
         phase INTEGER NOT NULL DEFAULT 1 CHECK(phase BETWEEN 1 AND 7),
         outcome TEXT NOT NULL DEFAULT ''
     );
-    CREATE INDEX IF NOT EXISTS tasks_queue ON tasks(phase, epoch);
+    CREATE INDEX IF NOT EXISTS tasks_queued ON tasks(epoch) WHERE phase=1;
+    DROP INDEX IF EXISTS tasks_queue;
     CREATE UNIQUE INDEX IF NOT EXISTS tasks_owner ON tasks(robot_id) WHERE phase IN (2,3,4,7);
 )SQL";
 
@@ -50,9 +51,12 @@ std::optional<Task> SqliteFleetLedger::lookup(std::string_view taskId) {
 
 std::vector<Task> SqliteFleetLedger::listBefore(std::int64_t beforeEpoch, unsigned limit) {
     if (beforeEpoch < 0 || limit < 1 || limit > 17) throw Error(ErrorCode::invalid, "invalid task page");
-    sqlite::Statement query(db_, "SELECT task_id,trace_id,station,epoch,robot_id,phase,outcome FROM tasks "
-                                 "WHERE epoch < ? ORDER BY epoch DESC LIMIT ?");
-    query.bind(1, beforeEpoch ? beforeEpoch : std::int64_t{50001}).bind(2, static_cast<int>(limit));
+    sqlite::Statement query(db_, beforeEpoch ?
+        "SELECT task_id,trace_id,station,epoch,robot_id,phase,outcome FROM tasks "
+        "WHERE epoch < ?2 ORDER BY epoch DESC LIMIT ?1" :
+        "SELECT task_id,trace_id,station,epoch,robot_id,phase,outcome FROM tasks ORDER BY epoch DESC LIMIT ?1");
+    query.bind(1, limit);
+    if (beforeEpoch) query.bind(2, beforeEpoch);
     std::vector<Task> rows;
     while (query.next()) rows.push_back(taskOf(query));
     return rows;
@@ -75,9 +79,11 @@ Task SqliteFleetLedger::submit(std::string_view taskId, Station station, std::st
 }
 
 Task SqliteFleetLedger::insertTask(std::string_view taskId, Station station, std::string_view traceId) {
-    sqlite::Statement count(db_, "SELECT (SELECT COUNT(*) FROM tasks WHERE phase=1), (SELECT MAX(epoch) FROM tasks)");
-    if (!count.next() || count.integer(0) >= static_cast<std::int64_t>(queueLimit_) || count.integer(1) >= 50000) {
-        throw Error(ErrorCode::exhausted, "fleet queue or archive is full");
+    // Completed task identities remain replayable. Only the live queue consumes admission slots.
+    sqlite::Statement capacity(db_, "SELECT 1 FROM tasks WHERE phase=1 LIMIT 1 OFFSET ?");
+    capacity.bind(1, static_cast<std::int64_t>(queueLimit_ - 1));
+    if (capacity.next()) {
+        throw Error(ErrorCode::exhausted, "fleet queue is full");
     }
     sqlite::Statement(db_, "INSERT INTO tasks(task_id,station,trace_id) VALUES (?,?,?)")
         .bind(1, taskId).bind(2, static_cast<int>(station)).bind(3, traceId).run();

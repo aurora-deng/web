@@ -3,6 +3,7 @@
 #include "backend/fleet/application/TaskWorkflow/TaskWorkflow.h"
 #include "backend/fleet/domain/RobotSkills/RobotSkills.h"
 #include "backend/fleet/infrastructure/SimNavigation/SimNavigation.h"
+#include "backend/fleet/infrastructure/SqliteDatabase/SqliteDatabase.h"
 #include "backend/fleet/infrastructure/SqliteEdgeLedger/SqliteEdgeLedger.h"
 #include "backend/fleet/infrastructure/SqliteFleetLedger/SqliteFleetLedger.h"
 
@@ -156,6 +157,55 @@ void testEdgeRecovery(const std::filesystem::path& database) {
     expect(ErrorCode::conflict, [&] { SqliteEdgeLedger wrongOwner(database, "another"); });
 }
 
+void testHistoricalCapacity(const std::filesystem::path& fleet, const std::filesystem::path& edgeFile) {
+    {
+        SqliteFleetLedger ledger(fleet, 1);
+        SqliteEdgeLedger edge(edgeFile, "archive");
+    }
+    {
+        sqlite::Database existing(fleet, "fleet", "");
+        existing.exec(R"SQL(
+            CREATE INDEX IF NOT EXISTS tasks_queue ON tasks(phase,epoch);
+            INSERT INTO tasks(epoch,task_id,station,trace_id,robot_id,phase,outcome)
+            VALUES(50000,'archived',1,'05238dcef4a0248eb46b760fa17da291','archive',5,'arrived');
+            WITH RECURSIVE seq(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM seq WHERE n<4096)
+            INSERT INTO agent_sim_reviews(trace_id,source_task_id,source_epoch,station,created_at,expires_at)
+            SELECT printf('%032x',n),'archived',50000,1,1,2 FROM seq;
+        )SQL");
+        sqlite::Database oldEdge(edgeFile, "edge", "archive");
+        oldEdge.exec(R"SQL(
+            CREATE INDEX IF NOT EXISTS inbox_report ON inbox(reported,epoch);
+            WITH RECURSIVE seq(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM seq WHERE n<50000)
+            INSERT INTO inbox(task_id,trace_id,station,epoch,phase,outcome,reported,starts)
+            SELECT 'old-'||n,'05238dcef4a0248eb46b760fa17da291',1,n,5,'arrived',1,1 FROM seq;
+        )SQL");
+    }
+    SqliteFleetLedger ledger(fleet, 1);
+    const auto current = ledger.submit("new-task", Station::alpha, trace);
+    require(current.command.epoch == 50001, "historical epoch stopped new admission or was reused");
+    const auto recent = ledger.listBefore(0, 1);
+    const auto older = ledger.listBefore(current.command.epoch, 1);
+    require(recent.size() == 1 && recent.front().command == current.command &&
+            older.size() == 1 && older.front().command.epoch == 50000,
+            "task paging lost records beyond the old epoch ceiling");
+    require(ledger.submit("archived", Station::alpha, trace).phase == Phase::succeeded,
+            "terminal task identity did not deduplicate at live capacity");
+    ledger.apply("archive", {"archived", 50000, Phase::succeeded, "arrived"});
+    expect(ErrorCode::exhausted, [&] { ledger.submit("overload", Station::alpha, trace); });
+    require(ledger.stageReview({nebula::workflow::newTraceId(), current.command.taskId, current.command.epoch}, 1000)
+                .state == ReviewState::pending,
+            "expired approvals blocked live proposal admission");
+
+    SqliteEdgeLedger edge(edgeFile, "archive");
+    edge.stage({"old-50000", trace, Station::alpha, 50000});
+    require(!edge.pendingReceipt() && !edge.beginReady(), "archived edge command was executed again");
+    edge.stage(current.command);
+    const auto next = edge.pendingReceipt();
+    require(next && next->epoch == 50001 && !edge.beginReady(), "edge failed to accept a new command");
+    edge.confirm(*next);
+    require(edge.beginReady() == current.command, "fresh edge task ignored the acknowledgment boundary");
+}
+
 void testNavigation() {
     SimNavigation navigation(1, 1ms);
     TaskWorkflow task(navigation, 100ms);
@@ -266,6 +316,8 @@ int main() {
     const auto review = stem.string() + "-review.sqlite";
     const auto edge = stem.string() + "-edge.sqlite";
     const auto worker = stem.string() + "-worker.sqlite";
+    const auto historicalFleet = stem.string() + "-historic-fleet.sqlite";
+    const auto historicalEdge = stem.string() + "-historic-edge.sqlite";
     int exit = 0;
     const char* scenario = "scheduler initialization";
     try {
@@ -274,6 +326,8 @@ int main() {
         testSimulationReview(review);
         scenario = "edge recovery";
         testEdgeRecovery(edge);
+        scenario = "historical ledger and live capacity";
+        testHistoricalCapacity(historicalFleet, historicalEdge);
         scenario = "navigation workflow";
         testNavigation();
         scenario = "skill contract";
@@ -290,5 +344,7 @@ int main() {
     std::filesystem::remove(review, cleanup);
     std::filesystem::remove(edge, cleanup);
     std::filesystem::remove(worker, cleanup);
+    std::filesystem::remove(historicalFleet, cleanup);
+    std::filesystem::remove(historicalEdge, cleanup);
     return exit;
 }

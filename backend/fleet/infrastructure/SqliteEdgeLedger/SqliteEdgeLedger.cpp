@@ -13,7 +13,9 @@ constexpr auto schema = R"SQL(
         reported INTEGER NOT NULL DEFAULT 0 CHECK(reported IN (0,1)),
         starts INTEGER NOT NULL DEFAULT 0 CHECK(starts BETWEEN 0 AND 1)
     );
-    CREATE INDEX IF NOT EXISTS inbox_report ON inbox(reported,epoch);
+    CREATE INDEX IF NOT EXISTS inbox_pending ON inbox(epoch) WHERE reported=0;
+    CREATE INDEX IF NOT EXISTS inbox_active ON inbox(phase) WHERE phase=3 OR phase=4 OR phase=7;
+    DROP INDEX IF EXISTS inbox_report;
 )SQL";
 
 Command commandOf(const sqlite::Statement& row) {
@@ -42,10 +44,11 @@ void SqliteEdgeLedger::stage(const Command& command) {
         write.commit();
         return;
     }
-    sqlite::Statement busy(db_, "SELECT 1 FROM inbox WHERE phase IN (3,4,7) LIMIT 1");
+    sqlite::Statement busy(db_, "SELECT 1 FROM inbox WHERE phase=3 OR phase=4 OR phase=7 LIMIT 1");
     if (busy.next()) throw Error(ErrorCode::conflict, "edge already has an active or uncertain command");
-    sqlite::Statement count(db_, "SELECT COUNT(*) FROM inbox");
-    if (!count.next() || count.integer(0) >= 50000) throw Error(ErrorCode::exhausted, "edge archive is full");
+    // Retain exact command receipts for deduplication, including late replays after a restart.
+    sqlite::Statement capacity(db_, "SELECT 1 FROM inbox WHERE reported=0 LIMIT 1 OFFSET 255");
+    if (capacity.next()) throw Error(ErrorCode::exhausted, "edge pending receipt limit reached");
     sqlite::Statement(db_, "INSERT INTO inbox(task_id,trace_id,station,epoch) VALUES (?,?,?,?)")
         .bind(1, command.taskId).bind(2, command.traceId).bind(3, static_cast<int>(command.station))
         .bind(4, command.epoch).run();
