@@ -1,4 +1,4 @@
-import { adminApi } from '../AdminApi/AdminApi.js?v=9fcaa747c305a8cc';
+import { adminApi } from '../AdminApi/AdminApi.js?v=1b40f8c19ed29802';
 
 function element(tag, text) {
   const node = document.createElement(tag);

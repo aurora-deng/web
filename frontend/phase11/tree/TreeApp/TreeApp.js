@@ -1,29 +1,30 @@
-import { TreePageNavigation } from '../TreePageNavigation/TreePageNavigation.js?v=9fcaa747c305a8cc';
-import { TreePageTransition } from '../TreePageTransition/TreePageTransition.js?v=9fcaa747c305a8cc';
-import { treeApi } from "../TreeApi/TreeApi.js?v=9fcaa747c305a8cc";
-import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=9fcaa747c305a8cc";
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=9fcaa747c305a8cc';
-import { openTreeAuthor } from '../../shared/TreeAuthorCard/TreeAuthorCard.js?v=9fcaa747c305a8cc';
-import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=9fcaa747c305a8cc';
-import { CategoryRanking } from '../CategoryRanking/CategoryRanking.js?v=9fcaa747c305a8cc';
-import { trainingConsentControl } from '../TrainingConsent/TrainingConsent.js?v=9fcaa747c305a8cc';
-import { paintDiscussion } from '../../shared/DiscussionThreads/DiscussionThreads.js?v=9fcaa747c305a8cc';
-import { storyText } from '../StoryPreview/StoryPreview.js?v=9fcaa747c305a8cc';
-import { recordPublicCategoryView } from '../../shared/PersonalAgent/PersonalAgent.js?v=9fcaa747c305a8cc';
-import { preferenceSite } from '../../shared/PersonalAgent/PreferenceStore.js?v=9fcaa747c305a8cc';
-import { companionSession } from '../../shared/ClientBootstrap/ClientBootstrap.js?v=9fcaa747c305a8cc';
+import { TreePageNavigation } from '../TreePageNavigation/TreePageNavigation.js?v=1b40f8c19ed29802';
+import { TreePageTransition } from '../TreePageTransition/TreePageTransition.js?v=1b40f8c19ed29802';
+import { treeApi } from "../TreeApi/TreeApi.js?v=1b40f8c19ed29802";
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=1b40f8c19ed29802";
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=1b40f8c19ed29802';
+import { openTreeAuthor } from '../../shared/TreeAuthorCard/TreeAuthorCard.js?v=1b40f8c19ed29802';
+import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=1b40f8c19ed29802';
+import { finishSkillDraft, pendingSkillDraft, prefillPlazaDraft } from '../../shared/AssistantSkills/DraftHandoff.js?v=1b40f8c19ed29802';
+import { CategoryRanking } from '../CategoryRanking/CategoryRanking.js?v=1b40f8c19ed29802';
+import { trainingConsentControl } from '../TrainingConsent/TrainingConsent.js?v=1b40f8c19ed29802';
+import { paintDiscussion } from '../../shared/DiscussionThreads/DiscussionThreads.js?v=1b40f8c19ed29802';
+import { storyText } from '../StoryPreview/StoryPreview.js?v=1b40f8c19ed29802';
+import { recordPublicCategoryView } from '../../shared/PersonalAgent/PersonalAgent.js?v=1b40f8c19ed29802';
+import { preferenceSite } from '../../shared/PersonalAgent/PreferenceStore.js?v=1b40f8c19ed29802';
+import { companionSession } from '../../shared/ClientBootstrap/ClientBootstrap.js?v=1b40f8c19ed29802';
 mountNavigation('tree');
-import { VoiceRecorder } from '../VoiceRecorder/VoiceRecorder.js?v=9fcaa747c305a8cc';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=9fcaa747c305a8cc';
-import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=9fcaa747c305a8cc';
-import { formatChatTime } from '../../shared/TimeFormat/TimeFormat.js?v=9fcaa747c305a8cc';
+import { VoiceRecorder } from '../VoiceRecorder/VoiceRecorder.js?v=1b40f8c19ed29802';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=1b40f8c19ed29802';
+import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=1b40f8c19ed29802';
+import { formatChatTime } from '../../shared/TimeFormat/TimeFormat.js?v=1b40f8c19ed29802';
 
 const randomId = () => globalThis.crypto?.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2,'0')).join('');
 const $ = selector => document.querySelector(selector);
 const api = new BusinessApi();
 const discussionStyle = document.createElement('link');
 discussionStyle.rel = 'stylesheet';
-discussionStyle.href = '/phase11/shared/DiscussionThreads/DiscussionThreads.css?v=9fcaa747c305a8cc';
+discussionStyle.href = '/phase11/shared/DiscussionThreads/DiscussionThreads.css?v=1b40f8c19ed29802';
 document.head.append(discussionStyle);
 const state = { posts: [], ranks: [], rankedPosts: [], total: '0', before: '', previous: [], detail: null,
   replyBefore: '', categories: [], recorded: null, since: '', keyword: '', replies: [], authorOnly: false, replyTarget: null, reportPost: null };
@@ -59,7 +60,7 @@ function updateScene(){
   scene?.update([...visible.values()],Number(state.total),state.ranks);
 }
 function ensureScene(){
-  sceneLoading??=import('../TreeScene/TreeScene.js?v=9fcaa747c305a8cc').then(({TreeScene})=>{
+  sceneLoading??=import('../TreeScene/TreeScene.js?v=1b40f8c19ed29802').then(({TreeScene})=>{
     scene=new TreeScene($('#scene'),openPost);
     scene.setVisible(document.body.dataset.treeView==='tree');updateScene();
   }).catch(()=>{
@@ -287,6 +288,16 @@ async function start(){
     for(const category of state.categories){for(const selector of ['#category-filter','#publish-category','#rank-category']){const option=el('option',category.name);option.value=category.id;$(selector).append(option);}}
     $('#rank-category').disabled = false;
     applyView(location.hash.slice(1)||'tree');
+    const draft = pendingSkillDraft('plaza', String(user.id));
+    if (draft) {
+      if (prefillPlazaDraft($('#publish-form'), draft, categories)) {
+        finishSkillDraft(draft);
+        $('#publish-status').textContent = '小研草稿已带入。请核对正文和可见范围，再确认发布。';
+        $('#publish-dialog').showModal();
+      } else {
+        showError(new Error('小研草稿的分类暂不可用，或编辑框已有内容。请回小研检查。'));
+      }
+    }
     // 故事广场与榜单不加载三维模块，进入神树时再初始化。
     const sceneReady=document.body.dataset.treeView==='tree'?ensureScene():Promise.resolve();
     const query = new URL(location.href).searchParams;

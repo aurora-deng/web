@@ -1,4 +1,4 @@
-import { declaredMediaType, uploadAttachment } from '../AttachmentUpload/AttachmentUpload.js?v=9fcaa747c305a8cc';
+import { declaredMediaType, uploadAttachment } from '../AttachmentUpload/AttachmentUpload.js?v=1b40f8c19ed29802';
 export const dependencies={"resources":["$","state"],"commands":["api","formatBytes"],"types":[]};
 /** AttachmentController: explicit use cases; shared state/other controllers arrive through context. */
 export function createAttachmentController(context) {

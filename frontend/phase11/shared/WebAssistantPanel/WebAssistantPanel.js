@@ -1,12 +1,13 @@
-import { webAiApi } from '../../ai/WebAiApi/WebAiApi.js?v=9fcaa747c305a8cc';
-import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=9fcaa747c305a8cc';
-import { modelConnection, openModelConnection, requestOwnModel, resetModelConnection, restoreModelMode } from '../ModelConnection/ModelConnection.js?v=9fcaa747c305a8cc';
-import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=9fcaa747c305a8cc';
-import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=9fcaa747c305a8cc';
-import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=9fcaa747c305a8cc';
-import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=9fcaa747c305a8cc';
-import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=9fcaa747c305a8cc';
-import { WebAssistantHistory } from './WebAssistantHistory.js?v=9fcaa747c305a8cc';
+import { webAiApi } from '../../ai/WebAiApi/WebAiApi.js?v=1b40f8c19ed29802';
+import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=1b40f8c19ed29802';
+import { modelConnection, openModelConnection, requestOwnModel, resetModelConnection, restoreModelMode } from '../ModelConnection/ModelConnection.js?v=1b40f8c19ed29802';
+import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=1b40f8c19ed29802';
+import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=1b40f8c19ed29802';
+import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=1b40f8c19ed29802';
+import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=1b40f8c19ed29802';
+import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=1b40f8c19ed29802';
+import { WebAssistantHistory } from './WebAssistantHistory.js?v=1b40f8c19ed29802';
+import { SkillPanel } from '../AssistantSkills/SkillPanel.js?v=1b40f8c19ed29802';
 
 const make = (tag, content, className) => {
   const element = document.createElement(tag);
@@ -53,11 +54,13 @@ export class WebAssistantPanel {
     host.querySelector('[data-close]').onclick = () => close?.();
     this.status = host.querySelector('[role=status]');
     this.list = host.querySelector('.assistant-messages');
-    this.input = host.querySelector('textarea');
+    this.skills = new SkillPanel({ api: this.api, startInference: () => this.skillInference() });
+    this.list.before(this.skills.host);
+    this.input = host.querySelector('.assistant-composer textarea');
     this.threads = host.querySelector('[data-web-thread]');
     this.form = host.querySelector('form');
     this.consent = host.querySelector('[data-web-consent]');
-    this.consent.onchange = () => { if (!this.consent.checked) this.agent?.cancelAnalysis(); };
+    this.consent.onchange = () => { if (!this.consent.checked) { this.agent?.cancelAnalysis(); this.skills.stop(); } };
     this.threads.onchange = () => { this.history?.select(this.threads.value); this.paint(); };
     host.querySelector('[data-new]').onclick = () => { if (!this.controller && this.history) { this.history.create(id()); this.paint(); this.input.focus(); } };
     host.querySelector('[data-connection]').onclick = () => this.connections();
@@ -95,13 +98,14 @@ export class WebAssistantPanel {
       this.status.textContent = modelError ? '本站模型目录暂不可用，可以配置其他连接。' : '对话保留在当前浏览器标签页。';
       this.paint();
       this.provider();
+      this.skills.setOwner(this.owner);
     } catch (error) {
       this.status.textContent = error.status === 401 ? '登录 NEBULA 后即可使用小研。' : error.message;
     }
   }
 
   connections() {
-    if (this.controller) { this.status.textContent = '结束当前回复后再切换模型。'; return; }
+    if (this.controller || this.skills.busy) { this.status.textContent = '结束当前生成后再切换模型。'; return; }
     if (!this.history) { this.start(); return; }
     if (this.connectionDialog?.open) return;
     this.connectionDialog = openModelConnection({
@@ -156,6 +160,17 @@ export class WebAssistantPanel {
     }, messages, { model, maxTokens, signal, onText, web: true });
   }
 
+  skillInference() {
+    if (this.disposed || this.controller || !this.history) throw new Error('请先结束当前对话。');
+    if (!this.consent.checked) throw new Error('请先勾选上方的模型发送范围。');
+    const connection = modelConnection();
+    const model = this.history.model;
+    if (connection.provider === 'custom' && !connection.endpoint) throw new Error('请在模型连接中配置外部地址与 Key。');
+    return (messages, { signal, maxTokens }) => connection.provider === 'server'
+      ? this.generateServer(messages, signal, { model, maxTokens })
+      : requestOwnModel(connection, messages, { signal, maxTokens });
+  }
+
   busy(running) {
     this.threads.disabled = running;
     this.host.querySelectorAll('[data-new],[data-connection],[data-personalization],button[type=submit]').forEach(button => { button.disabled = running; });
@@ -164,12 +179,12 @@ export class WebAssistantPanel {
   }
 
   async send() {
-    if (this.controller || this.loading) return;
+    if (this.controller || this.loading || this.skills.busy) return;
     const content = this.input.value.trim();
     if (!content) return;
     if (!this.consent.checked) { this.status.textContent = '请先确认当前模型的发送范围。'; return; }
     await this.start();
-    if (!this.history || !this.consent.checked || this.controller || this.disposed) return;
+    if (!this.history || !this.consent.checked || this.controller || this.skills.busy || this.disposed) return;
     const connection = modelConnection();
     if (connection.provider === 'custom' && !connection.endpoint) { this.status.textContent = '请在模型连接中重新填写外部地址与 Key。'; return; }
     const thread = this.history.current || this.history.create(id());
@@ -224,6 +239,7 @@ export class WebAssistantPanel {
   stop() { this.controller?.abort(); }
   dispose() {
     this.disposed = true; this.stop(); this.agent?.dispose();
+    this.skills.dispose();
     this.connectionDialog?.close(); this.preferenceDialog?.close(); resetModelConnection();
   }
 }

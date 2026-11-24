@@ -28,4 +28,12 @@
 .personal-agent-settings input[type=checkbox]{width:auto;margin:3px 0 0;accent-color:var(--accent);}
 .personal-agent-settings ul{display:grid;gap:8px;padding-inline-start:20px;}
 .personal-agent-settings li button{font-size:var(--fs-meta);padding:3px 9px;}
+.assistant-skills{margin:4px 12px;flex:none;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2);}
+.assistant-skills summary{cursor:pointer;padding:8px 12px;font-weight:650;}
+.assistant-skill-fields{display:grid;gap:8px;overflow:auto;max-height:min(54dvh,460px);padding:4px 12px 12px;}
+.assistant-skill-fields label,.assistant-skill-fields [data-skill-result]{display:grid;gap:6px;}
+.assistant-skill-fields label[data-study]{display:flex;align-items:center;}
+.assistant-skill-fields p{margin:0;}
+.assistant-skill-fields label>span,.assistant-skill-fields p,.assistant-skill-fields small{color:var(--text-2);}
+.assistant-skill-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;}
 @media(max-width:520px){.assistant-heading strong{font-size:var(--fs-lead);}.assistant-empty{min-height:120px;padding:20px 12px;}.assistant-threadbar button{padding-inline:8px;}}

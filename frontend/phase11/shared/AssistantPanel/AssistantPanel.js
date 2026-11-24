@@ -1,20 +1,22 @@
-import { WebAssistantPanel } from '../WebAssistantPanel/WebAssistantPanel.js?v=9fcaa747c305a8cc';
-import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=9fcaa747c305a8cc';
-import { LocalAssistantApi } from '../LocalAssistantApi/LocalAssistantApi.js?v=9fcaa747c305a8cc';
-import { openSpeechSettings } from '../SpeechSettings/SpeechSettings.js?v=9fcaa747c305a8cc';
-import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=9fcaa747c305a8cc';
-import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=9fcaa747c305a8cc';
-import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=9fcaa747c305a8cc';
-import { conversationStore, preferenceSite } from '../PersonalAgent/PreferenceStore.js?v=9fcaa747c305a8cc';
-import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=9fcaa747c305a8cc';
-import { utf8Bytes } from '../PersonalAgent/ContextWindow.js?v=9fcaa747c305a8cc';
+import { WebAssistantPanel } from '../WebAssistantPanel/WebAssistantPanel.js?v=1b40f8c19ed29802';
+import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=1b40f8c19ed29802';
+import { LocalAssistantApi } from '../LocalAssistantApi/LocalAssistantApi.js?v=1b40f8c19ed29802';
+import { openSpeechSettings } from '../SpeechSettings/SpeechSettings.js?v=1b40f8c19ed29802';
+import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=1b40f8c19ed29802';
+import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=1b40f8c19ed29802';
+import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=1b40f8c19ed29802';
+import { conversationStore, preferenceSite } from '../PersonalAgent/PreferenceStore.js?v=1b40f8c19ed29802';
+import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=1b40f8c19ed29802';
+import { utf8Bytes } from '../PersonalAgent/ContextWindow.js?v=1b40f8c19ed29802';
+import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=1b40f8c19ed29802';
+import { SkillPanel } from '../AssistantSkills/SkillPanel.js?v=1b40f8c19ed29802';
 const node=(tag,text='',className='')=>{const e=document.createElement(tag);e.textContent=text;if(className)e.className=className;return e;};
 const token=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),n=>n.toString(16).padStart(2,'0')).join('');
 /** 小研的两个入口共享本机对话目录，已有的两类会话各自保留。 */
 export class AssistantPanel {
   constructor(host,{surface='sidebar',close}={}){
     this.host=host;this.surface=surface;this.close=close;this.api=new LocalAssistantApi();this.thread='';this.generation='';this.polling=false;this.disposed=false;this.shortcut='Alt+j';
-    const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/AssistantPanel/AssistantPanel.css?v=9fcaa747c305a8cc';document.head.append(css);
+    const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/AssistantPanel/AssistantPanel.css?v=1b40f8c19ed29802';document.head.append(css);
     host.classList.add('private-assistant');
     host.innerHTML=`
       <header class="assistant-heading">
@@ -60,6 +62,8 @@ export class AssistantPanel {
     host.querySelector('.assistant-heading').prepend(xiaoYanAvatar());
     host.querySelector('[data-full-view]').hidden = !close;
     this.status=host.querySelector('.assistant-status');this.list=host.querySelector('.assistant-messages');this.select=host.querySelector('.assistant-threadbar select');this.input=host.querySelector('.assistant-composer textarea');
+    this.skills = new SkillPanel({ api: new BusinessApi(), startInference: () => this.skillInference() });
+    this.list.before(this.skills.host);
     const migration=node('details','','assistant-migration');migration.innerHTML='<summary>迁移旧服务器的私人资料与AI历史</summary><p>先复制并校验。原文件/训练数据/备份不在这项文字迁移的清除范围内，含附件的分页会保留原副本。</p><button data-migration-list type="button">读取本人可迁移项目</button><select data-migration-resource aria-label="迁移来源"></select><button data-migration-copy type="button" disabled>复制并核验下一页</button><p data-migration-progress></p><div data-migration-pages></div>';
     host.querySelector('[data-area=settings]').append(migration);this.migrationCursor=new Map();
     const speechButton=node('button','音色、云语音与试听');speechButton.type='button';speechButton.onclick=()=>openSpeechSettings(this.api).catch(e=>this.error(e));host.querySelector('[data-area=settings]').prepend(speechButton);
@@ -112,8 +116,10 @@ export class AssistantPanel {
       });
       if(this.disposed)return;
       const site=preferenceSite(this.api.session);
-      if(publicMode||!result.available){this.web=new WebAssistantPanel(this.host,{close:this.close,hasPrivateSpace:result.available,site});return this.web.start();}
+      if(publicMode||!result.available){this.skills.dispose();this.web=new WebAssistantPanel(this.host,{close:this.close,hasPrivateSpace:result.available,site});return this.web.start();}
       this.host.querySelectorAll('input,textarea,select,button').forEach(e=>e.disabled=false);this.host.querySelector('[data-stop]').disabled=true;
+      this.privateSkillInference = Boolean(result.preferenceInference);
+      this.skills.setOwner('');
       if(result.preferenceInference&&site){
         this.agent=new PersonalAgent(this.api.account,'private',{site});
         this.contextCompaction=Boolean(result.contextCompaction);
@@ -127,6 +133,7 @@ export class AssistantPanel {
       try{const models=await this.api.request('/models');if(this.disposed)return;let choice=this.host.querySelector('[data-model-choice]');if(!choice){choice=document.createElement('select');choice.dataset.modelChoice='';choice.setAttribute('aria-label','选择已配置的私人AI');this.host.querySelector('[data-ai]').after(choice);}choice.replaceChildren(node('option','选择已配置的私人 AI'));choice.firstChild.value='';for(const model of models){const option=node('option',`${model.name} · ${model.runtime}（已配置）`);option.value=model.accountId;choice.append(option);}choice.onchange=()=>{if(choice.value)this.host.querySelector('[data-ai]').value=choice.value;};if(!settings.aiUserId&&models.length)this.host.querySelector('[data-ai]').value=models[0].accountId;choice.value=this.host.querySelector('[data-ai]').value;}catch{/* 旧服务器无模型目录时可填写账号。 */}
       await this.loadThreads();
       this.ready=!this.disposed;
+      if(this.ready)this.skills.setOwner(this.api.account);
     }catch(e){if(!this.disposed)this.error(e);}}
   tab(name){this.host.querySelectorAll('[data-area]').forEach(e=>e.hidden=e.dataset.area!==name);this.host.querySelectorAll('[data-tab]').forEach(e=>e.classList.toggle('active',e.dataset.tab===name));if(name==='documents')this.loadDocuments().catch(e=>this.error(e));if(name==='memories')this.loadMemories().catch(e=>this.error(e));if(name==='tools')this.loadActions().catch(e=>this.error(e));}
   async loadActions(){if(!this.api.account)return;const items=await this.api.request('/tools/proposals'),host=this.host.querySelector('[data-action-cards]');host.replaceChildren();for(const item of items){const card=node('article','','assistant-item');card.append(node('strong',({send_message:'发送消息',publish_activity:'发布好友可见动态',update_profile:'修改本人资料'})[item.tool]||item.tool),node('pre',JSON.stringify(item.arguments,null,2)),node('small','状态：'+item.state));if(['pending','retryable'].includes(item.state)){const confirm=node('button',item.state==='retryable'?'核对并用原编号重试':'确认执行');confirm.onclick=async()=>{confirm.disabled=true;try{await this.api.request('/tools/confirm',{method:'POST',data:{id:item.id,digest:item.digest}});await this.loadActions();this.status.textContent='操作已由服务器确认';}catch(e){this.error(e);confirm.disabled=false;}};const cancel=node('button','取消');cancel.onclick=()=>this.api.request('/tools/cancel',{method:'POST',data:{id:item.id}}).then(()=>this.loadActions()).catch(e=>this.error(e));card.append(confirm,cancel);}host.append(card);}}
@@ -162,8 +169,16 @@ export class AssistantPanel {
     },messages,{model,signal,maxTokens});
   }
 
+  skillInference() {
+    if (!this.ready || this.generation || this.sending || this.disposed) throw new Error('请先结束当前私人对话。');
+    if (!this.privateSkillInference) throw new Error('请更新客户端或使用网页对话中的技能。');
+    const model = this.host.querySelector('[data-ai]').value;
+    if (!model) throw new Error('请先在设置中选择私人模型。');
+    return (messages, options) => this.inferPreferences(model, messages, options);
+  }
+
   async send(){
-    if(this.generation||this.sending)throw new Error('请等待当前回答完成，或先停止生成');
+    if(this.generation||this.sending||this.skills.busy)throw new Error('请等待当前回答完成，或先停止生成');
     const text=this.input.value.trim();
     if(!text)return;
     if(utf8Bytes(text)>8192)throw new Error('单条私人消息上限为 8 KiB，请将这条消息拆分。');
@@ -242,7 +257,7 @@ export class AssistantPanel {
   async importFile(file){if(!file)return;if(file.size>10*1024*1024)throw new Error('单份资料最多 10 MiB');const extension='.'+file.name.split('.').pop().toLowerCase();this.status.textContent='正在本机解析和建立索引…';await this.api.request('/documents/import',{method:'POST',body:file,headers:{'Content-Type':'application/octet-stream','X-Document-Extension':extension,'X-Document-Authorized':String(this.host.querySelector('[data-consent]').checked)}});this.status.textContent='原文与索引已保存在本机';await this.loadDocuments();}
   async loadDocuments(){if(!this.api.account)return;const items=await this.api.request('/documents'),host=this.host.querySelector('[data-documents]');host.replaceChildren();for(const d of items){const card=node('article','', 'assistant-item');card.append(node('strong',d.title));const label=node('label','允许检索片段发送到自有后端');const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=d.authorized;label.prepend(checkbox);checkbox.onchange=()=>this.api.request('/documents/'+d.id,{method:'PATCH',data:{enabled:true,authorized:checkbox.checked}}).catch(e=>this.error(e));const remove=node('button','删除原文与索引');remove.onclick=async()=>{if(!confirm('删除这份本机资料？'))return;try{await this.api.request('/documents/'+d.id,{method:'DELETE'});await this.loadDocuments();}catch(e){this.error(e);}};card.append(label,remove);host.append(card);}if(!items.length)host.append(node('p','还没有导入资料。'));}
   async loadMemories(){if(!this.api.account)return;const items=await this.api.request('/memories'),host=this.host.querySelector('[data-memories]');host.replaceChildren();for(const memory of items){const card=node('article','','assistant-item'),input=node('textarea');input.value=memory.text;input.maxLength=2000;const enabled=document.createElement('input');enabled.type='checkbox';enabled.checked=memory.enabled;const label=node('label','启用');label.prepend(enabled);const save=node('button','保存修改');save.onclick=()=>this.api.request('/memories/'+memory.id,{method:'PATCH',data:{text:input.value,enabled:enabled.checked}}).then(()=>this.status.textContent='记忆已更新').catch(e=>this.error(e));const remove=node('button','删除');remove.onclick=()=>this.api.request('/memories/'+memory.id,{method:'DELETE'}).then(()=>this.loadMemories()).catch(e=>this.error(e));card.append(input,label,save,remove);host.append(card);}}
-  dispose(){this.disposed=true;this.turnController?.abort();this.agent?.dispose();this.preferenceDialog?.close();this.web?.dispose();}
+  dispose(){this.disposed=true;this.turnController?.abort();this.agent?.dispose();this.skills.dispose();this.preferenceDialog?.close();this.web?.dispose();}
 }
 export function mountGlobalAssistant(navigation,{fullPage=false}={}){
   const button=node('button','','workspace-assistant');button.title='小研 · Alt+J';button.setAttribute('aria-label','打开小研');button.type='button';button.append(xiaoYanAvatar('xiaoyan-nav-portrait'));navigation.append(button);

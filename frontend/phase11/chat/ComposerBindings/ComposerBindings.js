@@ -1,5 +1,6 @@
-import { filesApi } from "../../files/FilesApi/FilesApi.js?v=9fcaa747c305a8cc";
-import { createChatScope } from '../ChatScope/ChatScope.js?v=9fcaa747c305a8cc';
+import { filesApi } from "../../files/FilesApi/FilesApi.js?v=1b40f8c19ed29802";
+import { createChatScope } from '../ChatScope/ChatScope.js?v=1b40f8c19ed29802';
+import { clearChatDraft, matchesChatDraft } from '../../shared/AssistantSkills/DraftHandoff.js?v=1b40f8c19ed29802';
 export const dependencies={"resources":["$","elements","state","sender"],"commands":["setStatus","toast","createClientId","setButtonBusy","api","declaredMediaType","uploadFile","formatBytes","appendMessage","failPendingMessage","sendSocket","readAiTarget","refreshCancelButton","showSelectedFile"],"types":[],"events":true};
 /** Composer UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindComposer(context) {
@@ -22,12 +23,20 @@ listen($('#clear-selected-file'), 'click', () => {
   showSelectedFile(null);
 });
 
+listen(elements.messageForm.elements.message, 'input', event => {
+  matchesChatDraft(event.currentTarget, state.me?.id, state.conversation?.id);
+});
+
 listen(elements.messageForm, 'submit', async event => {
   event.preventDefault();
   if (!state.conversation || state.uploadingFile) return;
   const form = event.currentTarget;
   const input = form.elements.message;
   const content = input.value.trim();
+  if (!matchesChatDraft(input, state.me?.id, state.conversation.id)) {
+    toast('这份小研草稿已绑定原会话。请切回对应会话，或清空后撰写新消息。', 'error');
+    return;
+  }
   const selectedFile = state.selectedFile;
   if (!content && !selectedFile) return;
   let aiMode = $('#toggle-ai').getAttribute('aria-pressed') === 'true';
@@ -78,6 +87,7 @@ listen(elements.messageForm, 'submit', async event => {
       appendMessage(result.message);
       setStatus(elements.chatStatus, '文件已保存并作为消息发送。', 'success');
       input.value = '';
+      clearChatDraft(input);
       input.style.height = '';
       $('#message-file').value = '';
       showSelectedFile(null);
@@ -112,6 +122,7 @@ listen(elements.messageForm, 'submit', async event => {
     setStatus(elements.chatStatus);
   }
   input.value = '';
+  clearChatDraft(input);
   input.style.height = '';
   delete form.dataset.aiReply;
 });

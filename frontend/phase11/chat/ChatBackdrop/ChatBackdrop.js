@@ -1,4 +1,4 @@
-import { CHAT_BACKDROP_ARTWORK } from './ChatBackdropArtwork.js?v=9fcaa747c305a8cc';
+import { CHAT_BACKDROP_ARTWORK } from './ChatBackdropArtwork.js?v=1b40f8c19ed29802';
 /** Shared workspace scenery. Only twenty CSS particles move. */
 export function backdropMarkup(){
   const particles=Array.from({length:20},(_,i)=>{

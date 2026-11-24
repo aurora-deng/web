@@ -1,5 +1,6 @@
-import { sharedApi } from "../../shared/SharedApi/SharedApi.js?v=9fcaa747c305a8cc";
-import { chatApi } from "../ChatApi/ChatApi.js?v=9fcaa747c305a8cc";
+import { sharedApi } from "../../shared/SharedApi/SharedApi.js?v=1b40f8c19ed29802";
+import { chatApi } from "../ChatApi/ChatApi.js?v=1b40f8c19ed29802";
+import { clearChatDraft, finishSkillDraft, pendingSkillDraft, prefillChatDraft } from '../../shared/AssistantSkills/DraftHandoff.js?v=1b40f8c19ed29802';
 export const dependencies={"resources":["$","userPickers","unreadWatermarks","elements","state","messageView","history","sender","runtime"],"commands":["savePendingMessages","settleHistoryPending","setStatus","toast","initials","api","paintAvatar","renderConversationMembers","renderGroupGovernance","renderCurrentMessages","acknowledge","applyAiModels","loadAiModels","refreshCancelButton","connectRealtime","refreshPendingBadge","loadFriendsPreview"],"types":["UserPicker","BusinessApi","AnnouncementPlayer","formatChatTime"]};
 /** ConversationController: explicit use cases; shared state/other controllers arrive through context. */
 export function createConversationController(context) {
@@ -22,6 +23,7 @@ export function createConversationController(context) {
   const connectRealtime = (...args) => actions.connectRealtime(...args);
   const refreshPendingBadge = (...args) => actions.refreshPendingBadge(...args);
   const loadFriendsPreview = (...args) => actions.loadFriendsPreview(...args);
+  let attemptedSkillDraft;
 function advanceConversationSequence(conversationId, sequence) {
   const conversation = state.conversations.find(
     item => Number(item.id) === Number(conversationId),
@@ -58,6 +60,7 @@ function bumpUnread(conversationId, sequence) {
 
 function clearConversationView() {
   state.viewVersion += 1;
+  clearChatDraft(elements.messageForm.elements.message);
   history.reset();
   messageView.clear();
   state.conversation = null;
@@ -106,6 +109,24 @@ async function showChat(me) {
   connectRealtime();
   startAnnouncements();
   await Promise.allSettled([loadConversations(), loadFriendsPreview(), refreshPendingBadge()]);
+}
+
+async function restoreSkillDraft() {
+  const me = state.me;
+  if (!me || state.leaving || runtime.accountAbort.signal.aborted) return;
+  const draft = pendingSkillDraft('chat', String(me.id));
+  if (!draft || draft.id === attemptedSkillDraft) return;
+  attemptedSkillDraft = draft.id;
+  const target = state.conversations.find(item => String(item.id) === draft.target);
+  if (!target) return toast('小研草稿的会话暂不可用。你可以回到小研重新选择。', 'error');
+  const input = elements.messageForm.elements.message;
+  if (input.value.trim()) return toast('聊天框已有内容，未覆盖你的编辑。', 'error');
+  await openConversation(target);
+  if (state.me !== me || runtime.accountAbort.signal.aborted || String(state.conversation?.id) !== draft.target) return;
+  if (!prefillChatDraft(input, draft)) return toast('聊天框已有内容，未覆盖你的编辑。', 'error');
+  finishSkillDraft(draft);
+  input.focus();
+  toast('小研草稿已带入该会话。检查后点击发送。');
 }
 
 function stopChatSession() {
@@ -248,6 +269,8 @@ async function loadConversations() {
     }
     renderConversations();
     setStatus(elements.chatStatus);
+    // An initial load may be superseded by realtime recovery. Use the accepted list.
+    await restoreSkillDraft();
     return true;
   } catch (error) {
     setStatus(elements.chatStatus, error.message, 'error');

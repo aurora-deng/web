@@ -1,4 +1,4 @@
-import { sharedApi } from "../SharedApi/SharedApi.js?v=9fcaa747c305a8cc";
+import { sharedApi } from "../SharedApi/SharedApi.js?v=1b40f8c19ed29802";
 const cache=new WeakMap();
 /** A server contract, not a second client-side source of policy numbers. */
 export function uploadCapabilities(api) {

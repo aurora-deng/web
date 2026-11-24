@@ -1,4 +1,4 @@
-import { contactsApi } from "../../contacts/ContactsApi/ContactsApi.js?v=9fcaa747c305a8cc";
+import { contactsApi } from "../../contacts/ContactsApi/ContactsApi.js?v=1b40f8c19ed29802";
 /** Bounded public-directory picker. Selection writes the existing DTO field; server still authorizes it. */
 export class UserPicker {
   constructor(input, request, { multiple = false } = {}) {

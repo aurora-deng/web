@@ -1,11 +1,11 @@
-import { accountsApi } from '../../accounts/AccountsApi/AccountsApi.js?v=9fcaa747c305a8cc';
-import { profilesApi } from '../ProfilesApi/ProfilesApi.js?v=9fcaa747c305a8cc';
-import { uploadAttachment } from '../../files/AttachmentUpload/AttachmentUpload.js?v=9fcaa747c305a8cc';
-import { uploadCapabilities } from '../../shared/UploadCapabilities/UploadCapabilities.js?v=9fcaa747c305a8cc';
-import { applyTheme } from '../../shared/Theme/Theme.js?v=9fcaa747c305a8cc';
-import { LocalAssistantApi } from '../../shared/LocalAssistantApi/LocalAssistantApi.js?v=9fcaa747c305a8cc';
-import { openSpeechSettings } from '../../shared/SpeechSettings/SpeechSettings.js?v=9fcaa747c305a8cc';
-import { WebSpeechApi } from '../../speech/WebSpeechApi/WebSpeechApi.js?v=9fcaa747c305a8cc';
+import { accountsApi } from '../../accounts/AccountsApi/AccountsApi.js?v=1b40f8c19ed29802';
+import { profilesApi } from '../ProfilesApi/ProfilesApi.js?v=1b40f8c19ed29802';
+import { uploadAttachment } from '../../files/AttachmentUpload/AttachmentUpload.js?v=1b40f8c19ed29802';
+import { uploadCapabilities } from '../../shared/UploadCapabilities/UploadCapabilities.js?v=1b40f8c19ed29802';
+import { applyTheme } from '../../shared/Theme/Theme.js?v=1b40f8c19ed29802';
+import { LocalAssistantApi } from '../../shared/LocalAssistantApi/LocalAssistantApi.js?v=1b40f8c19ed29802';
+import { openSpeechSettings } from '../../shared/SpeechSettings/SpeechSettings.js?v=1b40f8c19ed29802';
+import { WebSpeechApi } from '../../speech/WebSpeechApi/WebSpeechApi.js?v=1b40f8c19ed29802';
 
 /** 本人设置复用账号、动态、上传与语音的原有接口。 */
 export function mountProfileSettings(root, api, refreshProfile) {

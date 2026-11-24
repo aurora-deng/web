@@ -1,3 +1,3 @@
 // Generated domain contract bindings; transport and page state are injected separately.
-import { defineEndpoints } from "../../shared/ApiContracts/ApiContracts.js?v=9fcaa747c305a8cc";
+import { defineEndpoints } from "../../shared/ApiContracts/ApiContracts.js?v=1b40f8c19ed29802";
 export const notificationsApi=defineEndpoints("notifications",[["getMeNotificationSettings","GET","/api/me/notification-settings"],["patchMeNotificationSettings","PATCH","/api/me/notification-settings"]]);

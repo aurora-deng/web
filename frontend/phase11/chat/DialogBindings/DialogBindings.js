@@ -1,4 +1,4 @@
-import { createChatScope } from '../ChatScope/ChatScope.js?v=9fcaa747c305a8cc';
+import { createChatScope } from '../ChatScope/ChatScope.js?v=1b40f8c19ed29802';
 export const dependencies={"resources":[],"commands":[],"types":[],"events":true};
 /** Dialog UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindDialog(context) {

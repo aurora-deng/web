@@ -1,6 +1,6 @@
-import { treeApi } from '../TreeApi/TreeApi.js?v=9fcaa747c305a8cc';
-import { formatShortDateTime } from '../../shared/TimeFormat/TimeFormat.js?v=9fcaa747c305a8cc';
-import { storyText } from '../StoryPreview/StoryPreview.js?v=9fcaa747c305a8cc';
+import { treeApi } from '../TreeApi/TreeApi.js?v=1b40f8c19ed29802';
+import { formatShortDateTime } from '../../shared/TimeFormat/TimeFormat.js?v=1b40f8c19ed29802';
+import { storyText } from '../StoryPreview/StoryPreview.js?v=1b40f8c19ed29802';
 
 export class CategoryRanking {
   constructor(api, { select, list, updated, onSnapshot, onOpen }) {

@@ -1,11 +1,11 @@
-import { bindAccount } from '../../accounts/AccountBindings/AccountBindings.js?v=9fcaa747c305a8cc';
-import { bindComposer } from '../ComposerBindings/ComposerBindings.js?v=9fcaa747c305a8cc';
-import { bindAi } from '../../ai/AiBindings/AiBindings.js?v=9fcaa747c305a8cc';
-import { bindContacts } from '../../contacts/ContactsBindings/ContactsBindings.js?v=9fcaa747c305a8cc';
-import { bindKnowledge } from '../../knowledge/KnowledgeBindings/KnowledgeBindings.js?v=9fcaa747c305a8cc';
-import { bindConversation } from '../ConversationBindings/ConversationBindings.js?v=9fcaa747c305a8cc';
-import { bindGroup } from '../GroupBindings/GroupBindings.js?v=9fcaa747c305a8cc';
-import { bindDialog } from '../DialogBindings/DialogBindings.js?v=9fcaa747c305a8cc';
+import { bindAccount } from '../../accounts/AccountBindings/AccountBindings.js?v=1b40f8c19ed29802';
+import { bindComposer } from '../ComposerBindings/ComposerBindings.js?v=1b40f8c19ed29802';
+import { bindAi } from '../../ai/AiBindings/AiBindings.js?v=1b40f8c19ed29802';
+import { bindContacts } from '../../contacts/ContactsBindings/ContactsBindings.js?v=1b40f8c19ed29802';
+import { bindKnowledge } from '../../knowledge/KnowledgeBindings/KnowledgeBindings.js?v=1b40f8c19ed29802';
+import { bindConversation } from '../ConversationBindings/ConversationBindings.js?v=1b40f8c19ed29802';
+import { bindGroup } from '../GroupBindings/GroupBindings.js?v=1b40f8c19ed29802';
+import { bindDialog } from '../DialogBindings/DialogBindings.js?v=1b40f8c19ed29802';
 /** Subscription composition only. Domain handlers live beside their ports. */
 export function bindChat(context) {
   bindAccount(context);

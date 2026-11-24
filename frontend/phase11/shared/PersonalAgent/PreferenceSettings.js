@@ -1,4 +1,4 @@
-import { activePreferences, preferences } from './PreferenceProfile.js?v=9fcaa747c305a8cc';
+import { activePreferences, preferences } from './PreferenceProfile.js?v=1b40f8c19ed29802';
 
 function element(tag, content = '') {
   const node = document.createElement(tag);
@@ -10,7 +10,7 @@ export function openPreferenceSettings(agent, { local = false } = {}) {
   if (!document.querySelector('[data-model-connection-css]')) {
     const css = element('link');
     css.rel = 'stylesheet';
-    css.href = '/phase11/shared/ModelConnection/ModelConnection.css?v=9fcaa747c305a8cc';
+    css.href = '/phase11/shared/ModelConnection/ModelConnection.css?v=1b40f8c19ed29802';
     css.dataset.modelConnectionCss = '';
     document.head.append(css);
   }
