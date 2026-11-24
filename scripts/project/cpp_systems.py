@@ -15,7 +15,8 @@ SANITIZERS = {"none": "", "tsan": "thread", "asan-ubsan": "address,undefined"}
 def source_digest():
     digest = sha256()
     for part in ("backend/systems", "backend/workflow", "backend/fleet", "backend/agent", "robotics/nav2_gateway",
-                 "tests/cpp_systems", "benchmarks/cpp_systems", "tools/agent"):
+                 "robotics/actuator_control", "robotics/actuator_ros_sim",
+                 "tests/cpp_systems", "benchmarks/cpp_systems", "tools/agent", "tools/body"):
         paths = sorted((ROOT / part).rglob("*"), key=lambda path: path.relative_to(ROOT).parts)
         for path in paths:
             if path.suffix in (".txt", ".h", ".cpp", ".proto", ".py"):
@@ -68,6 +69,7 @@ def main():
     cache = [
         f"-DCMAKE_BUILD_TYPE={args.config}",
         "-DBUILD_TESTING=ON",
+        "-DNEBULA_ACTUATOR_SIM=ON",
         "-DNEBULA_ENABLE_FLEET=ON",
         f"-DNEBULA_FLEET_GRPC={'ON' if args.with_grpc else 'OFF'}",
         f"-DNEBULA_FLEET_NAV2={'ON' if args.with_nav2 else 'OFF'}",
@@ -85,12 +87,13 @@ def main():
         subprocess.run(["cmake", "--build", str(build), "--config", args.config, "--parallel", "2"],
                        check=True, env=env)
         evidence["phase"] = "test-discovery"
-        label = "cpp-systems|ros2-sim" if args.with_nav2 else "cpp-systems"
+        label = "cpp-systems|actuator-sim|ros2-sim" if args.with_nav2 else "cpp-systems|actuator-sim"
         ctest = ["ctest", "--test-dir", str(build), "-C", args.config, "-L", label]
         discovered = json.loads(subprocess.check_output([*ctest, "--show-only=json-v1"], env=env))
         names = {entry["name"] for entry in discovered["tests"]}
         evidence["tests"] = sorted(names)
-        required = {"nebula_workflow_contract", "nebula_workflow_recovery", "nebula_fleet_contract", "nebula_agent_contract"}
+        required = {"nebula_workflow_contract", "nebula_workflow_recovery", "nebula_fleet_contract",
+                    "nebula_agent_contract", "nebula_actuator_contract"}
         if args.with_grpc:
             required.update({"nebula_fleet_process_contract", "nebula_fleet_backpressure", "nebula_agent_approval_handoff",
                              "nebula_agent_model_adapter", "nebula_simulation_models_and_replay"})

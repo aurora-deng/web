@@ -9,12 +9,13 @@ namespace nebula::fleet {
 // Simulation adapter to a separately launched, namespaced Nav2 stack.
 class Nav2Navigation final : public NavigationSkill {
 public:
-    Nav2Navigation(std::string robotNamespace, Capabilities stations);
+    Nav2Navigation(std::string robotNamespace, Capabilities stations, bool autostart = true);
     ~Nav2Navigation();
 
     Capabilities stations() const noexcept override { return stations_; }
     bool ready() override;
-    NavigationResult navigate(Station station, std::stop_token stop,
+    void renewCoordinatorLease() noexcept override;
+    NavigationResult navigate(const Command& command, std::stop_token stop,
                               std::chrono::steady_clock::time_point deadline) override;
 
 private:

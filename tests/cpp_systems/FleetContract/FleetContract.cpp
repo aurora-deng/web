@@ -174,7 +174,7 @@ class ControlledNavigation final : public NavigationSkill {
 public:
     Capabilities stations() const noexcept override { return 1; }
     bool ready() override { return permitted; }
-    NavigationResult navigate(Station, std::stop_token stop, std::chrono::steady_clock::time_point deadline) override {
+    NavigationResult navigate(const Command&, std::stop_token stop, std::chrono::steady_clock::time_point deadline) override {
         ++calls;
         started.count_down();
         while (!finished && !stop.stop_requested() && std::chrono::steady_clock::now() < deadline) {

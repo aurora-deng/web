@@ -2,7 +2,11 @@
 
 2026-11-22 · 初版规划以 `Function3.5` 的 `ac2c1dd` 和当时工作区的安全、运维改动为基线。历史实验按原报告的版本和环境引用。
 
-2026-11-23 · **M00–M07 软件路径收口**。本轮覆盖母 Agent 提案、技能版本、有检查点的后端 DAG、gRPC 背压和合成数据回放及训练，停止在 **M08 的 ROS 2 调用边界**。S0 的旧复现点是 `cpp-systems-pre-agent-20261123`，S3 双虚拟机 ROS Action 夹具结果按旧版独立归档。 [本轮验收](../../ops/validation/m00-m07.md) · [母 Agent 实验](../../learning/nebula-fleet-agent-and-skills.md) · [LangGraph 学习](../../learning/langgraph-nebula-lab.md) · [Skill 合同](skills/README.md)
+2026-11-24 · **M09 本地控制与软实时测量**。C++ 控制周期和独立仿真看门狗进入可复跑的实验。CentOS 的三轮结果包含 100 Hz 漏拍，保留真实设备准入项。 [测时与故障演练](../../ops/validation/m09-actuator-control.md) · [学习](../../learning/m09-actuator-control.md)
+
+2026-11-23 · **M08 双机软件仿真联调**。Ubuntu_ros 运行实际 Nav2 与两套本体命名空间，CentOS 负责工单协调与 Observer 查询。验证包含到站、取消、断线降级和账本对账。 [联调与复跑](../../ops/validation/m08-ros-cross-vm.md) · [ROS 学习](../../learning/m08-ros-lifecycle.md)
+
+2026-11-23 · **M00–M07 软件基线**。覆盖母 Agent 提案、技能版本、有检查点的后端 DAG、gRPC 背压和合成数据回放及训练。S0 的复现点是 `cpp-systems-pre-agent-20261123`，早期双虚拟机 ROS Action 夹具结果单独归档。 [阶段验收](../../ops/validation/m00-m07.md) · [母 Agent 实验](../../learning/nebula-fleet-agent-and-skills.md) · [LangGraph 学习](../../learning/langgraph-nebula-lab.md) · [Skill 合同](skills/README.md)
 
 ## 一、求职与项目定位
 

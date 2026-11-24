@@ -103,7 +103,7 @@ class Lab:
 
     def drop_acceptance_echo(self, task_id):
         env = dict(self.env, NEBULA_FLEET_ROBOT_TOKEN=self.robots["alpha"])
-        peer, log = self.spawn(self.args.peer, self.address, "alpha", "alpha.sqlite", env=env)
+        peer, log = self.spawn(self.args.peer, self.address, "alpha", "alpha.sqlite", task_id, env=env)
 
         def accepted():
             if peer.poll() is not None:

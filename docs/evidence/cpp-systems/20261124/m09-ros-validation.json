@@ -1,0 +1,264 @@
+{
+  "schema": 1,
+  "localDate": "2026-11-24",
+  "scope": "software simulation",
+  "environment": {
+    "windows": "loopback SSH forwarding",
+    "centosKernel": "5.14.0-631.el9.x86_64",
+    "ubuntuKernel": "6.8.0-149-generic",
+    "ubuntuVcpus": 2,
+    "nav2": "1.1.20-1jammy.20260908.021125",
+    "rmw": "rmw_fastrtps_cpp 6.2.9-1jammy.20251008.013154",
+    "binarySha256": {
+      "coordinator": "76525081328db10935d56135ffc3a5c00cc63f71dff051c2edcd9d26a7dd5857",
+      "edge": "05372bc9defde98d907cb236fd691c87278452901b7f20634c98016a67c447eb",
+      "actuator": "d7eeefa1c7b736d4e8e49064ca704e6afada1f5655b17c290e7cefb246e2bfff"
+    }
+  },
+  "ctest": [
+    {
+      "platform": "Windows",
+      "config": "Debug",
+      "scope": "standalone native",
+      "passed": 5
+    },
+    {
+      "platform": "CentOS",
+      "config": "Release",
+      "scope": "local gRPC Fleet and native controls",
+      "passed": 10
+    },
+    {
+      "platform": "Ubuntu_ros",
+      "config": "Release",
+      "scope": "local gRPC Fleet, ROS contracts and native controls",
+      "passed": 12
+    },
+    {
+      "platform": "CentOS",
+      "config": "Debug ASan+UBSan",
+      "scope": "native actuator contract",
+      "passed": 1
+    },
+    {
+      "platform": "CentOS",
+      "config": "Debug TSan",
+      "scope": "native actuator contract",
+      "passed": 1
+    }
+  ],
+  "safety": {
+    "schema": 1,
+    "simulation": true,
+    "passed": true,
+    "rosDomain": 96,
+    "l1Observed": {
+      "linearMps": 0.35,
+      "angularRadps": 1.3
+    },
+    "stoppedObservedByMs": {
+      "commandTimeout": 244.2,
+      "feedbackTimeout": 178.8,
+      "emergencyStop": 99.5,
+      "permitTimeout": 377.3
+    },
+    "watchdog": {
+      "zeroObservedByMs": 97.4,
+      "l2ClampedMps": 0.4,
+      "l2ClampedRadps": -1.5,
+      "oldGrantDidNotResume": true
+    },
+    "restartDidNotResumeOldGrant": true,
+    "finalStatus": {
+      "state": "armed",
+      "reason": "ok",
+      "deadlineMisses": 0,
+      "skippedSlots": 0,
+      "watchdogTrips": 0,
+      "wakeLateNs": 225350,
+      "executeNs": 2224,
+      "feedbackAgeNs": 15793959,
+      "handoffDrops": 0
+    }
+  },
+  "singleBodyCrossVm": {
+    "schema": 1,
+    "passed": true,
+    "robots": [
+      "alpha"
+    ],
+    "rosDomain": 97,
+    "nav2": "installed planner, controller, behavior tree and velocity smoother",
+    "simulation": "local ROS kinematic plant",
+    "guardedActuator": true,
+    "operatorFixtureResets": [],
+    "statusHz": 10,
+    "statusSamples": 50,
+    "statusDropped": 0,
+    "qos": {
+      "topic": "/alpha/scan",
+      "offered": "best_effort",
+      "offeredDepth": null,
+      "samplesByRequest": {
+        "reliable": 0,
+        "bestEffort": 10
+      },
+      "velocity": {
+        "topic": "/alpha/cmd_vel",
+        "reliability": "reliable",
+        "publisherDepth": null,
+        "subscriberDepth": null
+      }
+    },
+    "callbacks": {
+      "blockMs": 550,
+      "singleExecutorHeartbeats": 0,
+      "separateGroupsHeartbeats": 7
+    },
+    "lifecycle": {
+      "cycles": 10,
+      "rssBeforeKiB": 38980,
+      "rssAfterKiB": 38980,
+      "inFlightAfter": false
+    },
+    "declinedBeforeActivate": {
+      "taskId": "m08-before-configure",
+      "traceId": "7a507db5a930e93a48ec0fbc00e0fffd",
+      "epoch": 1,
+      "phase": "failed",
+      "robotId": "alpha",
+      "outcome": "precondition_failed",
+      "connected": true,
+      "needsReconciliation": false
+    },
+    "goals": [
+      {
+        "taskId": "m08-alpha-1",
+        "traceId": "5b3c4b50a5be20779ff32c6f92885a5a",
+        "epoch": 2,
+        "phase": "succeeded",
+        "robotId": "alpha",
+        "outcome": "arrived",
+        "connected": true,
+        "needsReconciliation": false,
+        "actionId": "686db7efe5343f0447884de8070159e1",
+        "feedback": 64,
+        "goalErrorM": 0.0755,
+        "elapsedMs": 3779.2
+      }
+    ],
+    "cancellation": {
+      "taskId": "m08-manual-deactivate",
+      "traceId": "68facb8ca643bed4e0db89ea4d8579d2",
+      "epoch": 3,
+      "phase": "failed",
+      "robotId": "alpha",
+      "outcome": "navigation_stopped",
+      "connected": true,
+      "needsReconciliation": false,
+      "actionId": "f2521ff80bd54c3d612feb7779600e28",
+      "rosActionStatus": "canceled"
+    },
+    "disconnect": {
+      "taskId": "m08-link-loss",
+      "traceId": "e4441a5078c00182723bee86c600e5b4",
+      "epoch": 4,
+      "phase": "failed",
+      "robotId": "alpha",
+      "outcome": "navigation_stopped",
+      "connected": true,
+      "needsReconciliation": false,
+      "actionId": "5f4ba66a9e3bfab91e8bdf4ecf2f4623",
+      "degradedAfterMs": 3019.1,
+      "reactivatedAfterMs": 369.9,
+      "zeroObservedByMs": 3078.7,
+      "interruptedPhase": "executing",
+      "neededReconciliation": true,
+      "betaStayedActive": null,
+      "rosActionStatus": "canceled",
+      "edgeStarts": 1
+    },
+    "recovery": {
+      "taskId": "m08-after-reconnect",
+      "traceId": "6c2ea97f9f8017f433294b0f9ccf3c5f",
+      "epoch": 5,
+      "phase": "succeeded",
+      "robotId": "alpha",
+      "outcome": "arrived",
+      "connected": true,
+      "needsReconciliation": false,
+      "actionId": "3502b75344d3f951b4f734465b8ce9e1",
+      "feedback": 66,
+      "goalErrorM": 0.0755,
+      "elapsedMs": 3941.5
+    }
+  },
+  "observer": {
+    "passed": true,
+    "traces": [
+      {
+        "taskId": "m08-alpha-1",
+        "traceId": "5b3c4b50a5be20779ff32c6f92885a5a",
+        "actionId": "686db7efe5343f0447884de8070159e1",
+        "events": 22
+      },
+      {
+        "taskId": "m08-after-reconnect",
+        "traceId": "6c2ea97f9f8017f433294b0f9ccf3c5f",
+        "actionId": "3502b75344d3f951b4f734465b8ce9e1",
+        "events": 22
+      },
+      {
+        "taskId": "m08-link-loss",
+        "traceId": "e4441a5078c00182723bee86c600e5b4",
+        "actionId": "5f4ba66a9e3bfab91e8bdf4ecf2f4623",
+        "events": 20
+      },
+      {
+        "taskId": "m08-manual-deactivate",
+        "traceId": "68facb8ca643bed4e0db89ea4d8579d2",
+        "actionId": "f2521ff80bd54c3d612feb7779600e28",
+        "events": 20
+      }
+    ],
+    "duplicatesOnRetry": 0,
+    "matchedEvents": 84
+  },
+  "dualBodyStress": {
+    "passed": false,
+    "runs": [
+      {
+        "run": 2,
+        "stage": "alpha repeated goals",
+        "observed": "feedback_timeout",
+        "log": "run2-evidence/alpha-actuator.log"
+      },
+      {
+        "run": 3,
+        "stage": "after alpha and beta arrival, before cancellation fixture",
+        "observed": "feedback_timeout",
+        "log": "run3-evidence/alpha-actuator.log"
+      },
+      {
+        "run": 5,
+        "stage": "beta navigation",
+        "observed": "command_timeout",
+        "log": "run5-evidence/beta-actuator.log"
+      },
+      {
+        "run": 6,
+        "stage": "alpha repeated goals",
+        "observed": "feedback_timeout",
+        "log": "run6-evidence/alpha-actuator.log"
+      }
+    ]
+  },
+  "cleanup": {
+    "centosForwardPort": 52535,
+    "windowsForwardPort": 59463,
+    "ubuntuForwardPort": 33095,
+    "finalListeners": 0,
+    "temporaryCredentialFiles": 0,
+    "labRosProcesses": 0
+  }
+}

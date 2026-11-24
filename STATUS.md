@@ -1,5 +1,9 @@
 # 当前状态
 
+**M09 本地控制与仿真**。ROS 安全演练及 CentOS → Ubuntu_ros 单仿真体闭环通过。双仿真体连续压力测试和 CentOS 的 100 Hz 时序门禁未通过，三轮各 30 分钟累计漏拍约 17.2%。 [测试与复验](docs/ops/validation/m09-actuator-control.md) · [执行器实操](docs/learning/m09-actuator-control.md)
+
+**M08 双虚拟机仿真基线**。CentOS 发出车队工单，经回环 SSH 转发到 Ubuntu_ros 的 C++ ROS 2 边缘，实际 Nav2 规划与控制差速仿真体。已验证两个命名空间、生命周期、取消、失联降级、恢复对账及 Observer 查询。 [联调记录与复跑](docs/ops/validation/m08-ros-cross-vm.md) · [ROS 学习](docs/learning/m08-ros-lifecycle.md)
+
 **Function3.6 交付**。可检查的 Linux x86-64 ZIP 和离线 Web/Fleet 镜像按发布提交归档。日常网站状态请查下方运行记录。 [发布与对比](docs/releases/function3.6.md) · [部署、校验与回退](docs/ops/runtime/function3.6-deployment.md)
 
 **2026-11-23 交付维护**。业务文档按 17 个模块维护说明和实操，并在 CI 核对全部已登记的 HTTP 业务域。已清理两台虚拟机中的重复发布和实验归档。CentOS 日常站点、网关和 Observer 端口本次均无监听，隔离交付记录见下。 [上线台账](docs/business/release-matrix.md) · [维护记录](docs/ops/runtime/function3.6-artifact-maintenance.md)
@@ -8,11 +12,11 @@
 
 **Observer 告警配置**。源码分支修复了托管 Windows 发现的告警配置与诊断日志并发写入冲突，报表查询走只读连接。并发保存和事务边界专项已连续复跑 12 轮。 [故障与复验](docs/observability/validation.md#配置与诊断日志并发写入)
 
-**当前 M00–M07 · 软件路径到达 M08 的 ROS 2 调用边界**。后端 DAG 检查点、技能版本、gRPC 背压、Agent 审批以及合成数据训练和回放均有隔离验收。CentOS 和 Windows 的 Release 各通过 9 项，CentOS 原生 TSan 与 ASan/UBSan 各通过 4 项。完整 gRPC TSan 在现有 Abseil 调用栈报竞态，单列未通过。真实 ONNX 测试命中 13/24，规则仍为默认。 [本轮验收](docs/ops/validation/m00-m07.md) · [Agent 教学](docs/learning/nebula-fleet-agent-and-skills.md) · [LangGraph 实验](docs/learning/langgraph-nebula-lab.md)
+**M00–M07 软件基线**。后端 DAG 检查点、技能版本、gRPC 背压、Agent 审批以及合成数据训练和回放均有隔离验收。CentOS 和 Windows 的 Release 各通过 9 项，CentOS 原生 TSan 与 ASan/UBSan 各通过 4 项。完整 gRPC TSan 在现有 Abseil 调用栈报竞态，单列未通过。真实 ONNX 测试命中 13/24，规则仍为默认。 [阶段验收](docs/ops/validation/m00-m07.md) · [Agent 教学](docs/learning/nebula-fleet-agent-and-skills.md) · [LangGraph 实验](docs/learning/langgraph-nebula-lab.md)
 
 **M00–M07 本机车队压测**。4,000 次接收 ACK，零失败。各轮 P99 为 66.54–71.75 ms，超过 50 ms 参考预算。源码验收锚点为 `cpp-systems-m00-m07-lab-20261123`。 [负载及细项](docs/evidence/cpp-systems/20261123/m00-m07.json)
 
-**C++ 系统阶段**。通用 DAG、独立 gRPC 协调器、边缘账本、断线恢复与 Observer 已在 Windows 和 Linux 验证。原生 TSan、ASan/UBSan 通过。CentOS 协调器与 Ubuntu_ros 边缘实现跨虚拟机派发和重启对账，200 次混合接收 0 错误，P99 为 30.59 ms。工作停在具身 Agent 开发前。 [架构](docs/architecture/overview/cpp-systems.md) · [运行与验收](docs/ops/validation/cpp-systems.md) · [跨机实测](docs/ops/validation/cpp-systems-cross-vm.md)
+**早期车队基线**。通用 DAG、独立 gRPC 协调器、边缘账本、断线恢复与 Observer 已在 Windows 和 Linux 验证。原生 TSan、ASan/UBSan 通过。CentOS 协调器与 Ubuntu_ros 边缘实现跨虚拟机派发和重启对账，200 次混合接收 0 错误，P99 为 30.59 ms。 [架构](docs/architecture/overview/cpp-systems.md) · [运行与验收](docs/ops/validation/cpp-systems.md) · [历史跨机基线](docs/ops/validation/cpp-systems-cross-vm.md)
 
 **Function3.5 源码发布**涵盖小研 DAG、长会话记忆、Envoy 映射和 Observer 增量刷新。日常入口和源码分支的版本记录各自可查。[本版验收](docs/releases/function3.5.md) · [逐文件清单](docs/releases/function3.5-files.md) · [后续路线](docs/roadmap/next-steps.md)
 

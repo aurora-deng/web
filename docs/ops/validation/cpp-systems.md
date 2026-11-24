@@ -4,6 +4,8 @@
 
 M00–M07 的最新测试矩阵、恢复语义和测量口径单列在交付报告。本页下方的早期 2 项 Sanitizer 和跨机结果保留作历史基线。 [M00–M07 软件交付与复验](m00-m07.md)
 
+独立 C++ 系统构建会注册 M09 执行器合约。ROS 档一并构建仿真适配器，故障演练和 Linux 长测由单独脚本触发。 [M09 启动和实测](m09-actuator-control.md)
+
 ## 一、按环境构建
 
 需要支持 C++20 的现有工具链、CMake 3.21+、Python 3.9+。Windows 使用系统自带的 `winsqlite3.dll`，Linux 启用车队时需要已有 SQLite 开发头和库。gRPC 可选档要求已有 gRPC C++、Protobuf、`protoc` 和 `grpc_cpp_plugin`。Windows 的 MinGW 与 protoc 组合遇到中文路径时，可使用 ASCII 路径的源码副本、SDK 前缀和构建目录。

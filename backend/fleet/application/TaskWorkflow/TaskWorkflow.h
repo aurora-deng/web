@@ -13,6 +13,7 @@ struct Outcome {
 class TaskWorkflow {
 public:
     explicit TaskWorkflow(NavigationSkill& navigation, workflow::Milliseconds navigationTimeout);
+    void renewCoordinatorLease() noexcept { navigation_.renewCoordinatorLease(); }
     Outcome run(const Command& command, std::stop_token stop, std::function<void(const workflow::Event&)> sink);
 
 private:

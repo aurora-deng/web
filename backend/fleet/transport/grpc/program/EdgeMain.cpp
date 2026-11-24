@@ -28,9 +28,9 @@ unsigned number(std::string_view text) {
 
 std::unique_ptr<NavigationSkill> navigationFor(std::string_view adapter, const char* robot,
                                                Capabilities capabilities) {
-    if (adapter == "nav2") {
+    if (adapter == "nav2" || adapter == "nav2-managed") {
 #ifdef NEBULA_FLEET_NAV2
-        return std::make_unique<Nav2Navigation>(robot, capabilities);
+        return std::make_unique<Nav2Navigation>(robot, capabilities, adapter == "nav2");
 #else
         throw Error(ErrorCode::invalid, "Nav2 simulation adapter is disabled in this build");
 #endif
@@ -80,7 +80,7 @@ private:
 int main(int argc, char* argv[]) {
     try {
         if (argc != 6 && argc != 7) {
-            throw Error(ErrorCode::invalid, "usage: nebula_fleet_edge 127.0.0.1:PORT ROBOT LEDGER STATIONS SIM_MS|nav2 [EVENTS_JSONL]");
+            throw Error(ErrorCode::invalid, "usage: nebula_fleet_edge 127.0.0.1:PORT ROBOT LEDGER STATIONS SIM_MS|nav2|nav2-managed [EVENTS_JSONL]");
         }
         localPort(argv[1]);
         const auto capabilities = number(argv[4]);
@@ -88,7 +88,8 @@ int main(int argc, char* argv[]) {
         const auto token = environmentToken("NEBULA_FLEET_ROBOT_TOKEN");
         SqliteEdgeLedger ledger(std::filesystem::path(argv[3]), argv[2]);
         auto navigation = navigationFor(adapter, argv[2], capabilities);
-        const auto budget = adapter == "nav2" ? 45s : std::chrono::milliseconds{number(adapter)} + 250ms;
+        const auto budget = adapter == "nav2" || adapter == "nav2-managed"
+            ? 45s : std::chrono::milliseconds{number(adapter)} + 250ms;
         TaskWorkflow task(*navigation, budget);
         EventFile events(argc == 7 ? argv[6] : nullptr);
         EdgeWorker worker(ledger, task, [&](const auto& event) { events.collect(event); }, [&] { events.flush(); });

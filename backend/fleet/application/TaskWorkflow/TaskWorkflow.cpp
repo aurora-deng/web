@@ -32,7 +32,7 @@ Outcome TaskWorkflow::run(const Command& command, std::stop_token stop, std::fun
         {"navigate", {"status", "capability"}, [&](const NodeContext& context) {
             auto chassis = navigation_.claimChassis();
             if (!chassis.owns_lock()) return WorkResult{WorkStatus::failure, {}, "chassis_busy"};
-            switch (navigation_.navigate(command.station, context.stop, context.deadline)) {
+            switch (navigation_.navigate(command, context.stop, context.deadline)) {
             case NavigationResult::arrived: return WorkResult{};
             case NavigationResult::rejected: return WorkResult{WorkStatus::failure, {}, "navigation_rejected"};
             case NavigationResult::stopped: return WorkResult{WorkStatus::failure, {}, "navigation_stopped"};

@@ -5,6 +5,6 @@
 3. 运行 `ctest --test-dir "$FLEET_BUILD" -R 'nebula_fleet_contract|nebula_fleet_process_contract' --output-on-failure`。后一个用例需要已构建独立 gRPC 档。比较旧边缘声明缺少可选字段时的兼容结果。
 4. 在 Observer 以 `taskId` 与 traceId 核对技能开始、结束和错误。ROS 实验仅用既有 Nav2 仿真环境，先查启动前与取消的预期行为。
 
-[M02 Skill 验证](../../ops/validation/m00-m07.md) · [软件边缘与 M08 路线](../../roadmap/embodied-systems/README.md)
+[M02 Skill 验证](../../ops/validation/m00-m07.md) · [M08 ROS 生命周期和 Action 练习](../../learning/m08-ros-lifecycle.md) · [双机验收](../../ops/validation/m08-ros-cross-vm.md)
 
 [业务说明](README.md) · [业务目录](../README.md)

@@ -9,7 +9,7 @@ public:
     SimNavigation(Capabilities stations, std::chrono::milliseconds travelTime);
     Capabilities stations() const noexcept override { return stations_; }
     bool ready() override { return true; }
-    NavigationResult navigate(Station station, std::stop_token stop,
+    NavigationResult navigate(const Command& command, std::stop_token stop,
                               std::chrono::steady_clock::time_point deadline) override;
 
 private:

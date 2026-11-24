@@ -12,9 +12,9 @@ SimNavigation::SimNavigation(Capabilities stations, std::chrono::milliseconds tr
     }
 }
 
-NavigationResult SimNavigation::navigate(Station station, std::stop_token stop,
+NavigationResult SimNavigation::navigate(const Command& command, std::stop_token stop,
                                         std::chrono::steady_clock::time_point deadline) {
-    if (!hasStation(stations_, station)) return NavigationResult::rejected;
+    if (!hasStation(stations_, command.station)) return NavigationResult::rejected;
     using Clock = std::chrono::steady_clock;
     const auto arrives = Clock::now() + travelTime_;
     const auto until = std::min(arrives, deadline);

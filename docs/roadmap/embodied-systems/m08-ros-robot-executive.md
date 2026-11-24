@@ -2,6 +2,8 @@
 
 P1 · S3。以你会用 ROS 小机器人为起点，把精力放在集成、诊断和故障生命周期。先做一台可以测的机器人。
 
+实现接在独立 Fleet 边缘的 `robotics/nav2_gateway/`，复用原 gRPC 工单、身份、`epoch` 及恢复合同。仿真层从用户现有 ROS 工作区外单独启动。 [复验与使用](../../ops/validation/m08-ros-cross-vm.md) · [学习与排查](../../learning/m08-ros-lifecycle.md)
+
 ## 技术要求
 
 - 用 `rclcpp` 实现边缘桥与本体执行器适配，维护任务状态、能力、准备度与安全状态。用 ROS 2 Action 承载可等待、可取消、带反馈的任务。
@@ -12,7 +14,7 @@ P1 · S3。以你会用 ROS 小机器人为起点，把精力放在集成、诊�
 ## 已有基础与待补能力
 
 - **已有**。你已具备 ROS 小车软件基础。NEBULA 现有 gRPC 基础、隔离运行记录、设备事件和合成协作模式可用。
-- **待补**。仓库中可构建的机器人工作区、与 Job/Skill 合同对应的 `rclcpp` 适配、QoS 和回调组的实测表、生命周期与安全交接。具体 ROS 版本、RMW 和设备 SDK 待盘点。[已有 ROS 学习路线](../learning/ROBOTICS_ROADMAP.md) · [ROS 2 QoS 兼容性](https://github.com/ros2/ros2_documentation/blob/jazzy/source/Concepts/Intermediate/About-Quality-of-Service-Settings.rst)
+- **本轮完成**。独立 ROS 构建、现有 Job/Skill 合同的 `rclcpp` 适配、Humble/Nav2 仿真、QoS、生命周期、回调组和跨机断线均有验收。硬件型号、设备 SDK 和实机准入属于后续实验。 [双机实测](../../ops/validation/m08-ros-cross-vm.md) · [已有 ROS 学习路线](../learning/ROBOTICS_ROADMAP.md) · [ROS 2 QoS 兼容性](https://github.com/ros2/ros2_documentation/blob/humble/source/Concepts/Intermediate/About-Quality-of-Service-Settings.rst)
 
 ## 学习内容与目标深度
 

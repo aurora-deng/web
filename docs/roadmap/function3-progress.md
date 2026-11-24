@@ -1,5 +1,9 @@
 # Function3 实施与验收台账
 
+M09 增加本地 C++ 控制周期与独立仿真驱动，核心合约接入现有 C++ CI。Ubuntu_ros 的故障注入和 CentOS → Ubuntu_ros 单仿真体联调通过。两台仿真体的连续压力测试和三轮各 30 分钟的 100 Hz 时序长测未达标。 [计时与安全验收](../ops/validation/m09-actuator-control.md) · [学习文档](../learning/m09-actuator-control.md)
+
+M08 完成 CentOS 协调器和 Ubuntu_ros 真实 Nav2 仿真的双机闭环。两套命名空间完成导航，失联后受控取消并恢复对账。 [结果与复跑](../ops/validation/m08-ros-cross-vm.md) · [学习文档](../learning/m08-ros-lifecycle.md)
+
 Function3.6 交付后端 C++ DAG、gRPC 车队、Agent 提案审批与 Skill 合同。GitHub Release 可下载 Linux ZIP 和离线 Web/Fleet 镜像。各业务附有说明、实操与上线复验条件。 [发布记录](../releases/function3.6.md) · [业务学习入口](../business/README.md) · [上线台账](../business/release-matrix.md)
 
 Function3.3 整理了缘续-聊天、缘生-广场命名与切页，新增研途首次账号绑定和 Windows 返回原模块的切号流程。监控、接口、目录与运行证据继续按原主题维护。[版本说明](../releases/function3.3.md) · [目录](../architecture/overview/project-layout.md)

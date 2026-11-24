@@ -1,0 +1,293 @@
+{
+  "schema": 1,
+  "date": "2026-11-23",
+  "scope": "M08 software simulation and two-VM end-to-end verification",
+  "run": "run9",
+  "topology": {
+    "coordinator": {
+      "host": "CentOS Stream 9",
+      "grpc": "1.82.0",
+      "loopbackPort": 59479,
+      "binarySha256": "76525081328db10935d56135ffc3a5c00cc63f71dff051c2edcd9d26a7dd5857"
+    },
+    "rosEdge": {
+      "host": "Ubuntu 22.04",
+      "grpc": "1.30.2",
+      "ros": "Humble",
+      "rclcpp": "16.0.15",
+      "nav2": "1.1.20",
+      "rmw": "rmw_fastrtps_cpp 6.2.9",
+      "loopbackPort": 49529,
+      "binarySha256": "1161c8dba3b3ed52e9e50aad73d3fcc82fae7b89cacff8cf693d16eebb014782"
+    },
+    "transport": "two SSH forwards through Windows loopback",
+    "windowsRelayPort": 56865,
+    "rosLocalhostOnly": true
+  },
+  "simulationProfile": {
+    "nav2Processes": "per node, per robot namespace",
+    "controllerHz": 10,
+    "behaviorTreePeriodMs": 50,
+    "localActionAckTimeoutMs": 1000,
+    "dwbSamples": {
+      "vx": 10,
+      "vy": 1,
+      "vtheta": 15
+    }
+  },
+  "regression": {
+    "centosReleasePassed": 9,
+    "ubuntuReleasePassed": 11,
+    "windowsNativeDebugPassed": 4,
+    "frozenCommunicationFilesVerified": 152,
+    "ubuntuTargetedAfterFixtureChangePassed": 3
+  },
+  "integrated": {
+    "schema": 1,
+    "passed": true,
+    "robots": [
+      "alpha",
+      "beta"
+    ],
+    "rosDomain": 93,
+    "nav2": "installed planner, controller, behavior tree and velocity smoother",
+    "simulation": "local ROS kinematic plant",
+    "statusHz": 10.0,
+    "statusSamples": 51,
+    "statusDropped": 0,
+    "qos": {
+      "topic": "/alpha/scan",
+      "offered": "best_effort",
+      "offeredDepth": null,
+      "samplesByRequest": {
+        "reliable": 0,
+        "bestEffort": 10
+      },
+      "velocity": {
+        "topic": "/alpha/cmd_vel",
+        "reliability": "reliable",
+        "publisherDepth": null,
+        "subscriberDepth": null
+      }
+    },
+    "callbacks": {
+      "blockMs": 550,
+      "singleExecutorHeartbeats": 0,
+      "separateGroupsHeartbeats": 7
+    },
+    "lifecycle": {
+      "cycles": 10,
+      "rssBeforeKiB": 42204,
+      "rssAfterKiB": 42204,
+      "inFlightAfter": false
+    },
+    "declinedBeforeActivate": {
+      "taskId": "m08-before-configure",
+      "traceId": "02102aeea41190470b86c66572273221",
+      "epoch": 1,
+      "phase": "failed",
+      "robotId": "alpha",
+      "outcome": "precondition_failed",
+      "connected": true,
+      "needsReconciliation": false
+    },
+    "goals": [
+      {
+        "taskId": "m08-alpha-1",
+        "traceId": "3d3c661fffaa918712531a910e8b8a73",
+        "epoch": 2,
+        "phase": "succeeded",
+        "robotId": "alpha",
+        "outcome": "arrived",
+        "connected": true,
+        "needsReconciliation": false,
+        "actionId": "7fff94263c56a1b0978e2a18ad864ad0",
+        "feedback": 68,
+        "goalErrorM": 0.0769,
+        "elapsedMs": 4249.2
+      },
+      {
+        "taskId": "m08-alpha-2",
+        "traceId": "8e5d34ae5358a195fbfd66b6d639ceef",
+        "epoch": 3,
+        "phase": "succeeded",
+        "robotId": "alpha",
+        "outcome": "arrived",
+        "connected": true,
+        "needsReconciliation": false,
+        "actionId": "15d67b29d94e768487af3f76f7d40997",
+        "feedback": 78,
+        "goalErrorM": 0.0758,
+        "elapsedMs": 4610.2
+      },
+      {
+        "taskId": "m08-alpha-3",
+        "traceId": "ad3c2ff13ea712d43ef2993629570d11",
+        "epoch": 4,
+        "phase": "succeeded",
+        "robotId": "alpha",
+        "outcome": "arrived",
+        "connected": true,
+        "needsReconciliation": false,
+        "actionId": "f80d57db44e4960735a46745ffc4e899",
+        "feedback": 76,
+        "goalErrorM": 0.0776,
+        "elapsedMs": 4817.0
+      },
+      {
+        "taskId": "m08-alpha-4",
+        "traceId": "4e273665123cc6b72dafc00cd8bf12bf",
+        "epoch": 5,
+        "phase": "succeeded",
+        "robotId": "alpha",
+        "outcome": "arrived",
+        "connected": true,
+        "needsReconciliation": false,
+        "actionId": "8c586c64ad1f27e6582b8011746a0010",
+        "feedback": 78,
+        "goalErrorM": 0.0774,
+        "elapsedMs": 4518.9
+      },
+      {
+        "taskId": "m08-alpha-5",
+        "traceId": "74c7366b7d901b50b0324835dfa078c3",
+        "epoch": 6,
+        "phase": "succeeded",
+        "robotId": "alpha",
+        "outcome": "arrived",
+        "connected": true,
+        "needsReconciliation": false,
+        "actionId": "2d79c0e7d80731e66115ff139c30d891",
+        "feedback": 84,
+        "goalErrorM": 0.077,
+        "elapsedMs": 4908.7
+      },
+      {
+        "taskId": "m08-beta-1",
+        "traceId": "4d92e7982d079174626ece662e11938d",
+        "epoch": 7,
+        "phase": "succeeded",
+        "robotId": "beta",
+        "outcome": "arrived",
+        "connected": true,
+        "needsReconciliation": false,
+        "actionId": "b489910a463fbe9aa2b6491eee2a46bf",
+        "feedback": 177,
+        "goalErrorM": 0.0742,
+        "elapsedMs": 9849.5
+      }
+    ],
+    "cancellation": {
+      "taskId": "m08-manual-deactivate",
+      "traceId": "36eb8267e1026bfd9ca36cffd106ad1b",
+      "epoch": 8,
+      "phase": "failed",
+      "robotId": "alpha",
+      "outcome": "navigation_stopped",
+      "connected": true,
+      "needsReconciliation": false,
+      "actionId": "9aa3959b930d4f11f3b144088105ac54",
+      "rosActionStatus": "canceled"
+    },
+    "disconnect": {
+      "taskId": "m08-link-loss",
+      "traceId": "29fc607086fc441508eeebbef8dc9613",
+      "epoch": 9,
+      "phase": "failed",
+      "robotId": "alpha",
+      "outcome": "navigation_stopped",
+      "connected": true,
+      "needsReconciliation": false,
+      "actionId": "87b422a4746fbd658edbc8aeeeebe010",
+      "degradedAfterMs": 3003.7,
+      "reactivatedAfterMs": 454.6,
+      "interruptedPhase": "executing",
+      "neededReconciliation": true,
+      "betaStayedActive": true,
+      "rosActionStatus": "canceled",
+      "edgeStarts": 1
+    },
+    "recovery": {
+      "taskId": "m08-after-reconnect",
+      "traceId": "3447552fd0ae9b1e5ffa276d28ffd9b5",
+      "epoch": 10,
+      "phase": "succeeded",
+      "robotId": "alpha",
+      "outcome": "arrived",
+      "connected": true,
+      "needsReconciliation": false,
+      "actionId": "f0a75dcf739415cda4e48ea338d3d2d4",
+      "feedback": 77,
+      "goalErrorM": 0.0765,
+      "elapsedMs": 4507.3
+    }
+  },
+  "observerOnCentOS": {
+    "passed": true,
+    "traces": [
+      {
+        "taskId": "m08-alpha-1",
+        "traceId": "3d3c661fffaa918712531a910e8b8a73",
+        "actionId": "7fff94263c56a1b0978e2a18ad864ad0",
+        "events": 22
+      },
+      {
+        "taskId": "m08-alpha-2",
+        "traceId": "8e5d34ae5358a195fbfd66b6d639ceef",
+        "actionId": "15d67b29d94e768487af3f76f7d40997",
+        "events": 22
+      },
+      {
+        "taskId": "m08-alpha-3",
+        "traceId": "ad3c2ff13ea712d43ef2993629570d11",
+        "actionId": "f80d57db44e4960735a46745ffc4e899",
+        "events": 22
+      },
+      {
+        "taskId": "m08-alpha-4",
+        "traceId": "4e273665123cc6b72dafc00cd8bf12bf",
+        "actionId": "8c586c64ad1f27e6582b8011746a0010",
+        "events": 22
+      },
+      {
+        "taskId": "m08-alpha-5",
+        "traceId": "74c7366b7d901b50b0324835dfa078c3",
+        "actionId": "2d79c0e7d80731e66115ff139c30d891",
+        "events": 22
+      },
+      {
+        "taskId": "m08-beta-1",
+        "traceId": "4d92e7982d079174626ece662e11938d",
+        "actionId": "b489910a463fbe9aa2b6491eee2a46bf",
+        "events": 22
+      },
+      {
+        "taskId": "m08-after-reconnect",
+        "traceId": "3447552fd0ae9b1e5ffa276d28ffd9b5",
+        "actionId": "f0a75dcf739415cda4e48ea338d3d2d4",
+        "events": 22
+      },
+      {
+        "taskId": "m08-link-loss",
+        "traceId": "29fc607086fc441508eeebbef8dc9613",
+        "actionId": "87b422a4746fbd658edbc8aeeeebe010",
+        "events": 20
+      },
+      {
+        "taskId": "m08-manual-deactivate",
+        "traceId": "36eb8267e1026bfd9ca36cffd106ad1b",
+        "actionId": "9aa3959b930d4f11f3b144088105ac54",
+        "events": 20
+      }
+    ],
+    "duplicatesOnRetry": 0,
+    "matchedEvents": 194
+  },
+  "shutdown": {
+    "centosCoordinatorPortClosed": true,
+    "ubuntuForwardPortClosed": true,
+    "windowsRelayPortClosed": true,
+    "ubuntuLabDomainProcesses": 0,
+    "testCredentialsRemoved": true
+  }
+}

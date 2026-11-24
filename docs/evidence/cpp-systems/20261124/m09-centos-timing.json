@@ -1,0 +1,574 @@
+{
+  "kind": "linux-actuator-soft-timing",
+  "periodNs": 10000000,
+  "secondsPerRound": 1800,
+  "expectedRounds": 3,
+  "cpu": 3,
+  "scheduler": "SCHED_OTHER",
+  "visibleCpus": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "kernelRelease": "5.14.0-631.el9.x86_64",
+  "kernelBuild": "#1 SMP PREEMPT_DYNAMIC Mon Oct 27 16:25:03 UTC 2025",
+  "realtime": null,
+  "isolatedCpuList": "",
+  "clockResolutionNs": 1,
+  "probeSha256": "f0163a0b76107cddd677220927235f00066b6a35d869d1ae2ceddda0a9384e5a",
+  "sourceSha256": {
+    "robotics/actuator_control/CMakeLists.txt": "058dc51b620073251eb838691e3d690b8d3d6c94c9ef74e8bb972242d7e2b476",
+    "robotics/actuator_control/ControlLoop/ControlLoop.cpp": "5c907d8250cfc43cf271d0cc374859c85681d9947d38dc5068fcd02942196e18",
+    "robotics/actuator_control/ControlLoop/ControlLoop.h": "06c6b235c8162f9e6be587887b07859452770adcd14f5846389910f8613ed8a4",
+    "robotics/actuator_control/ControlProbe/ControlProbe.cpp": "4415dc5b06948662f6610ede7c0150a50a71a707a5017d493de01ace781dd724",
+    "robotics/actuator_control/PeriodicClock/PeriodicClock.cpp": "65465b09a0cb059cc2fa04984811e553f14daa355a38e75d2f5530b2d8d1136d",
+    "robotics/actuator_control/PeriodicClock/PeriodicClock.h": "c4920f3893cfd663cbd3e4c7317770c950b44ae7f4e086b8b751491685a80741",
+    "robotics/actuator_control/SimDrive/SimDrive.cpp": "7a30fc05b1095070d5660e046aae1778566f8f9647954443241d75fd69b45d6b",
+    "robotics/actuator_control/SimDrive/SimDrive.h": "6beaa69438d8748ca6b4adc59aa1897b7422e08c9a198f0f66fe93b29a59d68e",
+    "robotics/actuator_control/SpscQueue/SpscQueue.h": "9d771a1a7c149b7efeb6ae430fa692a91292b2929e1104c64d9e5b2848695085",
+    "robotics/actuator_control/tests/ActuatorContract/ActuatorContract.cpp": "ef36180d1f6580a9ba3d787ba3aa5c2f9ff61a7b335d87d9c946dbddf4c07756"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "startedUtc": "2026-11-23T12:34:19+00:00",
+      "completedUtc": "2026-11-23T13:04:21+00:00",
+      "seconds": 1800,
+      "loadAverageBefore": [
+        0.3,
+        0.17,
+        0.11
+      ],
+      "loadAverageAfter": [
+        1.36,
+        1.15,
+        0.78
+      ],
+      "cpuLoad": {
+        "startOffsetMs": 900093.11658,
+        "finishOffsetMs": 1800001.776732,
+        "cpuMs": 883640.931791,
+        "transitionGuardMs": 2000
+      },
+      "rawFile": "round-1.csv",
+      "rawSha256": "b39df9709d42cc336892bd54b6ba99c26ffa0de79d7f90add8f2668b54f9970d",
+      "all": {
+        "cycles": 148986,
+        "deadlineMisses": 30724,
+        "skippedSlots": 31014,
+        "outputReasons": {
+          "ok": 148986
+        },
+        "timing": {
+          "wakeLateUs": {
+            "p50": 1524.716,
+            "p95": 14145.819,
+            "p99": 15566.796,
+            "max": 295088.865
+          },
+          "executeUs": {
+            "p50": 1.333,
+            "p95": 2.936,
+            "p99": 4.159,
+            "max": 12601.704
+          },
+          "finishUs": {
+            "p50": 1526.318,
+            "p95": 14148.279,
+            "p99": 15572.859,
+            "max": 295090.398
+          },
+          "readUs": {
+            "p50": 0.481,
+            "p95": 1.112,
+            "p99": 1.653,
+            "max": 7231.94
+          },
+          "updateUs": {
+            "p50": 0.631,
+            "p95": 1.513,
+            "p99": 2.054,
+            "max": 1734.813
+          },
+          "writeUs": {
+            "p50": 0.19,
+            "p95": 0.471,
+            "p99": 0.721,
+            "max": 12600.622
+          },
+          "intervalErrorUs": {
+            "p50": 1042.545,
+            "p95": 6302.37,
+            "p99": 8427.234,
+            "max": 293747.795
+          }
+        }
+      },
+      "ambient": {
+        "cycles": 59117,
+        "deadlineMisses": 30522,
+        "skippedSlots": 30693,
+        "outputReasons": {
+          "ok": 59117
+        },
+        "timing": {
+          "wakeLateUs": {
+            "p50": 10155.819,
+            "p95": 15058.114,
+            "p99": 16152.909,
+            "max": 295088.865
+          },
+          "executeUs": {
+            "p50": 1.403,
+            "p95": 3.136,
+            "p99": 27.67,
+            "max": 3265.196
+          },
+          "finishUs": {
+            "p50": 10159.429,
+            "p95": 15060.089,
+            "p99": 16159.728,
+            "max": 295090.398
+          },
+          "readUs": {
+            "p50": 0.531,
+            "p95": 1.232,
+            "p99": 1.914,
+            "max": 3264.405
+          },
+          "updateUs": {
+            "p50": 0.641,
+            "p95": 1.503,
+            "p99": 2.155,
+            "max": 1418.698
+          },
+          "writeUs": {
+            "p50": 0.22,
+            "p95": 0.471,
+            "p99": 0.771,
+            "max": 2407.945
+          },
+          "intervalErrorUs": {
+            "p50": 5434.596,
+            "p95": 7071.094,
+            "p99": 9746.39,
+            "max": 293747.795
+          }
+        }
+      },
+      "sameCpuLoad": {
+        "cycles": 89539,
+        "deadlineMisses": 133,
+        "skippedSlots": 251,
+        "outputReasons": {
+          "ok": 89539
+        },
+        "timing": {
+          "wakeLateUs": {
+            "p50": 798.52,
+            "p95": 1929.647,
+            "p99": 2122.793,
+            "max": 179679.104
+          },
+          "executeUs": {
+            "p50": 1.233,
+            "p95": 2.836,
+            "p99": 3.677,
+            "max": 12601.704
+          },
+          "finishUs": {
+            "p50": 800.132,
+            "p95": 1931.441,
+            "p99": 2125.612,
+            "max": 179680.677
+          },
+          "readUs": {
+            "p50": 0.391,
+            "p95": 1.032,
+            "p99": 1.463,
+            "max": 7231.94
+          },
+          "updateUs": {
+            "p50": 0.621,
+            "p95": 1.523,
+            "p99": 1.993,
+            "max": 1734.813
+          },
+          "writeUs": {
+            "p50": 0.171,
+            "p95": 0.471,
+            "p99": 0.691,
+            "max": 12600.622
+          },
+          "intervalErrorUs": {
+            "p50": 334.071,
+            "p95": 1632.634,
+            "p99": 2279.058,
+            "max": 178133.58
+          }
+        }
+      }
+    },
+    {
+      "round": 2,
+      "startedUtc": "2026-11-23T13:04:22+00:00",
+      "completedUtc": "2026-11-23T13:34:24+00:00",
+      "seconds": 1800,
+      "loadAverageBefore": [
+        1.36,
+        1.15,
+        0.78
+      ],
+      "loadAverageAfter": [
+        1.06,
+        1.07,
+        0.86
+      ],
+      "cpuLoad": {
+        "startOffsetMs": 900087.882535,
+        "finishOffsetMs": 1800001.290393,
+        "cpuMs": 884264.260733,
+        "transitionGuardMs": 2000
+      },
+      "rawFile": "round-2.csv",
+      "rawSha256": "2f7497e7e289ea47ebeed2afce9d221cc2a6da262e54059d4cb165a385500d03",
+      "all": {
+        "cycles": 149022,
+        "deadlineMisses": 30780,
+        "skippedSlots": 30978,
+        "outputReasons": {
+          "ok": 149022
+        },
+        "timing": {
+          "wakeLateUs": {
+            "p50": 1499.912,
+            "p95": 14139.037,
+            "p99": 15455.117,
+            "max": 63326.827
+          },
+          "executeUs": {
+            "p50": 1.302,
+            "p95": 2.886,
+            "p99": 3.807,
+            "max": 27363.952
+          },
+          "finishUs": {
+            "p50": 1501.449,
+            "p95": 14141.826,
+            "p99": 15457.835,
+            "max": 63327.969
+          },
+          "readUs": {
+            "p50": 0.48,
+            "p95": 1.082,
+            "p99": 1.533,
+            "max": 1979.416
+          },
+          "updateUs": {
+            "p50": 0.631,
+            "p95": 1.503,
+            "p99": 1.983,
+            "max": 27362.981
+          },
+          "writeUs": {
+            "p50": 0.171,
+            "p95": 0.451,
+            "p99": 0.691,
+            "max": 732.416
+          },
+          "intervalErrorUs": {
+            "p50": 1063.932,
+            "p95": 6195.11,
+            "p99": 8332.545,
+            "max": 62102.802
+          }
+        }
+      },
+      "ambient": {
+        "cycles": 59076,
+        "deadlineMisses": 30604,
+        "skippedSlots": 30734,
+        "outputReasons": {
+          "ok": 59076
+        },
+        "timing": {
+          "wakeLateUs": {
+            "p50": 10183.872,
+            "p95": 15021.253,
+            "p99": 15973.592,
+            "max": 63151.892
+          },
+          "executeUs": {
+            "p50": 1.372,
+            "p95": 3.046,
+            "p99": 4.138,
+            "max": 1980.078
+          },
+          "finishUs": {
+            "p50": 10187.023,
+            "p95": 15023.367,
+            "p99": 15975.355,
+            "max": 63153.094
+          },
+          "readUs": {
+            "p50": 0.521,
+            "p95": 1.192,
+            "p99": 1.663,
+            "max": 1979.416
+          },
+          "updateUs": {
+            "p50": 0.641,
+            "p95": 1.503,
+            "p99": 2.024,
+            "max": 1915.136
+          },
+          "writeUs": {
+            "p50": 0.18,
+            "p95": 0.451,
+            "p99": 0.721,
+            "max": 332.111
+          },
+          "intervalErrorUs": {
+            "p50": 5452.215,
+            "p95": 6813.715,
+            "p99": 9789.993,
+            "max": 56345.124
+          }
+        }
+      },
+      "sameCpuLoad": {
+        "cycles": 89615,
+        "deadlineMisses": 108,
+        "skippedSlots": 176,
+        "outputReasons": {
+          "ok": 89615
+        },
+        "timing": {
+          "wakeLateUs": {
+            "p50": 782.48,
+            "p95": 1914.061,
+            "p99": 2095.721,
+            "max": 63326.827
+          },
+          "executeUs": {
+            "p50": 1.222,
+            "p95": 2.775,
+            "p99": 3.587,
+            "max": 27363.952
+          },
+          "finishUs": {
+            "p50": 784.138,
+            "p95": 1915.981,
+            "p99": 2097.749,
+            "max": 63327.969
+          },
+          "readUs": {
+            "p50": 0.391,
+            "p95": 1.002,
+            "p99": 1.432,
+            "max": 1395.579
+          },
+          "updateUs": {
+            "p50": 0.621,
+            "p95": 1.493,
+            "p99": 1.954,
+            "max": 27362.981
+          },
+          "writeUs": {
+            "p50": 0.17,
+            "p95": 0.451,
+            "p99": 0.672,
+            "max": 732.416
+          },
+          "intervalErrorUs": {
+            "p50": 358.544,
+            "p95": 1620.097,
+            "p99": 2052.19,
+            "max": 62102.802
+          }
+        }
+      }
+    },
+    {
+      "round": 3,
+      "startedUtc": "2026-11-23T13:34:25+00:00",
+      "completedUtc": "2026-11-23T14:04:27+00:00",
+      "seconds": 1800,
+      "loadAverageBefore": [
+        1.05,
+        1.07,
+        0.86
+      ],
+      "loadAverageAfter": [
+        1.04,
+        1.06,
+        0.87
+      ],
+      "cpuLoad": {
+        "startOffsetMs": 900031.114438,
+        "finishOffsetMs": 1800002.327211,
+        "cpuMs": 884338.377124,
+        "transitionGuardMs": 2000
+      },
+      "rawFile": "round-3.csv",
+      "rawSha256": "23ee593cac7c49c50c26a25bb9ea8eb533359d1a3234f186006d553a4a5ac509",
+      "all": {
+        "cycles": 149019,
+        "deadlineMisses": 30777,
+        "skippedSlots": 30981,
+        "outputReasons": {
+          "ok": 149019
+        },
+        "timing": {
+          "wakeLateUs": {
+            "p50": 1506.524,
+            "p95": 14147.221,
+            "p99": 15408.722,
+            "max": 150460.904
+          },
+          "executeUs": {
+            "p50": 1.272,
+            "p95": 2.816,
+            "p99": 3.707,
+            "max": 3115.779
+          },
+          "finishUs": {
+            "p50": 1507.973,
+            "p95": 14148.584,
+            "p99": 15410.619,
+            "max": 150462.498
+          },
+          "readUs": {
+            "p50": 0.491,
+            "p95": 1.132,
+            "p99": 1.583,
+            "max": 1615.508
+          },
+          "updateUs": {
+            "p50": 0.561,
+            "p95": 1.382,
+            "p99": 1.843,
+            "max": 3114.908
+          },
+          "writeUs": {
+            "p50": 0.2,
+            "p95": 0.471,
+            "p99": 0.722,
+            "max": 914.138
+          },
+          "intervalErrorUs": {
+            "p50": 1050.091,
+            "p95": 6204.235,
+            "p99": 8338.281,
+            "max": 150103.287
+          }
+        }
+      },
+      "ambient": {
+        "cycles": 59113,
+        "deadlineMisses": 30591,
+        "skippedSlots": 30691,
+        "outputReasons": {
+          "ok": 59113
+        },
+        "timing": {
+          "wakeLateUs": {
+            "p50": 10155.946,
+            "p95": 14980.671,
+            "p99": 15910.915,
+            "max": 54787.216
+          },
+          "executeUs": {
+            "p50": 1.342,
+            "p95": 2.975,
+            "p99": 4.068,
+            "max": 1617.462
+          },
+          "finishUs": {
+            "p50": 10158.733,
+            "p95": 14982.541,
+            "p99": 15913.47,
+            "max": 54788.508
+          },
+          "readUs": {
+            "p50": 0.531,
+            "p95": 1.242,
+            "p99": 1.733,
+            "max": 1615.508
+          },
+          "updateUs": {
+            "p50": 0.571,
+            "p95": 1.403,
+            "p99": 1.884,
+            "max": 1604.395
+          },
+          "writeUs": {
+            "p50": 0.24,
+            "p95": 0.49,
+            "p99": 0.761,
+            "max": 914.138
+          },
+          "intervalErrorUs": {
+            "p50": 5444.944,
+            "p95": 6839.766,
+            "p99": 9631.696,
+            "max": 49009.908
+          }
+        }
+      },
+      "sameCpuLoad": {
+        "cycles": 89578,
+        "deadlineMisses": 115,
+        "skippedSlots": 218,
+        "outputReasons": {
+          "ok": 89578
+        },
+        "timing": {
+          "wakeLateUs": {
+            "p50": 799.047,
+            "p95": 1926.438,
+            "p99": 2091.488,
+            "max": 150460.904
+          },
+          "executeUs": {
+            "p50": 1.202,
+            "p95": 2.686,
+            "p99": 3.477,
+            "max": 3115.779
+          },
+          "finishUs": {
+            "p50": 800.674,
+            "p95": 1927.897,
+            "p99": 2093.592,
+            "max": 150462.498
+          },
+          "readUs": {
+            "p50": 0.421,
+            "p95": 1.032,
+            "p99": 1.483,
+            "max": 924.252
+          },
+          "updateUs": {
+            "p50": 0.551,
+            "p95": 1.362,
+            "p99": 1.813,
+            "max": 3114.908
+          },
+          "writeUs": {
+            "p50": 0.18,
+            "p95": 0.471,
+            "p99": 0.701,
+            "max": 280.763
+          },
+          "intervalErrorUs": {
+            "p50": 343.392,
+            "p95": 1620.593,
+            "p99": 2026.061,
+            "max": 150103.287
+          }
+        }
+      }
+    }
+  ]
+}

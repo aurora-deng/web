@@ -12,6 +12,7 @@ EdgeWorker::EdgeWorker(EdgeLedger& ledger, TaskWorkflow& task, std::function<voi
 EdgeWorker::~EdgeWorker() = default;
 
 void EdgeWorker::permit() {
+    task_.renewCoordinatorLease();
     {
         std::lock_guard lock(mutex_);
         permitUntil_ = workflow::Clock::now() + workflow::Milliseconds{150};

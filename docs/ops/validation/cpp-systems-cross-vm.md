@@ -1,5 +1,7 @@
 # CentOS 与 Ubuntu_ros 的跨机车队验收
 
+这是使用独立 Action 夹具的历史基线。实际 Nav2 规划、控制、生命周期与断线的本轮验收见 [M08 双机端到端](m08-ros-cross-vm.md)。
+
 2026-11-23 使用两台现有虚拟机完成跨主机实验。CentOS 负责 gRPC 协调、任务账本和 Observer。Ubuntu_ros 的 ROS 2 Humble 边缘负责执行同一个后端 C++ DAG，经真实 DDS 调用 `NavigateToPose`。导航结果由独立仿真 Action 提供。
 
 | 主机 | 角色 | 绑定 |

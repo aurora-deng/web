@@ -11,7 +11,8 @@
 | 车队应用 | 工单分配、连接代号、心跳和状态查询；边缘按技能合同执行五节点图 | [FleetCoordinator](../../../backend/fleet/application/FleetCoordinator/FleetCoordinator.cpp) · [TaskWorkflow](../../../backend/fleet/application/TaskWorkflow/TaskWorkflow.cpp) · [EdgeWorker](../../../backend/fleet/application/EdgeWorker/EdgeWorker.cpp) |
 | 持久化 | 协调器握有任务账本；每个边缘视实例拥有独立收件账本 | [FleetLedger Port](../../../backend/fleet/ports/FleetLedger/FleetLedger.h) · [协调器 SQLite](../../../backend/fleet/infrastructure/SqliteFleetLedger/SqliteFleetLedger.cpp) · [边缘 SQLite](../../../backend/fleet/infrastructure/SqliteEdgeLedger/SqliteEdgeLedger.cpp) |
 | 传输 | Protobuf 生成代码、gRPC 控制流与有界状态流、身份与能力授予、进程装配 | [v1 协议](../../../backend/fleet/transport/grpc/proto/fleet.proto) · [gRPC 服务](../../../backend/fleet/transport/grpc/FleetService/FleetService.cpp) · [边缘连接](../../../backend/fleet/transport/grpc/EdgeSession/EdgeSession.cpp) |
-| 导航适配 | 模拟器与 Nav2 实现同一个端口，调度器只了解能力和阶段 | [NavigationSkill](../../../backend/fleet/ports/NavigationSkill/NavigationSkill.h) · [模拟实现](../../../backend/fleet/infrastructure/SimNavigation/SimNavigation.cpp) · [Nav2 适配](../../../robotics/nav2_gateway/Nav2Navigation/Nav2Navigation.cpp) |
+| 导航适配 | 模拟器与 Nav2 实现同一个技能端口。ROS 本体管理 lifecycle、时钟、地图 TF 与导航许可 | [NavigationSkill](../../../backend/fleet/ports/NavigationSkill/NavigationSkill.h) · [本体生命周期](../../../robotics/nav2_gateway/BodyLifecycle/BodyLifecycle.cpp) · [Nav2 适配](../../../robotics/nav2_gateway/Nav2Navigation/Nav2Navigation.cpp) |
+| 模拟执行器 | 本体许可、Nav2 目标和驱动反馈通过有界通道交给固定周期，私有仿真话题把有效期交给软件驱动 | [控制状态机](../../../robotics/actuator_control/ControlLoop/ControlLoop.h) · [ROS 装配](../../../robotics/actuator_ros_sim/ActuatorNode/ActuatorNode.cpp) · [计时与故障实验](../../ops/validation/m09-actuator-control.md) |
 | 母 Agent | 独立 CLI 使用回环 gRPC 读取车队状态，C++ DAG 复核规则或 Ollama 候选，人工审批后交给现有边缘 | [Agent 编排](../../../backend/agent/application/FleetAgent/FleetAgent.cpp) · [审批事务](../../../backend/fleet/infrastructure/SqliteFleetLedger/SimulationReviewSql.cpp) · [实验讲义](../../learning/nebula-fleet-agent-and-skills.md) |
 | 诊断 | DAG 与 Agent 事件按 Observer 契约编码、导入并查询；录制回放只上报摘要 | [C++ 事件编码](../../../backend/workflow/ObserverEvents/ObserverEvents.cpp) · [上传工具](../../../scripts/project/fleet_observer.py) · [本地回放](../../../tools/agent/episode_recording.py) |
 
@@ -58,6 +59,8 @@ DAG 把工作节点交给线程池，状态只由调度线程修改。一台执�
 
 Observer 事件只含受限 ID、状态、时长和错误码。边缘先提交执行结果，然后把该次图执行的事件批量写入可选 JSONL 文件。文件达到 8 MiB 后停止追加。调试查询通过专属生产者凭据导入现有 Observer，模拟来源使用模拟数据标记。
 
-两台虚拟机的联调由 CentOS 跑协调器和 beta，Ubuntu_ros 跑 ROS 2 边缘 alpha。Ubuntu_ros 通过已验证主机公钥的 SSH 转发连接协调器，gRPC 保持回环监听。Observer 在 CentOS 按工单回查 Ubuntu_ros 生成的 DAG 事件。 [两台虚拟机的运行和故障复验](../../ops/validation/cpp-systems-cross-vm.md)
+M08 联调由 CentOS 运行协调器，Ubuntu_ros 运行两个带独立命名空间的 Nav2 边缘。本体使用已通过校验的 gRPC 回复续期本地单调时钟租约。租约、仿真时间、TF 或 Action 失去准备度时撤销导航许可，已发目标按 UUID 取消。恢复后沿原工单占有代号对账。DDS 留在 Ubuntu_ros 本机，gRPC 经过回环 SSH 转发。 [M08 两台虚拟机端到端](../../ops/validation/m08-ros-cross-vm.md)
+
+M09 的三路输入是任务许可、Nav2 速度和模拟驱动反馈。ROS 回调只负责交接，C++ 周期线程在本地计算期望速度和最早到期时刻，再由 ROS 回调传给仿真驱动进程。驱动侧独立按期归零，故障复位后需要新任务许可。线程调度的实测长尾记录在验收报告。 [M09 实操](../../learning/m09-actuator-control.md)
 
 [运行、测量与验收](../../ops/validation/cpp-systems.md) · [M00–M07 软件交付与复验](../../ops/validation/m00-m07.md) · [阶段路线](../../roadmap/embodied-systems/README.md)

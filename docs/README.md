@@ -14,6 +14,8 @@
 |从空目录构建和启动|[两档复现指南](ops/validation/reproduce.md)|
 |逐项学习业务和复验|[业务说明与实操入口](business/README.md)、[上线台账](business/release-matrix.md)|
 |运行 C++ DAG 和隔离车队|[C++ 系统运行与验收](ops/validation/cpp-systems.md)、[M00–M07 软件交付与复验](ops/validation/m00-m07.md)|
+|复跑 ROS 2 与两台虚拟机的端到端联调|[M08 构建、启动和故障复验](ops/validation/m08-ros-cross-vm.md)、[生命周期与 Action 实操](learning/m08-ros-lifecycle.md)|
+|测量本地控制周期并验证停止行为|[M09 实测与操作](ops/validation/m09-actuator-control.md)、[执行器学习](learning/m09-actuator-control.md)|
 |学习母 Agent 和 Skill|[运行与代码导读](learning/nebula-fleet-agent-and-skills.md)、[LangGraph 实验](learning/langgraph-nebula-lab.md)、[Skill 合同](roadmap/embodied-systems/skills/README.md)|
 |日常启动/停止与客户端入口|[运行文档](ops/runtime/README.md)|
 |研途客户端与网页同步、故事广场、七日榜、小研与训练授权|[接入改造、启动与验收](ops/runtime/nebula-yantu-community.md)|

@@ -12,6 +12,8 @@
 |C++ 开发、Agent 与具身智能|[总学习方案和模块指导](../roadmap/embodied-systems/README.md)|
 |从工单证据到 Agent 建议|[母 Agent、工具与 Skill 实验](nebula-fleet-agent-and-skills.md)|
 |练习后端 DAG 恢复、慢流背压与故障回放|[M00–M07 可执行实验](../ops/validation/m00-m07.md)|
+|学习 ROS lifecycle、QoS、Action 与跨机租约|[M08 实操](m08-ros-lifecycle.md)|
+|学习控制周期、调度长尾与本地看门狗|[M09 实操](m09-actuator-control.md)|
 |练习 LangGraph 人工审批与恢复|[StateGraph、检查点与断点恢复](langgraph-nebula-lab.md)|
 |练习与自检|[架构习题](exercises/README.md)|
 |按开发历史回顾|[阶段时间线](../roadmap/stage-index.md)|

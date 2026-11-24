@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-23",
+  "generated": "2026-11-24",
   "scope": "public human-readable documents; raw evidence and local account files excluded",
   "documents": [
     {
@@ -1018,6 +1018,18 @@
       "kind": "document"
     },
     {
+      "path": "docs/learning/m08-ros-lifecycle.md",
+      "title": "M08 ROS 2 本体适配、租约与 Action 实操",
+      "category": "learning",
+      "kind": "document"
+    },
+    {
+      "path": "docs/learning/m09-actuator-control.md",
+      "title": "M09 实操 · 从导航速度到模拟轮子",
+      "category": "learning",
+      "kind": "document"
+    },
+    {
       "path": "docs/learning/nebula-fleet-agent-and-skills.md",
       "title": "用 NEBULA 学母 Agent、工具与 Skill",
       "category": "learning",
@@ -1284,6 +1296,18 @@
     {
       "path": "docs/ops/validation/m00-m07.md",
       "title": "M00–M07 软件系统交付与复验",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/validation/m08-ros-cross-vm.md",
+      "title": "M08 ROS 2 与 CentOS 端到端联调",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
+      "path": "docs/ops/validation/m09-actuator-control.md",
+      "title": "M09 执行器仿真与 Linux 测时",
       "category": "ops",
       "kind": "document"
     },

@@ -51,7 +51,10 @@
 │  ├─ workflow/                        DAG 图校验、Worker、执行、恢复端口与事件编码
 │  ├─ agent/                           母 Agent 提案规则、Skill 注册、证据端口与 CLI
 │  └─ fleet/                           领域、技能目录、应用、账本与有界 gRPC
-├─ robotics/nav2_gateway/              ROS 2 仿真导航适配
+├─ robotics/
+│  ├─ nav2_gateway/                    ROS 2 仿真导航与许可
+│  ├─ actuator_control/               固定周期、控制状态机、看门狗模型、测时
+│  └─ actuator_ros_sim/               有界数据交接与 ROS 2 仿真适配
 ├─ client/                            Windows 客户端与独立 CMake 入口
 │  ├─ companion/、assistant/、storage/  本机代理、私人助手、SQLite 与 DPAPI
 │  └─ yantu/

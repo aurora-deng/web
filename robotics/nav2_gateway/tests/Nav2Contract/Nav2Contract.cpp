@@ -7,6 +7,7 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <rosgraph_msgs/msg/clock.hpp>
 #include <thread>
+#include <tf2_ros/static_transform_broadcaster.h>
 
 using namespace nebula::fleet;
 using namespace std::chrono_literals;
@@ -19,7 +20,14 @@ using Clock = std::chrono::steady_clock;
 class SimAction {
 public:
     explicit SimAction(std::string robotNamespace = "/nebula_lab")
-        : node_(std::make_shared<rclcpp::Node>("action_fixture", robotNamespace)) {
+        : node_(std::make_shared<rclcpp::Node>("action_fixture", robotNamespace,
+              rclcpp::NodeOptions().arguments({"--ros-args", "-r", "/tf_static:=tf_static"}))),
+          tf_(node_) {
+        geometry_msgs::msg::TransformStamped base;
+        base.header.frame_id = "map";
+        base.child_frame_id = "base_link";
+        base.transform.rotation.w = 1.0;
+        tf_.sendTransform(base);
         clock_ = node_->create_publisher<rosgraph_msgs::msg::Clock>("/clock", rclcpp::ClockQoS());
         server_ = rclcpp_action::create_server<Action>(
             node_, "navigate_to_pose",
@@ -46,14 +54,17 @@ public:
     }
 
     std::atomic_bool hold{false};
+    std::atomic_bool pauseClock{false};
     std::atomic_uint received{0};
     std::atomic_uint cancelled{0};
 
 private:
     void tick() {
-        rosgraph_msgs::msg::Clock message;
-        message.clock.sec = ++seconds_;
-        clock_->publish(message);
+        if (!pauseClock.load()) {
+            rosgraph_msgs::msg::Clock message;
+            message.clock.sec = ++seconds_;
+            clock_->publish(message);
+        }
         if (!active_) return;
         if (active_->is_canceling()) {
             ++cancelled;
@@ -62,10 +73,13 @@ private:
         } else if (!hold.load()) {
             active_->succeed(std::make_shared<Action::Result>());
             active_.reset();
+        } else {
+            active_->publish_feedback(std::make_shared<Action::Feedback>());
         }
     }
 
     const rclcpp::Node::SharedPtr node_;
+    tf2_ros::StaticTransformBroadcaster tf_;
     rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr clock_;
     rclcpp_action::Server<Action>::SharedPtr server_;
     rclcpp::TimerBase::SharedPtr tick_;
@@ -82,12 +96,20 @@ void require(bool passed, const char* issue) {
 void contract() {
     SimAction sim;
     Nav2Navigation navigation("nebula_lab", 1);
+    std::jthread renew([&](std::stop_token stop) {
+        while (!stop.stop_requested()) {
+            navigation.renewCoordinatorLease();
+            std::this_thread::sleep_for(100ms);
+        }
+    });
+    Command alpha{"alpha-check", "0123456789abcdef0123456789abcdef", Station::alpha, 1};
+    const Command beta{"beta-check", alpha.traceId, Station::beta, 2};
     const auto limit = Clock::now() + 6s;
     while (!navigation.ready() && Clock::now() < limit) std::this_thread::sleep_for(10ms);
     require(navigation.ready(), "ROS discovery or simulated clock did not become ready");
-    require(navigation.navigate(Station::alpha, {}, Clock::now() + 3s) == NavigationResult::arrived,
+    require(navigation.navigate(alpha, {}, Clock::now() + 3s) == NavigationResult::arrived,
             "NavigateToPose did not return a success result");
-    require(navigation.navigate(Station::beta, {}, Clock::now() + 3s) == NavigationResult::rejected &&
+    require(navigation.navigate(beta, {}, Clock::now() + 3s) == NavigationResult::rejected &&
             sim.received.load() == 1, "unsupported station reached the ROS action server");
 
     sim.hold.store(true);
@@ -97,9 +119,21 @@ void contract() {
         while (sim.received.load() < 2 && Clock::now() < deadline) std::this_thread::sleep_for(5ms);
         stop.request_stop();
     });
-    const auto result = navigation.navigate(Station::alpha, stop.get_token(), Clock::now() + 3s);
+    alpha.taskId = "cancel-check";
+    const auto result = navigation.navigate(alpha, stop.get_token(), Clock::now() + 3s);
     require(result == NavigationResult::stopped && sim.cancelled.load() == 1,
             "cancel did not finish the same ROS action");
+
+    sim.pauseClock.store(true);
+    const auto stale = Clock::now() + 2s;
+    while (navigation.ready() && Clock::now() < stale) std::this_thread::sleep_for(10ms);
+    require(!navigation.ready(), "paused ROS time was treated as fresh");
+    require(navigation.navigate(alpha, {}, Clock::now() + 3s) == NavigationResult::rejected &&
+            sim.received.load() == 2, "a goal escaped while ROS time was paused");
+    sim.pauseClock.store(false);
+    const auto resumed = Clock::now() + 2s;
+    while (!navigation.ready() && Clock::now() < resumed) std::this_thread::sleep_for(10ms);
+    require(navigation.ready(), "ROS time recovery did not restore readiness");
 }
 }
 

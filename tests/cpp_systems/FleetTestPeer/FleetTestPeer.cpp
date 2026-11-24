@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <optional>
 #include <thread>
 
 using namespace nebula::fleet;
@@ -89,9 +90,10 @@ void watch(v1::Fleet::Stub& stub, bool expectFull) {
     std::cout << "{\"samples\":" << samples << ",\"coalesced\":" << skipped << "}\n";
 }
 
-grpc::Status loseAcceptanceEcho(v1::Fleet::Stub& stub, const char* robot, SqliteEdgeLedger& edge) {
+grpc::Status loseAcceptanceEcho(v1::Fleet::Stub& stub, const char* robot, SqliteEdgeLedger& edge,
+                                std::string_view taskId) {
     grpc::ClientContext context;
-    context.set_deadline(std::chrono::system_clock::now() + 3s);
+    context.set_deadline(std::chrono::system_clock::now() + 4s);
     context.AddMetadata(robotHeader, robot);
     context.AddMetadata(tokenHeader, environmentToken("NEBULA_FLEET_ROBOT_TOKEN"));
     auto stream = stub.Exchange(&context);
@@ -101,21 +103,45 @@ grpc::Status loseAcceptanceEcho(v1::Fleet::Stub& stub, const char* robot, Sqlite
     hello->set_boot_id(nebula::workflow::newTraceId());
     hello->set_stations(1U);
     v1::CoordinatorFrame response;
+    std::optional<Receipt> outstanding;
     while (stream->Write(frame) && stream->Read(&response)) {
+        require(response.has_confirmed() == outstanding.has_value(), "unexpected replay confirmation");
+        if (outstanding) {
+            const auto echoed = decode(response.confirmed());
+            require(echoed.taskId == outstanding->taskId && echoed.epoch == outstanding->epoch &&
+                    echoed.phase == outstanding->phase && echoed.outcome == outstanding->outcome,
+                    "test peer received confirmation for a different receipt");
+            edge.confirm(*outstanding);
+        }
         if (response.has_command()) {
-            edge.stage(decode(response.command()));
-            encode(*edge.pendingReceipt(), *frame.mutable_receipt());
+            const auto command = decode(response.command());
+            require(command.taskId == taskId, "test peer received a different command");
+            edge.stage(command);
+        }
+        frame.Clear();
+        outstanding = edge.pendingReceipt();
+        if (outstanding) {
+            encode(*outstanding, *frame.mutable_receipt());
+        } else {
+            frame.mutable_heartbeat();
+            std::this_thread::sleep_for(15ms);
+            continue;
+        }
+        // The previous edge may have stopped after the coordinator committed
+        // its terminal receipt and before the echo reached the edge ledger.
+        if (outstanding->taskId == taskId && outstanding->phase == Phase::accepted) {
             require(stream->Write(frame), "test peer did not send ACCEPTED");
+            // Flush the upstream direction without ever reading the downstream echo.
+            require(stream->WritesDone(), "test peer could not finish sending ACCEPTED");
             // The parent kills this process after the coordinator commits
             // acceptance. The echo stays unread in the abandoned stream.
             std::cout << "ACCEPTED_SENT" << std::endl;
-            std::this_thread::sleep_for(3s);
+            // The parent's ten-second assertion owns the test deadline.
+            std::this_thread::sleep_for(12s);
             context.TryCancel();
             stream->Finish();
             return grpc::Status::OK;
         }
-        frame.mutable_heartbeat();
-        std::this_thread::sleep_for(15ms);
     }
     stream->WritesDone();
     const auto status = stream->Finish();
@@ -135,14 +161,14 @@ int main(int argc, char* argv[]) {
             watch(*v1::Fleet::NewStub(localChannel(argv[2])), std::string_view(argv[1]) == "--watch-full");
             return 0;
         }
-        if (argc != 4) throw std::invalid_argument("test peer requires endpoint, robot and ledger");
+        if (argc != 5) throw std::invalid_argument("test peer requires endpoint, robot, ledger and task ID");
         auto stub = v1::Fleet::NewStub(localChannel(argv[1]));
         SqliteEdgeLedger edge(std::filesystem::path(argv[3]), argv[2]);
         // A just-terminated edge may still own the previous server session.
         // Retry only that transient handshake error, before staging a command.
         const auto until = std::chrono::steady_clock::now() + 2s;
         do {
-            const auto status = loseAcceptanceEcho(*stub, argv[2], edge);
+            const auto status = loseAcceptanceEcho(*stub, argv[2], edge, argv[4]);
             if (status.ok()) return 0;
             if (status.error_code() != grpc::StatusCode::UNAVAILABLE) {
                 throw std::runtime_error("test peer did not receive a command: " + status.error_message());
