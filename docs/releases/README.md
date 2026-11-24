@@ -6,6 +6,7 @@
 
 |内容|文件|
 |---|---|
+|[v0.5-agent-skills 发布说明](v0.5-agent-skills.md)|小研考研技能、聊天和广场草稿、研途任务统计与源码回归|
 |[v0.4-fleet 发布说明](v0.4-fleet.md)|C++ Fleet Agent、双 Worker DAG 恢复、027 迁移与 Docker 复现|
 |[Function3.6 发布说明](function3.6.md)|C++ DAG、车队、Agent 和离线 Docker/ZIP · [部署](../ops/runtime/function3.6-deployment.md)|
 |[Function3.5 发布说明](function3.5.md)|小研记忆、DAG、网关和 Observer · [完整更新文件](function3.5-files.md)|

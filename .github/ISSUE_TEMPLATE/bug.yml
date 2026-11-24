@@ -21,7 +21,7 @@ body:
     id: version
     attributes:
       label: 标签或 Git 提交
-      placeholder: Function3.6 或提交号
+      placeholder: v0.5-agent-skills 或提交号
     validations:
       required: true
   - type: textarea

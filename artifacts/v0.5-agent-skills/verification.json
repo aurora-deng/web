@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-24",
+  "implementationCommit": "d0745f997ce236e8be27341b614fd64c90d15af6",
+  "frontendAssetVersion": "1b40f8c19ed29802",
+  "source": {
+    "profile": "source",
+    "passed": true,
+    "installsDependencies": false,
+    "checks": {
+      "boundaries": "passed",
+      "dagStates": "passed",
+      "function3Boundaries": "passed",
+      "artwork": "passed",
+      "assetVersions": "passed",
+      "presentation": "passed",
+      "apiVersions": "passed",
+      "docs": "passed",
+      "businessDocs": "passed",
+      "apiContracts": "passed",
+      "releaseGates": "passed",
+      "runtimeDelivery": "passed",
+      "observerQueries": "passed",
+      "gatewayContracts": "passed",
+      "distributedObservability": "passed",
+      "processIdentity": "passed",
+      "inventory": "passed",
+      "snapshotPruning": "passed",
+      "measurement": "passed",
+      "observerHttp": "passed",
+      "studyAccountHttp": "passed",
+      "pythonSyntax": "passed",
+      "javascriptSyntax": "passed",
+      "frontendContracts": "passed"
+    },
+    "tools": {
+      "python": "3.12.7",
+      "node": "v24.16.0"
+    }
+  },
+  "frontendContracts": {
+    "passed": 111,
+    "failed": 0,
+    "newSkillTests": 5
+  },
+  "loopbackTests": {
+    "studyAccountHttp": 2,
+    "observerHttp": 51
+  },
+  "assistantSkillsBrowser": {
+    "passed": true,
+    "environment": "Edge with synthetic model and account endpoints",
+    "checks": [
+      "web consent",
+      "weekly plan and allowlisted study counts",
+      "review without study data",
+      "editable conversation draft and destination fencing",
+      "manual plaza visibility confirmation",
+      "account change rejection",
+      "Windows private assistant protocol"
+    ]
+  },
+  "existingAssistantBrowser": {
+    "passed": true,
+    "fixture": "Edge with model and account fixtures",
+    "observed": "PASS Edge 两端长会话压缩、历史偏好来源、真实 IndexedDB 恢复、账号及上游隔离（模型替身）"
+  }
+}

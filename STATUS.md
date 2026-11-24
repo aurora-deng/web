@@ -1,5 +1,7 @@
 # 当前状态
 
+**2026-11-24 · v0.5-agent-skills**。小研增加考研周计划、错题复盘、聊天起草和广场动态四个技能。研途按账号返回有限的任务计数，聊天和广场草稿复用原编辑器。 [使用与实现](docs/business/assistant/skills.md) · [版本说明](docs/releases/v0.5-agent-skills.md)
+
 **2026-11-24 · Fleet P0 候选**。工单超过旧编号上限后持续接单。PostgreSQL Worker 通过自动领取、续租、对账和 CentOS → Ubuntu_ros 接管验证。带历史数据的 026→027 升级与内置运行库的 Docker 导入均通过。 [范围与原始证据](docs/ops/validation/fleet-p0-hardening.md)
 
 **2026-11-24 · v0.4-fleet**。C++ Fleet Agent 通过三项只读工具取证，校验模型提案并持久化审批交接。PostgreSQL DAG 已验证双 Worker 接管及迟到提交拦截，Observer 可查看尝试和关键路径。Web 新增 027 回执保留迁移。 [验收与限制](docs/releases/v0.4-fleet.md) · [复现步骤](docs/ops/validation/v04-fleet-reproduction.md)

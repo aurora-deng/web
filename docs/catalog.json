@@ -772,6 +772,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/business/assistant/skills.md",
+      "title": "小研技能 · 使用与实现",
+      "category": "business",
+      "kind": "document"
+    },
+    {
       "path": "docs/business/chat/README.md",
       "title": "缘续聊天、群组与消息可靠性 · 业务说明",
       "category": "business",
@@ -1440,6 +1446,12 @@
     {
       "path": "docs/releases/v0.4-fleet.md",
       "title": "v0.4-fleet 发布说明",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/v0.5-agent-skills.md",
+      "title": "v0.5-agent-skills 发布说明",
       "category": "releases",
       "kind": "document"
     },

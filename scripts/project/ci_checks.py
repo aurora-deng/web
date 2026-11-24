@@ -67,8 +67,10 @@ def source_checks(report, observer_http):
         check(name, python, script, *args)
     if os.name != 'nt' or observer_http:
         check('observerHttp', python, 'tests/project/test_observability.py')
+        check('studyAccountHttp', python, 'tests/client/yantu_account_workspace_test.py')
     else:
         checks['observerHttp'] = 'not requested; use --observer-http on Windows with loopback access'
+        checks['studyAccountHttp'] = checks['observerHttp']
 
     checks['pythonSyntax'] = 'failed'
     for folder in ('scripts', 'tests', 'tools/observability'):
@@ -91,7 +93,7 @@ def source_checks(report, observer_http):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('profile',choices=['source','full']);p.add_argument('--build',type=Path,default=Path('build-release'));p.add_argument('--output',type=Path,default=Path('build-function3/ci-report.json'))
-    p.add_argument('--observer-http',action='store_true',help='Also require Observer HTTP contracts on Windows')
+    p.add_argument('--observer-http',action='store_true',help='Also require Observer and study account HTTP contracts on Windows')
     a=p.parse_args()
     report={'profile':a.profile,'passed':False,'installsDependencies':False};a.output.parent.mkdir(parents=True,exist_ok=True)
     try:

@@ -6,4 +6,4 @@
 
 [网页小研编排](../../../frontend/phase11/shared/PersonalAgent/PersonalAgent.js) · [私人推理实现](../../../backend/ai/private) · [个性化进度](../../reports/xiaoyan-personalization-progress.md) · [AI 架构](../../architecture/business/ai/README.md)
 
-[实操学习](learning.md) · [业务目录](../README.md)
+[小研技能 · 考研、聊天与广场](skills.md) · [实操学习](learning.md) · [业务目录](../README.md)

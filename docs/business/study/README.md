@@ -4,6 +4,8 @@
 
 服务器端维护工作区版本和访问控制，冲突提交按版本处理。上线需同时检查网关路由、会话校验、两个客户端的版本冲突、附件访问范围和工作区恢复。现有 Windows 独立资料继续通过用户原有路径使用。
 
+小研考研技能可按次读取本账号的任务数量。工作区只返回当前日期、计划与完成数、逾期数和未来七天未完成数。资料内容继续由研途工作区管理。 [小研技能](../assistant/skills.md) · [接口契约](../../contracts/README.md)
+
 [Python 工作区](../../../backend/study/AccountWorkspace/AccountWorkspace.py) · [部署和回退](../../ops/runtime/nebula-yantu-community.md)
 
 [实操学习](learning.md) · [业务目录](../README.md)

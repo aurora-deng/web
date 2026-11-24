@@ -1,8 +1,10 @@
-# NEBULA · C++20 Web Server / v0.4-fleet
+# NEBULA · C++20 Web Server / v0.5-agent-skills
 
 工程化改造：[原生包复现/预检](docs/ops/validation/native-delivery.md)、[真实 Prometheus 与慢 ACK 排查](docs/observability/ack-diagnosis.md)、[R1–R12 实施和验收边界](docs/roadmap/project-review-implementation-2026-11-19.md)。保持通信核心与原业务库，新增依赖仍单项授权。
 
 NEBULA 用 Linux C++20 服务器运行缘续-聊天、缘生-广场、研途和小研，并用 Observer 观测这些业务的真实流量。
+
+**v0.5-agent-skills** 提供考研周计划、错题复盘、聊天起草和广场动态。打开小研 → **小研技能**，选择当前用途。 [技能用法与权限](docs/business/assistant/skills.md) · [版本说明](docs/releases/v0.5-agent-skills.md) · [如何复现与提交反馈](CONTRIBUTING.md)
 
 **v0.4-fleet** 把模型提案复核、人工审批和崩溃对账接入 C++ Fleet Agent，增加 PostgreSQL Worker 租约、Observer 执行路径和 Inbox 回执清理。 [本版变化与证据](docs/releases/v0.4-fleet.md) · [Docker 复现](docs/ops/validation/v04-fleet-reproduction.md) · [Agent 与 DAG 实操](docs/learning/v04-fleet-agent-dag.md)
 
@@ -65,7 +67,7 @@ Observer
 
 ## 数据、接口与隐私
 
-- Linux 复用既有 PostgreSQL 业务库。当前完整业务迁移到 026，两档复现文档另保留早期 024 的实测记录。
+- Linux 复用既有 PostgreSQL 业务库，当前业务迁移到 027。两档复现文档保留早期迁移的实测记录。
 - 研途使用同一账号身份，首次打开时建立对应学习工作区。Windows 原独立研途资料保留在设备上。[研途运行手册](docs/ops/runtime/nebula-yantu-community.md)
 - 消息与Outbox同任务、同连接事务提交，之后分别形成持久化ACK和实时通知。
 - C++ 路由目录列出 124 项 HTTP 方法与路径及 18 个领域。聊天字段、WS/SSE、研途和 Windows 本地接口分别记录契约。

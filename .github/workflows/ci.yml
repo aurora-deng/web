@@ -3,7 +3,7 @@ name: Verify and package NEBULA
 on:
   push:
     branches: ['**']
-    tags: ['v*-fleet', 'fleet-verify-*']
+    tags: ['v*-fleet', 'v*-agent-skills', 'fleet-verify-*']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -99,7 +99,8 @@ jobs:
     # Tag pushes are release-owner actions. PR code never runs on this provisioned runner.
     if: >-
       github.repository == 'aurora-deng/web' &&
-      ((github.event_name == 'push' && github.ref_type == 'tag') ||
+      ((github.event_name == 'push' && github.ref_type == 'tag' &&
+        (endsWith(github.ref_name, '-fleet') || startsWith(github.ref_name, 'fleet-verify-'))) ||
        (github.event_name == 'workflow_dispatch' && inputs.run_fleet_release))
     runs-on: [self-hosted, linux, webserver-isolated-ci]
     environment: isolated-ci
