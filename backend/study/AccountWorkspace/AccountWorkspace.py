@@ -2,6 +2,7 @@
 import argparse
 from collections import OrderedDict
 from contextlib import contextmanager
+from datetime import date
 import hashlib
 from http.client import HTTPConnection, HTTPException
 from http.cookies import SimpleCookie, CookieError
@@ -13,7 +14,7 @@ import re
 import secrets
 import sys
 from threading import BoundedSemaphore, Lock
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from backend.study.AccountWorkspace import UploadParts
 from backend.study.AccountWorkspace.FrontendSnapshot import FRONTEND_PREFIX, FrontendSnapshot, MAX_ASSET_BYTES
@@ -35,7 +36,7 @@ STATIC_TYPES = {'.mjs': 'text/javascript', '.wasm': 'application/wasm',
 NON_ASSETS = {'.html', '.php', '.py'}
 
 READ = {
-    '/api/state', '/api/time', '/api/native/plan', '/api/protection', '/api/protection/backup-file',
+    '/api/state', '/api/time', '/api/assistant-summary', '/api/native/plan', '/api/protection', '/api/protection/backup-file',
     '/api/recovery', '/api/workspace/capabilities', '/api/workspace/file-version', '/api/workspace/cleanup',
     '/api/workspace/search', '/api/workspace/assistant-job', '/api/planning/focus', '/api/notifications',
     '/api/assistant/status', '/api/assistant/snapshot', '/api/assistant/prompt', '/api/assistant/attachment',
@@ -185,9 +186,32 @@ def run(args):
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(RUNTIME))
     import server as runtime
+    from activity_classification import ai_safe_state, task_status
     from desktop_runtime import SupervisorLease
     allowed_origins = {origin_key(value) for value in args.public_origin}
     frontend = FrontendSnapshot(args.frontend_root) if args.frontend_root else None
+
+    def assistant_summary(state, today):
+        counts = {'todayPlanned': 0, 'todayCompleted': 0, 'overdue': 0, 'nextSevenDays': 0}
+        for task in ai_safe_state(state).get('tasks', []):
+            if not isinstance(task, dict):
+                continue
+            status = task_status(task)
+            if status in {'cancelled', 'unknown'}:
+                continue
+            try:
+                distance = (date.fromisoformat(task.get('date', '')) - today).days
+            except (TypeError, ValueError):
+                continue
+            if distance == 0:
+                counts['todayPlanned'] += 1
+                counts['todayCompleted'] += status == 'done'
+            elif status != 'done':
+                if distance < 0:
+                    counts['overdue'] += 1
+                elif distance <= 7:
+                    counts['nextSevenDays'] += 1
+        return counts
 
     class HostedHandler(runtime.Handler):
         def setup(self):
@@ -302,6 +326,17 @@ def run(args):
                     if services is None:
                         return self.reply(503, {'error': '研途工作区繁忙，请稍后重试'})
                     self.account_services = services
+                    if path == '/api/assistant-summary':
+                        try:
+                            values = parse_qs(target.query, keep_blank_values=True, max_num_fields=2).get('day', [])
+                            day = values[0] if len(values) == 1 else ''
+                            if not re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}', day):
+                                raise ValueError('invalid day')
+                            today = date.fromisoformat(day)
+                        except ValueError:
+                            return self.reply(400, {'error': '需要有效的 YYYY-MM-DD 日期'})
+                        counts = assistant_summary(self.store.snapshot()['state'], today)
+                        return self.reply(200, {'accountId': identity, 'day': day, **counts}, {'Cache-Control': 'no-store'})
                     if self.command == 'PUT':
                         if self.headers.get('Content-Range'):
                             return UploadParts.receive(self, runtime, MAX_STORAGE)

@@ -166,6 +166,35 @@ def scenario(workdir, port=0, max_active=1, tls=None):
 
 
 class AccountWorkspaceTest(unittest.TestCase):
+    def test_xiaoyan_receives_only_account_task_counts(self):
+        workspace = ROOT / 'build-function3'
+        workspace.mkdir(exist_ok=True)
+        first, _, other = SESSIONS
+        with tempfile.TemporaryDirectory(prefix='study-assistant-summary-', dir=workspace) as run:
+            with scenario(Path(run)) as (gateway, origin):
+                port = gateway.study_port
+                binding = json.loads(request(port, 'GET', '/api/study/session', first)[1])
+                route = binding['url']
+                rows = [('2026-11-24', 'done'), ('2026-11-24', 'todo'), ('2026-11-24', 'cancelled'),
+                        ('2026-11-23', 'in_progress'), ('2026-12-01', 'todo'), ('2026-12-02', 'todo')]
+                operations = [{'opId': f'fixture-task-{i}', 'kind': 'upsert', 'collection': 'tasks', 'id': f'fixture-task-{i}',
+                               'fields': {'title': 'Fixture private title', 'date': day, 'taskStatus': status},
+                               'unset': [], 'base': {}, 'baseExists': False, 'baseRecord': {}}
+                              for i, (day, status) in enumerate(rows)]
+                headers = {'Origin': origin, 'X-CSRF-Token': csrf(first)}
+                status, body, _ = request(port, 'POST', route + 'api/sync', first,
+                                          {'clientId': 'fixture-device', 'operations': operations}, headers)
+                self.assertEqual(status, 200, body)
+                summary = route + 'api/assistant-summary?day=2026-11-24'
+                status, body, headers = request(port, 'GET', summary, first)
+                self.assertEqual(status, 200, body)
+                self.assertEqual(headers['Cache-Control'], 'no-store')
+                self.assertEqual(json.loads(body), {'accountId': '7', 'day': '2026-11-24', 'todayPlanned': 2,
+                                                     'todayCompleted': 1, 'overdue': 1, 'nextSevenDays': 1})
+                self.assertEqual(request(port, 'GET', summary, other)[0], 403)
+                self.assertEqual(request(port, 'GET', summary)[0], 401)
+                self.assertEqual(request(port, 'GET', route + 'api/assistant-summary?day=2026-02-30', first)[0], 400)
+
     def test_devices_authors_files_and_revisions(self):
         workspace = ROOT / 'build-function3'
         workspace.mkdir(exist_ok=True)
