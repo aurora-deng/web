@@ -11,6 +11,7 @@ public:
 
     Task submit(std::string_view taskId, Station station, std::string_view traceId) override;
     std::optional<Task> lookup(std::string_view taskId) override;
+    std::vector<Task> listBefore(std::int64_t beforeEpoch, unsigned limit) override;
     std::optional<Command> dispatch(std::string_view robotId, Capabilities capabilities) override;
     void apply(std::string_view robotId, const Receipt& receipt) override;
     FleetLoad load() override;

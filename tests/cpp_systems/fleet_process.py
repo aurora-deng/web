@@ -158,6 +158,67 @@ def ledger_rows(path, query):
     finally:
         connection.close()
 
+def native_ollama_contract(lab):
+    lab.coordinator()
+    for task_id in ("native-a", "native-b", "native-c"):
+        lab.call("submit", task_id, "alpha")
+
+    class Handler(BaseHTTPRequestHandler):
+        reply = {"skillId": "fleet.propose_sim_reschedule", "version": "1", "evidenceTaskIds": "native-b"}
+        requests = []
+
+        def log_message(self, *_args):
+            pass
+
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            self.requests.append((self.path, body))
+            response = (json.dumps({"message": {"content": json.dumps(self.reply)}, "done": False}) + "\n" +
+                        json.dumps({"done": True, "eval_count": 10}) + "\n").encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Content-Length", str(len(response)))
+            self.end_headers()
+            self.wfile.write(response)
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as mock:
+        thread = threading.Thread(target=mock.serve_forever)
+        thread.start()
+        lab.env["NEBULA_AGENT_OLLAMA_URL"] = f"http://127.0.0.1:{mock.server_port}"
+        flags = ("--ollama", "fixture")
+        try:
+            reply, _ = lab.agent("propose", "native-b", flags=flags)
+            assert reply["planner"] == "provider" and reply["proposal"]["evidenceTaskIds"] == ["native-b"], reply
+            Handler.reply = {"skillId": "unknown.skill", "version": "1", "evidenceTaskIds": "native-b"}
+            refused, events = lab.agent("propose", "native-b", code=2, flags=flags)
+            assert refused["errorCode"] == "proposal_rejected" and refused["proposal"] is None, refused
+            assert "unknown.skill" not in events
+            Handler.reply = {"skillId": "fleet.propose_sim_reschedule", "version": 1, "evidenceTaskIds": "native-b"}
+            malformed, _ = lab.agent("propose", "native-b", code=2, flags=flags)
+            assert malformed["errorCode"] == "provider_malformed", malformed
+        finally:
+            mock.shutdown()
+            thread.join(timeout=5)
+    assert len(Handler.requests) == 3
+    assert all(path == "/api/chat" and body["format"] == "json" and body["stream"]
+               for path, body in Handler.requests)
+
+    page, _ = lab.agent("list", "0", "2")
+    assert [task["taskId"] for task in page["items"]] == ["native-c", "native-b"]
+    rest, _ = lab.agent("list", str(page["nextBeforeEpoch"]), "2")
+    assert [task["taskId"] for task in rest["items"]] == ["native-a"] and rest["nextBeforeEpoch"] == 0
+    task, _ = lab.agent("evidence", "native-b")
+    assert task["traceId"] == lab.call("status", "native-b")["traceId"]
+
+    first, _ = lab.agent("propose", "native-b", flags=("--session", "one", "--run-id", "durable-native"))
+    again, _ = lab.agent("propose", "native-b", flags=("--session", "one", "--run-id", "durable-native"))
+    assert first == again and first["state"] == "success"
+    recalled, _ = lab.agent("review", code=2, flags=("--session", "one"))
+    assert recalled["recalledTaskCount"] == 1 and recalled["evidence"][0]["taskId"] == "native-b"
+    isolated, _ = lab.agent("review", code=2, flags=("--session", "other"))
+    assert isolated["recalledTaskCount"] == 0 and isolated["evidence"] == []
+    print("native Ollama HTTP, rejected unknown skill, task pagination, checkpoint replay and session isolation passed")
+
 
 def observer_replay(lab, work, trace_id, event_count):
     def get_trace():
@@ -210,7 +271,7 @@ def agent_contract(lab, queued, uncertain):
 
     path = lab.directory / "agent.jsonl"
     path.write_text(events, encoding="utf-8")
-    states = observer_replay(lab, path, proposal["traceId"], 17)
+    states = observer_replay(lab, path, proposal["traceId"], 18)
     assert ("read_task_status", "success") in states and ("verify_proposal", "success") in states
     assert queued["traceId"] not in events and '"taskId"' not in events
 
@@ -243,6 +304,18 @@ def approved_handoff(lab):
     proposal_id = draft["proposalId"]
     assert draft["state"] == "pending" and draft["sourceEpoch"] == original["epoch"]
     assert draft["station"] == "alpha" and draft["expiresAt"] - draft["createdAt"] == 300
+    # Reproduce a process exiting after the real gRPC Stage commit and before
+    # the local settle. Both store files are private to this test.
+    with sqlite3.connect(lab.directory / "fleet-agent-workflow.sqlite") as checkpoints:
+        edited = checkpoints.execute("UPDATE workflow_nodes SET result_kind=0,value='',error_code='' "
+                                     "WHERE run_id=? AND node_id='stage_review' AND result_kind=1",
+                                     ("stage-" + proposal_id,))
+        assert edited.rowcount == 1
+    unresolved, _ = lab.agent("stage", original["taskId"], code=2, roles=draft_role,
+                                flags=("--trace-id", proposal_id))
+    assert unresolved["state"] == "uncertain" and unresolved["errorCode"] == "requires_reconciliation"
+    verified, _ = lab.agent("reconcile", proposal_id, roles=reviewer)
+    assert verified == draft
     again, _ = lab.agent("stage", original["taskId"], roles=draft_role, flags=("--trace-id", proposal_id))
     assert again == draft and lab.call("status", original["taskId"]) == original
     denied, _ = lab.agent("approve", proposal_id, roles={"REVIEW": "DRAFT"}, code=2)
@@ -271,8 +344,8 @@ def approved_handoff(lab):
                              if alpha_spool.is_file() else None, "approved edge trace")
     assert edge_events
     events_file.write_text(planned + audited + alpha_spool.read_text(encoding="utf-8"), encoding="utf-8")
-    states = observer_replay(lab, events_file, proposal_id, 49)
-    assert {("verify_proposal", "success"), ("stage_review", "success"), ("approve_review", "success"),
+    states = observer_replay(lab, events_file, proposal_id, 54)
+    assert {("verify_proposal", "success"), ("bind_stage", "success"), ("stage_review", "success"), ("approve_review", "success"),
             ("navigate", "success")} <= states
 
     beta = lab.call("submit", "approval-race", "beta")
@@ -335,7 +408,10 @@ def model_adapter_contract(lab):
         if events:
             path = lab.directory / "model-trace.jsonl"
             path.write_text(result.stderr, encoding="utf-8")
-            assert ("model_candidate", "failed") in observer_replay(lab, path, answer["traceId"], 21)
+            emitted = [json.loads(line) for line in result.stderr.splitlines()]
+            assert all(row["traceId"] == answer["traceId"] for row in emitted)
+            assert len(emitted) > 4 and len({row["eventId"] for row in emitted}) == len(emitted)
+            assert ("model_candidate", "failed") in observer_replay(lab, path, answer["traceId"], len(emitted))
             assert "bad candidate" not in result.stderr
         return answer
 
@@ -637,6 +713,7 @@ def main():
     parser.add_argument("--nav2-fixture", type=lambda value: Path(value).absolute())
     parser.add_argument("--agent-approval", action="store_true")
     parser.add_argument("--agent-model", action="store_true")
+    parser.add_argument("--native-ollama", action="store_true")
     parser.add_argument("--backpressure", action="store_true")
     parser.add_argument("--simulation-models", action="store_true")
     parser.add_argument("--nodes", type=int, choices=(2, 3), default=2)
@@ -653,6 +730,8 @@ def main():
                 approved_handoff(lab)
             elif args.agent_model:
                 model_adapter_contract(lab)
+            elif args.native_ollama:
+                native_ollama_contract(lab)
             elif args.backpressure:
                 backpressure_contract(lab)
             elif args.simulation_models:

@@ -7,7 +7,6 @@
 
 namespace nebula::workflow {
 
-enum class State { pending, queued, started, success, failed, timeout, retry, skipped, cancelled };
 enum class EventKind { run, edge, node };
 std::string_view stateName(State state);
 

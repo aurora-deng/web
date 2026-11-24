@@ -45,6 +45,7 @@ def source_checks(report, observer_http):
     python = sys.executable
     for name, script, *args in [
         ('boundaries', 'scripts/project/check_boundaries.py'),
+        ('dagStates', 'scripts/project/check_dag_contract.py'),
         ('function3Boundaries', 'tests/function3/architecture/check_boundaries.py'),
         ('artwork', 'scripts/project/chat_backdrop_artwork.py', '--check'),
         ('assetVersions', 'scripts/project/frontend_release.py', '--check'),

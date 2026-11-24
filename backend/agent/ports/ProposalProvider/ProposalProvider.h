@@ -17,6 +17,7 @@ struct Candidate {
 class ProposalProvider {
 public:
     virtual ~ProposalProvider() = default;
+    virtual std::string checkpointIdentity() const { return "provider"; }
     // Return by deadline and honor stop. Supply typed values from authorized evidence only.
     virtual Candidate plan(Intent intent, std::span<const TaskEvidence> evidence, std::stop_token stop,
                            std::chrono::steady_clock::time_point deadline) = 0;

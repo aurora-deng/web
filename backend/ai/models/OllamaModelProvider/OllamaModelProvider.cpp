@@ -52,7 +52,7 @@ std::string normalizeBaseUrl(std::string value)
     return value;
 }
 
-std::string buildRequestBody(const GenerationRequest &request)
+std::string buildRequestBody(const GenerationRequest &request, bool jsonOutput)
 {
     using transport::quoteJson;
     std::string body = "{\"model\":" + quoteJson(request.modelArtifact) +
@@ -65,7 +65,8 @@ std::string buildRequestBody(const GenerationRequest &request)
         body += "{\"role\":" + quoteJson(message.role) +
                 ",\"content\":" + quoteJson(message.content) + "}";
     }
-    body += "],\"stream\":true,\"options\":{\"num_predict\":" +
+    body += jsonOutput ? "],\"format\":\"json\",\"think\":false" : "]";
+    body += ",\"stream\":true,\"options\":{\"num_predict\":" +
             std::to_string(request.maxOutputTokens) + "}}";
     return body;
 }
@@ -131,7 +132,7 @@ public:
         std::string body;
         if (validationError.empty())
         {
-            body = buildRequestBody(request);
+            body = buildRequestBody(request, config_.jsonOutput);
             if (body.size() > config_.maxRequestBytes)
                 validationError = "Ollama request exceeds configured limit";
         }
@@ -287,6 +288,7 @@ private:
         setOption(transfer->easy, CURLOPT_NOSIGNAL, 1L);
         setOption(transfer->easy, CURLOPT_TCP_KEEPALIVE, 1L);
         setOption(transfer->easy, CURLOPT_FOLLOWLOCATION, 0L);
+        if (config_.bypassProxy) setOption(transfer->easy, CURLOPT_NOPROXY, "*");
         setOption(transfer->easy, CURLOPT_PROTOCOLS_STR, "http,https");
         setOption(transfer->easy, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
         setOption(transfer->easy, CURLOPT_ACCEPT_ENCODING, "");

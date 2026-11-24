@@ -26,6 +26,7 @@ public:
 
     grpc::Status Submit(grpc::ServerContext* context, const v1::TaskRequest* in, v1::TaskStatus* out) override;
     grpc::Status Status(grpc::ServerContext* context, const v1::TaskQuery* in, v1::TaskStatus* out) override;
+    grpc::Status ListTasks(grpc::ServerContext* context, const v1::TaskPageRequest* in, v1::TaskPage* out) override;
     grpc::Status StageReview(grpc::ServerContext* context, const v1::ReviewDraft* in, v1::SimulationReview* out) override;
     grpc::Status InspectReview(grpc::ServerContext* context, const v1::ReviewQuery* in, v1::SimulationReview* out) override;
     grpc::Status DecideReview(grpc::ServerContext* context, const v1::ReviewRequest* in, v1::SimulationReview* out) override;

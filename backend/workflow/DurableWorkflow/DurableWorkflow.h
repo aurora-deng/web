@@ -9,7 +9,8 @@ class DurableWorkflow {
 public:
     DurableWorkflow(WorkflowJournal& journal, std::size_t workers);
     // revision identifies immutable inputs and implementation, including changes invisible to graph topology.
-    RunResult run(const WorkflowGraph& graph, std::string_view revision, RunOptions options);
+    RunResult run(const WorkflowGraph& graph, std::string_view revision, RunOptions options,
+                  std::string_view inputIdentity = {});
     void reconcile(std::string_view run, std::string_view node, const WorkResult& verified);
 
 private:

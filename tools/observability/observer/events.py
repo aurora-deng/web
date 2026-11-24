@@ -11,7 +11,7 @@ MAX_UINT64 = (1 << 64) - 1
 SCHEMAS = {
     "dag.run": ("runId state", "workflow"),
     "dag.edge": ("runId predecessor successor", ""),
-    "dag.node": ("runId nodeId attempt state", "durationMs inputCount outputCount errorCode"),
+    "dag.node": ("runId nodeId attempt state", "durationMs inputCount outputCount errorCode workerId"),
     "agent.plan": ("agentRunId state", "durationMs stepCount inputTokens outputTokens"),
     "agent.skill": ("agentRunId callId skill attempt state", "durationMs inputCount outputCount inputTokens outputTokens errorCode"),
     "agent.memory": ("agentRunId operation state", "durationMs itemCount"),
@@ -26,8 +26,8 @@ SCHEMAS = {
 }
 
 WORDS = {
-    "dag.run": {"state": "started success failed timeout cancelled"},
-    "dag.node": {"state": "queued started success failed timeout retry skipped cancelled"},
+    "dag.run": {"state": "started success failed timeout cancelled uncertain"},
+    "dag.node": {"state": "queued started success failed timeout retry skipped cancelled uncertain"},
     "agent.plan": {"state": "success failed timeout cancelled"},
     "agent.skill": {"state": "started retry success failed timeout invalid cancelled"},
     "agent.memory": {"operation": "read write", "state": "success failed blocked"},

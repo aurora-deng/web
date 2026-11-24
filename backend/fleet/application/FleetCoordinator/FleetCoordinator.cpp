@@ -77,6 +77,13 @@ Session FleetCoordinator::connect(std::string robotId, Capabilities capabilities
     return {std::move(robotId), generation};
 }
 
+std::vector<Task> FleetCoordinator::listBefore(std::int64_t beforeEpoch, unsigned limit) {
+    std::lock_guard lock(mutex_);
+    auto rows = ledger_.listBefore(beforeEpoch, limit);
+    for (auto& row : rows) row = withConnection(std::move(row));
+    return rows;
+}
+
 void FleetCoordinator::disconnect(const Session& session) {
     std::lock_guard lock(mutex_);
     const auto found = connections_.find(session.robotId);

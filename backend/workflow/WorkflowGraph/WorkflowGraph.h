@@ -15,6 +15,7 @@ using Milliseconds = std::chrono::milliseconds;
 
 enum class Effect { read, idempotent, external };
 enum class WorkStatus { success, failure, retryable, uncertain };
+enum class State { pending, queued, started, success, failed, timeout, retry, skipped, cancelled, uncertain };
 
 struct WorkResult {
     WorkStatus status{WorkStatus::success};
@@ -25,6 +26,7 @@ struct WorkResult {
 struct DependencyValue {
     std::string_view nodeId;
     std::string value;
+    State state{State::success};
 };
 
 struct NodeContext {
@@ -46,6 +48,7 @@ struct Node {
     Milliseconds timeout{1000};
     unsigned attempts{1};
     Milliseconds backoff{20};
+    bool acceptIncomplete{};
 };
 
 bool validIdentifier(std::string_view id, std::size_t maxLength = 80);

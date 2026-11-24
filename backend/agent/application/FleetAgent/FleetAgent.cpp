@@ -1,4 +1,5 @@
 #include "FleetAgent.h"
+#include "AgentRecords.h"
 
 #include <algorithm>
 #include <utility>
@@ -31,15 +32,16 @@ std::string_view plannerName(PlannerSource source) {
 FleetAgent::FleetAgent(TaskEvidenceReader& reader, ProposalProvider* provider)
     : reader_(reader), provider_(provider) {}
 
-Answer FleetAgent::run(const Request& request, RunOptions options) {
-    std::vector<TaskEvidence> evidence;
-    std::optional<Proposal> permitted;
-    Proposal candidate;
-    auto planner = PlannerSource::none;
+FleetAgent::FleetAgent(TaskEvidenceReader& reader, DurableWorkflow& durable, ProposalProvider* provider,
+                       Milliseconds planningBudget)
+    : reader_(reader), provider_(provider), durable_(&durable), planningBudget_(planningBudget) {
+    if (planningBudget_ < Milliseconds{1} || planningBudget_ > Milliseconds{30000}) {
+        throw std::invalid_argument("invalid planner budget");
+    }
+}
 
-    // Each buffer is handed to the next node only after the owning node completes.
-    // The executor drains all admitted jobs before returning these stack variables.
-    const WorkflowGraph graph("fleet.agent.proposal.v1", {
+Answer FleetAgent::run(const Request& request, RunOptions options) {
+    const WorkflowGraph graph("fleet.agent.proposal.v2", {
         {"validate_request", {}, [&](const NodeContext&) {
             return validRequest(request) ? WorkResult{} : WorkResult{WorkStatus::failure, {}, "invalid_request"};
         }},
@@ -53,50 +55,61 @@ Answer FleetAgent::run(const Request& request, RunOptions options) {
                 if (!validEvidence(result.evidence, taskId)) return readFailure(ReadStatus::invalid);
                 batch.push_back(std::move(result.evidence));
             }
-            evidence = std::move(batch);
-            return WorkResult{};
+            return WorkResult{WorkStatus::success, records::evidenceOf(batch), {}};
         }, Effect::read, Milliseconds{600}, 2},
         {"build_proposal", {"read_task_status"}, [&](const NodeContext& context) {
-            permitted = allowedProposal(request.intent, evidence);
+            const auto evidence = records::evidenceFrom(context.inputs.front().value);
+            const auto permitted = allowedProposal(request.intent, evidence);
             if (!permitted) {
                 return WorkResult{WorkStatus::failure, {}, request.intent == Intent::review ?
                                   "no_failure_evidence" : "task_not_eligible"};
             }
             if (!provider_) {
-                planner = PlannerSource::rules;
-                candidate = *permitted;
-                return WorkResult{};
+                return WorkResult{WorkStatus::success, records::proposalOf(PlannerSource::rules, *permitted), {}};
             }
-            const auto deadline = std::min(context.deadline, Clock::now() + Milliseconds{200});
+            const auto deadline = std::min(context.deadline, Clock::now() + planningBudget_);
             auto provided = provider_->plan(request.intent, evidence, context.stop, deadline);
             if (context.stop.stop_requested()) return WorkResult{WorkStatus::failure, {}, "stopped"};
             if (provided.status == CandidateStatus::unavailable || Clock::now() >= deadline) {
-                planner = PlannerSource::fallback;
-                candidate = *permitted;
-                return WorkResult{};
+                return WorkResult{WorkStatus::success, records::proposalOf(PlannerSource::fallback, *permitted), {}};
             }
             if (provided.status != CandidateStatus::proposed) {
                 return WorkResult{WorkStatus::failure, {}, "provider_malformed"};
             }
-            planner = PlannerSource::provider;
-            candidate = std::move(provided.proposal);
-            return WorkResult{};
-        }, Effect::read, Milliseconds{500}},
-        {"verify_proposal", {"build_proposal"}, [&](const NodeContext&) {
+            return WorkResult{WorkStatus::success, records::proposalOf(PlannerSource::provider, provided.proposal), {}};
+        }, Effect::read, planningBudget_ + Milliseconds{300}},
+        {"verify_proposal", {"read_task_status", "build_proposal"}, [&](const NodeContext& context) {
+            const auto evidence = records::evidenceFrom(context.inputs[0].value);
+            const auto permitted = allowedProposal(request.intent, evidence);
+            const auto [source, candidate] = records::proposalFrom(context.inputs[1].value);
             const auto* skill = findSkill(candidate.skillId, candidate.version);
-            if (!skill || skill->effect != SkillEffect::proposal || candidate != *permitted) {
+            const bool permittedByEvidence = permitted && candidate == *permitted;
+            const bool registeredProposal = skill && skill->effect == SkillEffect::proposal;
+            if (!registeredProposal || !permittedByEvidence) {
                 return WorkResult{WorkStatus::failure, {}, "proposal_rejected"};
             }
             return WorkResult{};
         }},
     });
 
-    auto run = executor_.run(graph, std::move(options));
+    std::string inputIdentity;
+    if (validRequest(request)) {
+        inputIdentity = request.intent == Intent::review ? "review" : "reschedule";
+        // Length prefixes keep distinct task lists distinct when IDs contain dots.
+        for (const auto& id : request.taskIds) inputIdentity += "." + std::to_string(id.size()) + "." + id;
+    } else {
+        inputIdentity = "invalid";
+    }
+    inputIdentity += "." + (provider_ ? provider_->checkpointIdentity() : std::string("rules"));
+    auto run = durable_ ? durable_->run(graph, "proposal2", std::move(options), inputIdentity)
+                        : executor_.run(graph, std::move(options));
     const auto read = std::ranges::find(run.nodes, "read_task_status", &NodeResult::nodeId);
-    if (read->state != State::success) evidence.clear();
-    std::optional<Proposal> verified;
-    if (run.state == State::success) verified = std::move(candidate);
-    return {std::move(run), std::move(evidence), std::move(verified), planner};
+    auto evidence = read->state == State::success ? records::evidenceFrom(read->value) : std::vector<TaskEvidence>{};
+    const auto planned = std::ranges::find(run.nodes, "build_proposal", &NodeResult::nodeId);
+    auto [source, candidate] = planned->state == State::success ? records::proposalFrom(planned->value)
+                                                              : std::pair{PlannerSource::none, Proposal{}};
+    auto verified = run.state == State::success ? std::optional(std::move(candidate)) : std::nullopt;
+    return {std::move(run), std::move(evidence), std::move(verified), source};
 }
 
 }

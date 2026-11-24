@@ -1,5 +1,9 @@
 const identifier = /^[A-Za-z0-9_.-]{1,80}$/;
 const tracePattern = /^(?!0+$)[a-f0-9]{32}$/;
+export const workflowEventStates = Object.freeze({
+  run: Object.freeze(['started', 'success', 'failed', 'timeout', 'cancelled', 'uncertain']),
+  node: Object.freeze(['queued', 'started', 'success', 'failed', 'timeout', 'retry', 'skipped', 'cancelled', 'uncertain'])
+});
 const token = length => Array.from(crypto.getRandomValues(new Uint8Array(length)), byte => byte.toString(16).padStart(2, '0')).join('');
 
 function bounded(value, min, max, label) {
@@ -60,6 +64,7 @@ class Workers {
 }
 
 function outcome(error, signal) {
+  if (error?.code === 'outcome_uncertain') return 'uncertain';
   const cause = signal?.aborted ? signal.reason : error;
   return cause?.name === 'TimeoutError' ? 'timeout' : cause?.name === 'AbortError' || signal?.aborted ? 'cancelled' : 'failed';
 }
@@ -69,6 +74,8 @@ function events(workflow, traceId, runId, send) {
   let latest = 0n;
   return (eventType, fields, spanId) => {
     if (!send) return;
+    const allowed = workflowEventStates[eventType.slice(4)];
+    if (allowed && !allowed.includes(fields.state)) throw new Error('Invalid workflow event state');
     const wall = BigInt(Date.now()) * 1000000n;
     latest = wall > latest ? wall : latest + 1n;
     const event = { schemaVersion: 1, eventId: runId + '.' + (++sequence), eventType,
@@ -134,7 +141,7 @@ export function defineDag(nodes, target, { workflow = 'workflow.v1', concurrency
       for (let attempt = 1; attempt <= node.attempts; attempt++) {
         const spanId = token(8), identity = { nodeId: name, attempt };
         emit('dag.node', { ...identity, state: 'queued' }, spanId);
-        let started, alarm, attemptSignal;
+        let started, alarm, attemptSignal, invoked = false;
         try {
           const release = await workers.acquire(signal);
           if (signal.aborted) { release(); signal.throwIfAborted(); }
@@ -145,6 +152,7 @@ export function defineDag(nodes, target, { workflow = 'workflow.v1', concurrency
           emit('dag.node', { ...identity, state: 'started', inputCount: node.needs.length }, spanId);
           const task = Promise.resolve().then(() => {
             attemptSignal.throwIfAborted();
+            invoked = true;
             return node.execute(input, values, attemptSignal,
               { runId, traceId, spanId, attempt, idempotencyKey: runId + '.' + name, upstream });
           });
@@ -156,7 +164,11 @@ export function defineDag(nodes, target, { workflow = 'workflow.v1', concurrency
             outputCount: Number(value !== undefined) }, spanId);
           return { state: 'success', value };
         } catch (error) {
-          const state = outcome(error, attemptSignal ?? signal);
+          let state = outcome(error, attemptSignal ?? signal);
+          if (node.effect === 'commit' && invoked && (state === 'timeout' || state === 'cancelled')) {
+            state = 'uncertain';
+            error = Object.assign(new Error('写入结果待确认', { cause: error }), { code: 'outcome_uncertain' });
+          }
           const retryable = state === 'timeout' || (state === 'failed' && error?.retryable === true);
           const fields = { ...identity, state, errorCode: state === 'failed' ? (retryable ? 'transient' : 'execution_failed') : state };
           if (started !== undefined) fields.durationMs = performance.now() - started;
@@ -179,6 +191,7 @@ export function defineDag(nodes, target, { workflow = 'workflow.v1', concurrency
 
     try {
       const result = await run(target);
+      if (result.state === 'uncertain' || result.error?.code === 'outcome_uncertain') throw result.error;
       signal.throwIfAborted();
       if (result.state !== 'success') throw result.error ?? new Error('DAG 节点未完成');
       emit('dag.run', { state: 'success' });

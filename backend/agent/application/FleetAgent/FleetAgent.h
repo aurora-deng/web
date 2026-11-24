@@ -3,6 +3,7 @@
 #include "../../ports/ProposalProvider/ProposalProvider.h"
 #include "../../ports/TaskEvidenceReader/TaskEvidenceReader.h"
 #include "backend/workflow/DagExecutor/DagExecutor.h"
+#include "backend/workflow/DurableWorkflow/DurableWorkflow.h"
 
 namespace nebula::agent {
 
@@ -19,11 +20,15 @@ struct Answer {
 class FleetAgent {
 public:
     explicit FleetAgent(TaskEvidenceReader& reader, ProposalProvider* provider = nullptr);
+    FleetAgent(TaskEvidenceReader& reader, workflow::DurableWorkflow& durable, ProposalProvider* provider = nullptr,
+               workflow::Milliseconds planningBudget = workflow::Milliseconds{2000});
     Answer run(const Request& request, workflow::RunOptions options);
 
 private:
     TaskEvidenceReader& reader_;
     ProposalProvider* provider_;
+    workflow::DurableWorkflow* durable_{};
+    workflow::Milliseconds planningBudget_{200};
     workflow::DagExecutor executor_{1};
 };
 

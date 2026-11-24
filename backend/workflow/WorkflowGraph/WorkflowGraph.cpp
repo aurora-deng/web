@@ -51,7 +51,7 @@ WorkflowGraph::WorkflowGraph(std::string name, std::vector<Node> nodes) : name_(
     for (auto& node : nodes) {
         edges += node.needs.size();
         const bool validRetry = node.attempts >= 1 && node.attempts <= 3 &&
-                                (node.effect != Effect::external || node.attempts == 1);
+                                (node.effect != Effect::external || (node.attempts == 1 && !node.acceptIncomplete));
         if (!validIdentifier(node.id) || !node.execute || !validRetry ||
             node.timeout < Milliseconds{1} || node.timeout > Milliseconds{600000} ||
             node.backoff < Milliseconds{0} || node.backoff > Milliseconds{5000} ||

@@ -6,7 +6,7 @@
 namespace nebula::workflow {
 namespace {
 
-std::string definitionOf(const WorkflowGraph& graph, std::string_view revision) {
+std::string definitionOf(const WorkflowGraph& graph, std::string_view revision, std::string_view inputIdentity) {
     std::string result = graph.name() + ":" + std::string(revision);
     for (const auto& step : graph.steps()) {
         const auto& node = step.node;
@@ -14,7 +14,9 @@ std::string definitionOf(const WorkflowGraph& graph, std::string_view revision) 
                   std::to_string(node.attempts) + ":" + std::to_string(node.timeout.count()) + ":" +
                   std::to_string(node.backoff.count());
         for (const auto& parent : node.needs) result += ":" + parent;
+        if (node.acceptIncomplete) result += ":accept-incomplete";
     }
+    if (!inputIdentity.empty()) result += "\ninput:" + std::string(inputIdentity);
     return result;
 }
 
@@ -37,15 +39,17 @@ std::unique_lock<std::mutex> WorkflowJournal::claim() {
 DurableWorkflow::DurableWorkflow(WorkflowJournal& journal, std::size_t workers)
     : journal_(journal), executor_(workers) {}
 
-RunResult DurableWorkflow::run(const WorkflowGraph& graph, std::string_view revision, RunOptions options) {
+RunResult DurableWorkflow::run(const WorkflowGraph& graph, std::string_view revision, RunOptions options,
+                              std::string_view inputIdentity) {
     if (!validIdentifier(options.runId, 64) || !validIdentifier(revision) ||
+        (!inputIdentity.empty() && !validIdentifier(inputIdentity, 1024)) ||
         (!options.traceId.empty() && !validTraceId(options.traceId)) ||
         options.timeout < Milliseconds{1} || options.timeout > Milliseconds{600000}) {
         throw std::invalid_argument("invalid durable workflow identity or deadline");
     }
     auto lease = journal_.claim();
     const auto durableId = options.runId;
-    options.traceId = journal_.open(durableId, definitionOf(graph, revision), options.traceId);
+    options.traceId = journal_.open(durableId, definitionOf(graph, revision, inputIdentity), options.traceId);
     options.runId = "attempt-" + newTraceId();
     const auto clock = options.now;
 

@@ -19,6 +19,8 @@ struct OllamaModelProviderConfig
     std::size_t maxResponseLineBytes = 1024 * 1024;
     std::chrono::milliseconds connectTimeout{2000};
     std::chrono::milliseconds requestTimeout{120000};
+    bool jsonOutput = false;
+    bool bypassProxy = false;
 };
 
 /**

@@ -7,6 +7,7 @@ from pathlib import Path
 import platform
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 SANITIZERS = {"none": "", "tsan": "thread", "asan-ubsan": "address,undefined"}
@@ -16,10 +17,12 @@ def source_digest():
     digest = sha256()
     for part in ("backend/systems", "backend/workflow", "backend/fleet", "backend/agent", "robotics/nav2_gateway",
                  "robotics/actuator_control", "robotics/actuator_ros_sim",
-                 "tests/cpp_systems", "benchmarks/cpp_systems", "tools/agent", "tools/body"):
+                 "backend/ai/models/OllamaModelProvider", "backend/ai/models/OllamaStreamDecoder",
+                 "backend/application/transport/FlatJson", "tests/cpp_systems", "benchmarks/cpp_systems",
+                 "tools/agent", "tools/body"):
         paths = sorted((ROOT / part).rglob("*"), key=lambda path: path.relative_to(ROOT).parts)
         for path in paths:
-            if path.suffix in (".txt", ".h", ".cpp", ".proto", ".py"):
+            if path.suffix in (".txt", ".h", ".cpp", ".proto", ".py", ".sql"):
                 digest.update(path.relative_to(ROOT).as_posix().encode() + b"\0")
                 digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
                 digest.update(b"\0")
@@ -32,6 +35,10 @@ def main():
     parser.add_argument("--config", choices=("Debug", "Release"), default="Release")
     parser.add_argument("--sanitizer", choices=SANITIZERS, default="none")
     parser.add_argument("--with-grpc", action="store_true")
+    parser.add_argument("--with-ollama", action="store_true", help="Build the native planner with an installed libcurl")
+    parser.add_argument("--curl-root", type=Path, help="Already installed libcurl 8+ prefix")
+    parser.add_argument("--openssl-root", type=Path, help="Select the OpenSSL installation used by libcurl")
+    parser.add_argument("--postgres-prefix", type=Path, help="Enable the shared lease test with installed PostgreSQL")
     parser.add_argument("--with-nav2", action="store_true", help="Build and exercise ROS 2 in a sourced Linux environment")
     parser.add_argument("--benchmarks", action="store_true", help="Build standalone DAG and optional Fleet benchmarks")
     parser.add_argument("--prefix", type=Path, help="Already installed gRPC/Protobuf prefix")
@@ -43,6 +50,13 @@ def main():
         parser.error("the existing prefix directory is required only with --with-grpc")
     if args.with_nav2 and (not args.with_grpc or not sys.platform.startswith("linux")):
         parser.error("Nav2 validation requires Linux and --with-grpc")
+    if args.with_ollama and not args.with_grpc or args.curl_root and (not args.with_ollama or not args.curl_root.is_dir()):
+        parser.error("Ollama requires --with-grpc and an optional existing --curl-root")
+    if args.openssl_root and (not args.with_ollama or not args.openssl_root.is_dir()):
+        parser.error("--openssl-root requires the enabled Ollama build and an existing directory")
+    if args.postgres_prefix and (not sys.platform.startswith("linux") or
+                                 not (args.postgres_prefix / "bin/initdb").is_file()):
+        parser.error("--postgres-prefix requires a Linux PostgreSQL install with initdb")
 
     build = args.build_dir.resolve()
     build.mkdir(parents=True, exist_ok=True)
@@ -50,6 +64,8 @@ def main():
         "config": args.config,
         "sanitizer": args.sanitizer,
         "grpc": args.with_grpc,
+        "ollama": args.with_ollama,
+        "postgresWorkflow": bool(args.postgres_prefix),
         "nav2": args.with_nav2,
         "benchmarks": args.benchmarks,
         "platform": platform.platform(),
@@ -72,6 +88,8 @@ def main():
         "-DNEBULA_ACTUATOR_SIM=ON",
         "-DNEBULA_ENABLE_FLEET=ON",
         f"-DNEBULA_FLEET_GRPC={'ON' if args.with_grpc else 'OFF'}",
+        f"-DNEBULA_AGENT_OLLAMA={'ON' if args.with_ollama else 'OFF'}",
+        f"-DNEBULA_WORKFLOW_POSTGRES={'ON' if args.postgres_prefix else 'OFF'}",
         f"-DNEBULA_FLEET_NAV2={'ON' if args.with_nav2 else 'OFF'}",
         f"-DNEBULA_WORKFLOW_BENCHMARK={'ON' if args.benchmarks else 'OFF'}",
         f"-DNEBULA_FLEET_BENCHMARK={'ON' if args.benchmarks and args.with_grpc else 'OFF'}",
@@ -79,6 +97,13 @@ def main():
     ]
     if sys.platform.startswith("linux"):
         cache.append(f"-DCMAKE_CXX_FLAGS={flags}")
+    if args.curl_root:
+        cache.append(f"-DCURL_ROOT={args.curl_root.resolve()}")
+    if args.openssl_root:
+        cache.append(f"-DOPENSSL_ROOT_DIR={args.openssl_root.resolve()}")
+    if args.postgres_prefix:
+        cache += [f"-DPostgreSQL_ROOT={args.postgres_prefix.resolve()}",
+                  f"-DNEBULA_WORKFLOW_POSTGRES_PREFIX={args.postgres_prefix.resolve()}"]
     try:
         evidence["phase"] = "configure"
         subprocess.run(["cmake", "-S", str(ROOT / "backend/systems"), "-B", str(build), *cache],
@@ -99,12 +124,22 @@ def main():
                              "nebula_agent_model_adapter", "nebula_simulation_models_and_replay"})
         if args.with_nav2:
             required.update({"nebula_nav2_contract", "nebula_nav2_fleet_process"})
+        if args.with_ollama:
+            required.add("nebula_agent_ollama_native")
+        if args.postgres_prefix:
+            required.add("nebula_workflow_pg_leases")
         required.update(args.require_test)
         if required - names:
             raise RuntimeError(f"missing native tests: {sorted(required - names)}")
         evidence["phase"] = "ctest"
         subprocess.run([*ctest, "--no-tests=error", "--output-on-failure",
                         "--output-junit", str(build / "ctest.xml")], check=True, env=env)
+        cases = ET.parse(build / "ctest.xml").findall(".//testcase")
+        observed = {case.attrib["name"] for case in cases if case.find("skipped") is None and
+                    case.attrib.get("status", "run") not in ("notrun", "disabled")}
+        if observed != names or len(cases) != len(names):
+            raise RuntimeError(f"CTest did not execute every discovered test: {sorted(names - observed)}")
+        evidence["executed"] = len(cases)
         evidence["passed"] = True
         evidence["phase"] = "complete"
     finally:

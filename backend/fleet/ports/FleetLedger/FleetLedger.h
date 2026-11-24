@@ -4,6 +4,7 @@
 #include "../../domain/SimulationReview/SimulationReview.h"
 
 #include <optional>
+#include <vector>
 
 namespace nebula::fleet {
 
@@ -13,6 +14,7 @@ public:
 
     virtual Task submit(std::string_view taskId, Station station, std::string_view traceId) = 0;
     virtual std::optional<Task> lookup(std::string_view taskId) = 0;
+    virtual std::vector<Task> listBefore(std::int64_t beforeEpoch, unsigned limit) = 0;
     virtual std::optional<Command> dispatch(std::string_view robotId, Capabilities capabilities) = 0;
     virtual void apply(std::string_view robotId, const Receipt& receipt) = 0;
     virtual FleetLoad load() = 0;

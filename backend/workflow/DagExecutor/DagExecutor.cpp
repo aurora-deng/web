@@ -50,7 +50,7 @@ struct Slot {
 
 bool terminal(State state) {
     return state == State::success || state == State::failed || state == State::timeout ||
-           state == State::skipped || state == State::cancelled;
+           state == State::skipped || state == State::cancelled || state == State::uncertain;
 }
 
 Clock::time_point clockNow(const std::function<Clock::time_point()>& clock) {
@@ -164,12 +164,16 @@ private:
                 if (attempt->completion) completion = std::move(attempt->completion);
             }
             if (!terminal(slot.result.state)) {
+                const bool external = graph_.steps()[index].node.effect == Effect::external;
                 if (stop_ == State::cancelled) {
-                    transition(index, State::cancelled, "run_cancelled");
+                    if (completion && external) finish(index, *attempt, std::move(*completion));
+                    else transition(index, external ? State::uncertain : State::cancelled,
+                                    external ? "outcome_uncertain" : "run_cancelled");
                 } else if (completion) {
                     finish(index, *attempt, std::move(*completion));
                 } else if (now >= attempt->deadline) {
-                    transition(index, State::timeout, "node_timeout",
+                    transition(index, external ? State::uncertain : State::timeout,
+                               external ? "outcome_uncertain" : "node_timeout",
                                std::chrono::duration<double, std::milli>(now - attempt->start).count());
                 } else {
                     nextWake = std::min(nextWake, attempt->deadline);
@@ -189,8 +193,13 @@ private:
         auto& slot = slots_[index];
         auto& work = completed.result;
         const auto elapsed = std::chrono::duration<double, std::milli>(completed.finished - attempt.start).count();
-        if (completed.finished >= attempt.deadline) {
-            transition(index, State::timeout, "node_timeout", elapsed);
+        if (work.status == WorkStatus::uncertain) {
+            transition(index, State::uncertain,
+                       work.errorCode.empty() ? "outcome_uncertain" : std::move(work.errorCode), elapsed);
+        } else if (completed.finished >= attempt.deadline) {
+            const bool external = graph_.steps()[index].node.effect == Effect::external;
+            transition(index, external ? State::uncertain : State::timeout,
+                       external ? "outcome_uncertain" : "node_timeout", elapsed);
         } else if (work.status == WorkStatus::success) {
             slot.result.value = std::move(work.value);
             transition(index, State::success, {}, elapsed);
@@ -199,9 +208,7 @@ private:
             slot.readyAt = completed.finished + graph_.steps()[index].node.backoff * slot.result.attempts;
             transition(index, State::retry, "transient", elapsed);
         } else {
-            if (work.errorCode.empty()) {
-                work.errorCode = work.status == WorkStatus::uncertain ? "outcome_uncertain" : "execution_failed";
-            }
+            if (work.errorCode.empty()) work.errorCode = "execution_failed";
             transition(index, State::failed, std::move(work.errorCode), elapsed);
         }
     }
@@ -213,12 +220,16 @@ private:
             const auto state = slot.result.state;
             if (state == State::pending) {
                 const auto& deps = graph_.steps()[i].dependencies;
-                if (std::ranges::any_of(deps, [&](auto d) {
+                const bool partial = graph_.steps()[i].node.acceptIncomplete;
+                if (!partial && std::ranges::any_of(deps, [&](auto d) {
                     const auto parent = slots_[d].result.state;
                     return terminal(parent) && parent != State::success;
                 })) {
                     transition(i, State::skipped, "dependency_failed");
-                } else if (std::ranges::all_of(deps, [&](auto d) { return slots_[d].result.state == State::success; })) {
+                } else if (std::ranges::all_of(deps, [&](auto d) {
+                    const auto state = slots_[d].result.state;
+                    return partial ? terminal(state) : state == State::success;
+                })) {
                     queue(i);
                 }
             } else if (state == State::retry) {
@@ -255,7 +266,8 @@ private:
         attempt->deadline = std::min(deadline_, attempt->start + step.node.timeout);
         std::vector<DependencyValue> inputs;
         for (const auto dep : step.dependencies) {
-            inputs.push_back({graph_.steps()[dep].node.id, slots_[dep].result.value});
+            const auto& parent = slots_[dep].result;
+            inputs.push_back({parent.nodeId, parent.value, parent.state});
         }
         auto key = options_.runId + ":" + step.node.id;
         transition(index, State::started);
@@ -276,6 +288,9 @@ private:
     }
 
     State outcome() const {
+        if (std::ranges::any_of(slots_, [](const auto& slot) { return slot.result.state == State::uncertain; })) {
+            return State::uncertain;
+        }
         if (stop_ != State::pending) return stop_;
         if (std::ranges::any_of(slots_, [](const auto& slot) { return slot.result.state == State::timeout; })) return State::timeout;
         if (std::ranges::any_of(slots_, [](const auto& slot) { return slot.result.state == State::failed; })) return State::failed;
@@ -299,7 +314,7 @@ private:
 
 std::string_view stateName(State state) {
     constexpr std::string_view names[]{"pending", "queued", "started", "success", "failed",
-                                       "timeout", "retry", "skipped", "cancelled"};
+                                       "timeout", "retry", "skipped", "cancelled", "uncertain"};
     return names[static_cast<std::size_t>(state)];
 }
 

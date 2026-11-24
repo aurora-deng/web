@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "run": ["started", "success", "failed", "timeout", "cancelled", "uncertain"],
+  "node": ["queued", "started", "success", "failed", "timeout", "retry", "skipped", "cancelled", "uncertain"],
+  "internal": ["pending"]
+}

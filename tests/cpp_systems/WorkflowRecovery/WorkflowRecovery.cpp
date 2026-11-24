@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
         const auto result = runner.run(graph, "fixture-1", {.runId = "proof"});
         const auto checkpoint = storage.node("proof", "action");
         if (kind == "external" && phase == "blocked") {
-            require(result.state == State::failed && result.nodes[1].errorCode == "requires_reconciliation" &&
+            require(result.state == State::uncertain && result.nodes[1].errorCode == "requires_reconciliation" &&
                     result.nodes.back().state == State::skipped && checkpoint.attempts == 1 && !checkpoint.result,
                     "unknown external action escaped checkpoint");
         } else {

@@ -131,9 +131,20 @@ message LoadUpdate {
   uint32 skipped_samples = 8;
 }
 
+message TaskPageRequest {
+  int64 before_epoch = 1;
+  uint32 limit = 2;
+}
+
+message TaskPage {
+  repeated TaskStatus tasks = 1;
+  int64 next_before_epoch = 2;
+}
+
 service Fleet {
   rpc Submit(TaskRequest) returns (TaskStatus);
   rpc Status(TaskQuery) returns (TaskStatus);
+  rpc ListTasks(TaskPageRequest) returns (TaskPage);
   rpc StageReview(ReviewDraft) returns (SimulationReview);
   rpc InspectReview(ReviewQuery) returns (SimulationReview);
   rpc DecideReview(ReviewRequest) returns (SimulationReview);

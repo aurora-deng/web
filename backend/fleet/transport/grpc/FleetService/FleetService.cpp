@@ -73,6 +73,22 @@ grpc::Status FleetService::Status(grpc::ServerContext* context, const v1::TaskQu
     });
 }
 
+grpc::Status FleetService::ListTasks(grpc::ServerContext* context, const v1::TaskPageRequest* in, v1::TaskPage* out) {
+    if (!mayRead(*context)) return {StatusCode::UNAUTHENTICATED, "task list credential required"};
+    if (in->limit() < 1 || in->limit() > 16 || in->before_epoch() < 0) {
+        return {StatusCode::INVALID_ARGUMENT, "invalid task page cursor or limit"};
+    }
+    return handle([&] {
+        auto rows = coordinator_.listBefore(in->before_epoch(), in->limit() + 1);
+        if (rows.size() > in->limit()) {
+            rows.pop_back();
+            out->set_next_before_epoch(rows.back().command.epoch);
+        }
+        for (const auto& row : rows) encode(row, *out->add_tasks());
+        return grpc::Status::OK;
+    });
+}
+
 bool FleetService::mayRead(grpc::ServerContext& context) const {
     const auto credential = metadata(context, tokenHeader);
     return tokenMatches(credential, operatorToken_) || (!agent_.read.empty() && tokenMatches(credential, agent_.read));

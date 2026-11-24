@@ -7,6 +7,7 @@ import {renderTraceDetails} from "./trace_details.js";
 import {renderCustomAlerts} from "./alert_rules.js";
 import {renderReliability} from "./reliability.js";
 import {renderLogs} from "./logs.js";
+import {criticalPaths} from "./dag_critical_path.js";
 
 const $ = id => document.getElementById(id);
 const sideNav=document.querySelector(".sidebar nav");
@@ -14,7 +15,7 @@ const views = {overview:"运行总览", service:"业务性能", resources:"主�
   explore:"指标探索",alerts:"告警规则",traces:"链路追踪",distributed:"分布式排障",runs:"研发实验",extensions:"扩展遥测",
   reliability:"服务目标与采集质量",logs:"日志工作台"};
 const states = {complete:"查询成功",partial:"部分链路",missing:"未采到链路",unavailable:"追踪数据源不可用",
-  success:"成功",failed:"失败",timeout:"超时",started:"已开始",retry:"重试",skipped:"跳过",queued:"等待",estop:"急停",invalid:"校验失败",blocked:"已拦截",flagged:"评测标记",cancelled:"取消",
+  success:"成功",failed:"失败",timeout:"超时",started:"已开始",retry:"重试",skipped:"跳过",queued:"等待",estop:"急停",invalid:"校验失败",blocked:"已拦截",flagged:"评测标记",cancelled:"取消",uncertain:"待对账",
   fault:"故障注入",recovered:"恢复",finished:"已结束",version:"版本变更",sent:"已下发",ack:"已确认",error:"报错"};
 const names = {"dag.run":"DAG 运行","dag.node":"节点执行","dag.edge":"依赖边",
   "agent.plan":"规划","agent.skill":"技能调用","agent.memory":"记忆操作","agent.decision":"策略判断","agent.evaluation":"评测标记",
@@ -221,7 +222,7 @@ function detail(event) {
 }
 
 function eventIntervals(events) {
-  const groups=new Map(), terminal=new Set(["success","failed","timeout","skipped","invalid","cancelled"]);
+  const groups=new Map(), terminal=new Set(["success","failed","timeout","skipped","invalid","cancelled","uncertain"]);
   for(const event of events){
     if(!event.spanId || !["dag.node","agent.skill"].includes(event.eventType)) continue;
     if(!groups.has(event.spanId)) groups.set(event.spanId,{});
@@ -246,7 +247,9 @@ function timeline(spans, events) {
   const spansSorted = spans.slice().sort((a,b) => Number(BigInt(a.start)-BigInt(b.start)));
   const start = BigInt(spansSorted[0].start), end = spansSorted.reduce((n,s) => BigInt(s.end) > n ? BigInt(s.end) : n,start);
   const total = Math.max(1,Number(end-start));
-  const terminal = new Set(["success","failed","timeout","skipped"]);
+  const terminal = new Set(["success","failed","timeout","skipped","cancelled","uncertain"]);
+  const paths = criticalPaths(events);
+  const critical = new Map(paths.filter(path => !path.partial).map(path => [path.runId, new Set(path.nodes)]));
   const nodeMap = new Map();
   for (const event of events.filter(e=>e.eventType==="dag.node" && e.spanId)) {
     const known=nodeMap.get(event.spanId);
@@ -259,7 +262,12 @@ function timeline(spans, events) {
   for(const part of [0,.25,.5,.75,1]) ticks.append(el("span",(total*part/1e6).toFixed(0)+" ms"));
   ruler.append(el("span","跨度 · 相对开始"),ticks,el("span","耗时"));
   options.append(reset);
-  panel.append(options,ruler);
+  panel.append(options);
+  for (const path of paths) {
+    const text = path.nodes.length ? path.nodes.join(" → ") + " · " + path.ms.toFixed(2) + " ms" : "缺少节点时间";
+    panel.append(el("p", (path.partial ? "部分记录 · " : "关键依赖路径 · ") + text, "dag-critical-summary"));
+  }
+  panel.append(ruler);
   panel.addEventListener("node-filter",event=>{
     const target=event.detail;
     let first;
@@ -274,11 +282,15 @@ function timeline(spans, events) {
   const more = el("div","选择一个时间条查看详情","trace-info");
   for (const item of spansSorted) {
     const row = el("div",undefined,"span-row"), track=el("div",undefined,"span-track");
-    const info = nodeMap.get(item.id), title = info ? info.nodeId + " · 第 " + info.attempt + " 次" : item.name;
+    const info = nodeMap.get(item.id), title = info ? info.nodeId + " · 第 " + info.attempt + " 次" +
+      (info.workerId ? " · " + info.workerId : "") : item.name;
     const length = Math.max(0,Number(BigInt(item.end)-BigInt(item.start)));
     const bar = el("button",undefined,"span-bar" + ([2,"STATUS_CODE_ERROR"].includes(item.status) ? " bad" : ""));
     row.dataset.node=info?.nodeId || "";
     if (info?.state==="skipped") bar.classList.add("skipped");
+    if (info && critical.get(info.runId)?.has(info.nodeId)) {
+      bar.classList.add("critical");
+    }
     bar.style.left = Math.max(0,Number(BigInt(item.start)-start)/total*100) + "%";
     bar.style.width = Math.max(.4,length/total*100) + "%";
     bar.title = title;
@@ -312,7 +324,7 @@ function graph(events, waterfall) {
     return node;
   };
   const svg=create("svg",{"aria-label":"DAG 节点依赖图"});
-  const terminal=new Set(["success","failed","timeout","skipped"]);
+  const terminal=new Set(["success","failed","timeout","skipped","cancelled","uncertain"]);
   const latest=new Map(), attempts=new Map();
   for(const {fields:item} of work){
     if(!attempts.has(item.nodeId)) attempts.set(item.nodeId,new Set());

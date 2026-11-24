@@ -48,6 +48,16 @@ std::optional<Task> SqliteFleetLedger::lookup(std::string_view taskId) {
     return taskOf(row);
 }
 
+std::vector<Task> SqliteFleetLedger::listBefore(std::int64_t beforeEpoch, unsigned limit) {
+    if (beforeEpoch < 0 || limit < 1 || limit > 17) throw Error(ErrorCode::invalid, "invalid task page");
+    sqlite::Statement query(db_, "SELECT task_id,trace_id,station,epoch,robot_id,phase,outcome FROM tasks "
+                                 "WHERE epoch < ? ORDER BY epoch DESC LIMIT ?");
+    query.bind(1, beforeEpoch ? beforeEpoch : std::int64_t{50001}).bind(2, static_cast<int>(limit));
+    std::vector<Task> rows;
+    while (query.next()) rows.push_back(taskOf(query));
+    return rows;
+}
+
 Task SqliteFleetLedger::submit(std::string_view taskId, Station station, std::string_view traceId) {
     if (!validId(taskId) || !validStation(station) || !validTrace(traceId)) {
         throw Error(ErrorCode::invalid, "invalid task parameters");
