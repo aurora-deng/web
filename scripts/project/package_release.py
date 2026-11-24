@@ -44,6 +44,8 @@ FLEET_PROGRAMS = {
     "fleet/nebula_fleet_agent": "agent/nebula_fleet_agent",
 }
 FLEET_EVIDENCE = "fleet/cpp-systems-evidence.json"
+WORKFLOW_PROGRAM = "fleet/nebula_workflow_worker"
+WORKFLOW_SCHEMA = "fleet/workflow_cluster.sql"
 RUNTIME_ENTRY_FILES = {"tools/observability/gateway.py", "prepare-runtime-libs.py", *FLEET_PROGRAMS, FLEET_EVIDENCE}
 
 
@@ -56,7 +58,7 @@ def as_json(value):
 
 
 def runtime_path(name):
-    if name in RUNTIME_ENTRY_FILES:
+    if name in RUNTIME_ENTRY_FILES or name in (WORKFLOW_PROGRAM, WORKFLOW_SCHEMA):
         return True
     if name in {"webserver", "reproduction.json", "LICENSE", "release_preflight.py", "run-nebula.py",
                 "native-runtime.json", "workers/webserver-onnx-worker", "workers/function3-tts-worker"}:
@@ -119,9 +121,15 @@ def runtime_payload(build, fleet_build=None):
                "run-nebula.py":(ROOT/'scripts/project/run_release.py').read_bytes()}
     if fleet_build is not None:
         evidence = (fleet_build / "cpp-systems-evidence.json").read_bytes()
-        validate_fleet(json.loads(evidence), fleet_source_digest())
+        fleet_report = json.loads(evidence)
+        validate_fleet(fleet_report, fleet_source_digest())
         payload[FLEET_EVIDENCE] = evidence
-        for name, path in FLEET_PROGRAMS.items():
+        programs = dict(FLEET_PROGRAMS)
+        if fleet_report.get("postgresWorkflow"):
+            require("nebula_workflow_pg_leases" in fleet_report["tests"], "Workflow lease evidence is missing")
+            programs[WORKFLOW_PROGRAM] = "nebula_workflow_worker"
+            payload[WORKFLOW_SCHEMA] = (ROOT / "backend/systems/PostgresWorkflowQueue/schema.sql").read_bytes()
+        for name, path in programs.items():
             binary = (fleet_build / path).read_bytes()
             require(binary.startswith(b"\x7fELF"), f"Fleet entry is not a Linux ELF program: {name}")
             payload[name] = binary
@@ -189,6 +197,11 @@ def verified_payload(archive, revision):
         require(fleet_files <= files.keys(), "Fleet payload is incomplete")
         validate_fleet(json.loads(payload[FLEET_EVIDENCE][1]))
         require(all(payload[name][0] == 0o755 for name in FLEET_PROGRAMS), "Fleet program is not executable")
+    if {WORKFLOW_PROGRAM, WORKFLOW_SCHEMA} & files.keys():
+        require(fleet_files | {WORKFLOW_PROGRAM, WORKFLOW_SCHEMA} <= files.keys(), "Workflow payload is incomplete")
+        workflow = json.loads(payload[FLEET_EVIDENCE][1])
+        require(workflow.get("postgresWorkflow") is True and "nebula_workflow_pg_leases" in workflow.get("tests", ())
+                and payload[WORKFLOW_PROGRAM][0] == 0o755, "Workflow payload lacks runtime or test evidence")
     if report["profile"] == "native":
         required = {"native-runtime.json", "workers/webserver-onnx-worker", "workers/function3-tts-worker"}
         require(required <= files.keys(), "Native runtime payload is missing")
@@ -208,7 +221,7 @@ def verify_archive(archive, revision):
 
 
 def executable_mode(name):
-    return 0o755 if name == "webserver" or name in FLEET_PROGRAMS or name.startswith("workers/") else 0o644
+    return 0o755 if name in ("webserver", WORKFLOW_PROGRAM) or name in FLEET_PROGRAMS or name.startswith("workers/") else 0o644
 
 
 def write_archive(archive, payload):

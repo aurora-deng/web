@@ -56,6 +56,8 @@ def prepare(root, output, role="web"):
     sources = {}
     hashes = {}
     programs = PROGRAMS[:1] if role == "web" else PROGRAMS[1:]
+    if role == "fleet" and "fleet/nebula_workflow_worker" in manifest["files"]:
+        programs += ("fleet/nebula_workflow_worker",)
     for program in programs:
         binary = root / program
         if checksum(binary) != manifest["files"].get(program):

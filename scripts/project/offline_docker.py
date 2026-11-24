@@ -13,7 +13,7 @@ import tempfile
 import time
 from contextlib import contextmanager
 
-from package_release import FLEET_PROGRAMS, ROOT, extract_payload
+from package_release import FLEET_EVIDENCE, FLEET_PROGRAMS, ROOT, WORKFLOW_PROGRAM, WORKFLOW_SCHEMA, extract_payload
 from repro_runtime import browser_fixture, business_smoke, disposable_database, get_json, http_smoke, require
 from runtime_libs import LOADER, checksum, prepare
 
@@ -56,6 +56,9 @@ def stage_context(release, context):
     shutil.copy2(release / "LICENSE", fleet / "LICENSE")
     for name in FLEET_PROGRAMS:
         shutil.copy2(release / name, fleet / PurePosixPath(name).name)
+    for name in (WORKFLOW_PROGRAM, WORKFLOW_SCHEMA):
+        if (release / name).is_file():
+            shutil.copy2(release / name, fleet / PurePosixPath(name).name)
     shutil.copy2(ROOT / "Dockerfile", context / "Dockerfile")
     # The staging directory is private on the host; only paths copied into the
     # images must allow the numeric non-root container user to traverse them.
@@ -123,7 +126,7 @@ def verify_web(image, release, libraries, postgres, work, manifest):
             "webSocket": True, "sse": True, "idempotentStory": True}
 
 
-def verify_fleet(image, libraries):
+def verify_fleet(image, libraries, extended=False):
     operator, robot = secrets.token_hex(24), secrets.token_hex(24)
     env = dict(os.environ, NEBULA_FLEET_OPERATOR_TOKEN=operator, DEMO_EDGE_KEY=robot, NEBULA_FLEET_ROBOT_TOKEN=robot)
     args = ["--network", "none", "--tmpfs", "/state:uid=10001,gid=10001,mode=0700,size=24m",
@@ -151,11 +154,49 @@ def verify_fleet(image, libraries):
         require(final["outcome"] == "arrived" and submitted["epoch"] == repeated["epoch"] == final["epoch"]
                 and submitted["traceId"] == repeated["traceId"] == final["traceId"], "Fleet identity or receipt changed")
         queued = task("submit", "agent-smoke", "beta")
-        proposal = json.loads(command("exec", name, *LOADER_COMMAND, "/app/nebula_fleet_agent", address,
-                                      "propose", "agent-smoke"))
+        agent = (*LOADER_COMMAND, "/app/nebula_fleet_agent")
+        proposal = json.loads(command("exec", name, *agent, address, "propose", "agent-smoke"))
         require(queued["phase"] == "queued" and proposal["proposal"]["skillId"] == "fleet.propose_sim_reschedule",
                 "Fleet Agent could not plan from queued evidence")
-        return {"success": True, "persistentAckAndDeduplication": True, "agentProposal": True, "network": "none"}
+        evidence = {"success": True, "persistentAckAndDeduplication": True, "agentProposal": True, "network": "none"}
+        if extended:
+            tools = json.loads(command("exec", name, *agent, "tools"))
+            require({row["id"] for row in tools} == {"fleet.get_task_status", "fleet.list_tasks", "fleet.query_evidence"}
+                    and all(row["effect"] == "read" for row in tools), "Agent tool inventory differs")
+            page = json.loads(command("exec", name, *agent, address, "list", "0", "1"))
+            require(page["items"][0]["taskId"] == "agent-smoke" and page["nextBeforeEpoch"] == queued["epoch"],
+                    "Fleet container task pagination failed")
+            flags = ("--run-id", "docker-proof", "--session", "docker-session")
+            first = json.loads(command("exec", name, *agent, *flags, address, "propose", "agent-smoke"))
+            again = json.loads(command("exec", name, *agent, *flags, address, "propose", "agent-smoke"))
+            require(first == again and first["state"] == "success", "Fleet container checkpoint replay differs")
+            evidence.update(readOnlyTools=len(tools), taskPagination=True, checkpointReplay=True)
+        return evidence
+
+
+def verify_workflow(image, release, libraries, postgres, work):
+    with disposable_database(postgres, release, work) as (connection, _):
+        subprocess.run([postgres / "bin/psql", connection, "-X", "-v", "ON_ERROR_STOP=1",
+                        "-f", release / WORKFLOW_SCHEMA], check=True, stdout=subprocess.DEVNULL)
+        parameters = dict(item.split("=", 1) for item in shlex.split(connection))
+        socket = parameters.pop("host")
+        dsn = "host=/pg " + " ".join(f"{name}={value}" for name, value in parameters.items())
+        env = dict(os.environ, NEBULA_WORKFLOW_DSN=dsn)
+        identity = f"{os.getuid()}:{os.getgid()}"
+        args = ["--network", "none", "--user", identity, "--volume", f"{socket}:/pg:ro,Z",
+                "--env", "NEBULA_WORKFLOW_DSN"]
+
+        def run(*arguments):
+            with container(image, libraries, args, env=env,
+                           command_args=("/app/nebula_workflow_worker", *arguments)) as name:
+                require(command("wait", name, timeout=20) == "0", "Workflow container exited with error")
+                return command("logs", name)
+
+        trace = run("submit", "docker-fork-join", "read")
+        logs = run("work", "docker-fork-join", "read", "docker-worker", "1000")
+        require(re.fullmatch(r"[a-f0-9]{32}", trace) and f"CLAIM D 1 {trace}" in logs
+                and logs.endswith("RESULT success"), "Workflow container join failed")
+        return {"passed": True, "forkJoin": True, "workers": 1, "socketMounted": True}
 
 
 def export_images(destination, images):
@@ -172,6 +213,7 @@ def main():
     parser.add_argument("--postgres-prefix", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--tag", default="function3.6")
+    parser.add_argument("--discard-archive", action="store_true", help="Test export and reload in the temporary directory")
     args = parser.parse_args()
     require(re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,48}", args.tag), "Choose a plain Docker tag")
     images = {name: f"nebula-{name}:{args.tag}" for name in ("web", "fleet")}
@@ -192,15 +234,19 @@ def main():
                     "--build-arg", f"NEBULA_REVISION={manifest['revision']}", str(context), timeout=200)
             ids[name] = command("image", "inspect", "--format", "{{.Id}}", image)
         web = verify_web(images["web"], release, libraries["web"], args.postgres_prefix.resolve(), work, manifest)
-        fleet = verify_fleet(images["fleet"], libraries["fleet"])
-        artifact = args.output / "nebula-function3.6-docker-images-linux-amd64.tar.gz"
+        flags = json.loads((release / FLEET_EVIDENCE).read_text(encoding="utf-8"))
+        fleet = verify_fleet(images["fleet"], libraries["fleet"], extended=flags.get("ollama", False))
+        workflow = verify_workflow(images["fleet"], release, libraries["fleet"], args.postgres_prefix.resolve(), work) \
+            if (release / WORKFLOW_PROGRAM).is_file() else None
+        output = work if args.discard_archive else args.output
+        artifact = output / f"nebula-{args.tag}-docker-images-linux-amd64.tar.gz"
         export_images(artifact, images.values())
         command("image", "load", "--input", str(artifact.resolve()), timeout=180)
         for name, image in images.items():
             require(command("image", "inspect", "--format", "{{.Id}}", image) == ids[name], "Image export changed")
         report = {"revision": manifest["revision"], "platform": "linux/amd64", "buildNetwork": "none",
                   "externalDependenciesDownloaded": False, "imageTags": images, "imageIds": ids,
-                  "loadedArchive": True, "web": web, "fleet": fleet, "runtimeMount": library_report,
+                  "loadedArchive": True, "web": web, "fleet": fleet, "workflow": workflow, "runtimeMount": library_report,
                   "dockerArchiveSha256": checksum(artifact), "runtimeZipSha256": checksum(args.archive)}
         (args.output / "delivery-verification.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
         print(json.dumps({"images": images, "release": manifest["revision"], "web": True, "fleet": True}))
