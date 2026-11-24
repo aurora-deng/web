@@ -1,0 +1,21 @@
+{
+  "config": "Debug",
+  "sanitizer": "tsan",
+  "grpc": false,
+  "ollama": false,
+  "postgresWorkflow": false,
+  "nav2": false,
+  "benchmarks": false,
+  "platform": "Linux-5.14.0-631.el9.x86_64-x86_64-with-glibc2.34",
+  "sourceSha256": "fe831e3615225390fe37c81a57071c8b2d5bb4b18f687bfa606b1fc51ead5fd5",
+  "tests": [
+    "nebula_actuator_contract",
+    "nebula_agent_contract",
+    "nebula_fleet_contract",
+    "nebula_workflow_contract",
+    "nebula_workflow_recovery"
+  ],
+  "passed": true,
+  "phase": "complete",
+  "executed": 5
+}

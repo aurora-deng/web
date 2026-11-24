@@ -13,6 +13,8 @@ P0 · S1。五工序任务像一张有箭头的工单，没有完成前置工序
 
 - **已有**。JS `DagExecutor` 已表达依赖校验、effect、deadline、取消与受控重试；Observer 已能读 `dag.run`、`dag.edge`、`dag.node` 等事件。C++ 项目有 `BoundedExecutor`，可参考线程与任务生命周期。[现有 DAG](../../../frontend/phase11/shared/AgentRuntime/DagExecutor.js) · [调用边界](../../architecture/business/ai/agent-workflow-runtime.md)
 - **本轮**。C++ 多线程内核独立构建，支持可注入单调钟、确定性时限与有界调度。SQLite 检查点记录节点动作前的尝试与动作后的确认结果。未知外部操作阻塞下游，核实后继续；幂等动作在预算内复用操作键。 [恢复实现](../../../backend/workflow/DurableWorkflow/DurableWorkflow.cpp) · [基准与崩溃复验](../../ops/validation/m00-m07.md)
+- **v0.4 Fleet**。Agent 的提案与审批交接用持久 DAG。真实 PostgreSQL 上暂停领取者，第二个 Worker 在固定租约到期后接管，旧 Worker 的完成被拒绝。Observer 按共同状态契约显示每次尝试和依赖关键路径。 [双 Worker 验收](../../ops/validation/v04-fleet-reproduction.md) · [状态契约](../../contracts/dag-states.json)
+- **下一道门槛**。补长节点续租、受控对账服务和两台独立机器的容量实验。以每次尝试唯一代次、过期结果零推进、同一个外部幂等键无重复副作用为通过条件。
 
 ## 学习内容与目标深度
 
@@ -37,7 +39,7 @@ P0 · S1。五工序任务像一张有箭头的工单，没有完成前置工序
 
 ## 预期产出
 
-G1 交付五节点 C++ 程序、图和执行数据契约、状态测试、两张 Trace 以及同机器的调度基准。S1 的 32–46 小时包含技能/事件契约、引擎与验收。持久化和跨 Worker 恢复进入 S2。
+G1 交付五节点 C++ 程序、图和执行数据契约、状态测试、两张 Trace 以及同机器的调度基准。S1 的 32–46 小时包含技能/事件契约、引擎与验收。v0.4 已有持久化与双 Worker 恢复夹具，S2 用同一夹具扩展续租和跨机基线。
 
 ## 验收标准
 

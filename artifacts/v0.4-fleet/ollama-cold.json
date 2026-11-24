@@ -1,0 +1,25 @@
+{
+  "realPlannerAccepted": false,
+  "attempts": [
+    {
+      "planner": "rules_fallback",
+      "state": "success",
+      "errorCode": "",
+      "elapsedMs": 12090.7
+    },
+    {
+      "planner": "rules_fallback",
+      "state": "success",
+      "errorCode": "",
+      "elapsedMs": 12092.2
+    },
+    {
+      "planner": "rules_fallback",
+      "state": "success",
+      "errorCode": "",
+      "elapsedMs": 12090.6
+    }
+  ],
+  "model": "qwen3:8b-q4_K_M",
+  "installedModelDigest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41"
+}

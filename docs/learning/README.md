@@ -10,6 +10,7 @@
 |掌握测试方法|[测试讲义](../testing/learning/README.md)|
 |性能定位与故障恢复|[Obsidian 实战计划与可复用助教提示词](nebula-performance-and-reliability.md)|
 |C++ 开发、Agent 与具身智能|[总学习方案和模块指导](../roadmap/embodied-systems/README.md)|
+|复验 C++ Planner、审批恢复和双 Worker 租约|[v0.4 Fleet Agent 与 DAG 实操](v04-fleet-agent-dag.md)|
 |从工单证据到 Agent 建议|[母 Agent、工具与 Skill 实验](nebula-fleet-agent-and-skills.md)|
 |练习后端 DAG 恢复、慢流背压与故障回放|[M00–M07 可执行实验](../ops/validation/m00-m07.md)|
 |学习 ROS lifecycle、QoS、Action 与跨机租约|[M08 实操](m08-ros-lifecycle.md)|

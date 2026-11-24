@@ -1,5 +1,7 @@
 # 当前状态
 
+**2026-11-24 · v0.4-fleet**。C++ Fleet Agent 通过三项只读工具取证，校验模型提案并持久化审批交接。PostgreSQL DAG 已验证双 Worker 接管及迟到提交拦截，Observer 可查看尝试和关键路径。Web 新增 027 回执保留迁移。 [验收与限制](docs/releases/v0.4-fleet.md) · [复现步骤](docs/ops/validation/v04-fleet-reproduction.md)
+
 **M09 本地控制与仿真**。ROS 安全演练及 CentOS → Ubuntu_ros 单仿真体闭环通过。双仿真体连续压力测试和 CentOS 的 100 Hz 时序门禁未通过，三轮各 30 分钟累计漏拍约 17.2%。 [测试与复验](docs/ops/validation/m09-actuator-control.md) · [执行器实操](docs/learning/m09-actuator-control.md)
 
 **M08 双虚拟机仿真基线**。CentOS 发出车队工单，经回环 SSH 转发到 Ubuntu_ros 的 C++ ROS 2 边缘，实际 Nav2 规划与控制差速仿真体。已验证两个命名空间、生命周期、取消、失联降级、恢复对账及 Observer 查询。 [联调记录与复跑](docs/ops/validation/m08-ros-cross-vm.md) · [ROS 学习](docs/learning/m08-ros-lifecycle.md)

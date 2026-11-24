@@ -1042,6 +1042,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/learning/v04-fleet-agent-dag.md",
+      "title": "v0.4 Fleet Agent 与 DAG 实操",
+      "category": "learning",
+      "kind": "document"
+    },
+    {
       "path": "docs/observability/README.md",
       "title": "NEBULA 可观测性",
       "category": "observability",
@@ -1342,6 +1348,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/ops/validation/v04-fleet-reproduction.md",
+      "title": "v0.4 Fleet 复现与验收",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
       "path": "docs/performance/BENCHMARK.md",
       "title": "可复现性能实验",
       "category": "performance",
@@ -1416,6 +1428,12 @@
     {
       "path": "docs/releases/test9.1.md",
       "title": "test9.1 版本差异：HTTP/gRPC 架构与性能升级",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/v0.4-fleet.md",
+      "title": "v0.4-fleet 发布说明",
       "category": "releases",
       "kind": "document"
     },

@@ -1,0 +1,50 @@
+{
+  "passed": true,
+  "businessMigration": 27,
+  "idempotentTraceId": "c1ffa2815348e98bb33a9c170b273f17",
+  "externalTraceId": "b31b92bf934ed52112433372e47fbaf1",
+  "attempts": [
+    [
+      "A",
+      1,
+      "worker-a",
+      1795506616387287000,
+      1795506616899358000,
+      "timeout"
+    ],
+    [
+      "A",
+      2,
+      "worker-b",
+      1795506616899358000,
+      1795506616906654000,
+      "success"
+    ],
+    [
+      "B",
+      1,
+      "worker-b",
+      1795506616908619000,
+      1795506616914647000,
+      "success"
+    ],
+    [
+      "C",
+      1,
+      "worker-b",
+      1795506616917095000,
+      1795506616921801000,
+      "success"
+    ],
+    [
+      "D",
+      1,
+      "worker-b",
+      1795506616925337000,
+      1795506616928298000,
+      "success"
+    ]
+  ],
+  "rejectedLateWrites": 2,
+  "observerEvents": 17
+}

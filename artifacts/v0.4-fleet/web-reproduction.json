@@ -1,0 +1,62 @@
+{
+  "profile": "business",
+  "passed": true,
+  "installedDependencies": false,
+  "existingDatabaseUsed": false,
+  "builtFromEmptyDirectory": true,
+  "build": {
+    "buildType": "Release",
+    "generator": "Unix Makefiles",
+    "compiler": "c++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-15)",
+    "cmake": "cmake version 3.31.8"
+  },
+  "binarySha256": "7569cc7cb7abcfee6e8828709161f63f6b0f6a19d734d909758555f17098c46b",
+  "migration": 27,
+  "ctest": {
+    "registered": 122,
+    "passed": 122,
+    "skipped": [],
+    "lanes": {
+      "communication": 86,
+      "businessWithoutPostgres": 33,
+      "realPostgres": 2,
+      "cppSystems": 1
+    }
+  },
+  "smoke": {
+    "revision": "fb4bd56c08c3",
+    "sourceFingerprint": "7c10da195a00df8625717ee82a5ce21ba791d1479cb6ad54bdc0696b501934ad",
+    "assetVersion": "4364119c78f60e44",
+    "schemaVerifiedAtStartup": true,
+    "requiredMigration": 27
+  },
+  "checks": [
+    "registration",
+    "login",
+    "WebSocket upgrade",
+    "story creation",
+    "idempotency",
+    "durable Outbox SSE",
+    "session and story recovered after restart"
+  ],
+  "otlpWire": {
+    "exportResumed": true,
+    "failedExportsCounted": 48,
+    "httpSampling": {
+      "failureRoots": 1,
+      "locallySkipped": 2,
+      "upstreamUnsampledHonored": true
+    },
+    "matchedSpans": 8,
+    "mode": "wire-receiver",
+    "nonOps": 403,
+    "ops": 200,
+    "postgreSqlSpans": 2,
+    "probeStatus": 200,
+    "queueFullDrops": 47,
+    "receiverFailureBusinessStatus": 200,
+    "routeHistogram": true,
+    "schema": 27,
+    "unauthenticated": 401
+  }
+}

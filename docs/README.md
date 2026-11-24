@@ -1,5 +1,7 @@
 # 项目文档分类
 
+**v0.4-fleet**。[发布与证据](releases/v0.4-fleet.md) · [隔离 Docker 复现](ops/validation/v04-fleet-reproduction.md) · [Fleet Agent 与 DAG 实操](learning/v04-fleet-agent-dag.md)
+
 **Function3.6**。[版本与测试范围](releases/function3.6.md) · [部署与回退](ops/runtime/function3.6-deployment.md) · [按业务学习](business/README.md) · [业务上线台账](business/release-matrix.md) · [下一阶段实施顺序](roadmap/next-steps.md)
 
 本轮工程化收口：[全项目实施清单](roadmap/project-review-implementation-2026-11-19.md) · [原生交付与预检](ops/validation/native-delivery.md) · [真实慢 ACK 排查讲义](observability/ack-diagnosis.md)。
