@@ -1,20 +1,20 @@
-import { WebAssistantPanel } from '../WebAssistantPanel/WebAssistantPanel.js?v=4364119c78f60e44';
-import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=4364119c78f60e44';
-import { LocalAssistantApi } from '../LocalAssistantApi/LocalAssistantApi.js?v=4364119c78f60e44';
-import { openSpeechSettings } from '../SpeechSettings/SpeechSettings.js?v=4364119c78f60e44';
-import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=4364119c78f60e44';
-import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=4364119c78f60e44';
-import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=4364119c78f60e44';
-import { conversationStore, preferenceSite } from '../PersonalAgent/PreferenceStore.js?v=4364119c78f60e44';
-import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=4364119c78f60e44';
-import { utf8Bytes } from '../PersonalAgent/ContextWindow.js?v=4364119c78f60e44';
+import { WebAssistantPanel } from '../WebAssistantPanel/WebAssistantPanel.js?v=9fcaa747c305a8cc';
+import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=9fcaa747c305a8cc';
+import { LocalAssistantApi } from '../LocalAssistantApi/LocalAssistantApi.js?v=9fcaa747c305a8cc';
+import { openSpeechSettings } from '../SpeechSettings/SpeechSettings.js?v=9fcaa747c305a8cc';
+import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=9fcaa747c305a8cc';
+import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=9fcaa747c305a8cc';
+import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=9fcaa747c305a8cc';
+import { conversationStore, preferenceSite } from '../PersonalAgent/PreferenceStore.js?v=9fcaa747c305a8cc';
+import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=9fcaa747c305a8cc';
+import { utf8Bytes } from '../PersonalAgent/ContextWindow.js?v=9fcaa747c305a8cc';
 const node=(tag,text='',className='')=>{const e=document.createElement(tag);e.textContent=text;if(className)e.className=className;return e;};
 const token=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),n=>n.toString(16).padStart(2,'0')).join('');
 /** 小研的两个入口共享本机对话目录，已有的两类会话各自保留。 */
 export class AssistantPanel {
   constructor(host,{surface='sidebar',close}={}){
     this.host=host;this.surface=surface;this.close=close;this.api=new LocalAssistantApi();this.thread='';this.generation='';this.polling=false;this.disposed=false;this.shortcut='Alt+j';
-    const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/AssistantPanel/AssistantPanel.css?v=4364119c78f60e44';document.head.append(css);
+    const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/AssistantPanel/AssistantPanel.css?v=9fcaa747c305a8cc';document.head.append(css);
     host.classList.add('private-assistant');
     host.innerHTML=`
       <header class="assistant-heading">

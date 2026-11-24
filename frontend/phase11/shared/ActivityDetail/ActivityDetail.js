@@ -1,8 +1,8 @@
-import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=4364119c78f60e44";
-import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=4364119c78f60e44";
-import { openTreeAuthor } from '../TreeAuthorCard/TreeAuthorCard.js?v=4364119c78f60e44';
-import { paintDiscussion } from '../DiscussionThreads/DiscussionThreads.js?v=4364119c78f60e44';
-import { trainingConsentControl } from '../../tree/TrainingConsent/TrainingConsent.js?v=4364119c78f60e44';
+import { treeApi } from "../../tree/TreeApi/TreeApi.js?v=9fcaa747c305a8cc";
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=9fcaa747c305a8cc";
+import { openTreeAuthor } from '../TreeAuthorCard/TreeAuthorCard.js?v=9fcaa747c305a8cc';
+import { paintDiscussion } from '../DiscussionThreads/DiscussionThreads.js?v=9fcaa747c305a8cc';
+import { trainingConsentControl } from '../../tree/TrainingConsent/TrainingConsent.js?v=9fcaa747c305a8cc';
 const node=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
 const key=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');
 export class ActivityDetail {

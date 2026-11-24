@@ -1,19 +1,19 @@
-import { readAdminRole } from '../../admin/AdminAccess/AdminAccess.js?v=4364119c78f60e44';
+import { readAdminRole } from '../../admin/AdminAccess/AdminAccess.js?v=9fcaa747c305a8cc';
 const icons={chat:'<path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3H3V6a2 2 0 0 1 2-2Z"/><path d="M7 9h10M7 13h7"/>',tree:'<path d="m12 2 6 7h-3l5 7h-6v6h-4v-6H4l5-7H6Z"/>',study:'<path d="M3 5h5a4 4 0 0 1 4 4v12a4 4 0 0 0-4-4H3V5Zm18 0h-5a4 4 0 0 0-4 4v12a4 4 0 0 1 4-4h5V5Z"/>',admin:'<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/>'};
 const svg=name=>`<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
-import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=4364119c78f60e44';
-import { accountEntry, protectRestoredWorkspace } from '../AccountSession/AccountSession.js?v=4364119c78f60e44';
-import { mountTheme } from '../Theme/Theme.js?v=4364119c78f60e44';
-import { companionSession } from '../ClientBootstrap/ClientBootstrap.js?v=4364119c78f60e44';
-import { mountGlobalAssistant } from '../AssistantPanel/AssistantPanel.js?v=4364119c78f60e44';
-import { mountChatBackdrop } from '../../chat/ChatBackdrop/ChatBackdrop.js?v=4364119c78f60e44';
+import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=9fcaa747c305a8cc';
+import { accountEntry, protectRestoredWorkspace } from '../AccountSession/AccountSession.js?v=9fcaa747c305a8cc';
+import { mountTheme } from '../Theme/Theme.js?v=9fcaa747c305a8cc';
+import { companionSession } from '../ClientBootstrap/ClientBootstrap.js?v=9fcaa747c305a8cc';
+import { mountGlobalAssistant } from '../AssistantPanel/AssistantPanel.js?v=9fcaa747c305a8cc';
+import { mountChatBackdrop } from '../../chat/ChatBackdrop/ChatBackdrop.js?v=9fcaa747c305a8cc';
 // module 的顶层等待保证 Cookie 引导完成后，页面才启动 /api/me、WS 和 SSE。
 await companionSession();
 /** 权限由当前服务端会话确认，切换账号后丢弃旧会话的查询。 */
 export function mountNavigation(active, { api = new BusinessApi() } = {}){
   if(document.getElementById('nebula-navigation'))return;
   protectRestoredWorkspace();
-  const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/AppNavigation/AppNavigation.css?v=4364119c78f60e44';document.head.append(css);
+  const css=document.createElement('link');css.rel='stylesheet';css.href='/phase11/shared/AppNavigation/AppNavigation.css?v=9fcaa747c305a8cc';document.head.append(css);
   document.body.dataset.workspace=active;
   mountChatBackdrop(document.body);
   const header=document.createElement('header');header.id='nebula-navigation';

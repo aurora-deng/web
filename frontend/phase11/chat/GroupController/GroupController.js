@@ -1,4 +1,4 @@
-import { chatApi } from "../ChatApi/ChatApi.js?v=4364119c78f60e44";
+import { chatApi } from "../ChatApi/ChatApi.js?v=9fcaa747c305a8cc";
 export const dependencies={"resources":["$","state"],"commands":["toast","initials","api","paintAvatar","loadConversations","openConversation","actionListEmpty"],"types":[]};
 /** GroupController: explicit use cases; shared state/other controllers arrive through context. */
 export function createGroupController(context) {

@@ -1,4 +1,4 @@
-import { filesApi } from '../FilesApi/FilesApi.js?v=4364119c78f60e44';
+import { filesApi } from '../FilesApi/FilesApi.js?v=9fcaa747c305a8cc';
 
 export function declaredMediaType(file) {
   if (file.type) return file.type;

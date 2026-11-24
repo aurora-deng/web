@@ -1,29 +1,29 @@
-import { TreePageNavigation } from '../TreePageNavigation/TreePageNavigation.js?v=4364119c78f60e44';
-import { TreePageTransition } from '../TreePageTransition/TreePageTransition.js?v=4364119c78f60e44';
-import { treeApi } from "../TreeApi/TreeApi.js?v=4364119c78f60e44";
-import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=4364119c78f60e44";
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=4364119c78f60e44';
-import { openTreeAuthor } from '../../shared/TreeAuthorCard/TreeAuthorCard.js?v=4364119c78f60e44';
-import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=4364119c78f60e44';
-import { CategoryRanking } from '../CategoryRanking/CategoryRanking.js?v=4364119c78f60e44';
-import { trainingConsentControl } from '../TrainingConsent/TrainingConsent.js?v=4364119c78f60e44';
-import { paintDiscussion } from '../../shared/DiscussionThreads/DiscussionThreads.js?v=4364119c78f60e44';
-import { storyText } from '../StoryPreview/StoryPreview.js?v=4364119c78f60e44';
-import { recordPublicCategoryView } from '../../shared/PersonalAgent/PersonalAgent.js?v=4364119c78f60e44';
-import { preferenceSite } from '../../shared/PersonalAgent/PreferenceStore.js?v=4364119c78f60e44';
-import { companionSession } from '../../shared/ClientBootstrap/ClientBootstrap.js?v=4364119c78f60e44';
+import { TreePageNavigation } from '../TreePageNavigation/TreePageNavigation.js?v=9fcaa747c305a8cc';
+import { TreePageTransition } from '../TreePageTransition/TreePageTransition.js?v=9fcaa747c305a8cc';
+import { treeApi } from "../TreeApi/TreeApi.js?v=9fcaa747c305a8cc";
+import { activitiesApi } from "../../activities/ActivitiesApi/ActivitiesApi.js?v=9fcaa747c305a8cc";
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=9fcaa747c305a8cc';
+import { openTreeAuthor } from '../../shared/TreeAuthorCard/TreeAuthorCard.js?v=9fcaa747c305a8cc';
+import { ActivityPublisher } from '../../shared/ActivityPublisher/ActivityPublisher.js?v=9fcaa747c305a8cc';
+import { CategoryRanking } from '../CategoryRanking/CategoryRanking.js?v=9fcaa747c305a8cc';
+import { trainingConsentControl } from '../TrainingConsent/TrainingConsent.js?v=9fcaa747c305a8cc';
+import { paintDiscussion } from '../../shared/DiscussionThreads/DiscussionThreads.js?v=9fcaa747c305a8cc';
+import { storyText } from '../StoryPreview/StoryPreview.js?v=9fcaa747c305a8cc';
+import { recordPublicCategoryView } from '../../shared/PersonalAgent/PersonalAgent.js?v=9fcaa747c305a8cc';
+import { preferenceSite } from '../../shared/PersonalAgent/PreferenceStore.js?v=9fcaa747c305a8cc';
+import { companionSession } from '../../shared/ClientBootstrap/ClientBootstrap.js?v=9fcaa747c305a8cc';
 mountNavigation('tree');
-import { VoiceRecorder } from '../VoiceRecorder/VoiceRecorder.js?v=4364119c78f60e44';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=4364119c78f60e44';
-import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=4364119c78f60e44';
-import { formatChatTime } from '../../shared/TimeFormat/TimeFormat.js?v=4364119c78f60e44';
+import { VoiceRecorder } from '../VoiceRecorder/VoiceRecorder.js?v=9fcaa747c305a8cc';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=9fcaa747c305a8cc';
+import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=9fcaa747c305a8cc';
+import { formatChatTime } from '../../shared/TimeFormat/TimeFormat.js?v=9fcaa747c305a8cc';
 
 const randomId = () => globalThis.crypto?.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2,'0')).join('');
 const $ = selector => document.querySelector(selector);
 const api = new BusinessApi();
 const discussionStyle = document.createElement('link');
 discussionStyle.rel = 'stylesheet';
-discussionStyle.href = '/phase11/shared/DiscussionThreads/DiscussionThreads.css?v=4364119c78f60e44';
+discussionStyle.href = '/phase11/shared/DiscussionThreads/DiscussionThreads.css?v=9fcaa747c305a8cc';
 document.head.append(discussionStyle);
 const state = { posts: [], ranks: [], rankedPosts: [], total: '0', before: '', previous: [], detail: null,
   replyBefore: '', categories: [], recorded: null, since: '', keyword: '', replies: [], authorOnly: false, replyTarget: null, reportPost: null };
@@ -59,7 +59,7 @@ function updateScene(){
   scene?.update([...visible.values()],Number(state.total),state.ranks);
 }
 function ensureScene(){
-  sceneLoading??=import('../TreeScene/TreeScene.js?v=4364119c78f60e44').then(({TreeScene})=>{
+  sceneLoading??=import('../TreeScene/TreeScene.js?v=9fcaa747c305a8cc').then(({TreeScene})=>{
     scene=new TreeScene($('#scene'),openPost);
     scene.setVisible(document.body.dataset.treeView==='tree');updateScene();
   }).catch(()=>{

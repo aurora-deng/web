@@ -1,17 +1,17 @@
-import { chatApi } from "../ChatApi/ChatApi.js?v=4364119c78f60e44";
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=4364119c78f60e44';
-import { accountEntryView } from '../../accounts/AccountEntryView/AccountEntryView.js?v=4364119c78f60e44';
-import { UserPicker } from '../UserPicker/UserPicker.js?v=4364119c78f60e44';
-import { groupMessages } from '../MessageGrouping/MessageGrouping.js?v=4364119c78f60e44';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=4364119c78f60e44';
-import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=4364119c78f60e44';
-import { UnreadWatermarks } from '../UnreadWatermarks/UnreadWatermarks.js?v=4364119c78f60e44';
-import { PreferenceSnapshots } from '../PreferenceSnapshots/PreferenceSnapshots.js?v=4364119c78f60e44';
-import { ChatHistory, canRecallMessage } from '../ChatHistory.js?v=4364119c78f60e44';
-import { ReliableSender } from '../ReliableSender.js?v=4364119c78f60e44';
-import { VirtualMessageList } from '../VirtualMessageList/VirtualMessageList.js?v=4364119c78f60e44';
-import { RecoveryBudget, ReconnectBackoff } from '../../shared/RecoveryBudget/RecoveryBudget.js?v=4364119c78f60e44';
-import { formatChatTime, formatDayKey, formatDateDivider } from '../../shared/TimeFormat/TimeFormat.js?v=4364119c78f60e44';
+import { chatApi } from "../ChatApi/ChatApi.js?v=9fcaa747c305a8cc";
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=9fcaa747c305a8cc';
+import { accountEntryView } from '../../accounts/AccountEntryView/AccountEntryView.js?v=9fcaa747c305a8cc';
+import { UserPicker } from '../UserPicker/UserPicker.js?v=9fcaa747c305a8cc';
+import { groupMessages } from '../MessageGrouping/MessageGrouping.js?v=9fcaa747c305a8cc';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=9fcaa747c305a8cc';
+import { AnnouncementPlayer } from '../../shared/AnnouncementPlayer/AnnouncementPlayer.js?v=9fcaa747c305a8cc';
+import { UnreadWatermarks } from '../UnreadWatermarks/UnreadWatermarks.js?v=9fcaa747c305a8cc';
+import { PreferenceSnapshots } from '../PreferenceSnapshots/PreferenceSnapshots.js?v=9fcaa747c305a8cc';
+import { ChatHistory, canRecallMessage } from '../ChatHistory.js?v=9fcaa747c305a8cc';
+import { ReliableSender } from '../ReliableSender.js?v=9fcaa747c305a8cc';
+import { VirtualMessageList } from '../VirtualMessageList/VirtualMessageList.js?v=9fcaa747c305a8cc';
+import { RecoveryBudget, ReconnectBackoff } from '../../shared/RecoveryBudget/RecoveryBudget.js?v=9fcaa747c305a8cc';
+import { formatChatTime, formatDayKey, formatDateDivider } from '../../shared/TimeFormat/TimeFormat.js?v=9fcaa747c305a8cc';
 
 export function createChatContext(actions) {
   const runtime={sseTimer:null,suppressMessageRender:false,announcementPlayer:null,lifecycle:new AbortController(),accountAbort:new AbortController(),accountView:accountEntryView()};

@@ -1,4 +1,4 @@
-import { adminApi } from '../AdminApi/AdminApi.js?v=4364119c78f60e44';
+import { adminApi } from '../AdminApi/AdminApi.js?v=9fcaa747c305a8cc';
 
 const moderationViews = Object.freeze(['reports', 'audits', 'categories']);
 const administratorViews = Object.freeze(['users', 'reports', 'audits', 'messaging', 'categories', 'runtime', 'speech', 'models', 'training']);

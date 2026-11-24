@@ -1,5 +1,5 @@
-import { chatApi } from "../ChatApi/ChatApi.js?v=4364119c78f60e44";
-import { CHAT_RECALL_WINDOW_MS } from '../ChatHistory.js?v=4364119c78f60e44';
+import { chatApi } from "../ChatApi/ChatApi.js?v=9fcaa747c305a8cc";
+import { CHAT_RECALL_WINDOW_MS } from '../ChatHistory.js?v=9fcaa747c305a8cc';
 export const dependencies={"resources":["$","elements","state","messageView","history","sender","runtime"],"commands":["settleHistoryPending","recoverRealtime","setStatus","initials","createClientId","conversationTitle","api","formatBytes","paintAvatar","openConversation","openCitationDetails","openTrainingConsent","sendSocket","selectAiTarget","applyAiModels","loadAiModels"],"types":["groupMessages","canRecallMessage","formatChatTime","formatDateDivider"]};
 /** MessageController: explicit use cases; shared state/other controllers arrive through context. */
 export function createMessageController(context) {

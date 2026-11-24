@@ -1,4 +1,4 @@
-import { readCheckpoint, validSequence } from '../PersonalAgent/ContextWindow.js?v=4364119c78f60e44';
+import { readCheckpoint, validSequence } from '../PersonalAgent/ContextWindow.js?v=9fcaa747c305a8cc';
 
 const MAX_THREADS = 16;
 const MAX_MESSAGES = 30;

@@ -1,4 +1,4 @@
-import { playSpeech, requireWave, fetchWave } from '../SpeechPlayback/SpeechPlayback.js?v=4364119c78f60e44';
+import { playSpeech, requireWave, fetchWave } from '../SpeechPlayback/SpeechPlayback.js?v=9fcaa747c305a8cc';
 const element=(tag,text)=>{const e=document.createElement(tag);if(text)e.textContent=text;return e;};
 // 云音色目录：浏览器直连时由 cloudVoice 直接决定实际音色，所以这里列出的都能真正生效。
 // 站点公告仍受后端 SiteSpeechRenderer 的两档预置限制，界面上不把这份目录混进去。
@@ -36,7 +36,7 @@ const CLOUD_VOICES={azure:AZURE_VOICES,gemini:[
 /** Same dialog, three explicit boundaries: browser memory, Windows DPAPI, site settings. */
 export async function openSpeechSettings(api,{site=false}={}){
   if(document.querySelector('.speech-settings[open]'))return;
-  if(!document.querySelector('[data-speech-css]')){const css=element('link');css.rel='stylesheet';css.href='/phase11/shared/SpeechSettings/SpeechSettings.css?v=4364119c78f60e44';css.dataset.speechCss='';document.head.append(css);}
+  if(!document.querySelector('[data-speech-css]')){const css=element('link');css.rel='stylesheet';css.href='/phase11/shared/SpeechSettings/SpeechSettings.css?v=9fcaa747c305a8cc';css.dataset.speechCss='';document.head.append(css);}
   const web=api.mode==='web',dialog=element('dialog');dialog.className='speech-settings';
   dialog.setAttribute('aria-label',site?'站点公告语音设置':'语音 API 与音色设置');
   dialog.innerHTML=`<header><div><small>VOICE STUDIO</small><h2>${site?'站点公告音色':'语音 API 与音色设置'}</h2></div><button type="button" data-close aria-label="关闭语音设置">×</button></header>
