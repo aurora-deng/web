@@ -84,6 +84,7 @@ def main():
     parser.add_argument("--jobs", default=2, type=int, choices=range(1, 9))
     parser.add_argument("--tag", default="v0.4-fleet")
     parser.add_argument("--test-redis-port", type=int)
+    parser.add_argument("--bundled-runtime", action="store_true", help="Verify Docker import without host library mounts")
     args = parser.parse_args()
     if not sys.platform.startswith("linux") or os.getuid() == 0:
         parser.error("use an ordinary Linux account with existing dependencies and Docker access")
@@ -111,6 +112,7 @@ def main():
            "--with-ollama", "--curl-root", args.curl_root, "--openssl-root", args.openssl_include.resolve().parent,
            "--postgres-prefix", args.postgres_prefix, env=env)
     flags = ("--test-redis-port", str(args.test_redis_port)) if args.test_redis_port else ()
+    python("inbox_upgrade.py", "--postgres-prefix", args.postgres_prefix, "--output", build / "inbox-upgrade.json", env=env)
     python("reproduce.py", "business", "--build-dir", web, "--jobs", str(args.jobs), "--with-otlp",
            "--postgres-prefix", args.postgres_prefix, "--sodium-prefix", args.sodium_prefix,
            "--curl-root", args.curl_root, "--gtest-dir", args.gtest_dir,
@@ -124,11 +126,13 @@ def main():
         python("package_release.py", "--revision", revision, "verify", archive,
                "--postgres-prefix", args.postgres_prefix, env=env)
         python("offline_docker.py", archive, "--postgres-prefix", args.postgres_prefix, "--output", build / "docker",
-               "--tag", args.tag, "--discard-archive", env=env)
+               "--tag", args.tag, "--discard-archive", *(("--bundled-runtime",) if args.bundled_runtime else ()), env=env)
     docker = json.loads((build / "docker/delivery-verification.json").read_text(encoding="utf-8"))
     if not (docker.get("loadedArchive") and docker["fleet"].get("checkpointReplay") and
             docker.get("workflow") and docker["workflow"].get("forkJoin")):
         raise RuntimeError("Expected Docker capabilities did not execute")
+    if args.bundled_runtime and (docker.get("hostRuntimeMounted") or not docker.get("tagsRemovedBeforeImport")):
+        raise RuntimeError("Bundled Docker smoke test was not verified after removing the built tags")
     print(f"Verified clean Git revision {revision}. Reports are under {build}")
 
 

@@ -35,7 +35,7 @@ def clean_environment():
 
 
 @contextmanager
-def disposable_database(prefix, source, build, *, track_wal_io=False):
+def disposable_database(prefix, source, build, *, track_wal_io=False, through_version=None):
     tools = {name: require_tool(prefix / "bin" / name)
              for name in ("initdb", "pg_ctl", "psql", "createdb")}
     require(os.geteuid() != 0, "Business reproduction must run as an unprivileged user")
@@ -62,6 +62,10 @@ def disposable_database(prefix, source, build, *, track_wal_io=False):
         versions = [int(path.name[:3]) for path in migrations]
         require(versions and versions == list(range(1, versions[-1] + 1)),
                 "Missing or repeated numbered migration")
+        if through_version is not None:
+            require(1 <= through_version <= versions[-1], "Requested migration is absent")
+            migrations = migrations[:through_version]
+            versions = versions[:through_version]
         psql = [tools["psql"], "-X", "-w", *flags, "-d", DATABASE, "-v", "ON_ERROR_STOP=1"]
         with (build / "migrations.log").open("wb") as log:
             for path in migrations:

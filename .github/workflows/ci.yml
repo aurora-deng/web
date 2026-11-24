@@ -3,6 +3,7 @@ name: Verify and package NEBULA
 on:
   push:
     branches: ['**']
+    tags: ['v*-fleet', 'fleet-verify-*']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -16,6 +17,10 @@ on:
         default: false
       run_fleet:
         description: 'Run C++ gRPC fleet processes against their isolated SQLite ledgers'
+        type: boolean
+        default: false
+      run_fleet_release:
+        description: 'Rebuild and verify the Fleet release on the provisioned Linux runner'
         type: boolean
         default: false
 
@@ -87,6 +92,56 @@ jobs:
             build/ci-systems-negative/cpp-systems-evidence.json
           if-no-files-found: error
           retention-days: 7
+
+  fleet-release:
+    name: Fleet release integration gate
+    needs: [source, cpp-systems]
+    # Tag pushes are release-owner actions. PR code never runs on this provisioned runner.
+    if: >-
+      github.repository == 'aurora-deng/web' &&
+      ((github.event_name == 'push' && github.ref_type == 'tag') ||
+       (github.event_name == 'workflow_dispatch' && inputs.run_fleet_release))
+    runs-on: [self-hosted, linux, webserver-isolated-ci]
+    environment: isolated-ci
+    timeout-minutes: 40
+    env:
+      OUTPUT: build/fleet-release-${{ github.run_id }}-${{ github.run_attempt }}
+      PG_PREFIX: ${{ vars.WEB_CI_POSTGRES_PREFIX }}
+      GRPC_PREFIX: ${{ vars.WEB_CI_FLEET_PREFIX }}
+      SODIUM_PREFIX: ${{ vars.WEB_CI_SODIUM_PREFIX }}
+      CURL_PREFIX: ${{ vars.WEB_CI_CURL_PREFIX }}
+      GTEST_DIR: ${{ vars.WEB_CI_GTEST_DIR }}
+      SSL_INCLUDE: ${{ vars.WEB_CI_OPENSSL_INCLUDE }}
+      SSL_LIB_DIR: ${{ vars.WEB_CI_OPENSSL_LIB_DIR }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Run existing history migration and portable Docker smoke checks
+        shell: bash
+        run: |
+          python3 -B scripts/project/reproduce_fleet_release.py \
+            --output "$OUTPUT" --tag "ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --bundled-runtime \
+            --postgres-prefix "${PG_PREFIX:?configure WEB_CI_POSTGRES_PREFIX}" \
+            --grpc-prefix "${GRPC_PREFIX:?configure WEB_CI_FLEET_PREFIX}" \
+            --sodium-prefix "${SODIUM_PREFIX:?configure WEB_CI_SODIUM_PREFIX}" \
+            --curl-root "${CURL_PREFIX:?configure WEB_CI_CURL_PREFIX}" \
+            --gtest-dir "${GTEST_DIR:?configure WEB_CI_GTEST_DIR}" \
+            --openssl-include "${SSL_INCLUDE:?configure WEB_CI_OPENSSL_INCLUDE}" \
+            --openssl-lib-dir "${SSL_LIB_DIR:?configure WEB_CI_OPENSSL_LIB_DIR}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: fleet-release-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            ${{ env.OUTPUT }}/dependency-lock.json
+            ${{ env.OUTPUT }}/inbox-upgrade.json
+            ${{ env.OUTPUT }}/fleet/cpp-systems-evidence.json
+            ${{ env.OUTPUT }}/fleet/workflow-pg.json
+            ${{ env.OUTPUT }}/web/reproduction.json
+            ${{ env.OUTPUT }}/docker/delivery-verification.json
 
   fleet-grpc:
     name: Provisioned Linux fleet and Observer

@@ -1,5 +1,5 @@
 # Build context is staged from an already verified Linux archive by offline_docker.py.
-# Only application files enter these images. Mount compatible host libraries read-only.
+# The web and fleet targets use read-only runtime mounts. Bundled targets stage the checked runtime.
 FROM scratch AS web
 ARG NEBULA_REVISION
 LABEL org.opencontainers.image.source="https://github.com/aurora-deng/web" \
@@ -22,3 +22,9 @@ COPY fleet/ /app/
 USER 10001:10001
 ENTRYPOINT ["/runtime/ld-linux-x86-64.so.2", "--library-path", "/runtime"]
 CMD ["/app/nebula_fleet_ctl"]
+
+FROM web AS web-bundled
+COPY runtime-web/ /runtime/
+
+FROM fleet AS fleet-bundled
+COPY runtime-fleet/ /runtime/
