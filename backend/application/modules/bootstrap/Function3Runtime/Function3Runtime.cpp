@@ -31,8 +31,8 @@
 namespace webserver::function3 {
 namespace {
 bool requireSchema(SqlContext& sql) {
-    if (sql.query("SELECT 1 WHERE (SELECT count(*) FROM phase11_schema_migrations WHERE version BETWEEN 1 AND 26)=26").empty())
-        throw std::runtime_error("Function3 requires database migrations through 026; no automatic migrations performed");
+    if (sql.query("SELECT 1 WHERE (SELECT count(*) FROM phase11_schema_migrations WHERE version BETWEEN 1 AND 27)=27").empty())
+        throw std::runtime_error("Function3 requires database migrations through 027; no automatic migrations performed");
     return true;
 }
 

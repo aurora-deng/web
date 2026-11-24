@@ -50,6 +50,9 @@ struct CommunityDeliveryRuntime::Impl {
     }
 
     void publish() {
+        using namespace std::chrono_literals;
+        using Clock = std::chrono::steady_clock;
+        auto nextRetention = Clock::now();
         std::unique_lock lock(signal->mutex);
         while (!stopping) {
             const auto observed = signal->generation;
@@ -62,6 +65,15 @@ struct CommunityDeliveryRuntime::Impl {
                 }
             } catch (...) {
                 // Durable rows remain eligible for the next bounded poll.
+            }
+            if (!stopping && Clock::now() >= nextRetention) {
+                constexpr std::size_t batch = 256;
+                try {
+                    const auto removed = pipeline.pruneInbox(batch);
+                    nextRetention = Clock::now() + (removed == batch ? 2s : 30min);
+                } catch (...) {
+                    nextRetention = Clock::now() + 1min;
+                }
             }
             lock.lock();
             signal->wake.wait_for(lock, std::chrono::milliseconds(busy ? 10 : 250),

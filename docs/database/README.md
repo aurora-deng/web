@@ -4,6 +4,8 @@
 
 Function3.3 的共享业务库迁移到 026。该迁移为分类榜和训练授权增加社区字段和索引。研途按现有 NEBULA 账号身份映射独立学习工作区，读写现有账号下的 SQLite 与附件。首次打开时初始化目录，切换账号使用服务器核验的 ID。[迁移 026](../../backend/application/storage/postgres/migrations/026_tree_category_and_training.sql) · [日常账号归属](../ops/runtime/nebula-yantu-community.md#账号与数据归属)
 
+迁移 027 用 `processed_at` 索引找出满 14 天的消费回执。交付线程每批最多清理 256 条，积压时两秒后再清一批，清完后每 30 分钟复查。只有已完成发布、无未解决投递故障且能核对所属消费者的记录会删除。同一事务先在原 Outbox 行记下退休时间，再删除详细回执。Broker 晚到重投仍命中去重。消费和清理都先锁对应的 Outbox 行，避免删除与重投之间出现空窗。 [迁移 027](../../backend/application/storage/postgres/migrations/027_inbox_retention.sql)
+
 开发版追加 025。`outbox_events.relay_position` 是隔离双实例实时投递位置，支持每个进程按自己的游标回读。插入消息的原事务继续使用原 Outbox 字段；位置与发布标记在后台同一条 SQL 中提交。新程序启动要求 001–025。[双实例迁移与验证](../observability/dual-instance-lab.md#1-消息怎么跨进程)
 
 2026-11-19 将连接借还、线程内事务和提交后 Outbox 唤醒集中到 `PostgresUnitOfWork`；领域仓储仍通过现有上下文协作，消息和 Outbox 复用同一事务连接。单连接池下嵌套事务在再次借连接前拒绝。本轮没有新增迁移、重建原库或改变账号；[职责、调用图与验收边界](../roadmap/project-review-implementation-2026-11-19.md)。

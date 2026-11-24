@@ -29,6 +29,12 @@ std::size_t PostgresEventPipeline::publishBatch(IEventBroker &broker,std::size_t
         {r[0],ok?"published":std::stoul(r[6])>=8?"dead":"pending",ok?"":"broker rejected or timed out"});}});
     return rows.size();
 }
+
+std::size_t PostgresEventPipeline::pruneInbox(std::size_t limit) {
+    if (limit == 0 || limit > 2000) throw std::invalid_argument("Inbox retention batch must be 1..2000");
+    return std::stoull(sql_.query("SELECT function3_prune_inbox($1)", {std::to_string(limit)}).at(0).at(0));
+}
+
 bool PostgresEventPipeline::consume(const BrokerMessage&m,const std::function<void(std::string,std::string)>&notify,const std::function<void(const std::map<std::string,std::string>&)>&durable){
     if(m.body.size()>65536)return false;
     std::string eventId="0";
@@ -41,7 +47,15 @@ bool PostgresEventPipeline::consume(const BrokerMessage&m,const std::function<vo
         const std::string consumer=m.topic=="Function3Chat"?"chat.realtime":"function3.delivery";
         bool inserted=false;
         sql_.transact([&]{
-            inserted=!sql_.query("INSERT INTO function3_inbox(consumer,event_id) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING event_id",{consumer,id}).empty();
+            // Lock the parent row before touching the Inbox, in the same order
+            // as retention. A concurrent prune cannot open a deduplication gap.
+            inserted = !sql_.query(
+                "WITH parent AS MATERIALIZED (SELECT inbox_retired_at IS NOT NULL AND "
+                "(CASE WHEN event_type='chat.legacy' THEN 'chat.realtime' ELSE 'function3.delivery' END) = $1 AS retired "
+                "FROM function3_outbox WHERE id=$2 FOR SHARE) "
+                "INSERT INTO function3_inbox(consumer,event_id) SELECT $1,$2 "
+                "WHERE NOT EXISTS(SELECT 1 FROM parent WHERE retired) ON CONFLICT DO NOTHING RETURNING event_id",
+                {consumer, id}).empty();
             if(inserted&&durable)durable({f.begin(),f.end()});
             sql_.query("UPDATE function3_delivery_failures SET state='resolved' WHERE topic=$1 AND broker_key=$2",{m.topic,m.key.substr(0,256)});
         });
@@ -57,7 +71,7 @@ bool PostgresEventPipeline::consume(const BrokerMessage&m,const std::function<vo
     }
 }
 
-bool PostgresEventPipeline::retry(Id event){sql_.requireTransaction();return !sql_.query("UPDATE function3_outbox SET state='pending',attempts=0,available_at=CURRENT_TIMESTAMP,last_error='' WHERE id=$1 AND (state='dead' OR (state='published' AND EXISTS(SELECT 1 FROM function3_delivery_failures f WHERE f.event_id=$1 AND f.state='failed'))) RETURNING id",{std::to_string(event)}).empty();}
+bool PostgresEventPipeline::retry(Id event){sql_.requireTransaction();return !sql_.query("UPDATE function3_outbox SET state='pending',attempts=0,available_at=CURRENT_TIMESTAMP,last_error='' WHERE id=$1 AND inbox_retired_at IS NULL AND (state='dead' OR (state='published' AND EXISTS(SELECT 1 FROM function3_delivery_failures f WHERE f.event_id=$1 AND f.state='failed'))) RETURNING id",{std::to_string(event)}).empty();}
 std::vector<QueueState>PostgresEventPipeline::status()const{std::vector<QueueState>result;for(auto&r:sql_.query("SELECT state,count(*),COALESCE(min(id),0) FROM function3_outbox GROUP BY state ORDER BY state"))result.push_back({r[0],std::stoull(r[1]),std::stoull(r[2])});return result;}
 std::vector<DeadEvent>PostgresEventPipeline::dead(Id before)const{std::vector<DeadEvent>result;for(auto&r:sql_.query("SELECT id,event_type,aggregate_type,last_error,aggregate_id,attempts FROM function3_outbox WHERE state='dead' AND ($1::bigint=0 OR id<$1) ORDER BY id DESC LIMIT 50",{std::to_string(before)}))result.push_back({std::stoull(r[0]),r[1],r[2],r[3],std::stoull(r[4]),std::stoull(r[5])});return result;}
 std::vector<DeliveryFailure>PostgresEventPipeline::failures(Id before)const{

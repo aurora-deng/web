@@ -79,6 +79,12 @@ int main(){try{
     // 消费者在持久副作用中失败，Inbox 必须一起回滚，下一次才能真正处理。
     auto message=broker.messages[0];auto fields=webserver::phase11::transport::parseFlatStringObject(message.body);
     const auto originalId=fields.at("id");
+    check(pipeline.pruneInbox(1)==0,"recent Inbox rows survive");
+    sql.query("UPDATE function3_inbox SET processed_at=CURRENT_TIMESTAMP-INTERVAL '15 days' WHERE event_id=$1",{originalId});
+    check(pipeline.pruneInbox(1)==1&&pipeline.pruneInbox(1)==0,"retention marks and removes an eligible Inbox row");
+    check(sql.query("SELECT 1 FROM function3_inbox WHERE event_id=$1",{originalId}).empty(),"retired Inbox row was deleted");
+    check(pipeline.consume(message,[&](auto,auto){++notifications;},[](auto&){throw std::runtime_error("retired delivery ran");})
+          &&notifications==1,"a late duplicate must have no side effect after pruning");
     message.body.replace(message.body.find("\"id\":\""+originalId+"\""),originalId.size()+7,"\"id\":\"9999999\"");
     check(!pipeline.consume(message,[](auto,auto){},[](auto&){throw std::runtime_error("consumer crash before commit");}),"consumer failure must NACK");
     check(sql.query("SELECT 1 FROM function3_inbox WHERE event_id=9999999").empty(),"Inbox rolled back with consumer fault");

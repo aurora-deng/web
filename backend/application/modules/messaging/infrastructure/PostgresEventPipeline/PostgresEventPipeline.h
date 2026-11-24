@@ -11,6 +11,7 @@ public:
     explicit PostgresEventPipeline(SqlContext &sql):sql_(sql){}
     bool publishOne(IEventBroker &broker);
     std::size_t publishBatch(IEventBroker &broker,std::size_t limit=4);
+    std::size_t pruneInbox(std::size_t limit);
     /** Inbox 与后续持久任务在一个事务提交，提交后才允许返回消费成功。 */
     bool consume(const BrokerMessage &message,const std::function<void(std::string,std::string)> &notify,
         const std::function<void(const std::map<std::string,std::string>&)>&durable={});
