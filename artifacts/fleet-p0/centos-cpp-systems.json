@@ -1,0 +1,28 @@
+{
+  "config": "Release",
+  "sanitizer": "none",
+  "grpc": true,
+  "ollama": true,
+  "postgresWorkflow": true,
+  "nav2": false,
+  "benchmarks": false,
+  "platform": "Linux-5.14.0-631.el9.x86_64-x86_64-with-glibc2.34",
+  "sourceSha256": "14fa4bb75d92bd6eb0b1d64c6413bd3ec901b468451af4d780290a59d355e616",
+  "tests": [
+    "nebula_actuator_contract",
+    "nebula_agent_approval_handoff",
+    "nebula_agent_contract",
+    "nebula_agent_model_adapter",
+    "nebula_agent_ollama_native",
+    "nebula_fleet_backpressure",
+    "nebula_fleet_contract",
+    "nebula_fleet_process_contract",
+    "nebula_simulation_models_and_replay",
+    "nebula_workflow_contract",
+    "nebula_workflow_pg_leases",
+    "nebula_workflow_recovery"
+  ],
+  "passed": true,
+  "phase": "complete",
+  "executed": 12
+}

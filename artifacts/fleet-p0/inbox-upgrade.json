@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "fromMigration": 26,
+  "toMigration": 27,
+  "batchSizes": [
+    1,
+    1,
+    0
+  ],
+  "protectedInboxRows": 4,
+  "durableOutboxMarkers": 2
+}

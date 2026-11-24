@@ -1,0 +1,86 @@
+{
+  "buildNetwork": "none",
+  "dockerArchiveSha256": "f64b2bbd5a573d425c9810940318c743c35d8b4f1987fd37e2c08348e89d7410",
+  "externalDependenciesDownloaded": false,
+  "fleet": {
+    "agentProposal": true,
+    "checkpointReplay": true,
+    "network": "none",
+    "persistentAckAndDeduplication": true,
+    "readOnlyTools": 3,
+    "success": true,
+    "taskPagination": true
+  },
+  "hostRuntimeMounted": false,
+  "imageIds": {
+    "fleet": "sha256:ec8c81fc0319d6409935b8f37b0e6668155ba5ff26431588788751de71b7f4b8",
+    "web": "sha256:d5a6112ed19fad6a236db6780e626d5e6869bd0ab612d923479db2bb3d0dba8e"
+  },
+  "imageTags": {
+    "fleet": "nebula-fleet:fleet-p0-6937f1f42fe1",
+    "web": "nebula-web:fleet-p0-6937f1f42fe1"
+  },
+  "loadedArchive": true,
+  "platform": "linux/amd64",
+  "revision": "6937f1f42fe1b3a0b0880b456b7c8d5fd3e45994",
+  "runtimeMount": {
+    "fleet": {
+      "architecture": "linux/amd64",
+      "libraries": {
+        "ld-linux-x86-64.so.2": "3a47ec2c0e2b0f0948ea0caefb77d298679df3b8474631c7be7989f11b762c5a",
+        "libc.so.6": "1bb475607dfdcec1cf8b1a885e2c71a36797e786e41248deb50ab54397d56aac",
+        "libcrypto.so.3": "053770b5292eefcc9709be8407ce1a641882ca69eaab3ce5864f4b67cec25503",
+        "libcurl.so.4": "1e884f2f3e4758f94f459af32590f0a65a9a10dc24c80eb30fa3f2828a4fa70e",
+        "libgcc_s.so.1": "3d144b557008c93e4e67567d5dc98cb81cf55187a698d1b4872ce84ba8a26bed",
+        "libm.so.6": "64082bb4266fc0aa094d018ac2eecd866e3c672a63fb410b52d5467b2dd5c4cb",
+        "libpq.so.5": "c28d720ffd29b9e0ca91b0284bf897b45754c8893efcd2827b8b3f0d84567f03",
+        "libsqlite3.so.0": "9c4a05d23e09d2e546421c972a06e5276e6edd060ea5cf44046bf1fb7f7dd261",
+        "libssl.so.3": "dd28e4dbdecfcfa74c54c07e67c8744ea05fc5fde48d7ef2ca5d98a9150efc66",
+        "libstdc++.so.6": "cc5f795fb4c6cc06fd5e1c14e9105dc8db7b663b7fe41d4b4fb35a8f133aec83",
+        "libz.so.1": "a1fb25b44a0451af2b1da5a3a5abc598392c21b526693b690e7abfbfc0023b55"
+      },
+      "revision": "6937f1f42fe1b3a0b0880b456b7c8d5fd3e45994",
+      "role": "fleet"
+    },
+    "web": {
+      "architecture": "linux/amd64",
+      "libraries": {
+        "ld-linux-x86-64.so.2": "3a47ec2c0e2b0f0948ea0caefb77d298679df3b8474631c7be7989f11b762c5a",
+        "libc.so.6": "1bb475607dfdcec1cf8b1a885e2c71a36797e786e41248deb50ab54397d56aac",
+        "libcrypto.so.3": "053770b5292eefcc9709be8407ce1a641882ca69eaab3ce5864f4b67cec25503",
+        "libcurl.so.4": "1e884f2f3e4758f94f459af32590f0a65a9a10dc24c80eb30fa3f2828a4fa70e",
+        "libgcc_s.so.1": "3d144b557008c93e4e67567d5dc98cb81cf55187a698d1b4872ce84ba8a26bed",
+        "libm.so.6": "64082bb4266fc0aa094d018ac2eecd866e3c672a63fb410b52d5467b2dd5c4cb",
+        "libnghttp2.so.14": "d6954507f906809babd898c3b07d1140ea7545596702e88416f3e6f1b8d271fc",
+        "libpq.so.5": "c28d720ffd29b9e0ca91b0284bf897b45754c8893efcd2827b8b3f0d84567f03",
+        "libsodium.so.26": "17f6465620bcf1cf3d8b99747dab378afc1f510ca99e28af675a5cb7c5b9ea89",
+        "libssl.so.3": "dd28e4dbdecfcfa74c54c07e67c8744ea05fc5fde48d7ef2ca5d98a9150efc66",
+        "libstdc++.so.6": "cc5f795fb4c6cc06fd5e1c14e9105dc8db7b663b7fe41d4b4fb35a8f133aec83",
+        "libz.so.1": "a1fb25b44a0451af2b1da5a3a5abc598392c21b526693b690e7abfbfc0023b55"
+      },
+      "revision": "6937f1f42fe1b3a0b0880b456b7c8d5fd3e45994",
+      "role": "web"
+    }
+  },
+  "runtimeZipSha256": "c57a45e910f979c08b9235b1973cc81472d920705e143fe2a40e39b6424298a5",
+  "tagsRemovedBeforeImport": true,
+  "web": {
+    "assetVersion": "9fcaa747c305a8cc",
+    "idempotentStory": true,
+    "readyResponse": "ready",
+    "registration": true,
+    "requiredMigration": 27,
+    "revision": "6937f1f42fe1",
+    "schemaVerifiedAtStartup": true,
+    "sourceFingerprint": "3d1c69ce9759f90d7d1b79b1bd7a672bd8efad94e7004c3c73bd66dac3a01f87",
+    "sse": true,
+    "webSocket": true
+  },
+  "workflow": {
+    "forkJoin": true,
+    "passed": true,
+    "socketMounted": true,
+    "workerDiscovery": true,
+    "workers": 1
+  }
+}

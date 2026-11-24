@@ -1,0 +1,34 @@
+{
+  "profile": "source",
+  "passed": true,
+  "installsDependencies": false,
+  "checks": {
+    "boundaries": "passed",
+    "dagStates": "passed",
+    "function3Boundaries": "passed",
+    "artwork": "passed",
+    "assetVersions": "passed",
+    "presentation": "passed",
+    "apiVersions": "passed",
+    "docs": "passed",
+    "businessDocs": "passed",
+    "apiContracts": "passed",
+    "releaseGates": "passed",
+    "runtimeDelivery": "passed",
+    "observerQueries": "passed",
+    "gatewayContracts": "passed",
+    "distributedObservability": "passed",
+    "processIdentity": "passed",
+    "inventory": "passed",
+    "snapshotPruning": "passed",
+    "measurement": "passed",
+    "observerHttp": "passed",
+    "pythonSyntax": "passed",
+    "javascriptSyntax": "passed",
+    "frontendContracts": "passed"
+  },
+  "tools": {
+    "python": "3.12.7",
+    "node": "v24.16.0"
+  }
+}

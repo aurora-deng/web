@@ -6,6 +6,7 @@
 
 |内容|文件|
 |---|---|
+|[Fleet P0 长期运行、跨 Worker 恢复与交付验收](fleet-p0-hardening.md)|fleet-p0-hardening.md|
 |[v0.4-fleet 从干净检出构建、验包和启动容器](v04-fleet-reproduction.md)|v04-fleet-reproduction.md|
 |[从干净目录构建和验证](reproduce.md)|reproduce.md|
 |[M00–M07 软件交付、性能与故障复验](m00-m07.md)|m00-m07.md|

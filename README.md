@@ -6,6 +6,8 @@ NEBULA 用 Linux C++20 服务器运行缘续-聊天、缘生-广场、研途和�
 
 **v0.4-fleet** 把模型提案复核、人工审批和崩溃对账接入 C++ Fleet Agent，增加 PostgreSQL Worker 租约、Observer 执行路径和 Inbox 回执清理。 [本版变化与证据](docs/releases/v0.4-fleet.md) · [Docker 复现](docs/ops/validation/v04-fleet-reproduction.md) · [Agent 与 DAG 实操](docs/learning/v04-fleet-agent-dag.md)
 
+Fleet P0 候选增加持续接单、自动发现任务、续租、跨虚拟机接管和带历史数据的发布验收。 [运行与故障实操](docs/ops/validation/fleet-p0-hardening.md)
+
 **Function3.6** 增加后端 C++ DAG 检查点、独立 gRPC 车队、Agent 提案审批、技能版本和 Observer 回放。发布分为离线 Web/Fleet Docker 镜像、可运行的 Linux ZIP 和源码 ZIP。 [发布说明与 Function3.5 对比](docs/releases/function3.6.md) · [部署、校验与回退](docs/ops/runtime/function3.6-deployment.md) · [下载](https://github.com/aurora-deng/web/releases/tag/Function3.6)
 
 [各业务说明与学习](docs/business/README.md) · [上线台账](docs/business/release-matrix.md) · [参与维护](CONTRIBUTING.md)

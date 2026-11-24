@@ -1294,6 +1294,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/ops/validation/fleet-p0-hardening.md",
+      "title": "Fleet P0 可靠性与发布验收",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
       "path": "docs/ops/validation/function3.1.md",
       "title": "Function3.1 · 开发快照",
       "category": "ops",

@@ -1,0 +1,21 @@
+{
+  "config": "Debug",
+  "sanitizer": "none",
+  "grpc": false,
+  "ollama": false,
+  "postgresWorkflow": false,
+  "nav2": false,
+  "benchmarks": false,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "sourceSha256": "14fa4bb75d92bd6eb0b1d64c6413bd3ec901b468451af4d780290a59d355e616",
+  "tests": [
+    "nebula_actuator_contract",
+    "nebula_agent_contract",
+    "nebula_fleet_contract",
+    "nebula_workflow_contract",
+    "nebula_workflow_recovery"
+  ],
+  "passed": true,
+  "phase": "complete",
+  "executed": 5
+}

@@ -1,5 +1,7 @@
 # 当前状态
 
+**2026-11-24 · Fleet P0 候选**。工单超过旧编号上限后持续接单。PostgreSQL Worker 通过自动领取、续租、对账和 CentOS → Ubuntu_ros 接管验证。带历史数据的 026→027 升级与内置运行库的 Docker 导入均通过。 [范围与原始证据](docs/ops/validation/fleet-p0-hardening.md)
+
 **2026-11-24 · v0.4-fleet**。C++ Fleet Agent 通过三项只读工具取证，校验模型提案并持久化审批交接。PostgreSQL DAG 已验证双 Worker 接管及迟到提交拦截，Observer 可查看尝试和关键路径。Web 新增 027 回执保留迁移。 [验收与限制](docs/releases/v0.4-fleet.md) · [复现步骤](docs/ops/validation/v04-fleet-reproduction.md)
 
 **M09 本地控制与仿真**。ROS 安全演练及 CentOS → Ubuntu_ros 单仿真体闭环通过。双仿真体连续压力测试和 CentOS 的 100 Hz 时序门禁未通过，三轮各 30 分钟累计漏拍约 17.2%。 [测试与复验](docs/ops/validation/m09-actuator-control.md) · [执行器实操](docs/learning/m09-actuator-control.md)

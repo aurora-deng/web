@@ -1,0 +1,55 @@
+{
+  "passed": true,
+  "businessMigration": 27,
+  "idempotentTraceId": "06e49469ccf3a485f310b924e7bd1947",
+  "externalTraceId": "a26c215a6e4ed0ca3625fcbd058d4a9c",
+  "attempts": [
+    [
+      "A",
+      1,
+      "worker-a",
+      1795513160728013000,
+      1795513161240862000,
+      "timeout"
+    ],
+    [
+      "A",
+      2,
+      "worker-b",
+      1795513161240862000,
+      1795513161249892000,
+      "success"
+    ],
+    [
+      "B",
+      1,
+      "worker-b",
+      1795513161256194000,
+      1795513161263117000,
+      "success"
+    ],
+    [
+      "C",
+      1,
+      "worker-b",
+      1795513161273705000,
+      1795513161278805000,
+      "success"
+    ],
+    [
+      "D",
+      1,
+      "worker-b",
+      1795513161284357000,
+      1795513161287264000,
+      "success"
+    ]
+  ],
+  "rejectedLateWrites": 2,
+  "workerDiscovery": true,
+  "renewedAttemptMs": 712,
+  "verifiedExternalOnce": true,
+  "observerHttp": true,
+  "observerEvents": 16,
+  "observerDeliveryRetry": true
+}

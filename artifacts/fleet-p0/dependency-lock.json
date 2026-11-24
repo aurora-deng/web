@@ -1,0 +1,85 @@
+{
+  "artifacts": {
+    "c++": {
+      "sha256": "8b58cbb443f9f3af9a6dfb333fae55ef8808ed10a78d2a343885ccd06e016e59",
+      "version": "c++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-15)"
+    },
+    "cmake": {
+      "sha256": "1595178000979d0b735d82d993ff8411835fba8f8fbe7e340bdfaf7ae6ab700d",
+      "version": "cmake version 3.31.8"
+    },
+    "crypto": {
+      "file": "libcrypto.so.3.5.5",
+      "sha256": "053770b5292eefcc9709be8407ce1a641882ca69eaab3ce5864f4b67cec25503"
+    },
+    "ctest": {
+      "sha256": "66d1f36bf28132d6681f79f4b828b26784776138a6ae4ce460d345c0e47bea41",
+      "version": "ctest version 3.31.8"
+    },
+    "curl": {
+      "file": "libcurl.so.4.8.0",
+      "sha256": "1e884f2f3e4758f94f459af32590f0a65a9a10dc24c80eb30fa3f2828a4fa70e"
+    },
+    "curl_config": {
+      "sha256": "1cebaa83dd819d78244177677ab6f7fada1e57948bb6385bd189a4f5ee9e536c",
+      "version": "libcurl 8.22.0"
+    },
+    "docker": {
+      "sha256": "c82b20b23b21ce7c8a46378e0ba9413369ce221e4600c20049a3f494d89ae165",
+      "version": "Docker version 29.8.1, build 4a63305"
+    },
+    "grpc": {
+      "file": "libgrpc++.a",
+      "sha256": "eb7009887358c4a2e040d502b0d900f0609efff7804508c4b661efdab97a7c58"
+    },
+    "grpc_cpp_plugin": {
+      "sha256": "678ea74b61dcf05b919e814b825268f30176b8a9da6b7c39717825c694855b79"
+    },
+    "initdb": {
+      "sha256": "d46c0dc70bd355c7db874cff64a7dd13fc1a1dd9dd9665c2d62555cdb155ad3e",
+      "version": "initdb (PostgreSQL) 18.6"
+    },
+    "libsodium": {
+      "file": "libsodium.so.26.4.0",
+      "sha256": "17f6465620bcf1cf3d8b99747dab378afc1f510ca99e28af675a5cb7c5b9ea89"
+    },
+    "postgres": {
+      "sha256": "2dc98420636725e48b6f4fbdf4b59bb711f290317f3b820927eeea71502123ff",
+      "version": "postgres (PostgreSQL) 18.6"
+    },
+    "postgresql": {
+      "file": "libpq.so.5.18",
+      "sha256": "c28d720ffd29b9e0ca91b0284bf897b45754c8893efcd2827b8b3f0d84567f03"
+    },
+    "protobuf": {
+      "file": "libprotobuf.a",
+      "sha256": "f03ae1d9f81530b29ec13a6c63bb54f73441ce28eb07395edc3a497d41440e5c"
+    },
+    "protoc": {
+      "sha256": "da537629d567f950f2d6ca0078b373c9471e0e68ed38cebf5d265dfb573f1ecc",
+      "version": "libprotoc 35.0"
+    },
+    "psql": {
+      "sha256": "54b3d3c36952d3d069ec5c8a452b5a2e0f929717dceb469717ad2ea34c5329f0",
+      "version": "psql (PostgreSQL) 18.6"
+    },
+    "python3": {
+      "sha256": "cf499a98680f5ff6956da0debec921d5e4c34b807618d5dcce3cda6b595ae4cb",
+      "version": "Python 3.9.23"
+    },
+    "ssl": {
+      "file": "libssl.so.3.5.5",
+      "sha256": "dd28e4dbdecfcfa74c54c07e67c8744ea05fc5fde48d7ef2ca5d98a9150efc66"
+    }
+  },
+  "hostPackages": {
+    "glibc": "glibc-2.34-277.el9.x86_64",
+    "libstdc++": "libstdc++-11.5.0-15.el9.x86_64",
+    "openssl-libs": "openssl-libs-3.5.5-3.el9.x86_64",
+    "sqlite-libs": "sqlite-libs-3.34.1-9.el9.x86_64",
+    "zlib": "zlib-1.2.11-41.el9.x86_64"
+  },
+  "platform": "x86_64",
+  "python": "3.9.23",
+  "schemaVersion": 1
+}

@@ -1,0 +1,44 @@
+{
+  "kind": "proof",
+  "passed": true,
+  "traceId": "e4282d34ca7d683e05287991d6ed0725",
+  "migration": 27,
+  "attempts": [
+    [
+      "A",
+      1,
+      "centos-a",
+      "timeout"
+    ],
+    [
+      "A",
+      2,
+      "ubuntu-b",
+      "success"
+    ],
+    [
+      "B",
+      1,
+      "ubuntu-b",
+      "success"
+    ],
+    [
+      "C",
+      1,
+      "ubuntu-b",
+      "success"
+    ],
+    [
+      "D",
+      1,
+      "ubuntu-b",
+      "success"
+    ]
+  ],
+  "rejectedLateWrites": 1,
+  "revision": "6937f1f42fe1",
+  "database": "CentOS temporary PostgreSQL",
+  "workerA": "CentOS",
+  "workerB": "Ubuntu_ros",
+  "transport": "authenticated loopback SSH forwarding"
+}
