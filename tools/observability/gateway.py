@@ -157,6 +157,8 @@ def verified_upstream_tls(ca, peer):
         "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
         "common_tls_context": {
             "tls_params": {"tls_minimum_protocol_version": "TLSv1_2"},
+            # Native TLS requires explicit ALPN; this upstream uses HTTP/1.1 for SSE and WebSocket.
+            "alpn_protocols": ["http/1.1"],
             "validation_context": {
                 "trusted_ca": {"filename": str(ca.resolve())},
                 "match_typed_subject_alt_names": [{"san_type": san_type, "matcher": matcher}],

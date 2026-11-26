@@ -180,7 +180,10 @@ class GatewayContract(unittest.TestCase):
         self.assertEqual(selected_route(config, "nebula_http", "/api/ai/private/generations/item")["direct_response"]["status"], 403)
         self.assertEqual(selected_route(config, "nebula_https", "/api/ai/private/generations/item")["route"]["cluster"], "nebula_application_tls")
         secure = next(item for item in config["static_resources"]["clusters"] if item["name"] == "nebula_application_tls")
-        validation = secure["transport_socket"]["typed_config"]["common_tls_context"]["validation_context"]
+        tls_context = secure["transport_socket"]["typed_config"]["common_tls_context"]
+        self.assertEqual(tls_context["alpn_protocols"], ["http/1.1"])
+        self.assertEqual(tls_context["tls_params"]["tls_minimum_protocol_version"], "TLSv1_2")
+        validation = tls_context["validation_context"]
         self.assertEqual(validation["match_typed_subject_alt_names"],
                          [{"san_type": "IP_ADDRESS", "matcher": {"exact": "192.168.239.135"}}])
         self.assertEqual(Path(validation["trusted_ca"]["filename"]), cert)
