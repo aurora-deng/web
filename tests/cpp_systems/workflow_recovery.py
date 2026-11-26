@@ -12,7 +12,9 @@ def main():
         root = Path(temp)
 
         def call(effect, phase, expected=0):
-            result = subprocess.run([executable, root / f"{effect}.sqlite", effect, phase],
+            # Keep native argv ASCII on Windows. Python sets the Unicode working
+            # directory; SQLite and the effect file still live in that same directory.
+            result = subprocess.run([executable, f"{effect}.sqlite", effect, phase], cwd=root,
                                     capture_output=True, text=True, timeout=8, check=False)
             assert result.returncode == expected, (effect, phase, result.returncode, result.stderr)
             return result.stdout.strip()

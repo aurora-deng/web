@@ -865,6 +865,15 @@
     },
     {
       "method": "GET",
+      "path": "/api/private/agent-control/access",
+      "domain": "shared",
+      "operation": "getPrivateAgentControlAccess",
+      "sources": [
+        "backend/application/modules/agentcontrol/transport/AgentControlHttp/AgentControlHttp.cpp"
+      ]
+    },
+    {
+      "method": "GET",
       "path": "/api/me/speech/audio/:key",
       "domain": "speech",
       "operation": "getMeSpeechAudioKey",

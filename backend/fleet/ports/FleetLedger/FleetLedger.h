@@ -4,6 +4,7 @@
 #include "../../domain/SimulationReview/SimulationReview.h"
 
 #include <optional>
+#include <vector>
 
 namespace nebula::fleet {
 
@@ -15,6 +16,8 @@ public:
     virtual std::optional<Task> lookup(std::string_view taskId) = 0;
     virtual std::optional<Command> dispatch(std::string_view robotId, Capabilities capabilities) = 0;
     virtual void apply(std::string_view robotId, const Receipt& receipt) = 0;
+    // Optional for legacy test doubles; production SQLite implements a bounded keyset read.
+    virtual std::vector<Task> list(std::string_view, std::size_t) { throw Error(ErrorCode::offline,"list unavailable"); }
     virtual FleetLoad load() = 0;
     virtual SimulationReview stageReview(const ReviewDraft& draft, std::int64_t now) = 0;
     virtual SimulationReview inspectReview(std::string_view traceId, std::int64_t now) = 0;

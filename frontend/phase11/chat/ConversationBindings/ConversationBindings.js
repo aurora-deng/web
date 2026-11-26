@@ -1,5 +1,5 @@
-import { chatApi } from "../ChatApi/ChatApi.js?v=4364119c78f60e44";
-import { createChatScope } from '../ChatScope/ChatScope.js?v=4364119c78f60e44';
+import { chatApi } from "../ChatApi/ChatApi.js?v=0613976363093f95";
+import { createChatScope } from '../ChatScope/ChatScope.js?v=0613976363093f95';
 export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","toast","setButtonBusy","api","renderConversations","loadConversations","paintConversationChrome","openConversation","createDirectConversation","openConversationDialog","searchWorkspace"],"types":[],"events":true};
 /** Conversation UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindConversation(context) {

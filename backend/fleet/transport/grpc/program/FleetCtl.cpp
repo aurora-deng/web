@@ -1,8 +1,10 @@
 #include "../FleetWire/FleetWire.h"
 
 #include <chrono>
+#include <charconv>
 #include <iomanip>
 #include <iostream>
+#include <utility>
 
 using namespace nebula::fleet;
 using namespace nebula::fleet::wire;
@@ -12,13 +14,29 @@ int main(int argc, char* argv[]) {
     try {
         const auto command = argc >= 3 ? std::string_view(argv[2]) : "";
         if (!((argc == 3 && command == "load") || (argc == 4 && command == "status") ||
-              (argc == 5 && command == "submit"))) {
+              (argc == 5 && command == "submit") || ((argc==4 || argc==5) && command=="list"))) {
             throw Error(ErrorCode::invalid, "usage: nebula_fleet_ctl 127.0.0.1:PORT (load | status ID | submit ID alpha|beta)");
         }
         grpc::ClientContext context;
         context.AddMetadata(tokenHeader, environmentToken("NEBULA_FLEET_OPERATOR_TOKEN"));
         context.set_deadline(std::chrono::system_clock::now() + 2s);
         auto stub = v1::Fleet::NewStub(localChannel(argv[1]));
+        if(command=="list") {
+            unsigned limit{};const std::string_view text(argv[3]); const auto parsed=std::from_chars(text.data(),text.data()+text.size(),limit);
+            if(parsed.ec!=std::errc{} || parsed.ptr!=text.data()+text.size() || !limit || limit>16) throw Error(ErrorCode::invalid,"invalid list limit");
+            v1::TaskListQuery query; query.set_limit(limit); if(argc==5) query.set_cursor(argv[4]);
+            v1::TaskList result;const auto status=stub->ListTasks(&context,query,&result);
+            if(!status.ok()) { std::cerr<<"rpc_status="<<status.error_code()<<'\n';return 2; }
+            std::cout<<'[';bool first=true;
+            for(const auto& task:result.tasks()) {
+                if(!std::exchange(first,false)) std::cout<<',';
+                std::cout<<"{\"taskId\":"<<std::quoted(task.command().task_id())<<",\"traceId\":"<<std::quoted(task.command().trace_id())
+                    <<",\"epoch\":"<<task.command().epoch()<<",\"phase\":"<<std::quoted(name(static_cast<Phase>(task.phase())))
+                    <<",\"robotId\":"<<std::quoted(task.robot_id())<<",\"outcome\":"<<std::quoted(task.outcome())
+                    <<",\"connected\":"<<(task.connected()?"true":"false")<<",\"needsReconciliation\":"<<(task.needs_reconciliation()?"true":"false")<<'}';
+            }
+            std::cout<<"]\n";return 0;
+        }
         if (command == "load") {
             v1::LoadQuery query;
             v1::LoadUpdate load;

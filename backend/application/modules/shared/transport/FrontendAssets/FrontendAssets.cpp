@@ -17,6 +17,7 @@ void registerFrontendAssets(Router &router) {
         else if(entry.path().filename()=="asset-manifest.json") mime="application/json; charset=utf-8";
         if(mime.empty())continue;
         const auto relative=entry.path().lexically_relative(root).generic_string();
+        if(relative.starts_with("agent-control/"))continue;
         auto handler=[path=entry.path().string(),mime](RequestContext &ctx){
             ctx.response->setHeader("Content-Type",mime);ctx.response->setHeader("Cache-Control","no-cache");ctx.response->setHeader("X-Content-Type-Options","nosniff");
             if(!ctx.response->sendfile(path,ctx.request,ctx.request.range)){ctx.response->status=404;ctx.response->statusText="Not Found";ctx.response->text("Not Found");}return true;

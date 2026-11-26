@@ -6,6 +6,34 @@
 
 namespace nebula::agent {
 
+namespace {
+std::vector<std::string> ordered(std::vector<std::string> ids) { std::ranges::sort(ids); return ids; }
+Arguments normalized(const Proposal& proposal) {
+    auto args=proposal.parameters;
+    if (proposal.skillId==reviewFailures.id && args.contains("taskIds")) {
+        if (auto* ids=std::get_if<ParameterValue::Array>(&args.at("taskIds").value)) {
+            if (std::ranges::all_of(*ids,[](const auto& id) { return std::holds_alternative<std::string>(id.value); }))
+                std::ranges::sort(*ids,{},[](const auto& id) { return std::get<std::string>(id.value); });
+        }
+    }
+    return args;
+}
+}
+bool Proposal::operator==(const Proposal& other) const {
+    return skillId==other.skillId && version==other.version && ordered(evidenceTaskIds)==ordered(other.evidenceTaskIds) &&
+        normalized(*this)==normalized(other);
+}
+Proposal fleetProposal(std::string_view skill,unsigned version,std::vector<std::string> evidence) {
+    Proposal p{std::string(skill),version,std::move(evidence),{}};
+    if (skill==reviewFailures.id) {
+        ParameterValue::Array ids; for (const auto& id:p.evidenceTaskIds) ids.emplace_back(id);
+        p.parameters.emplace("taskIds",std::move(ids));
+    } else if (skill==proposeSimReschedule.id && p.evidenceTaskIds.size()==1) {
+        p.parameters.emplace("taskId",p.evidenceTaskIds.front());
+    }
+    return p;
+}
+
 bool validRequest(const Request& request) {
     if (request.taskIds.empty() || request.taskIds.size() > maxReviewTasks ||
         (request.intent != Intent::review && request.intent != Intent::simulateReschedule) ||
@@ -21,6 +49,12 @@ bool validRequest(const Request& request) {
 bool validEvidence(const TaskEvidence& evidence, std::string_view requestedId) {
     using fleet::Phase;
     const auto phase = evidence.phase;
+    if (evidence.source.empty() || evidence.source.size() > 64 ||
+        !std::ranges::all_of(evidence.source, [](unsigned char c) {
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                   (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-';
+        }) || evidence.readAt <= std::chrono::system_clock::time_point{} ||
+        evidence.readAt > std::chrono::system_clock::now()) return false;
     const bool terminal = phase == Phase::succeeded || phase == Phase::failed || phase == Phase::uncertain;
     if (evidence.taskId != requestedId || !fleet::validId(evidence.taskId) ||
         !fleet::validTrace(evidence.traceId) || evidence.epoch <= 0 || fleet::name(phase) == "invalid") return false;
@@ -40,7 +74,7 @@ std::optional<Proposal> allowedProposal(Intent intent, std::span<const TaskEvide
         const auto& task = evidence.front();
         if (task.phase != Phase::queued || task.assigned || task.needsReconciliation ||
             task.taskId.starts_with(fleet::replacementPrefix)) return std::nullopt;
-        return Proposal{std::string(proposeSimReschedule.id), proposeSimReschedule.version, {task.taskId}};
+        return fleetProposal(proposeSimReschedule.id, proposeSimReschedule.version, {task.taskId});
     }
     if (intent != Intent::review) return std::nullopt;
     Proposal review{std::string(reviewFailures.id), reviewFailures.version, {}};
@@ -51,7 +85,7 @@ std::optional<Proposal> allowedProposal(Intent intent, std::span<const TaskEvide
         }
     }
     if (review.evidenceTaskIds.empty()) return std::nullopt;
-    return review;
+    return fleetProposal(review.skillId, review.version, std::move(review.evidenceTaskIds));
 }
 
 }

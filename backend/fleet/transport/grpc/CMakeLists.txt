@@ -48,4 +48,3 @@ target_link_libraries(nebula_fleet_edge PRIVATE nebula_fleet_rpc nebula_fleet_le
     nebula_fleet_simulator nebula_workflow_observer)
 add_executable(nebula_fleet_ctl program/FleetCtl.cpp)
 target_link_libraries(nebula_fleet_ctl PRIVATE nebula_fleet_rpc)
-

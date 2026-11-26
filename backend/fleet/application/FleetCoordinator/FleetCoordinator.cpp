@@ -37,6 +37,11 @@ Task FleetCoordinator::status(std::string_view taskId) {
     return withConnection(std::move(*task));
 }
 
+std::vector<Task> FleetCoordinator::list(std::string_view cursor,std::size_t limit) {
+    std::lock_guard lock(mutex_);
+    auto rows=ledger_.list(cursor,limit); for(auto& task:rows) task=withConnection(std::move(task)); return rows;
+}
+
 FleetLoad FleetCoordinator::load() {
     std::lock_guard lock(mutex_);
     auto load = ledger_.load();

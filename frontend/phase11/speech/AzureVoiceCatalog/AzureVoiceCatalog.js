@@ -1,4 +1,4 @@
-import { boundedSpeechBody } from '../../shared/SpeechPlayback/SpeechPlayback.js?v=4364119c78f60e44';
+import { boundedSpeechBody } from '../../shared/SpeechPlayback/SpeechPlayback.js?v=0613976363093f95';
 
 /** Query the user's own resource, never a relay. Only voice metadata leaves this helper. */
 export async function fetchAzureVoices(profile,key,{fetcher=fetch,signal}={}) {

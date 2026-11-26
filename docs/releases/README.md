@@ -6,6 +6,7 @@
 
 |内容|文件|
 |---|---|
+|[Function3.7 源码验证预览](function3.7.md)|Agent / Skill、私有控制入口与验证边界|
 |[Function3.6 发布说明](function3.6.md)|C++ DAG、车队、Agent 和离线 Docker/ZIP · [部署](../ops/runtime/function3.6-deployment.md)|
 |[Function3.5 发布说明](function3.5.md)|小研记忆、DAG、网关和 Observer · [完整更新文件](function3.5-files.md)|
 |[Function3.3 发布说明](function3.3.md)|研途账号、跨模块切换、Observer 与本版验收|

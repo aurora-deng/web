@@ -12,4 +12,3 @@ endif()
 
 add_library(nebula_workflow_observer ObserverEvents/ObserverEvents.cpp)
 target_link_libraries(nebula_workflow_observer PUBLIC nebula_workflow)
-

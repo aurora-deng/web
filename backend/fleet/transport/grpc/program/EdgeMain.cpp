@@ -3,6 +3,7 @@
 #include "../../../infrastructure/SqliteEdgeLedger/SqliteEdgeLedger.h"
 #include "backend/workflow/ObserverEvents/ObserverEvents.h"
 #include "ProcessStop.h"
+#include "backend/systems/SqliteWorkflowJournal/SqliteWorkflowJournal.h"
 
 #ifdef NEBULA_FLEET_NAV2
 #include "robotics/nav2_gateway/Nav2Navigation/Nav2Navigation.h"
@@ -89,7 +90,11 @@ int main(int argc, char* argv[]) {
         SqliteEdgeLedger ledger(std::filesystem::path(argv[3]), argv[2]);
         auto navigation = navigationFor(adapter, argv[2], capabilities);
         const auto budget = adapter == "nav2" ? 45s : std::chrono::milliseconds{number(adapter)} + 250ms;
-        TaskWorkflow task(*navigation, budget);
+        // Dedicated journal owned by this edge; never shares the ledger database identity.
+        auto journalPath=std::filesystem::path(argv[3]); journalPath += ".workflow.sqlite";
+        auto snapshotPath=journalPath; snapshotPath += ".snapshot.json";
+        nebula::systems::SqliteWorkflowJournal journal(journalPath,snapshotPath);
+        TaskWorkflow task(*navigation, budget, journal);
         EventFile events(argc == 7 ? argv[6] : nullptr);
         EdgeWorker worker(ledger, task, [&](const auto& event) { events.collect(event); }, [&] { events.flush(); });
 

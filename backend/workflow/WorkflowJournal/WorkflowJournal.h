@@ -4,8 +4,15 @@
 
 #include <mutex>
 #include <optional>
+#include <stdexcept>
 
 namespace nebula::workflow {
+
+// open() rejected a new run before any node or external effect was started.
+class JournalCapacityExceeded final : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
+};
 
 struct Checkpoint {
     unsigned attempts{};

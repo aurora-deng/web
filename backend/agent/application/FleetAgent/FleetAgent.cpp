@@ -51,6 +51,8 @@ Answer FleetAgent::run(const Request& request, RunOptions options) {
                 auto result = reader_.read(taskId, context.stop, context.deadline);
                 if (result.status != ReadStatus::found) return readFailure(result.status);
                 if (!validEvidence(result.evidence, taskId)) return readFailure(ReadStatus::invalid);
+                result.evidence.fresh = result.evidence.fresh &&
+                    std::chrono::system_clock::now() - result.evidence.readAt <= std::chrono::seconds{30};
                 batch.push_back(std::move(result.evidence));
             }
             evidence = std::move(batch);
@@ -62,8 +64,12 @@ Answer FleetAgent::run(const Request& request, RunOptions options) {
                 return WorkResult{WorkStatus::failure, {}, request.intent == Intent::review ?
                                   "no_failure_evidence" : "task_not_eligible"};
             }
-            if (!provider_) {
-                planner = PlannerSource::rules;
+            const bool stale = std::ranges::any_of(evidence, [](const auto& item) {
+                return !item.fresh ||
+                    std::chrono::system_clock::now() - item.readAt > std::chrono::seconds{30};
+            });
+            if (!provider_ || stale) {
+                planner = stale ? PlannerSource::fallback : PlannerSource::rules;
                 candidate = *permitted;
                 return WorkResult{};
             }
@@ -84,7 +90,7 @@ Answer FleetAgent::run(const Request& request, RunOptions options) {
         }, Effect::read, Milliseconds{500}},
         {"verify_proposal", {"build_proposal"}, [&](const NodeContext&) {
             const auto* skill = findSkill(candidate.skillId, candidate.version);
-            if (!skill || skill->effect != SkillEffect::proposal || candidate != *permitted) {
+            if (!skill || skill->effect != SkillEffect::proposal || !validateArguments(*skill, candidate.parameters) || candidate != *permitted) {
                 return WorkResult{WorkStatus::failure, {}, "proposal_rejected"};
             }
             return WorkResult{};

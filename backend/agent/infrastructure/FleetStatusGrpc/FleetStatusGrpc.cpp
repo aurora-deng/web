@@ -42,7 +42,8 @@ EvidenceResult FleetStatusGrpc::read(std::string_view taskId, std::stop_token st
         (!task.robot_id().empty() && !fleet::validId(task.robot_id()))) return {};
     return {ReadStatus::found,
             {command.task_id(), command.trace_id(), static_cast<fleet::Phase>(task.phase()), command.epoch(),
-             !task.robot_id().empty(), task.needs_reconciliation(), task.outcome()}};
+             !task.robot_id().empty(), task.needs_reconciliation(), task.outcome(),
+             "fleet.grpc.status", system_clock::now(), true}};
 }
 
 }

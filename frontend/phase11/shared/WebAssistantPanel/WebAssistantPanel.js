@@ -1,12 +1,12 @@
-import { webAiApi } from '../../ai/WebAiApi/WebAiApi.js?v=4364119c78f60e44';
-import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=4364119c78f60e44';
-import { modelConnection, openModelConnection, requestOwnModel, resetModelConnection, restoreModelMode } from '../ModelConnection/ModelConnection.js?v=4364119c78f60e44';
-import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=4364119c78f60e44';
-import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=4364119c78f60e44';
-import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=4364119c78f60e44';
-import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=4364119c78f60e44';
-import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=4364119c78f60e44';
-import { WebAssistantHistory } from './WebAssistantHistory.js?v=4364119c78f60e44';
+import { webAiApi } from '../../ai/WebAiApi/WebAiApi.js?v=0613976363093f95';
+import { BusinessApi } from '../BusinessApi/BusinessApi.js?v=0613976363093f95';
+import { modelConnection, openModelConnection, requestOwnModel, resetModelConnection, restoreModelMode } from '../ModelConnection/ModelConnection.js?v=0613976363093f95';
+import { xiaoYanAvatar } from '../XiaoYan/XiaoYan.js?v=0613976363093f95';
+import { PersonalAgent } from '../PersonalAgent/PersonalAgent.js?v=0613976363093f95';
+import { openPreferenceSettings } from '../PersonalAgent/PreferenceSettings.js?v=0613976363093f95';
+import { assistantInference } from '../PersonalAgent/AssistantInference.js?v=0613976363093f95';
+import { runAgentTurn } from '../PersonalAgent/AgentTurnDag.js?v=0613976363093f95';
+import { WebAssistantHistory } from './WebAssistantHistory.js?v=0613976363093f95';
 
 const make = (tag, content, className) => {
   const element = document.createElement(tag);

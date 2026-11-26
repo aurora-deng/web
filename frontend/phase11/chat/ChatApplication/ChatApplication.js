@@ -1,16 +1,16 @@
-import { createChatScope, assertChatAssembly } from '../ChatScope/ChatScope.js?v=4364119c78f60e44';
-import { createChatContext } from '../ChatContext/ChatContext.js?v=4364119c78f60e44';
-import { bindChat } from '../ChatBindings/ChatBindings.js?v=4364119c78f60e44';
-import { createFeedbackController, dependencies as createFeedbackControllerDependencies } from '../FeedbackController/FeedbackController.js?v=4364119c78f60e44';
-import { createConversationController, dependencies as createConversationControllerDependencies } from '../ConversationController/ConversationController.js?v=4364119c78f60e44';
-import { createGroupController, dependencies as createGroupControllerDependencies } from '../GroupController/GroupController.js?v=4364119c78f60e44';
-import { createAttachmentController, dependencies as createAttachmentControllerDependencies } from '../../files/AttachmentController/AttachmentController.js?v=4364119c78f60e44';
-import { createMessageController, dependencies as createMessageControllerDependencies } from '../MessageController/MessageController.js?v=4364119c78f60e44';
-import { createRealtimeController, dependencies as createRealtimeControllerDependencies } from '../RealtimeController/RealtimeController.js?v=4364119c78f60e44';
-import { createContactsController, dependencies as createContactsControllerDependencies } from '../../contacts/ContactsController/ContactsController.js?v=4364119c78f60e44';
-import { createAiController, dependencies as createAiControllerDependencies } from '../../ai/AiController/AiController.js?v=4364119c78f60e44';
-import { createKnowledgeController, dependencies as createKnowledgeControllerDependencies } from '../../knowledge/KnowledgeController/KnowledgeController.js?v=4364119c78f60e44';
-import { watchRecallExpiry } from '../MessageRecall/MessageRecall.js?v=4364119c78f60e44';
+import { createChatScope, assertChatAssembly } from '../ChatScope/ChatScope.js?v=0613976363093f95';
+import { createChatContext } from '../ChatContext/ChatContext.js?v=0613976363093f95';
+import { bindChat } from '../ChatBindings/ChatBindings.js?v=0613976363093f95';
+import { createFeedbackController, dependencies as createFeedbackControllerDependencies } from '../FeedbackController/FeedbackController.js?v=0613976363093f95';
+import { createConversationController, dependencies as createConversationControllerDependencies } from '../ConversationController/ConversationController.js?v=0613976363093f95';
+import { createGroupController, dependencies as createGroupControllerDependencies } from '../GroupController/GroupController.js?v=0613976363093f95';
+import { createAttachmentController, dependencies as createAttachmentControllerDependencies } from '../../files/AttachmentController/AttachmentController.js?v=0613976363093f95';
+import { createMessageController, dependencies as createMessageControllerDependencies } from '../MessageController/MessageController.js?v=0613976363093f95';
+import { createRealtimeController, dependencies as createRealtimeControllerDependencies } from '../RealtimeController/RealtimeController.js?v=0613976363093f95';
+import { createContactsController, dependencies as createContactsControllerDependencies } from '../../contacts/ContactsController/ContactsController.js?v=0613976363093f95';
+import { createAiController, dependencies as createAiControllerDependencies } from '../../ai/AiController/AiController.js?v=0613976363093f95';
+import { createKnowledgeController, dependencies as createKnowledgeControllerDependencies } from '../../knowledge/KnowledgeController/KnowledgeController.js?v=0613976363093f95';
+import { watchRecallExpiry } from '../MessageRecall/MessageRecall.js?v=0613976363093f95';
 let active;
 /** Composition only: domain controllers own behavior, context owns mutable resources. */
 export function startChatApplication() {

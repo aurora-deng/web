@@ -1,118 +1,128 @@
-# NEBULA · C++20 Web Server / Function3.6
+<div align="center">
 
-工程化改造：[原生包复现/预检](docs/ops/validation/native-delivery.md)、[真实 Prometheus 与慢 ACK 排查](docs/observability/ack-diagnosis.md)、[R1–R12 实施和验收边界](docs/roadmap/project-review-implementation-2026-11-19.md)。保持通信核心与原业务库，新增依赖仍单项授权。
+# NEBULA
 
-NEBULA 用 Linux C++20 服务器运行缘续-聊天、缘生-广场、研途和小研，并用 Observer 观测这些业务的真实流量。
+**从 C++20 网络服务，到可观测的业务系统与 Agent 工作流。**
 
-**Function3.6** 增加后端 C++ DAG 检查点、独立 gRPC 车队、Agent 提案审批、技能版本和 Observer 回放。发布分为离线 Web/Fleet Docker 镜像、可运行的 Linux ZIP 和源码 ZIP。 [发布说明与 Function3.5 对比](docs/releases/function3.6.md) · [部署、校验与回退](docs/ops/runtime/function3.6-deployment.md) · [下载](https://github.com/aurora-deng/web/releases/tag/Function3.6)
+A C++20 web server, business workbench, and approval-gated agent playground.
 
-[各业务说明与学习](docs/business/README.md) · [上线台账](docs/business/release-matrix.md) · [参与维护](CONTRIBUTING.md)
+[![CI](https://github.com/aurora-deng/web/actions/workflows/ci.yml/badge.svg?branch=Function3.7)](https://github.com/aurora-deng/web/actions/workflows/ci.yml?query=branch%3AFunction3.7)
+![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&logoColor=white)
+![Platform](https://img.shields.io/badge/Web_Runtime-Linux-333333?logo=linux&logoColor=white)
+[![License](https://img.shields.io/badge/License-Apache--2.0-blue)](https://github.com/aurora-deng/web/blob/Function3.7/LICENSE)
+![Status](https://img.shields.io/badge/Function3.7-source_preview-d99a28)
 
-[文档分类](docs/README.md) · [当前架构](docs/architecture/overview/ARCHITECTURE.md) · [完整调用图](docs/architecture/business/flows/current-end-to-end.md) · [当前状态](STATUS.md) · [后续计划](docs/roadmap/next-steps.md)
+[快速开始](#快速开始) · [核心能力](#核心能力) · [架构](#架构一览) · [文档](#文档导航) · [版本与验证](#版本与验证)
 
-[项目文件架构](docs/architecture/overview/project-layout.md) · [从干净目录复现](docs/ops/validation/reproduce.md) · [Obsidian 学习计划与助教提示词](docs/learning/nebula-performance-and-reliability.md)
+</div>
 
-[Observer 监控与系统排障课程](docs/observability/README.md)
+---
 
-[跨业务埋点与真实验证](docs/observability/business-instrumentation.md) · [全项目下一阶段改进意见（待评审）](docs/roadmap/project-review-2026-11-19.md)
+NEBULA 把网络编程放进一个可以持续演进的真实工程：底层是 Linux C++20 通信服务，上层承载聊天、社区、研途学习与小研 AI；独立的 DAG、Fleet 和 Agent 子系统用于探索持久化工作流、审批与执行分离、故障恢复和可观测性。
 
-[结构化日志、七天清理与查询编辑器](docs/observability/logging.md)说明业务报错如何进入日志工作台、关联调用链，以及函数耗时的实际采集条件。
+项目面向 **C++ 后端、Linux 系统与 AI 工程化学习和实践**。它不是“下载即上生产”的通用平台，也不以尚未验证的压测数字或机器人能力作为卖点。
 
-## 当前功能与边界
+> **当前源码：`Function3.7` 分支 / 同名标签。** 本版是源码验证预览，新增 Agent 工具与技能运行时、私有执行工作台及恢复契约。`main` 保持项目介绍入口，不等于最新业务代码；请检出指定版本。现有 `Function3.6` 离线交付包仍属于该旧版本，不能当作 3.7 二进制使用。详见 [3.7 说明](https://github.com/aurora-deng/web/blob/Function3.7/docs/releases/function3.7.md)。
 
-|区域|已有能力|需要区分的边界|
-|---|---|---|
-|账号与社交|注册/登录、Session/CSRF、好友、备注/免打扰/黑名单、在线状态|权限由服务器校验，隐藏按钮不代表授权|
-|私聊与群聊|离线发送、持久化ACK、未读/送达/已读、撤回、群治理、历史/搜索定位、附件|ACK不是对方已读；重试保留原幂等身份|
-|缘生-广场与个人动态|神树、故事广场、分类七日榜、点赞回复、举报隐藏与权限化主页|公开故事与个人动态分别检查可见范围|
-|研途|考研计划、笔记、计时、资料、练习，使用 NEBULA 账号同步|下载目录、设备凭据和旧独立研途资料按设备管理|
-|小研与群 AI|好友式小研、全局侧栏、群 AI；可用模型取决于入口和配置|Web 页可用站点模型、本机 Ollama 或自备 API，Windows 私人检索需本机入口|
-|RAG与模型治理|授权词法检索/引用、记忆、数据集/制品版本、评测门禁、训练转换及人工发布回滚工具|训练流水线验证不等于模型质量提高；不自动训练发布所有模型|
-|语音与运行保障|独立TTS、公告与试听/回退、指标/健康、持久事件、Redis/MQ可选集成|真实云Key、主观自然度和正式容量有未验收项|
+## 核心能力
 
-功能、替身、真实服务和性能分别记录。复现结果见[当前验收](docs/ops/validation/reproduce.md#这次的验证记录)，性能基线见 [Phase49 原始证据](artifacts/function3/phase49/README.md)。
+| 层次 | 已有实现与用途 | 边界 |
+| --- | --- | --- |
+| 网络服务 | Reactor、非阻塞 I/O、协程与线程池，HTTP / WebSocket / SSE / HTTP/2 / TLS | Web 运行时以 Linux 为主；不是完整业务的 Windows 一键部署包 |
+| 业务工作台 | 账号、联系人、聊天与附件、社区和研途学习入口 | 完整业务需要数据库、认证与运行配置，不能由最小构建替代 |
+| AI 工程化 | 小研、检索与模型适配边界、私人推理隔离 | 模型和第三方服务需要单独配置；默认不自动下载模型或依赖 |
+| DAG 与 Fleet | C++ 有界工作流、SQLite 检查点、独立 gRPC 协调器与边缘、ACK 与重启对账 | 软件边缘验证不等于真实机器人验收；Nav2 实机调度未开放 |
+| Agent 与 Skill | Schema 参数校验、来源与新鲜度、幂等调用、精确技能版本、审批和结果台账 | 读、提案、外部效果分离；改派、隔离与提醒不自动变成真实控制 |
+| Observer | 业务埋点、Trace、队列与 ACK 诊断、回放与证据查询 | 以具体测试和实测报告为准，不把理论吞吐当作实测性能 |
 
-## 架构分工
+## 架构一览
 
-```text
-浏览器 frontend/phase11
-  → 可直接访问Linux，或经Windows本机入口
-  → 通信核心 backend/server（Reactor、HTTP/WS/SSE/H2/TLS）
-  → 共享业务 backend/application（Service、Port、事务、DAO、Outbox）
-  → AI核心 backend/ai（Provider、RAG、模型、独立重任务Worker）
-
-Windows client
-  → 本机代理、私人历史/记忆/词法索引、确认操作、凭据保护
-  → 只把必要且获授权的片段与上下文发给推理服务
-
-研途网关 /api/study/
-  → backend/study 核对 NEBULA 会话，读取该账号的学习工作区
-
-Observer
-  → Prometheus 指标、Tempo 调用链和结构化日志的排查工作区
-
-独立 C++ 车队
-  → backend/agent 读取工单与提案，backend/workflow 执行与检查点
-  → backend/fleet 协调器通过 gRPC 向边缘下发，SQLite 保存工单与回执
-  → software edge / NavigationSkill，ROS 2 仿真独立验证
+```mermaid
+flowchart LR
+    U[浏览器 / 客户端] --> G[网关]
+    G --> W[C++ Web 与登录鉴权]
+    G --> S[研途与账号工作区]
+    W --> B[聊天 / 社区 / AI 适配器]
+    W --> C[私有控制页与访问检查]
+    S --> A[Agent / Skill 运行时]
+    A --> P[人工审批与幂等台账]
+    P --> F[独立 Fleet gRPC / 软件边缘]
+    F --> D[DAG 与检查点]
+    B -. 指标与链路 .-> O[Observer]
+    A -. 审计与结果 .-> O
+    F -. 事件与回放 .-> O
 ```
 
-服务采用模块化单体，推理、语音与显式训练任务各有独立进程边界。社区内容装配负责神树、动态、举报和媒体，社区投递装配负责 Outbox、Broker、重放和通知。[目录与依赖规则](docs/architecture/overview/project-layout.md) · [社区模块说明](docs/architecture/business/engineering/community-runtime-modules.md)
+**控制页不是公开静态文件夹。** `/phase11/agent-control/` 默认关闭，启用后仍复用原有登录和明确的账号白名单；普通前端快照不包含该目录。写入申请需要人工审批，检查点数据库与事务不暴露为 Agent 工具。详见 [Agent 与技能导读](https://github.com/aurora-deng/web/blob/Function3.7/docs/learning/nebula-fleet-agent-and-skills.md) 和 [C++ 系统架构](https://github.com/aurora-deng/web/blob/Function3.7/docs/architecture/overview/cpp-systems.md)。
 
-## 数据、接口与隐私
+## 快速开始
 
-- Linux 复用既有 PostgreSQL 业务库。当前完整业务迁移到 026，两档复现文档另保留早期 024 的实测记录。
-- 研途使用同一账号身份，首次打开时建立对应学习工作区。Windows 原独立研途资料保留在设备上。[研途运行手册](docs/ops/runtime/nebula-yantu-community.md)
-- 消息与Outbox同任务、同连接事务提交，之后分别形成持久化ACK和实时通知。
-- C++ 路由目录列出 124 项 HTTP 方法与路径及 18 个领域。聊天字段、WS/SSE、研途和 Windows 本地接口分别记录契约。
-- Windows私人资料/索引在本机，授权片段可能上传推理；DPAPI保护凭据，未宣称正文整库加密或全部离线。
-- 网页助手要求非保密上传提示；群AI不能读取个人私人知识。Key、模型、数据库、私人资料和本机账号文件不提交Git。
+### 1. 获取指定版本
 
-详见 [数据库分层](docs/database/domain-layering.md)、[接口契约](docs/contracts/README.md)、[接入讲义](docs/architecture/business/guides/phase49-teaching.md)。
-
-## 启动、构建与检查入口
-
-|需要做什么|入口|
-|---|---|
-|从 Release 安装 Docker 或 Linux ZIP|[Function3.6 交付、校验与部署](docs/ops/runtime/function3.6-deployment.md)|
-|Linux日常启动/停止，原账号库与端口|[运行说明](docs/ops/runtime/function3-runtime.md)|
-|Linux 从源码复现通信档、业务档|[复现命令和验证结果](docs/ops/validation/reproduce.md)|
-|Windows 本机入口、研途 TLS 与账号切换|[客户端构建](docs/ops/runtime/phase36-41-local-preview.md) · [研途连接](docs/ops/runtime/nebula-yantu-community.md#function33-首次绑定与切号)|
-|已有环境、依赖位置与审批|[依赖目录](docs/ops/dependencies/README.md)|
-|测试矩阵、源码检查与故障验证|[测试入口](docs/testing/README.md)|
-|部署前核对、回退与证据口径|[验证与回退](docs/ops/validation/phase49-validation-and-rollback.md)|
-
-日常实例使用 18090/18443，既有隔离预览使用 18094/18444。新的复现脚本选择临时 HTTP 端口，业务档使用独立的临时 PostgreSQL。[运行状态](STATUS.md)
-
-文档检查可运行：
-
-```text
-python scripts/project/check_doc_links.py
-python scripts/project/ci_checks.py source
+```bash
+git clone --branch Function3.7 --single-branch https://github.com/aurora-deng/web.git
+cd web
 ```
 
-新增公开文档后使用 `check_doc_links.py --refresh-catalog` 显式刷新目录；历史证据、私有账号文件和冻结核心不由文档改链工具重写。
+分支会继续演进；需要固定源码时使用同名标签对应的提交，而不是追随 `main`。
 
-## 验收状态
+### 2. Linux 最小构建与测试
 
-M00–M07 的 CentOS 和 Windows 独立 Release 各通过 9 项，CentOS 原生 TSan 与 ASan/UBSan 各通过 4 项，完整 gRPC TSan 仍有依赖线程告警。车队固定负载 4,000 次接收 ACK 无失败，P99 为 66.54–71.75 ms，超过 50 ms 参考预算。 [本轮软件验收](docs/ops/validation/m00-m07.md)
+先准备项目要求的 **C++20 编译器、CMake ≥ 3.21、Ninja、OpenSSL、nghttp2 和 GoogleTest**。以下命令不安装依赖，不连接生产数据库，也不启动完整站点。
 
-复现分支的两个 Linux Release 档位均从空构建目录完成构建与启动。业务档 112 项 CTest 通过，跳过 1 项可选 Redis 契约。注册登录、WebSocket、果实幂等发布、Outbox/SSE 和重启恢复均通过。干净 Git 检出通过 79 项前端测试和 23 项 Python 工程检查。[复现记录](docs/ops/validation/reproduce.md#这次的验证记录)
+```bash
+cmake --preset debug
+cmake --build build/debug --parallel 2
+ctest --test-dir build/debug --output-on-failure --no-tests=error
+```
 
-Phase49 于 2026-10-31 归档，其 Release、Debug 和 ASan/LSan/UBSan 各 115 项及其他验证属于当时的配置。[Phase49 验收](docs/architecture/business/engineering/phase49.md)
+`debug` 预设默认关闭 PostgreSQL、Sodium、外部模型及 gRPC 适配器。完整业务环境、数据目录与启动配置请按 [从干净目录复现](https://github.com/aurora-deng/web/blob/Function3.7/docs/ops/validation/reproduce.md) 逐项准备，不能省略认证配置。
 
-**严格性能门槛仍未通过。** Phase49三轮/fast中位约-3.89%，混合吞吐中位约-16.93%；第三轮聊天ACK P99 8.710→15.545ms（+78.47%），业务错误0。原始不利结果与中断记录保留，不宣称生产就绪。
+### 3. 独立 Fleet / Agent 验证
 
-## 建议的下一步
+在已经具备兼容 gRPC、Protobuf 和 SQLite 开发环境的机器上：
 
-1. **ACK 长尾**。复用已归档的 A/A 与逐消息配对，固定负载复查排队和提交，按三组对照验收收益。
-2. **Envoy 网关**。先实测单上游协议、入口故障和额外开销，再演练双上游健康摘除、连接排空和恢复。
-3. **可靠性与真实接入**。完成受限长稳和跨主机网络故障，按需验收 C++ Wasm、真实 DAG/Agent 或设备生产者，再推进有独立证据的 AI 治理和受控试运行。
+```bash
+python3 -B scripts/project/cpp_systems.py \
+  --build-dir build/fleet-release --with-grpc
+```
 
-目标、测量口径和过关标准见[后续路线图](docs/roadmap/next-steps.md)与[技术应用和版本台账](docs/observability/sources.md)。
+该入口构建并运行隔离的契约与进程测试，**不是生产启动命令**。不具备依赖时应先核实环境，不会替你静默安装。可从 [原生交付预检](https://github.com/aurora-deng/web/blob/Function3.7/docs/ops/validation/native-delivery.md) 继续了解环境要求。
 
-## 学习与历史
+## 版本与验证
 
-- [按主题阅读](docs/README.md)、[Phase3–49时间线](docs/roadmap/stage-index.md)、[业务教学](docs/architecture/business/guides/README.md)。
-- [组件索引](docs/architecture/business/indexes/README.md)、[历史通信详细讲义](docs/architecture/communication/runtime-baseline.md)。
-- [版本差异](docs/releases/README.md)、[原始验收证据](docs/evidence/README.md)。较早README和当时未推送/未部署的叙述可在Git历史检查点`5f18761`查看。
+| 版本 / 入口 | 定位 | 应该怎么看 |
+| --- | --- | --- |
+| [`Function3.7`](https://github.com/aurora-deng/web/tree/Function3.7) | Agent / Skill 与私有控制台的源码验证预览 | [本次改动、已验证项与未通过项](https://github.com/aurora-deng/web/blob/Function3.7/docs/releases/function3.7.md) |
+| [`Function3.6`](https://github.com/aurora-deng/web/releases/tag/Function3.6) | 已有 Linux ZIP 与离线 Docker 交付 | [对应部署手册](https://github.com/aurora-deng/web/blob/Function3.6/docs/ops/runtime/function3.6-deployment.md)，不要混用版本 |
+| `main` | 项目介绍与导航 | README 更新不表示业务源码已经合并 |
+
+**验证口径：** 单元测试、进程契约、长稳压测、性能预算和真实机器人是不同门槛。Windows 的长跑超时 / 退出异常以及完整 gRPC TSan 的未通过项仍需跟进；本版不宣称这些问题已解决，也不宣称虚拟机已经部署。CI 徽章是远端实时状态，不替代本地或部署验收记录。
+
+## 文档导航
+
+| 你想做什么 | 从这里开始 |
+| --- | --- |
+| 浏览所有文档 | [文档分类](https://github.com/aurora-deng/web/blob/Function3.7/docs/README.md) |
+| 理解业务和实现边界 | [业务导读](https://github.com/aurora-deng/web/blob/Function3.7/docs/business/README.md) · [上线台账](https://github.com/aurora-deng/web/blob/Function3.7/docs/business/release-matrix.md) |
+| 查看接口与协议 | [接口契约](https://github.com/aurora-deng/web/blob/Function3.7/docs/contracts/README.md) |
+| 阅读 C++ / Fleet / Agent | [系统架构](https://github.com/aurora-deng/web/blob/Function3.7/docs/architecture/overview/cpp-systems.md) · [Agent 与 Skill](https://github.com/aurora-deng/web/blob/Function3.7/docs/learning/nebula-fleet-agent-and-skills.md) |
+| 构建、校验与运行 | [干净环境复现](https://github.com/aurora-deng/web/blob/Function3.7/docs/ops/validation/reproduce.md) · [原生包预检](https://github.com/aurora-deng/web/blob/Function3.7/docs/ops/validation/native-delivery.md) |
+| 学习监控与故障排查 | [Observer 课程与实操](https://github.com/aurora-deng/web/blob/Function3.7/docs/observability/README.md) |
+
+<details>
+<summary>历史版本与演进</summary>
+
+- [版本差异目录](https://github.com/aurora-deng/web/blob/Function3.7/docs/releases/README.md)
+- [Function3.6：DAG、Fleet 与离线交付](https://github.com/aurora-deng/web/blob/Function3.7/docs/releases/function3.6.md)
+- [Function3.5：记忆、工作流与网关](https://github.com/aurora-deng/web/blob/Function3.7/docs/releases/function3.5.md)
+
+阶段记录是历史证据，请结合对应提交和版本说明阅读，不直接等同于当前验收状态。
+
+</details>
+
+## 参与与许可
+
+欢迎围绕可复现问题、契约测试、边界清晰的小改动提出 Issue 或 Pull Request。提交前请阅读 [贡献指南](https://github.com/aurora-deng/web/blob/Function3.7/CONTRIBUTING.md)。不要提交密钥、真实用户数据、模型文件或运行数据库。
+
+本项目采用 [Apache License 2.0](https://github.com/aurora-deng/web/blob/Function3.7/LICENSE)。第三方依赖与模型遵循各自许可。

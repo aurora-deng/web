@@ -22,6 +22,7 @@ public:
 
     Task submit(std::string_view taskId, Station station, std::string_view traceId);
     Task status(std::string_view taskId);
+    std::vector<Task> list(std::string_view cursor, std::size_t limit);
     FleetLoad load();
     SimulationReview stageReview(const ReviewDraft& draft);
     SimulationReview inspectReview(std::string_view traceId);

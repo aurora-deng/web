@@ -18,7 +18,7 @@ def source_digest():
                  "tests/cpp_systems", "benchmarks/cpp_systems", "tools/agent"):
         paths = sorted((ROOT / part).rglob("*"), key=lambda path: path.relative_to(ROOT).parts)
         for path in paths:
-            if path.suffix in (".txt", ".h", ".cpp", ".proto", ".py"):
+            if path.suffix in (".txt", ".h", ".cpp", ".proto", ".py", ".inc"):
                 digest.update(path.relative_to(ROOT).as_posix().encode() + b"\0")
                 digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
                 digest.update(b"\0")
@@ -90,7 +90,8 @@ def main():
         discovered = json.loads(subprocess.check_output([*ctest, "--show-only=json-v1"], env=env))
         names = {entry["name"] for entry in discovered["tests"]}
         evidence["tests"] = sorted(names)
-        required = {"nebula_workflow_contract", "nebula_workflow_recovery", "nebula_fleet_contract", "nebula_agent_contract"}
+        required = {"nebula_workflow_contract", "nebula_workflow_recovery", "nebula_workflow_journal_capacity",
+                    "nebula_fleet_contract", "nebula_agent_contract"}
         if args.with_grpc:
             required.update({"nebula_fleet_process_contract", "nebula_fleet_backpressure", "nebula_agent_approval_handoff",
                              "nebula_agent_model_adapter", "nebula_simulation_models_and_replay"})

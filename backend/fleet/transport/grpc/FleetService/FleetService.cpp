@@ -53,6 +53,14 @@ FleetService::FleetService(FleetCoordinator& coordinator, std::string operatorTo
     : coordinator_(coordinator), operatorToken_(std::move(operatorToken)), robots_(std::move(robots)),
       agent_(std::move(agent)) {}
 
+grpc::Status FleetService::ListTasks(grpc::ServerContext* context,const v1::TaskListQuery* in,v1::TaskList* out) {
+    if(!mayRead(*context)) return {StatusCode::UNAUTHENTICATED,"status credential required"};
+    return handle([&] {
+        for(const auto& task:coordinator_.list(in->cursor(),in->limit())) encode(task,*out->add_tasks());
+        return grpc::Status::OK;
+    });
+}
+
 grpc::Status FleetService::Submit(grpc::ServerContext* context, const v1::TaskRequest* in, v1::TaskStatus* out) {
     if (!tokenMatches(metadata(*context, tokenHeader), operatorToken_)) {
         return {StatusCode::UNAUTHENTICATED, "operator credential required"};

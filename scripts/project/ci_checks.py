@@ -54,6 +54,12 @@ def source_checks(report, observer_http):
         ('businessDocs', 'scripts/project/check_business_docs.py'),
         ('apiContracts', 'tests/project/test_api_contracts.py'),
         ('releaseGates', 'tests/project/test_ci_gates.py'),
+        ('cppSystemsGates', 'tests/project/test_cpp_systems_gate.py'),
+        ('toolRuntime', 'tests/project/test_tool_runtime.py'),
+        ('skillRuntime', 'tests/project/test_skill_runtime.py'),
+        ('workbenchHttp', 'tests/project/test_workbench_http.py'),
+        ('agentControl', 'tests/project/test_agent_control_integration.py'),
+        ('agentRoutes', 'tests/project/test_agent_control_routes.py'),
         ('runtimeDelivery', 'tests/project/test_runtime_delivery.py'),
         ('observerQueries', 'tests/project/test_observer_queries.py'),
         ('gatewayContracts', 'tests/project/test_gateway.py'),
@@ -86,6 +92,7 @@ def source_checks(report, observer_http):
     if not frontend_tests:
         raise RuntimeError('No frontend tests found')
     check('frontendContracts', 'node', '--test', *frontend_tests)
+    check('agentFrontendContracts', 'node', 'tests/project/test_agent_control_frontend.cjs')
 
 
 def main():

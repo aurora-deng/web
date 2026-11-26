@@ -41,7 +41,7 @@ agent::Proposal candidateFrom(std::string_view skill, std::string_view version, 
             throw fleet::Error(fleet::ErrorCode::invalid, "invalid candidate evidence list");
         }
         proposal.evidenceTaskIds.emplace_back(id);
-        if (separator == std::string_view::npos) return proposal;
+        if (separator == std::string_view::npos) return agent::fleetProposal(proposal.skillId, proposal.version, std::move(proposal.evidenceTaskIds));
         ids.remove_prefix(separator + 1);
     }
 }

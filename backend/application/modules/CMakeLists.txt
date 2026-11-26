@@ -144,7 +144,7 @@ if(WEBSERVER_ENABLE_POSTGRES)
         messaging/bootstrap/CommunityDeliveryRuntime/CommunityDeliveryRuntime.cpp
         messaging/infrastructure/LocalEventBroker/LocalEventBroker.cpp)
     target_link_libraries(function3_community_delivery PRIVATE function3_messaging_driver function3_messaging_http)
-    add_library(function3_http bootstrap/Function3Runtime/Function3Runtime.cpp)
+    add_library(function3_http bootstrap/Function3Runtime/Function3Runtime.cpp agentcontrol/transport/AgentControlHttp/AgentControlHttp.cpp)
     target_link_libraries(function3_http PUBLIC function3_postgres function3_tree_http function3_speech_http
         function3_messaging_http function3_admin_http function3_announcement_http function3_activity_http function3_private_archive_http)
     target_link_libraries(function3_http PRIVATE function3_community_content function3_community_delivery function3_cache)

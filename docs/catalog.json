@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-23",
+  "generated": "2026-11-26",
   "scope": "public human-readable documents; raw evidence and local account files excluded",
   "documents": [
     {
@@ -1386,6 +1386,12 @@
     {
       "path": "docs/releases/function3.6.md",
       "title": "Function3.6 发布说明与 Function3.5 对比",
+      "category": "releases",
+      "kind": "document"
+    },
+    {
+      "path": "docs/releases/function3.7.md",
+      "title": "Function3.7 源码验证预览",
       "category": "releases",
       "kind": "document"
     },

@@ -188,6 +188,15 @@ def run(args):
     from desktop_runtime import SupervisorLease
     allowed_origins = {origin_key(value) for value in args.public_origin}
     frontend = FrontendSnapshot(args.frontend_root) if args.frontend_root else None
+    from backend.study.AccountWorkspace import AgentControl
+    from backend.agent.tool_runtime.control import ControlStore
+    control_enabled = os.environ.get('WEB_AGENT_CONTROL_ENABLE') == '1'
+    control_fleet = control_bridge = None
+    if control_enabled and getattr(args, 'control_fleet_ctl', None):
+        from backend.agent.tool_runtime.workspace import NativeFleetPort
+        from backend.agent.tool_runtime.skills import FleetSimulationBridge
+        control_fleet = NativeFleetPort(args.control_fleet_ctl, args.control_fleet_address, None, args.control_checkpoint)
+        control_bridge = FleetSimulationBridge(args.control_fleet_agent, args.control_fleet_address, None)
 
     class HostedHandler(runtime.Handler):
         def setup(self):
@@ -222,7 +231,8 @@ def run(args):
 
         def end_headers(self):
             self.send_header('Connection', 'close')
-            self.send_header('Content-Security-Policy', "frame-ancestors 'self'")
+            self.send_header('Content-Security-Policy', "object-src 'none'; base-uri 'self'; frame-ancestors 'self'")
+            self.send_header('X-Frame-Options', 'SAMEORIGIN')
             self.send_header('Referrer-Policy', 'same-origin')
             self.send_header('X-Content-Type-Options', 'nosniff')
             super().end_headers()
@@ -259,6 +269,10 @@ def run(args):
                     return self.reply(413, {'error': '单次请求上限为 10 MiB'})
             try:
                 target = urlsplit(self.path)
+                if AgentControl.dispatch(self, args, target, self.server.accounts,
+                                         self.server.control, control_fleet, control_bridge,
+                                         allowed_origins, origin_key):
+                    return
                 if frontend is not None and not target.netloc and not target.scheme and (
                     target.path == FRONTEND_PREFIX.rstrip('/') or target.path.startswith(FRONTEND_PREFIX)
                 ):
@@ -384,6 +398,7 @@ def run(args):
         try:
             with AccountServer(('127.0.0.1', args.port), HostedHandler) as instance:
                 instance.accounts = accounts
+                instance.control = ControlStore(data / 'agent-control.sqlite3') if control_enabled else None
                 print(f'NEBULA 研途账号服务 127.0.0.1:{instance.server_port}', flush=True)
                 instance.serve_forever(poll_interval=.5)
         finally:
@@ -418,7 +433,13 @@ def main():
     parser.add_argument('--frontend-root', type=Path, help='Optional isolated web frontend snapshot')
     parser.add_argument('--ollama-model', default='', help='Optional model already installed on the site Ollama')
     parser.add_argument('--ollama-port', default=11434, type=int, help='Fixed loopback model port')
+    parser.add_argument('--control-fleet-ctl', type=Path, help='Existing built Fleet read CLI, never downloaded')
+    parser.add_argument('--control-fleet-agent', type=Path, help='Existing built simulation approval CLI')
+    parser.add_argument('--control-fleet-address', default='127.0.0.1:18126')
+    parser.add_argument('--control-checkpoint', type=Path, help='Existing Edge checkpoint projection')
     args = parser.parse_args()
+    if any((args.control_fleet_ctl, args.control_fleet_agent, args.control_checkpoint)) and not all((args.control_fleet_ctl, args.control_fleet_agent, args.control_checkpoint)):
+        parser.error('Fleet integration requires both existing CLIs and a checkpoint projection')
     if not (0 < args.port < 65536 and 0 < args.auth_port < 65536 and 1 <= args.max_active <= 64 and args.port != args.auth_port):
         parser.error('端口或工作区并发上限无效')
     if not 0 < args.ollama_port < 65536 or (args.ollama_model and not re.fullmatch(r'[A-Za-z0-9_./:-]{1,160}', args.ollama_model)):

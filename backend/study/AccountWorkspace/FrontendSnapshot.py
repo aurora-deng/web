@@ -22,6 +22,9 @@ class FrontendSnapshot:
                 continue
             if any(part.startswith('.') for part in file.relative_to(root).parts) or file.stat().st_size > MAX_ASSET_BYTES:
                 continue
+            # This directory is served only by the native authenticated route.
+            if file.relative_to(root).parts[0] == 'agent-control':
+                continue
             relative = quote(file.relative_to(root).as_posix(), safe='/')
             route = FRONTEND_PREFIX + relative
             entry = (file, MIME[file.suffix.lower()])

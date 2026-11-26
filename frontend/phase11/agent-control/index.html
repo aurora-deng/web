@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NEBULA · Agent 执行工作台</title>
+  <link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=0613976363093f95">
+  <link rel="stylesheet" href="/phase11/agent-control/style.css?v=0613976363093f95">
+  <script src="/phase11/agent-control/app.js?v=0613976363093f95" defer></script>
+</head>
+<body>
+<header>
+  <div class="eyebrow">NEBULA / PRIVATE CONTROL CENTER</div>
+  <h1>Agent 执行工作台</h1>
+  <p>当前账号授权下的参数校验、真实业务读取、人工审批与持久化结果。</p>
+  <div class="tags"><span id="identity">正在核验登录与专属权限…</span><span id="catalog-summary">正在读取技能目录…</span></div>
+</header>
+<main>
+  <aside class="notice"><strong>真实账号数据边界</strong> · 聊天与学习内容来自当前登录账号，不是合成演示库。写入申请须明确确认并由另一位有权限的审批者批准，再由申请者执行。改派、隔离、提醒仅保存提案；模拟重排审批可创建模拟任务，不控制真实机器人。</aside>
+  <section class="layout">
+    <article class="panel">
+      <h2>1. 选择技能</h2><label for="skill">技能 / 精确版本</label><select id="skill"></select>
+      <p id="description" class="muted"></p><div id="constraints" class="chips"></div>
+      <label for="parameters">2. 填写真实对象与参数</label><textarea id="parameters" spellcheck="false" rows="15"></textarea>
+      <details><summary>查看参数约束（JSON Schema）</summary><pre id="schema"></pre></details>
+      <label class="confirmation"><input type="checkbox" id="confirmed" disabled> 我确认提交对当前真实账号的写入申请；重复同一写入保留原幂等键</label>
+      <div class="actions"><button id="plan" class="secondary" disabled>仅规划，不执行</button><button id="invoke" disabled>等待身份与技能核验</button></div>
+      <p id="status" role="status">正在读取实际技能目录…</p>
+    </article>
+    <article class="panel output">
+      <h2>调用结果</h2><p class="muted">显示来源、读取时间、新鲜度与截断标记；能力未配置时返回 unavailable，不编造结果。</p>
+      <pre id="result" aria-live="polite">选择技能，填写当前账号可见的真实对象编号后执行。</pre>
+      <h3>安全使用顺序</h3><ol><li>先用只读查询确认对象与权限；空字符串均须自行填写。</li><li>可先“仅规划”核对参数约束，不执行业务写入。</li><li>写入先提交申请，另一位审批者核对内容后批准。</li><li>申请者执行已批准申请；超时先核实状态，不换幂等键重复提交。</li></ol>
+    </article>
+  </section>
+  <section class="panel"><div class="section-head"><h2>写入申请与人工提案</h2><button id="refresh" class="secondary">刷新</button></div><p class="muted">审批前展开检查参数、原因与提案内容。批准写入后仍需申请者执行；非模拟重排提案不下发车队控制或外部通知。</p><div id="proposals">正在读取当前账号可见的队列…</div></section>
+</main>
+<footer>本入口复用 Nebula 原有登录、权限和网关；不创建独立开发账号，不暴露额外服务端口。真实机器人 / Nav2 调度尚未开放。</footer>
+</body>
+</html>

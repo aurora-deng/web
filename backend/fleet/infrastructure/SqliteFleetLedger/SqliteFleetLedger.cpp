@@ -48,6 +48,13 @@ std::optional<Task> SqliteFleetLedger::lookup(std::string_view taskId) {
     return taskOf(row);
 }
 
+std::vector<Task> SqliteFleetLedger::list(std::string_view cursor, std::size_t limit) {
+    if ((!cursor.empty() && !validId(cursor)) || !limit || limit>16) throw Error(ErrorCode::invalid,"invalid task list bounds");
+    sqlite::Statement row(db_,"SELECT task_id,trace_id,station,epoch,robot_id,phase,outcome FROM tasks WHERE task_id>? ORDER BY task_id LIMIT ?");
+    row.bind(1,cursor).bind(2,static_cast<std::int64_t>(limit));
+    std::vector<Task> result; while(row.next()) result.push_back(taskOf(row)); return result;
+}
+
 Task SqliteFleetLedger::submit(std::string_view taskId, Station station, std::string_view traceId) {
     if (!validId(taskId) || !validStation(station) || !validTrace(traceId)) {
         throw Error(ErrorCode::invalid, "invalid task parameters");

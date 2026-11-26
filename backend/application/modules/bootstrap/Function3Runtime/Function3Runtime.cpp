@@ -14,6 +14,7 @@
 #include "backend/application/modules/cache/infrastructure/RedisReadCache/RedisReadCache.h"
 #include "backend/application/modules/ranking/infrastructure/RankingPostgresRepository/RankingPostgresRepository.h"
 #include "backend/application/modules/shared/infrastructure/Phase11Bridge/Phase11Bridge.h"
+#include "backend/application/modules/agentcontrol/transport/AgentControlHttp/AgentControlHttp.h"
 #include "backend/application/modules/tree/infrastructure/TreeRankingSource/TreeRankingSource.h"
 #include "backend/ai/speech/infrastructure/SpeechRuntime/SpeechRuntime.h"
 #include "backend/ai/speech/transport/SpeechAdminHttp/SpeechAdminHttp.h"
@@ -70,6 +71,7 @@ struct Function3Runtime::Impl {
     ModelAdminService modelAdmin;
     phase11::BoundedExecutor modelExecutor{1, 4};
     ModelAdminHttp modelHttp;
+    agentcontrol::AgentControlHttp agentControlHttp;
 
     SpeechRuntime speech;
     SpeechHttp speechHttp;
@@ -110,6 +112,7 @@ struct Function3Runtime::Impl {
                     [&sessions, &websockets](Id user){websockets.closeUser(user);sessions.closeClient(user);}),
           modelBridge(models, registry, evaluation), modelAdmin(bridge, modelBridge, sql, delivery.writer()),
           modelHttp(authorization, modelExecutor, modelAdmin),
+          agentControlHttp(authorization, executor, bridge),
           speech(sql, delivery.writer()), speechHttp(authorization, executor, announcements, speech.service()),
           speechAdminHttp(authorization, previewExecutor, bridge, speech.service()),
           privateArchiveRepository(sql, delivery.commitNotifier()),
@@ -191,6 +194,7 @@ void Function3Runtime::registerRoutes(Router& router) {
     impl_->content.registerRoutes(router);
     impl_->adminHttp.registerRoutes(router);
     impl_->modelHttp.registerRoutes(router);
+    impl_->agentControlHttp.registerRoutes(router);
     impl_->announcementHttp.registerRoutes(router);
     impl_->speechHttp.registerRoutes(router);
     impl_->speechAdminHttp.registerRoutes(router);

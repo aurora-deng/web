@@ -1,5 +1,5 @@
-import { chatApi } from "../ChatApi/ChatApi.js?v=4364119c78f60e44";
-import { createChatScope } from '../ChatScope/ChatScope.js?v=4364119c78f60e44';
+import { chatApi } from "../ChatApi/ChatApi.js?v=0613976363093f95";
+import { createChatScope } from '../ChatScope/ChatScope.js?v=0613976363093f95';
 export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","toast","clearConversationView","setButtonBusy","api","loadConversations","openConversation","refreshCurrentGroup"],"types":[],"events":true};
 /** Group UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindGroup(context) {

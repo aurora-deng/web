@@ -24,6 +24,7 @@ public:
     using Robots = std::map<std::string, RobotCredential, std::less<>>;
     FleetService(FleetCoordinator& coordinator, std::string operatorToken, Robots robots, AgentCredentials agent = {});
 
+    grpc::Status ListTasks(grpc::ServerContext*,const v1::TaskListQuery*,v1::TaskList*) override;
     grpc::Status Submit(grpc::ServerContext* context, const v1::TaskRequest* in, v1::TaskStatus* out) override;
     grpc::Status Status(grpc::ServerContext* context, const v1::TaskQuery* in, v1::TaskStatus* out) override;
     grpc::Status StageReview(grpc::ServerContext* context, const v1::ReviewDraft* in, v1::SimulationReview* out) override;

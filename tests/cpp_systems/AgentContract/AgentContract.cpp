@@ -2,6 +2,7 @@
 #include "backend/workflow/ObserverEvents/ObserverEvents.h"
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
@@ -18,7 +19,8 @@ void require(bool condition, std::string_view message) {
 
 EvidenceResult fixture(std::string_view taskId) {
     constexpr auto trace = "1234567890abcdef1234567890abcdef";
-    TaskEvidence row{std::string(taskId), trace, Phase::queued, 12, false, false, ""};
+    TaskEvidence row{std::string(taskId), trace, Phase::queued, 12, false, false, "",
+                     "test.fixture", std::chrono::system_clock::now(), true};
     if (taskId == "failed") {
         row.phase = Phase::failed;
         row.outcome = "precondition_failed";
@@ -66,7 +68,7 @@ public:
 
     unsigned calls{};
     bool waitUntilDeadline{};
-    Candidate output{CandidateStatus::proposed, {"fleet.review_failures", 1, {"failed"}}};
+    Candidate output{CandidateStatus::proposed, fleetProposal("fleet.review_failures", 1, {"failed"})};
 };
 
 void expectFailure(const Answer& answer, std::string_view code) {
@@ -82,24 +84,49 @@ int main() {
         FixtureProvider provider;
         FleetAgent rules(reader);
         FleetAgent assisted(reader, &provider);
-        require(skillCatalog().size() == 3 && findSkill(getTaskStatus.id, 1) &&
+        require(skillCatalog().size() == 19 && findSkill(getTaskStatus.id, 1) &&
                 findSkill(getTaskStatus.id, 1)->effect == SkillEffect::read &&
                 !findSkill(proposeSimReschedule.id, 2), "versioned skill catalog");
 
+        require(!findSkill("fleet.nav.dispatch", 1) &&
+                findSkill("fleet.task.reassign", 1)->effect == SkillEffect::proposal &&
+                findSkill("study.log_progress", 1)->effect == SkillEffect::external &&
+                findSkill("study.log_progress", 1)->idempotencyKey == "idempotencyKey",
+                "effect-separated bounded skill catalog");
+        for (const auto& skill : skillCatalog()) {
+            require(!skill.parameterSchema.empty() && !skill.preconditions.empty() && skill.timeoutMs > 0,
+                    "skills carry constraints, not prompts");
+        }
+
+        // Multi-version lookup and duplicate admission are separate invariants.
+        auto v2 = getTaskStatus; v2.version=2;
+        const std::array versions{getTaskStatus,v2};
+        validateCatalog(versions);
+        require(findSkill(versions,getTaskStatus.id,2)==&versions[1] && !findSkill(getTaskStatus.id,2), "lookup exact version");
+        bool duplicate=false;
+        try { const std::array bad{getTaskStatus,getTaskStatus}; validateCatalog(bad); }
+        catch (const std::invalid_argument&) { duplicate=true; }
+        require(duplicate,"reject duplicate skill identities");
+        require(validateArguments(getTaskStatus,{{"taskId","failed"}}) &&
+                !validateArguments(getTaskStatus,{{"taskId","failed"},{"extra",true}}) &&
+                !validateArguments(getTaskStatus,{}), "execute typed parameter constraints");
+        require(!validateArguments(*findSkill("chat.recall",1),{{"query","x"},{"scope","conversation"},{"limit",10}}), "scope requires conversation");
+        require(fleetProposal("fleet.review_failures",1,{"failed","uncertain"}) ==
+                fleetProposal("fleet.review_failures",1,{"uncertain","failed"}), "evidence is set semantics");
         unsigned cases = 0;
         auto run = [&](FleetAgent& agent, const Request& request, std::stop_token stop = {}) {
             return agent.run(request, {.runId = "agent-test-" + std::to_string(++cases), .stop = stop});
         };
         const Request review{Intent::review, {"failed"}};
         const Request propose{Intent::simulateReschedule, {"queued"}};
-        const Proposal reviewed{"fleet.review_failures", 1, {"failed"}};
-        const Proposal proposed{"fleet.propose_sim_reschedule", 1, {"queued"}};
+        const auto reviewed = fleetProposal("fleet.review_failures", 1, {"failed"});
+        const auto proposed = fleetProposal("fleet.propose_sim_reschedule", 1, {"queued"});
 
         const auto summary = run(rules, {Intent::review, {"failed", "finished", "uncertain"}});
-        require(summary.proposal == Proposal{"fleet.review_failures", 1, {"failed", "uncertain"}} &&
+        require(summary.proposal == fleetProposal("fleet.review_failures", 1, {"failed", "uncertain"}) &&
                 summary.evidence.size() == 3 && summary.planner == PlannerSource::rules, "review only relevant evidence");
         require(run(rules, {Intent::review, {"disconnected"}}).proposal ==
-                Proposal{"fleet.review_failures", 1, {"disconnected"}}, "review interrupted acceptance");
+                fleetProposal("fleet.review_failures", 1, {"disconnected"}), "review interrupted acceptance");
         expectFailure(run(rules, {Intent::review, {"finished"}}), "no_failure_evidence");
         require(run(rules, propose).proposal == proposed, "queued task yields a simulation proposal");
         for (const char* id : {"leased", "executing", "uncertain"}) {
@@ -150,17 +177,49 @@ int main() {
         expectFailure(run(rules, review), "invalid_evidence");
         reader.load = fixture;
 
+        const auto callsBeforeStale = provider.calls;
+        reader.load = [](auto id) {
+            auto result = fixture(id);
+            result.evidence.fresh = false;
+            return result;
+        };
+        const auto stale = run(assisted, review);
+        require(stale.proposal == reviewed && stale.planner == PlannerSource::fallback &&
+                provider.calls == callsBeforeStale, "stale evidence bypasses provider");
+        reader.load = [](auto id) {
+            auto result = fixture(id);
+            result.evidence.readAt -= std::chrono::seconds{31};
+            return result;
+        };
+        const auto aged = run(assisted, review);
+        require(aged.proposal == reviewed && aged.planner == PlannerSource::fallback &&
+                !aged.evidence.front().fresh && provider.calls == callsBeforeStale,
+                "old reader timestamp overrides a claimed fresh flag");
+        reader.load = [](auto id) {
+            auto result = fixture(id);
+            result.evidence.source.clear();
+            return result;
+        };
+        expectFailure(run(assisted, review), "invalid_evidence");
+        reader.load = fixture;
+
         const auto good = run(assisted, review);
         require(good.proposal == reviewed && good.planner == PlannerSource::provider, "valid provider proposal");
         for (const Proposal& proposal : std::vector<Proposal>{
                  {"unknown.skill", 1, {"failed"}}, {"fleet.review_failures", 2, {"failed"}},
-                 {"fleet.get_task_status", 1, {"failed"}}, proposed,
+                 {"fleet.get_task_status", 1, {"failed"}}, {"study.log_progress",1,{"failed"}}, proposed,
                  {"fleet.review_failures", 1, {"invented-reference"}},
                  {"fleet.review_failures", 1, {"failed", "failed"}},
              }) {
             provider.output = {CandidateStatus::proposed, proposal};
             expectFailure(run(assisted, review), "proposal_rejected");
         }
+        provider.output = {CandidateStatus::proposed, fleetProposal("fleet.review_failures",1,{"uncertain","failed"})};
+        const auto reordered = run(assisted,{Intent::review,{"failed","uncertain"}});
+        require(reordered.run.state == State::success && reordered.planner == PlannerSource::provider,
+                "provider evidence order is irrelevant");
+        provider.output.proposal.parameters.clear();
+        expectFailure(run(assisted,{Intent::review,{"failed","uncertain"}}),"proposal_rejected");
         provider.output = {CandidateStatus::malformed, {}};
         expectFailure(run(assisted, review), "provider_malformed");
         provider.output = {CandidateStatus::unavailable, {}};

@@ -71,3 +71,41 @@ if(TARGET nebula_fleet_coordinator)
             ENVIRONMENT "ROS_LOCALHOST_ONLY=1;ROS_DOMAIN_ID=88")
     endif()
 endif()
+
+# Offline stdlib-only contract tests. No HTTP, credentials, downloads or business DB.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(NAME nebula_tool_runtime_contract
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/../project/test_tool_runtime.py")
+set_tests_properties(nebula_tool_runtime_contract PROPERTIES TIMEOUT 30 LABELS cpp-systems)
+
+if(TARGET nebula_agent_application)
+    add_executable(nebula_skill_catalog_contract SkillCatalogContract/SkillCatalogContract.cpp)
+    target_link_libraries(nebula_skill_catalog_contract PRIVATE nebula_agent_domain)
+    add_test(NAME nebula_skill_catalog_contract COMMAND nebula_skill_catalog_contract)
+    set_tests_properties(nebula_skill_catalog_contract PROPERTIES TIMEOUT 15 LABELS cpp-systems)
+endif()
+if(TARGET nebula_workflow_sqlite)
+    add_executable(nebula_workflow_journal_capacity WorkflowJournalCapacity/WorkflowJournalCapacity.cpp)
+    target_link_libraries(nebula_workflow_journal_capacity PRIVATE nebula_fleet_application nebula_workflow_sqlite)
+    add_test(NAME nebula_workflow_journal_capacity COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/workflow_journal_capacity.py" $<TARGET_FILE:nebula_workflow_journal_capacity>)
+    set_tests_properties(nebula_workflow_journal_capacity PROPERTIES TIMEOUT 180 LABELS cpp-systems)
+    add_executable(nebula_task_workflow_recovery TaskWorkflowRecovery/TaskWorkflowRecovery.cpp)
+    target_link_libraries(nebula_task_workflow_recovery PRIVATE nebula_fleet_application nebula_workflow_sqlite)
+    add_test(NAME nebula_task_workflow_recovery COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/task_workflow_recovery.py" $<TARGET_FILE:nebula_task_workflow_recovery>)
+    set_tests_properties(nebula_task_workflow_recovery PROPERTIES TIMEOUT 35 LABELS cpp-systems)
+    add_test(NAME nebula_skill_runtime_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/../project/test_skill_runtime.py")
+    set_tests_properties(nebula_skill_runtime_contract PROPERTIES TIMEOUT 35 LABELS cpp-systems)
+endif()
+
+if(TARGET nebula_fleet_agent)
+    add_test(NAME nebula_agent_skill_process
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/agent_skill_process.py"
+            --coordinator $<TARGET_FILE:nebula_fleet_coordinator> --edge $<TARGET_FILE:nebula_fleet_edge>
+            --ctl $<TARGET_FILE:nebula_fleet_ctl> --agent $<TARGET_FILE:nebula_fleet_agent> --peer $<TARGET_FILE:nebula_fleet_test_peer>)
+    set_tests_properties(nebula_agent_skill_process PROPERTIES TIMEOUT 60 LABELS cpp-systems)
+endif()
+
+if(Python3_EXECUTABLE)
+    add_test(NAME nebula_workbench_http_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/../project/test_workbench_http.py")
+    set_tests_properties(nebula_workbench_http_contract PROPERTIES TIMEOUT 30 LABELS cpp-systems)
+endif()

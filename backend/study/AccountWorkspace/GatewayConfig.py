@@ -37,6 +37,15 @@ def add_workspace(config, study_port, origins, *, serve_frontend=False):
             routes = vhost['routes']
             api = next(index for index, route in enumerate(routes) if route['name'] == 'api')
             routes.insert(api, study)
+            # The native service remains the authority for access and identity.
+            control_access = proxy_route('agent_control_access', {'path': '/api/private/agent-control/access'})
+            control = proxy_route('agent_control', {'prefix': '/api/private/agent-control/'}, '15s')
+            control['route']['cluster'] = 'nebula_study'
+            routes.insert(api, control)
+            routes.insert(api, control_access)
+            # Private control assets must never fall through to a public snapshot.
+            page = proxy_route('agent_control_page', {'path_separated_prefix': '/phase11/agent-control'})
+            routes.insert(api, page)
             if serve_frontend:
                 for route in routes:
                     if route['name'] in ('assistant_page', 'assistant_assets', 'agent_runtime', 'page'):

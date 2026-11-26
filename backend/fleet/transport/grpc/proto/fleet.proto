@@ -131,7 +131,11 @@ message LoadUpdate {
   uint32 skipped_samples = 8;
 }
 
+message TaskListQuery { uint32 limit = 1; string cursor = 2; }
+message TaskList { repeated TaskStatus tasks = 1; }
+
 service Fleet {
+  rpc ListTasks(TaskListQuery) returns (TaskList);
   rpc Submit(TaskRequest) returns (TaskStatus);
   rpc Status(TaskQuery) returns (TaskStatus);
   rpc StageReview(ReviewDraft) returns (SimulationReview);

@@ -13,6 +13,7 @@ public:
     std::optional<Task> lookup(std::string_view taskId) override;
     std::optional<Command> dispatch(std::string_view robotId, Capabilities capabilities) override;
     void apply(std::string_view robotId, const Receipt& receipt) override;
+    std::vector<Task> list(std::string_view cursor, std::size_t limit) override;
     FleetLoad load() override;
     SimulationReview stageReview(const ReviewDraft& draft, std::int64_t now) override;
     SimulationReview inspectReview(std::string_view traceId, std::int64_t now) override;

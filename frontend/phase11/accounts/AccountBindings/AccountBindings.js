@@ -1,6 +1,6 @@
-import { accountsApi } from "../AccountsApi/AccountsApi.js?v=4364119c78f60e44";
-import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=4364119c78f60e44';
-import { accountEntry, invalidateAccountSession, readAccountSession } from '../../shared/AccountSession/AccountSession.js?v=4364119c78f60e44';
+import { accountsApi } from "../AccountsApi/AccountsApi.js?v=0613976363093f95";
+import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=0613976363093f95';
+import { accountEntry, invalidateAccountSession, readAccountSession } from '../../shared/AccountSession/AccountSession.js?v=0613976363093f95';
 export const dependencies={"resources":["$","elements","state","runtime"],"commands":["setStatus","toast","setButtonBusy","api","uploadFile","formatBytes","updateProfileView","showChat","showLoggedOut"],"types":[],"events":true};
 /** Account UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindAccount(context) {
