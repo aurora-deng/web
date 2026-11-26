@@ -183,6 +183,7 @@ class GatewayContract(unittest.TestCase):
         tls_context = secure["transport_socket"]["typed_config"]["common_tls_context"]
         self.assertEqual(tls_context["alpn_protocols"], ["http/1.1"])
         self.assertEqual(tls_context["tls_params"]["tls_minimum_protocol_version"], "TLSv1_2")
+        self.assertEqual(tls_context["tls_params"]["tls_maximum_protocol_version"], "TLSv1_3")
         validation = tls_context["validation_context"]
         self.assertEqual(validation["match_typed_subject_alt_names"],
                          [{"san_type": "IP_ADDRESS", "matcher": {"exact": "192.168.239.135"}}])

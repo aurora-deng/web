@@ -156,7 +156,9 @@ def verified_upstream_tls(ca, peer):
     config = {
         "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
         "common_tls_context": {
-            "tls_params": {"tls_minimum_protocol_version": "TLSv1_2"},
+            # Envoy 1.40 clients otherwise cap TLS at 1.2; native NEBULA requires TLS 1.3.
+            "tls_params": {"tls_minimum_protocol_version": "TLSv1_2",
+                           "tls_maximum_protocol_version": "TLSv1_3"},
             # Native TLS requires explicit ALPN; this upstream uses HTTP/1.1 for SSE and WebSocket.
             "alpn_protocols": ["http/1.1"],
             "validation_context": {
