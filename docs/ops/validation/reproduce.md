@@ -38,6 +38,8 @@ Windows 可运行 `python scripts/project/ci_checks.py source --observer-http`�
 
 ## CI 与交付
 
+工作流已按源码、C++ 系统、车队、业务和原生 Worker 拆分，总入口保持兼容。新增流程的注册字段、可复用调用及权限边界见[多工作流与扩展约定](workflows.md)。
+
 - Function3.6 从通过真实 PostgreSQL 验收的运行包构建独立 Web 与 Fleet 镜像。使用 [隔离交付脚本](../../../scripts/project/offline_docker.py) 生成 Docker 构建上下文。预制镜像和主机库准备方法见 [部署手册](../runtime/function3.6-deployment.md)。
 - [GitHub Actions 工作流](../../../.github/workflows/ci.yml) 在 push 和 PR 跑 Ubuntu 24.04、Windows 2025 双平台门禁。两端检查业务前端、Observer 的全部 JavaScript 文件，以及真实本机 HTTP 契约。各平台分别上传 `ci-report.json`，显示实际通过、失败和本地可选检查。
 - 在 Actions 手动勾选 `run_business` 后，隔离 runner 等两平台通过再构建启动，执行协议与业务 CTest、PostgreSQL 冒烟、重启恢复和 OTLP 鉴权、采样、失败恢复。环境中设置 `WEB_CI_POSTGRES_PREFIX`，按需设置 `WEB_CI_SODIUM_PREFIX`、`WEB_CI_GTEST_DIR`、`WEB_CI_CURL_PREFIX` 与成对的 `WEB_CI_OPENSSL_INCLUDE`、`WEB_CI_OPENSSL_LIB_DIR`。制品 `business-evidence-*` 收录 `reproduction.json` 和 `ctest.xml`。Redis 可在本地通过 `--test-redis-port` 指定一次性 fixture。未指定时，报告明确列出该项跳过。

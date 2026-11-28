@@ -1,0 +1,39 @@
+name: Verify fleet-grpc
+
+# Reusable lane; dispatch and ordering stay in ci.yml.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  fleet-grpc:
+    if: github.event_name == 'workflow_dispatch'
+    name: Provisioned Linux fleet and Observer
+    runs-on: [self-hosted, linux, webserver-isolated-ci]
+    environment: isolated-ci
+    timeout-minutes: 20
+    env:
+      FLEET_PREFIX: ${{ vars.WEB_CI_FLEET_PREFIX }}
+      FLEET_BUILD: build/ci-fleet-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify gRPC processes, receipt loss and Observer views
+        shell: bash
+        run: |
+          args=()
+          if [[ -n "$FLEET_PREFIX" ]]; then args+=(--prefix "$FLEET_PREFIX"); fi
+          python3 scripts/project/cpp_systems.py --build-dir "$FLEET_BUILD" --with-grpc "${args[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: fleet-grpc-${{ github.run_attempt }}
+          path: |
+            ${{ env.FLEET_BUILD }}/cpp-systems-evidence.json
+            ${{ env.FLEET_BUILD }}/ctest.xml
+            ${{ env.FLEET_BUILD }}/Testing/Temporary/LastTest.log
+          if-no-files-found: error
+          retention-days: 7

@@ -1354,6 +1354,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/ops/validation/workflows.md",
+      "title": "多工作流与扩展约定",
+      "category": "ops",
+      "kind": "document"
+    },
+    {
       "path": "docs/performance/BENCHMARK.md",
       "title": "可复现性能实验",
       "category": "performance",

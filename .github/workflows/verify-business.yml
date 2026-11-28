@@ -1,0 +1,64 @@
+name: Verify business
+
+# Reusable lane; dispatch and ordering stay in ci.yml.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  business:
+    if: github.event_name == 'workflow_dispatch'
+    name: Linux business and delivery
+    runs-on: [self-hosted, linux, webserver-isolated-ci]
+    environment: isolated-ci
+    timeout-minutes: 30
+    env:
+      PG_PREFIX: ${{ vars.WEB_CI_POSTGRES_PREFIX }}
+      SODIUM_PREFIX: ${{ vars.WEB_CI_SODIUM_PREFIX }}
+      GTEST_DIR: ${{ vars.WEB_CI_GTEST_DIR }}
+      SSL_INCLUDE: ${{ vars.WEB_CI_OPENSSL_INCLUDE }}
+      SSL_LIB_DIR: ${{ vars.WEB_CI_OPENSSL_LIB_DIR }}
+      CURL_PREFIX: ${{ vars.WEB_CI_CURL_PREFIX }}
+      CI_BUILD: build/ci-business-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_DELIVERY: build/ci-delivery-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Clean Release build, real business and OTLP regression
+        shell: bash
+        run: |
+          args=(--postgres-prefix "${PG_PREFIX:?Configure WEB_CI_POSTGRES_PREFIX on the isolated runner}")
+          if [[ -n "$SODIUM_PREFIX" ]]; then args+=(--sodium-prefix "$SODIUM_PREFIX"); fi
+          if [[ -n "$GTEST_DIR" ]]; then args+=(--gtest-dir "$GTEST_DIR"); fi
+          if [[ -n "$CURL_PREFIX" ]]; then args+=(--curl-root "$CURL_PREFIX"); fi
+          if [[ -n "$SSL_INCLUDE" || -n "$SSL_LIB_DIR" ]]; then
+            args+=(--openssl-include "${SSL_INCLUDE:?}" --openssl-lib-dir "${SSL_LIB_DIR:?}")
+          fi
+          python3 scripts/project/reproduce.py business --with-otlp --build-dir "$CI_BUILD" "${args[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: business-evidence-${{ github.run_attempt }}
+          path: |
+            ${{ env.CI_BUILD }}/reproduction.json
+            ${{ env.CI_BUILD }}/ctest.xml
+          retention-days: 7
+      - name: Package and smoke-test the extracted runtime
+        shell: bash
+        run: |
+          python3 scripts/project/package_release.py --revision "$GITHUB_SHA" package \
+            --build "$CI_BUILD" --output "$CI_DELIVERY"
+          (cd "$CI_DELIVERY" && sha256sum --check SHA256SUMS)
+          python3 scripts/project/package_release.py --revision "$GITHUB_SHA" verify \
+            "$CI_DELIVERY"/nebula-linux-*.tar.gz --postgres-prefix "$PG_PREFIX"
+      - name: Upload NEBULA delivery artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nebula-delivery-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ env.CI_DELIVERY }}/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

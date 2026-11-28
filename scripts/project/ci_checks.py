@@ -54,6 +54,8 @@ def source_checks(report, observer_http):
         ('businessDocs', 'scripts/project/check_business_docs.py'),
         ('apiContracts', 'tests/project/test_api_contracts.py'),
         ('releaseGates', 'tests/project/test_ci_gates.py'),
+        ('workflowCatalog', 'scripts/project/check_workflows.py'),
+        ('workflowCatalogContracts', 'tests/project/test_workflow_catalog.py'),
         ('cppSystemsGates', 'tests/project/test_cpp_systems_gate.py'),
         ('agentCatalog', 'tests/project/test_agent_catalog_layout.py'),
         ('nativeSkillCatalog', 'scripts/project/generate_skill_catalog.py', '--check'),

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "description": "Explicit CI lanes; entries are extensible, not a fixed workflow count.",
+  "workflows": [
+    {
+      "id": "ci",
+      "path": ".github/workflows/ci.yml",
+      "kind": "entrypoint",
+      "jobs": [
+        "source",
+        "cpp-systems",
+        "fleet-grpc",
+        "business",
+        "native"
+      ],
+      "manualOnly": false,
+      "effects": "orchestration",
+      "inputs": {
+        "run_business": "boolean",
+        "run_native": "boolean",
+        "run_fleet": "boolean"
+      },
+      "requires": []
+    },
+    {
+      "id": "source",
+      "path": ".github/workflows/verify-source.yml",
+      "kind": "reusable",
+      "jobs": [
+        "source"
+      ],
+      "manualOnly": false,
+      "effects": "local-tests",
+      "inputs": {},
+      "requires": []
+    },
+    {
+      "id": "cpp-systems",
+      "path": ".github/workflows/verify-cpp-systems.yml",
+      "kind": "reusable",
+      "jobs": [
+        "cpp-systems"
+      ],
+      "manualOnly": false,
+      "effects": "local-tests",
+      "inputs": {},
+      "requires": []
+    },
+    {
+      "id": "fleet-grpc",
+      "path": ".github/workflows/verify-fleet-grpc.yml",
+      "kind": "reusable",
+      "jobs": [
+        "fleet-grpc"
+      ],
+      "manualOnly": true,
+      "effects": "isolated-test-writes",
+      "inputs": {},
+      "requires": []
+    },
+    {
+      "id": "business",
+      "path": ".github/workflows/verify-business.yml",
+      "kind": "reusable",
+      "jobs": [
+        "business"
+      ],
+      "manualOnly": true,
+      "effects": "isolated-test-writes",
+      "inputs": {},
+      "requires": [
+        "source"
+      ]
+    },
+    {
+      "id": "native",
+      "path": ".github/workflows/verify-native.yml",
+      "kind": "reusable",
+      "jobs": [
+        "native"
+      ],
+      "manualOnly": true,
+      "effects": "isolated-test-writes",
+      "inputs": {},
+      "requires": [
+        "business"
+      ]
+    }
+  ]
+}
