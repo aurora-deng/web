@@ -22,10 +22,10 @@
 | 编号 | 实际情况 | 后续处理 | 对应影响 |
 | --- | --- | --- | --- |
 | D1 | `scripts/` 根层同时有基准、报告、测试和端口维护脚本 | 已将 9 项实现按 benchmarks、reports、testing 和 diagnostics 归类，并保留旧 CLI；精确清单见 source-script-utilities-migration.json | 根路径计算、脚本互调、README、shell 语法、测试入口必须同时调整；保留稳定旧 CLI |
-| D2 | `tests/project/` 有多种项目级契约测试 | 先按被测职责建立导航；不因文件数量多就强行移动 | 直接执行入口、共享测试辅助模块、CI 清单和导入路径需共同评审 |
+| D2 | `tests/project/` 有多种项目级契约测试 | 已按被测职责建立 tests/project/README.md 导航；保留直接执行与辅助导入路径 | 直接执行入口、共享测试辅助模块、CI 清单和导入路径需共同评审 |
 | D3 | `backend/agent/program/` 与其他模块的 bootstrap 命名不同 | 保留：CLI 入口与依赖装配不是同一职责，不机械改名 | 维持 Fleet CLI 构建和对外命令 |
 | D4 | `backend/systems/` 当前只有 SQLite WorkflowJournal 适配器 | 保留明确的基础设施边界，不因只有一个组件并回工作流领域 | 不暴露存储连接或事务，也不绑定通用引擎到 SQLite |
-| D5 | `backend/study/AccountWorkspace/` 已有网关、上传、发布和 Agent 控制等独立文件 | 先补模块导航，不在无调用证据时再拆一轮 | 保持账号隔离和既有路由，不改变鉴权 |
+| D5 | `backend/study/AccountWorkspace/` 已有网关、上传、发布和 Agent 控制等独立文件 | 已补 AccountWorkspace/README.md 的文件职责、账号边界、调用链与扩展导航，不机械再拆 | 保持账号隔离和既有路由，不改变鉴权 |
 | D6 | 旧业务目录、AI models 目录有本地空目录；旧 CLI 仍可见 | 空目录不属于 Git 源码文件；薄转发不是重复实现，不批量删除 | 清理只能以引用证据与实际路径为准，禁止递归清理用户数据 |
 | D7 | 前端已按业务模块组织，聊天根层有历史与可靠发送实现 | 先保留职责清楚的文件；性能测试与目录移动分开 | 不更改持久化、发送幂等和历史恢复行为 |
 
