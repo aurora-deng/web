@@ -171,6 +171,39 @@ void cancellationAndAdmission() {
             node(result, "unstarted").attempts == 0, "cancellation or single-run admission failed");
 }
 
+void multipleWorkflowDefinitions() {
+    DagExecutor executor(2);
+    std::vector<std::string> completed;
+    const auto record = [&](const Event& event) {
+        if (event.kind == EventKind::run && event.state == State::success) {
+            completed.push_back(std::string(event.workflow) + ":" + std::string(event.runId));
+        }
+    };
+    const WorkflowGraph first("catalog.first.v1", {{"shared_node", {}, [](const NodeContext& context) {
+        return WorkResult{WorkStatus::success, "first:" + std::string(context.runId), {}};
+    }}});
+    const WorkflowGraph second("catalog.second.v1", {
+        {"shared_node", {}, [](const NodeContext& context) {
+            return WorkResult{WorkStatus::success, "second:" + std::string(context.runId), {}};
+        }},
+        {"join", {"shared_node"}, [](const NodeContext& context) {
+            return WorkResult{WorkStatus::success, context.inputs.front().value, {}};
+        }},
+    });
+    const auto a = executor.run(first, {.runId = "first-run", .onEvent = record});
+    const auto b = executor.run(second, {.runId = "second-run", .onEvent = record});
+    const auto c = executor.run(first, {.runId = "first-again", .onEvent = record});
+    require(a.state == State::success && b.state == State::success && c.state == State::success,
+            "different workflow definitions must use the same generic executor");
+    require(node(a, "shared_node").value == "first:first-run" &&
+            node(b, "join").value == "second:second-run" &&
+            node(c, "shared_node").value == "first:first-again",
+            "workflow results must not leak across definitions or runs");
+    require(completed == std::vector<std::string>{"catalog.first.v1:first-run",
+            "catalog.second.v1:second-run", "catalog.first.v1:first-again"},
+            "workflow event identities must preserve the selected definition");
+}
+
 void benchmark() {
     const auto graph = fiveNodes();
     std::cout << "workers,round,runs,p50_us,p95_us,p99_us,peak_ready\n";
@@ -208,7 +241,8 @@ int main(int argc, char* argv[]) {
         retriesAndBranchFailure();
         deadlineAndLateResult();
         cancellationAndAdmission();
-        std::cout << "Workflow contracts passed: graph, fork/join, retry, timeout, cancellation\n";
+        multipleWorkflowDefinitions();
+        std::cout << "Workflow contracts passed: graph, fork/join, retry, timeout, cancellation, multiple definitions\n";
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';
         return 1;
