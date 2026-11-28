@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+from layout_evidence import matches_text_digest
 
 ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('app_observability_migration',ROOT/'scripts/project/layout/migrate_application_observability_layout.py')
@@ -25,8 +26,9 @@ class ApplicationObservabilityLayout(unittest.TestCase):
             with self.subTest(component=new):
                 self.assertFalse((ROOT/old).exists(),old)
                 self.assertTrue((ROOT/new).is_file(),new)
-                self.assertEqual(migration.semantic_digest((ROOT/new).read_bytes().decode('utf-8')),
-                                 self.manifest['semanticSha256'][new])
+                self.assertTrue(matches_text_digest((ROOT/new).read_bytes(),
+                                self.manifest['semanticSha256'][new],
+                                lambda value: migration.semantic_digest(value.decode('utf-8'))), new)
 
     def test_cmake_and_runtime_allowlist_use_canonical_paths(self):
         cmake=(ROOT/'CMakeLists.txt').read_text(encoding='utf-8')

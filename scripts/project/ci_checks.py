@@ -72,6 +72,7 @@ def source_checks(report, observer_http):
         ('observabilityToolsLayout', 'tests/project/test_observability_tools_layout.py'),
         ('phase11OperationsLayout', 'tests/project/test_phase11_operations_layout.py'),
         ('applicationObservabilityLayout', 'tests/project/test_application_observability_layout.py'),
+        ('layoutEvidence', 'tests/project/test_layout_evidence.py'),
         ('gatewayContracts', 'tests/project/test_gateway.py'),
         ('gatewayTlsPreflight', 'tests/project/test_gateway_tls_preflight.py'),
         ('grpcTlsCompatibility', 'tests/project/test_grpc_tls_compatibility.py'),

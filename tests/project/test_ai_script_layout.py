@@ -8,6 +8,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from layout_evidence import matches_text_digest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -22,7 +23,7 @@ class AiScriptLayout(unittest.TestCase):
         for entry in self.manifest['entries']:
             with self.subTest(path=entry['new']):
                 content = (ROOT / entry['new']).read_bytes()
-                self.assertEqual(hashlib.sha256(content).hexdigest(), entry['implementationSha256'])
+                self.assertTrue(matches_text_digest(content, entry['implementationSha256']), entry['new'])
                 if entry['new'].endswith('.py'):
                     compile(content, entry['new'], 'exec')
                 if entry['adjustment'] == 'byte-identical':

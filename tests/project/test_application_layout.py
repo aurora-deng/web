@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 import unittest
+from layout_evidence import matches_text_digest
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('application_layout_migration', ROOT / 'scripts/project/layout/migrate_application_layout.py')
@@ -50,7 +51,7 @@ class ApplicationLayout(unittest.TestCase):
                         text = text.replace(new + '/' if not Path(new).suffix else new,
                                             old + '/' if not Path(old).suffix else old)
                     data = text.encode('utf-8')
-                self.assertEqual(hashlib.sha256(data).hexdigest(), expected)
+                self.assertTrue(matches_text_digest(data, expected), name)
         self.assertTrue(self.manifest['frozenCoreUnchanged'])
         self.assertFalse(self.manifest['historicalEvidenceRewritten'])
         self.assertFalse(self.manifest['behaviorChangeIntended'])

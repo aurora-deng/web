@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from layout_evidence import matches_text_digest
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -26,16 +27,15 @@ def catalog_before_followup(text):
         raise AssertionError('Unrecorded catalog path migration')
     records = {(entry['old'], entry['new']): entry for entry in manifest['files']}
     target = records[(old, new)]
-    digest = hashlib.sha256((ROOT / new).read_bytes()).hexdigest()
-    if digest != target['beforeSha256'] or digest != target['afterSha256']:
+    if target['beforeSha256'] != target['afterSha256'] or not matches_text_digest((ROOT / new).read_bytes(), target['afterSha256']):
         raise AssertionError('Catalog contents changed during path migration')
     record = records[(module, module)]
     if text.count(new) != 1 or old in text:
         raise AssertionError('Unexpected catalog path')
-    if hashlib.sha256(text.encode('utf-8')).hexdigest() != record['afterSha256']:
+    if not matches_text_digest(text.encode('utf-8'), record['afterSha256']):
         raise AssertionError('Catalog reader differs from recorded migration')
     original = text.replace(new, old)
-    if hashlib.sha256(original.encode('utf-8')).hexdigest() != record['beforeSha256']:
+    if not matches_text_digest(original.encode('utf-8'), record['beforeSha256']):
         raise AssertionError('Catalog migration changed more than its path')
     return original
 

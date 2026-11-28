@@ -724,6 +724,12 @@
       "kind": "document"
     },
     {
+      "path": "docs/architecture/overview/directory-remediation-plan.md",
+      "title": "Function3.7 目录整改与验收清单",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
       "path": "docs/architecture/overview/project-layout.md",
       "title": "项目目录与构建边界",
       "category": "architecture",
