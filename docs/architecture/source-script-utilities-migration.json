@@ -1,0 +1,179 @@
+{
+  "schema": "script-utilities-layout-v1",
+  "date": "2026-11-28",
+  "moves": [
+    [
+      "scripts/benchmark.sh",
+      "scripts/benchmarks/benchmark.sh"
+    ],
+    [
+      "scripts/benchmark_phase10.sh",
+      "scripts/benchmarks/benchmark_phase10.sh"
+    ],
+    [
+      "scripts/compare_phase10_results.py",
+      "scripts/benchmarks/compare_phase10_results.py"
+    ],
+    [
+      "scripts/phase15-business-benchmark.sh",
+      "scripts/benchmarks/phase15-business-benchmark.sh"
+    ],
+    [
+      "scripts/phase26-capacity-benchmark.sh",
+      "scripts/benchmarks/phase26-capacity-benchmark.sh"
+    ],
+    [
+      "scripts/gen_report.sh",
+      "scripts/reports/gen_report.sh"
+    ],
+    [
+      "scripts/wrk_report.lua",
+      "scripts/reports/wrk_report.lua"
+    ],
+    [
+      "scripts/run_tests.sh",
+      "scripts/testing/run_tests.sh"
+    ],
+    [
+      "scripts/free_port_8080.py",
+      "scripts/diagnostics/free_port_8080.py"
+    ]
+  ],
+  "behaviorChangeIntended": false,
+  "pythonSemanticSha256": {
+    "scripts/benchmarks/compare_phase10_results.py": "2c5937729aa7564df28a3e587a03fb3de2569aa136d624012beeb71bb85aba89",
+    "scripts/diagnostics/free_port_8080.py": "3546333a64a33c834b7088204a26ccc706e9cf084207f4131c7fb0ac8a5bdf62"
+  },
+  "compatibilityEntrypoints": [
+    "scripts/benchmark.sh",
+    "scripts/benchmark_phase10.sh",
+    "scripts/compare_phase10_results.py",
+    "scripts/phase15-business-benchmark.sh",
+    "scripts/phase26-capacity-benchmark.sh",
+    "scripts/gen_report.sh",
+    "scripts/wrk_report.lua",
+    "scripts/run_tests.sh",
+    "scripts/free_port_8080.py"
+  ],
+  "referenceRewrites": {
+    "tests/integration/http_blackbox.py": {
+      "root / \"scripts\" / \"free_port_8080.py\"": "root / \"scripts\" / \"diagnostics\" / \"free_port_8080.py\""
+    },
+    "tests/project/test_phase11_operations_layout.py": {
+      "'scripts/phase15-business-benchmark.sh':'scripts/function3/runtime/webserver/service.sh'": "'scripts/benchmarks/phase15-business-benchmark.sh':'scripts/function3/runtime/webserver/service.sh'"
+    }
+  },
+  "historicalEvidenceRewritten": false,
+  "files": [
+    {
+      "old": "scripts/README.md",
+      "new": "scripts/README.md",
+      "beforeSha256": "d88bbb9e96fd196bc13e278c6754fcc5beaf74ca61af082ea7c3dedcc52c7635",
+      "afterSha256": "706fc516ab9f64943a9bf42ef1ca2b8f950dfc1f0936f75aa91bbe21e37d8e9e"
+    },
+    {
+      "old": "scripts/benchmark.sh",
+      "new": "scripts/benchmarks/benchmark.sh",
+      "beforeSha256": "3ebb65441b34ee9411709e8bd8c298e26fcf8e3c607af5971d8f744de4e46d0e",
+      "afterSha256": "d077e4ffbdded61e8441cb65decc193aedfbd4b23a42f47580a112ee65a9279a"
+    },
+    {
+      "old": "scripts/benchmark_phase10.sh",
+      "new": "scripts/benchmarks/benchmark_phase10.sh",
+      "beforeSha256": "cb6f116fb9e290179e83a1ee9d9a24d0ba513e7858c166f926fd6aef93d745b5",
+      "afterSha256": "bc93ff96f540094eb0b64b0d7042bdf0345d05a5529c4dce5587b773a7235891"
+    },
+    {
+      "old": "scripts/compare_phase10_results.py",
+      "new": "scripts/benchmarks/compare_phase10_results.py",
+      "beforeSha256": "0c240ba2395dd8670dce7f65e8ad42d9c489268b9bc26d5c01690a0c23fad2d0",
+      "afterSha256": "a9c1273e7219ab616b3e3219a6a4314f8085edc07808832520f9a4b7603accc5"
+    },
+    {
+      "old": "scripts/free_port_8080.py",
+      "new": "scripts/diagnostics/free_port_8080.py",
+      "beforeSha256": "83205db8c65537336373228006497c295f27b3b31e10fe088bbcc68061e013db",
+      "afterSha256": "4b86e51d8b079e904d06c2eb09b6e92da66ad441bd52a692758a7d2093fc3d58"
+    },
+    {
+      "old": "scripts/gen_report.sh",
+      "new": "scripts/reports/gen_report.sh",
+      "beforeSha256": "4d90713f64f83495f57cbce273616c1900fa77c561d4e8b1b232f6ab83fb94e2",
+      "afterSha256": "a7da3c60f9e518ba5e7d678762523d999387873abecdaaa206fcfeada62d7148"
+    },
+    {
+      "old": "scripts/phase15-business-benchmark.sh",
+      "new": "scripts/benchmarks/phase15-business-benchmark.sh",
+      "beforeSha256": "c2672c23308c4586f14ed7f1644b81762798b1b4671dfa5619124266fc4bbb08",
+      "afterSha256": "c3103bd87f4c9698e05e4c972123f91e4096e9d48debcdf6470721cd1c0955eb"
+    },
+    {
+      "old": "scripts/phase26-capacity-benchmark.sh",
+      "new": "scripts/benchmarks/phase26-capacity-benchmark.sh",
+      "beforeSha256": "5897bc2615b0eb541a06b583e05a82268f2f1588cdef95e7622b92dcbf991277",
+      "afterSha256": "b82b4bae33434123afee429a125fbc074a0fff50b7308ab643d83bb3e8e986ac"
+    },
+    {
+      "old": "scripts/run_tests.sh",
+      "new": "scripts/testing/run_tests.sh",
+      "beforeSha256": "8cc4d63bf6363af1b50bcc4a11647148294880dc94b3df04845f12bdf6f61f9d",
+      "afterSha256": "1911ef39e50c110e9c0cc76d6a652e512eda93fc0b56ced93602e50f5b55ced1"
+    },
+    {
+      "old": "scripts/wrk_report.lua",
+      "new": "scripts/reports/wrk_report.lua",
+      "beforeSha256": "c20ee6f8e6a6b26cfd6d6c903d180179f3ee5de079ab998ddbd9c801421d0337",
+      "afterSha256": "7b4cecc6579cc2ee2323c85c61521833f81d6879a3166031ab763533bd029280"
+    },
+    {
+      "old": "tests/integration/http_blackbox.py",
+      "new": "tests/integration/http_blackbox.py",
+      "beforeSha256": "d5dcd621f9ad7dc7172229ca8ec6b0829c5a6c96c0595c49d28088b3b63ca392",
+      "afterSha256": "14911757d828c4c48c0812d51db7bf67b9033ef28735c64f3cf0455f6440ea68"
+    },
+    {
+      "old": "tests/project/test_phase11_operations_layout.py",
+      "new": "tests/project/test_phase11_operations_layout.py",
+      "beforeSha256": "8a2a2e5dc12a31aa6b4bf8e09221c7c71b91c778702d8b0f8b23489a6d0f77bf",
+      "afterSha256": "0b2927325516e8ee49bf7e22935ab20e407f9878ba3339cb93da5840bd99e31d"
+    }
+  ],
+  "generated": [
+    {
+      "path": "scripts/benchmark.sh",
+      "sha256": "b035a174588cbeb271db41a55c8522c6c4bcf6239a8ab84f892ae0ef1ce59f10"
+    },
+    {
+      "path": "scripts/benchmark_phase10.sh",
+      "sha256": "1245fc5f226772a49e5eb86c003ee897a30eefdbcc3bd5b5dda934c4772769d2"
+    },
+    {
+      "path": "scripts/compare_phase10_results.py",
+      "sha256": "f7db4756ddaef147706b3766fd00b68745f9db3d8718a5406c3479bcb82ab9ad"
+    },
+    {
+      "path": "scripts/free_port_8080.py",
+      "sha256": "30170c8a7a40e5757d7c7d56df2263a378b1283f6ffa03a82c1c80ccd7186fce"
+    },
+    {
+      "path": "scripts/gen_report.sh",
+      "sha256": "63ebca70062ba0d1c4fd30f8072a811ff0a03c7453b2f6d901c36ab03b51be56"
+    },
+    {
+      "path": "scripts/phase15-business-benchmark.sh",
+      "sha256": "923a07aa7d6ac922eaef7614d2f433c84a14dec2b6e60473a61cca41ef518cfe"
+    },
+    {
+      "path": "scripts/phase26-capacity-benchmark.sh",
+      "sha256": "a3ffd245d0cf4673a07ef5a2e1d9ac3fdbcb99dbf3202aecb8e4fe6ae1729fbf"
+    },
+    {
+      "path": "scripts/run_tests.sh",
+      "sha256": "d443d8802b5bc687dd8f7ceae6fef5d681baa2557ccc6c0d61f8b7df51f2a2f1"
+    },
+    {
+      "path": "scripts/wrk_report.lua",
+      "sha256": "f49339b2b56972eb3a89f702538611e480f73501adf986622e642c3a1cc7b449"
+    }
+  ]
+}

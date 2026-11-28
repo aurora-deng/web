@@ -57,7 +57,7 @@ class Phase11OperationsLayout(unittest.TestCase):
         checks={
             'CMakeLists.txt':'scripts/function3/runtime/webserver/supervisor.sh',
             'scripts/function3/runtime/service.py':'scripts/function3/database/user_service.sh',
-            'scripts/phase15-business-benchmark.sh':'scripts/function3/runtime/webserver/service.sh',
+            'scripts/benchmarks/phase15-business-benchmark.sh':'scripts/function3/runtime/webserver/service.sh',
             'scripts/README.md':'scripts/function3/data/seed_demo_users.py',
         }
         for name,needle in checks.items():

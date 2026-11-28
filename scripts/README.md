@@ -1,16 +1,26 @@
 # Scripts 目录说明
 
+## 职责导航与兼容入口
+
+- [benchmarks/](benchmarks/README.md)：HTTP/gRPC/业务压测及结果比较。
+- [reports/](reports/README.md)：测试报告编排和 wrk 输出格式。
+- [testing/](testing/README.md)：本地 CMake/CTest 入口。
+- [diagnostics/](diagnostics/README.md)：端口维护；可能终止进程，运行前核对授权。
+- `ai/`、`function3/`、`project/`：分别承载 AI、业务运维和项目源码契约；不再把新增实现堆回根层。
+
+根层 9 个历史命令保留薄转发，不是第二份实现。Phase 15/26 仍会重建隔离库和切换服务，目录测试不执行这些操作。现有历史报告与迁移证据不重写。
+
 本目录包含 HTTP 服务器的测试、压测和报告生成脚本。
 
 ## 脚本列表
 
 | 文件 | 用途 | 说明 |
 |------|------|------|
-| `gen_report.sh` | **一键测试+报告** | 编译→单元测试→黑盒测试→压测→模糊测试→生成 Markdown 报告 |
-| `benchmark.sh` | 自动化压测驱动 | 启动服务器 → wrk 施压 → 采样资源 → 生成原始数据 |
-| `run_tests.sh` | 编译+运行单元测试 | CMake 配置构建 → 编译全部测试 → CTest 执行 |
-| `wrk_report.lua` | wrk Lua 输出适配器 | 将 wrk 内部数据转为机器可读的 KEY=VALUE 格式 |
-| `phase15-business-benchmark.sh` | 真实业务 A/B | 隔离数据库驱动 HTTP、WebSocket、SSE、聊天与 Outbox，并聚合三轮结果 |
+| `reports/gen_report.sh` | **一键测试+报告** | 编译→单元测试→黑盒测试→压测→模糊测试→生成 Markdown 报告 |
+| `benchmarks/benchmark.sh` | 自动化压测驱动 | 启动服务器 → wrk 施压 → 采样资源 → 生成原始数据 |
+| `testing/run_tests.sh` | 编译+运行单元测试 | CMake 配置构建 → 编译全部测试 → CTest 执行 |
+| `reports/wrk_report.lua` | wrk Lua 输出适配器 | 将 wrk 内部数据转为机器可读的 KEY=VALUE 格式 |
+| `benchmarks/phase15-business-benchmark.sh` | 真实业务 A/B | 隔离数据库驱动 HTTP、WebSocket、SSE、聊天与 Outbox，并聚合三轮结果 |
 | `phase11/postgres-migration-status.sh` | 迁移审计 | 只读对比仓库迁移和数据库已应用版本 |
 | `phase11/postgres-backup.sh` | 数据保护 | 创建/校验逻辑备份，并在隔离数据库完成恢复演练 |
 | `phase11/phase16-soak.py` | 稳定性巡检 | 有界采样 liveness、readiness 和 metrics，输出 JSONL |
@@ -24,7 +34,7 @@
 cd /path/to/web
 
 # 一键完成：编译 → 全部测试 → 生成汇总报告
-bash scripts/gen_report.sh
+bash scripts/reports/gen_report.sh
 
 # 报告生成位置：
 #   test_report_YYYYMMDD_HHMMSS.md  （项目根目录）
@@ -34,23 +44,23 @@ bash scripts/gen_report.sh
 ### 快速模式（仅单元+黑盒测试）
 
 ```bash
-bash scripts/gen_report.sh --quick
+bash scripts/reports/gen_report.sh --quick
 ```
 
 ### 自定义压测参数
 
 ```bash
-THREADS=8 CONNECTIONS=1000 DURATION=60s bash scripts/gen_report.sh
+THREADS=8 CONNECTIONS=1000 DURATION=60s bash scripts/reports/gen_report.sh
 ```
 
 ### 跳过部分测试
 
 ```bash
 # 已编译过，直接运行测试
-bash scripts/gen_report.sh --skip-build
+bash scripts/reports/gen_report.sh --skip-build
 
 # 仅生成报告（不运行任何测试）
-bash scripts/gen_report.sh --skip-build --skip-unit --skip-blackbox --skip-benchmark
+bash scripts/reports/gen_report.sh --skip-build --skip-unit --skip-blackbox --skip-benchmark
 ```
 
 ---
@@ -135,7 +145,7 @@ web/
 ### 单元测试
 
 ```bash
-bash scripts/run_tests.sh
+bash scripts/testing/run_tests.sh
 
 # 结果位置：build-tests/Testing/Temporary/LastTest.log
 ```
@@ -169,13 +179,13 @@ python3 tests/integration/http_blackbox.py --server ./build-release/webserver
 
 ```bash
 # 默认参数：4线程 128连接 30秒
-bash scripts/benchmark.sh
+bash scripts/benchmarks/benchmark.sh
 
 # 高并发
-THREADS=8 CONNECTIONS=1000 DURATION=60s bash scripts/benchmark.sh
+THREADS=8 CONNECTIONS=1000 DURATION=60s bash scripts/benchmarks/benchmark.sh
 
 # 对比两个版本
-BASELINE_URL=http://127.0.0.1:8081/ bash scripts/benchmark.sh
+BASELINE_URL=http://127.0.0.1:8081/ bash scripts/benchmarks/benchmark.sh
 
 # 查看结果
 cat artifacts/benchmarks/*/summary.tsv
@@ -247,7 +257,7 @@ BENCH_ERRORS_TOTAL=0
 ...
 ```
 
-供 `benchmark.sh` 和 `gen_report.sh` 解析。
+供 `benchmarks/benchmark.sh` 和 `reports/gen_report.sh` 解析。
 
 ---
 
@@ -258,7 +268,7 @@ BENCH_ERRORS_TOTAL=0
 cd /path/to/web
 
 # Step 2: 一键全量测试（推荐）
-bash scripts/gen_report.sh
+bash scripts/reports/gen_report.sh
 
 # Step 3: 查看报告
 cat test_report_*.md

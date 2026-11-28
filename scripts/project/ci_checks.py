@@ -93,6 +93,7 @@ def source_checks(report, observer_http):
         ('aiScriptLayout', 'tests/project/test_ai_script_layout.py'),
         ('aiCppLayout', 'tests/project/test_ai_cpp_layout.py'),
         ('applicationLayout', 'tests/project/test_application_layout.py'),
+        ('scriptUtilitiesLayout', 'tests/project/test_script_utilities_layout.py'),
         ('dailyOnnxWorker', 'tests/project/test_daily_onnx_worker.py'),
     ]:
         check(name, python, script, *args)

@@ -204,7 +204,7 @@ def reclaim_port_for_server(server: Path) -> None:
     """
     # 约定项目目录层级：二进制位于 /bin，脚本目录 /scripts
     root = server.resolve().parent.parent
-    helper = root / "scripts" / "free_port_8080.py"
+    helper = root / "scripts" / "diagnostics" / "free_port_8080.py"
     if PORT == 8080 and helper.is_file():
         subprocess.run(
             [sys.executable, str(helper), str(server.resolve())],

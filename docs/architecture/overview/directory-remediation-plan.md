@@ -21,7 +21,7 @@
 
 | 编号 | 实际情况 | 后续处理 | 对应影响 |
 | --- | --- | --- | --- |
-| D1 | `scripts/` 根层同时有基准、报告、测试和端口维护脚本 | 下一迁移批次按 benchmarks、reports、testing 和 diagnostics 划分；先固定精确清单 | 根路径计算、脚本互调、README、shell 语法、测试入口必须同时调整；保留稳定旧 CLI |
+| D1 | `scripts/` 根层同时有基准、报告、测试和端口维护脚本 | 已将 9 项实现按 benchmarks、reports、testing 和 diagnostics 归类，并保留旧 CLI；精确清单见 source-script-utilities-migration.json | 根路径计算、脚本互调、README、shell 语法、测试入口必须同时调整；保留稳定旧 CLI |
 | D2 | `tests/project/` 有多种项目级契约测试 | 先按被测职责建立导航；不因文件数量多就强行移动 | 直接执行入口、共享测试辅助模块、CI 清单和导入路径需共同评审 |
 | D3 | `backend/agent/program/` 与其他模块的 bootstrap 命名不同 | 保留：CLI 入口与依赖装配不是同一职责，不机械改名 | 维持 Fleet CLI 构建和对外命令 |
 | D4 | `backend/systems/` 当前只有 SQLite WorkflowJournal 适配器 | 保留明确的基础设施边界，不因只有一个组件并回工作流领域 | 不暴露存储连接或事务，也不绑定通用引擎到 SQLite |
@@ -42,3 +42,6 @@
 0.5B 的默认切换仍由质量门槛决定，不把“没有强行切换”算作必须补齐的代码任务。系统服务停用、数据库写入、远程代码同步和正式部署不由本清单自动授权。
 
 [项目目录边界](project-layout.md) · [多工作流与扩展](../../ops/validation/workflows.md) · [应用观测规范](application-observability-layout.md)
+## D1 本地验收（2026-11-28）
+
+9 项实现只有已声明的路径变换，Python AST（抽象语法树）保持一致；12 个 shell 文件语法通过，模拟目标验证了任意工作目录、空格路径、空参数、环境变量与退出码转发。完整 source + Observer HTTP 回归 57 项通过。Lua 运行用例在当前 Windows 环境因缺解释器跳过，需在既有 Linux Lua 环境补验；不将跳过算通过。目录迁移未运行真实压测、数据库重建、正式服务切换或进程终止；backend/server 保持不变。

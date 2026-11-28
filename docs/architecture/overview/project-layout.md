@@ -67,3 +67,5 @@ Observer 的 29 个实现模块也已从平铺目录归位，保留原服务 CLI
 监控配套工具的 23 个实现也已按网关、实验、依赖供应、诊断、验收和留存分组，20 个原命令名保留，避免破坏进程身份校验。[工具目录与边界](../../../tools/observability/README.md)
 
 应用层观测实现已按 catalog、logging、metrics、operations、tracing、runtime 分组，详见 [应用观测目录规范](application-observability-layout.md)。
+
+根层通用脚本按 [benchmarks、reports、testing、diagnostics](../../../scripts/README.md) 归类，保留 9 个历史命令的薄转发；新引用使用职责目录。迁移检查见 [精确清单](../source-script-utilities-migration.json)，不执行删库、停服务或进程清理。
