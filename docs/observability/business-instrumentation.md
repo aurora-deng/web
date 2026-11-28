@@ -42,17 +42,17 @@ flowchart TB
 
 | 组件 | 职责 |
 | --- | --- |
-| [OperationCatalog](../../backend/application/observability/OperationCatalog/OperationCatalog.def) | 26 个固定操作的唯一目录；同时生成 C++ 名称和 Observer 的查询、筛选元数据。 |
-| [BusinessOperation](../../backend/application/observability/BusinessOperation/BusinessOperation.h) | 同步作用域的计时、完成结果、执行中数量；异常展开时记录失败。内部已捕获的失败需要显式 `fail()`。 |
-| [AsyncBusinessOperation](../../backend/application/observability/BusinessOperation/BusinessOperation.cpp) | 跟随一次已接纳任务，跨线程只能完成一次；取消和回调竞争时不重复计数。 |
-| [DetachedSpan](../../backend/application/observability/DetachedSpan/DetachedSpan.h) | 异步 Trace 生命周期，不把线程局部上下文对象悬挂到另一个线程。 |
-| [BusinessHttpObservation](../../backend/application/transport/http/BusinessHttpObservation/BusinessHttpObservation.h) | 在业务层读取已注册路由模板，结束时记录状态；旧聊天入口保留自己的 span，避免双计。 |
-| [Observer 目录读取器](../../tools/observability/observer/operation_catalog.py) | 严格读取公共目录和路由契约；发布包必须带上 `.def` 和公共路由 JSON。 |
+| [OperationCatalog](../../backend/application/observability/catalog/OperationCatalog.def) | 29 个固定操作的唯一目录；同时生成 C++ 名称和 Observer 的查询、筛选元数据。 |
+| [BusinessOperation](../../backend/application/observability/operations/BusinessOperation.h) | 同步作用域的计时、完成结果、执行中数量；异常展开时记录失败。内部已捕获的失败需要显式 `fail()`。 |
+| [AsyncBusinessOperation](../../backend/application/observability/operations/BusinessOperation.cpp) | 跟随一次已接纳任务，跨线程只能完成一次；取消和回调竞争时不重复计数。 |
+| [DetachedSpan](../../backend/application/observability/tracing/DetachedSpan.h) | 异步 Trace 生命周期，不把线程局部上下文对象悬挂到另一个线程。 |
+| [BusinessHttpObservation](../../backend/application/modules/shared/transport/BusinessHttpObservation/BusinessHttpObservation.h) | 在业务层读取已注册路由模板，结束时记录状态；旧聊天入口保留自己的 span，避免双计。 |
+| [Observer 目录读取器](../../tools/observability/observer/contracts/operation_catalog.py) | 严格读取公共目录和路由契约；发布包必须带上 `.def` 和公共路由 JSON。 |
 | [函数视图](../../frontend/observability/function_performance.js) | 按业务域筛选、查看平均/P95/P99、失败速率与执行中数量，并打开真实调用链。 |
 
 业务层依赖统一遥测接口，不依赖 Observer 的 HTTP 会话、SQLite 或图表类型。通信核心仍只负责它原有的连接与协议工作。
 
-## 3. 26 个测量边界
+## 3. 29 个测量边界
 
 | 业务域 | 操作 | 边界和限制 |
 | --- | --- | --- |
@@ -60,7 +60,7 @@ flowchart TB
 | 账号（2） | `registerUser`、`login` | 实际账号服务调用，包含密码计算和持久化；不记录用户名、密码、Session。 |
 | 神树（7） | `list`、`get`、`publish`、`like`、`reply`、`replies`、`remove` | 列表、详情、发布、点赞、回复、回复列表与删除；权限拒绝也会结束调用并计为业务错误。 |
 | 排名（1） | `settle` | 一轮榜单事务结算；后台调用可独立成链，不把所有时间归入某个用户请求。 |
-| AI / RAG（5） | 文档索引、授权检索、聊天 AI 准备、私人任务分派、逻辑生成 | 准备/分派只计各自工作阶段；逻辑生成由 ResilientModelProvider 跟随最终回调，包含内部重试与回退。 |
+| AI / RAG（8） | 文档索引、授权检索、聊天 AI 准备、准备审计 / 历史 / RAG、私人任务分派、逻辑生成 | 准备审计按三次实际写入计数，返回 false 或异常都计失败；历史为有界读取；RAG 未配置不伪造样本。准备/分派只计各自工作阶段；逻辑生成由 ResilientModelProvider 跟随最终回调，包含内部重试与回退。 |
 | 语音（2） | `runOne`、`preview` | `runOne` 在拿到任务后开始，不把空轮询计成合成；失败标记不因被捕获而丢失。 |
 | 文件（2） | `completeUpload`、`download` | 上传完成及校验；下载只计授权和对象定位，**不计整个网络传输**。 |
 | 社区数据库（3） | `SqlContext::acquire`、`execute`、`transact` | 取连接、参数化执行与结果装配、事务工作单元；执行内部另有数据库客户端 span。 |
@@ -68,6 +68,13 @@ flowchart TB
 聊天历史仓储、PostgreSQL COMMIT 和 ACK 分段仍有原有测量；这里的三个 `SqlContext` 操作主要覆盖社区模块，**不代表每个数据库仓储都已增加同样的函数指标**。授权失败发生在服务调用之前时，会有入口拒绝记录，但不会伪造后续业务函数调用。
 
 ResilientModelProvider 覆盖经该包装器接纳的逻辑生成。绕过它的独立 Provider/Worker 入口不能凭此声称已覆盖。真实 ONNX/TTS 模型质量、Token 成本和模型内部算子耗时不属于本轮替身测试的结论。
+
+### Function3.7 准备阶段细分
+
+固定函数名 `AiChatService::prepareAudit`、`AiChatService::prepareHistory`、`AiChatService::prepareRag` 分别覆盖准备阶段审计写入、最多 64 条历史读取、可选 RAG 检索；沿用现有调用次数、结果、执行中和耗时直方图，无新增用户 / 模型标签。
+审计计时包含排队快照、提示词摘要、模型选择三次同步写入，不包含异步首片段和终态写入。
+当前 `token` 事件与旧审计 `outputTokens` 实际是非空流式文本片段计数，**不是分词器 token 数**，不得据此导出 token/s。分词器指标、Provider 排队和加载指标仍待实现及真实验证。
+这些源码改动和新增 C++ 断言尚未通过 Linux 完整构建、线上问答或 `/metrics` 验收；历史证据仍保持原来的 26 项，不回写旧结果。
 
 ## 4. 指标、结果和分位数
 
@@ -151,3 +158,23 @@ python3 tests/observability/business_probes_live.py \
 - [Jaeger](https://github.com/jaegertracing/jaeger) 与 [Pyroscope](https://github.com/grafana/pyroscope)：区分调用链与持续剖析，二者不能互相替代。
 
 [返回可观测性目录](README.md)
+
+## 9. Token-ID 与执行器指标（2026-11-27）
+
+`GenerationCompletion::usage` 是可选分词器测量，由实际 token ID 计数，不把流式文本片段、字节或审计 `outputTokens` 当作 tokenizer token。
+ONNX Provider 记录每个生成 ID，包括未产生非空文本片段的 ID。模型加载、Provider 队列等待分别计时；首 token 时钟从 AppendTokenSequences 前开始，包含预填充，不含模型加载、Tokenizer 编码或队列等待。
+`decode_tokens_per_second` 用首个 ID 之后的 token 数除以对应墙钟，包含调度 / sink 开销；单个输出 ID 不伪造 decode rate。它不是纯算子吞吐，也不能代替端到端首字时间。
+
+固定 Prometheus 指标包括：
+
+- `webserver_phase11_ai_tokenizer_generations_total` / `_invalid_measurements_total` / `_output_tokens_total`。
+- `webserver_phase11_ai_decode_tokens_total`、`_decode_seconds_total`、`_decode_tokens_per_second` 直方图。
+- `webserver_phase11_ai_model_load_seconds`、`_provider_queue_wait_seconds`、`_tokenizer_first_token_seconds` 直方图。
+- `webserver_phase11_ai_db_executor_*`：专用准备 / 审计 / 完成入库执行器；默认 2 个线程、32 个待执行任务，与普通聊天池分离。
+- `webserver_phase11_ai_provider_executor_*`：有测量能力的 Provider 线程池 active / queued / capacity / workers / queue_high_watermark / measured_pools。gRPC 端表示主服务中的 RPC 池，不冒充远端 Worker 推理队列；无能力的 Provider 保持缺测，不增加 measured_pools。
+
+usage 经版本化、有界、严格校验的 gRPC trailing metadata 回传，不修改冻结 proto；旧 Worker 不回传时保留缺测，不从片段数补值。
+成功且非取消、非停止、非超限、非空输出的模型完成仅聚合一次；随后入库失败用业务终态另计，不回滚已经完成的模型工作。
+
+Linux 隔离四组 C++ 契约连续三轮通过，涵盖 token 数与片段数不同、metadata 往返、缺测、无效值、重复完成、队列聚合、同指针去重、普通数据库池阻塞而 AI 可继续，以及取消 / 超时 / 最新 64 条上下文。
+这些是合成契约与真实 gRPC 传输验证，不是实际 Qwen/Phi-3 吞吐、线上 `/metrics` 或模型质量结论。目录迁移后的扩大回归另记。

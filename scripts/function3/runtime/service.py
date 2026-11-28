@@ -15,16 +15,28 @@ import subprocess
 import shutil
 import time
 
+if __package__:
+    from .control_config import load_control_environment
+    from .onnx_worker import WorkerController
+else:
+    from control_config import load_control_environment
+    from onnx_worker import WorkerController
+
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('action',choices=('prepare','start','stop','status'))
 p.add_argument('--no-speech',action='store_true')
 p.add_argument('--no-ai',action='store_true')
+p.add_argument('--ai-worker', action='store_true',
+               help='Opt in to daily TLS/token ONNX worker; requires approved model registration and deployment')
+p.add_argument('--ai-worker-cpus', default='2,3', help='Worker-only CPU affinity, checked against allowed CPUs')
 p.add_argument('--no-redis',action='store_true')
 p.add_argument('--redis-port',type=int,default=6379,help='Existing Redis endpoint; does not start or reconfigure Redis')
 p.add_argument('--mq-endpoint',default='',help='Optional already reachable Broker Proxy; empty means explicit local durable delivery')
 p.add_argument('--observability',action=argparse.BooleanOptionalAction,default=None,
                help='Override business telemetry for this start; otherwise use the authorized runtime marker')
 a=p.parse_args()
+if a.ai_worker and a.no_ai:
+    p.error('--ai-worker cannot be combined with --no-ai')
 source=Path(__file__).resolve().parents[3]
 root=Path('/home/pikachu/phase11-data/function3/runtime')
 root.mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -34,6 +46,7 @@ pg=Path('/home/pikachu/phase11-deps/postgresql/18.6/bin')
 connection='host=/home/pikachu/phase11-data/postgresql/run port=5432 user=pikachu dbname=phase11 connect_timeout=3'
 binary=source/'build-release/webserver'
 pidfile=root/'webserver.pid';ticksfile=root/'webserver.ticks'
+ai_worker=WorkerController(source,root,cpus=a.ai_worker_cpus)
 
 def query(sql):
     return subprocess.check_output([str(pg/'psql'),connection,'-w','-X','-At','-v','ON_ERROR_STOP=1','-c',sql],text=True).strip()
@@ -58,15 +71,18 @@ def accounts_fingerprint():
 
 if a.action=='status':
     print(json.dumps({'pid':owned(),'http':18090,'database':'phase11','postgresPort':5432,'log':str(root/'webserver.log'),
-                      'observabilityDefault':(root/'observability.enabled').is_file()}))
+                      'observabilityDefault':(root/'observability.enabled').is_file(),'aiWorkerPid':ai_worker.owned()}))
 elif a.action=='stop':
     if pid:=owned():
         os.kill(pid,signal.SIGTERM);deadline=time.monotonic()+45
         while owned() and time.monotonic()<deadline:time.sleep(.1)
-        if owned():raise RuntimeError('Graceful shutdown timed out; inspect log, no force kill performed')
+        if owned():raise RuntimeError('Graceful shutdown timed out; worker preserved, no force kill performed')
+    # Reverse startup order. Only the daily worker's exact executable/start ticks
+    # can be stopped, never a validation worker or another listener on the port.
+    ai_worker.stop()
     print('Function3 stopped. Shared PostgreSQL and all data preserved.')
 else:
-    subprocess.run(['bash',str(source/'scripts/phase11/postgres-user-service.sh'),'start'],check=True)
+    subprocess.run(['bash',str(source/'scripts/function3/database/user_service.sh'),'start'],check=True)
     if query('SELECT current_database()')!='phase11':raise RuntimeError('Wrong database; refusing to continue')
     applied=set(query('SELECT version FROM phase11_schema_migrations').splitlines())
     migrations=sorted((source/'backend/application/storage/postgres/migrations').glob('*.sql'))
@@ -91,6 +107,7 @@ else:
         if missing:raise RuntimeError('Database needs migrations: run service.py prepare first; no automatic DDL or new database')
         if owned():raise RuntimeError('Function3 already running')
         if not binary.is_file():raise RuntimeError('Build the current Release binary first')
+        control_environment=load_control_environment(root)
         key=Path('/home/pikachu/phase11-data/secrets/phase11-token-hash.key')
         if not key.is_file():raise RuntimeError('Original token key missing; refusing to replace it with a new key')
         cert=root/'localhost.crt';private=root/'localhost.key'
@@ -99,7 +116,8 @@ else:
             private.chmod(0o600)
         env={k:v for k,v in os.environ.items() if not k.startswith(('WEB_PHASE11_','WEB_FUNCTION3_','WEB_GRPC_','WEB_TLS_'))}
         env.update({'WEB_SERVER_PORT':'18090','WEB_SERVER_REACTORS':'2','WEB_HTTP_WORKERS':'4','WEB_WS_WORKERS':'4','WEB_PHASE11_DATABASE':connection,'WEB_PHASE11_TOKEN_KEY_FILE':str(key),'WEB_PHASE11_FILE_ROOT':'/home/pikachu/phase11-data/files','WEB_PHASE11_DB_POOL':'4','WEB_PHASE11_DB_WORKERS':'4','WEB_FUNCTION3_ENABLE':'1','WEB_FUNCTION3_MEDIA_ROOT':'/home/pikachu/phase11-data/function3/media','WEB_TLS_PORT':'18443','WEB_TLS_CERT':str(cert),'WEB_TLS_KEY':str(private)})
-        if not a.no_ai:env.update({'WEB_PHASE11_ONNX_MODEL_ROOT':'/home/pikachu/phase11-models','WEB_PHASE11_ONNX_WORKERS':'1','WEB_PHASE11_ONNX_MODELS':'2','WEB_PHASE11_ONNX_QUEUE':'4'})
+        if control_environment is not None:env.update(control_environment)
+        if not a.no_ai and not a.ai_worker:env.update({'WEB_PHASE11_ONNX_MODEL_ROOT':'/home/pikachu/phase11-models','WEB_PHASE11_ONNX_WORKERS':'1','WEB_PHASE11_ONNX_MODELS':'2','WEB_PHASE11_ONNX_QUEUE':'4'})
         if not a.no_speech:
             worker=source/'build-release/backend/application/modules/function3-tts-worker'
             if not worker.is_file():raise RuntimeError('Speech worker missing; build it or explicitly use --no-speech')
@@ -126,12 +144,31 @@ else:
         working=root/'work';working.mkdir(exist_ok=True)
         shutil.copytree(source/'frontend/phase11',working/'frontend/phase11',dirs_exist_ok=True)
         shutil.copytree(source/'static',working/'static',dirs_exist_ok=True)
-        with (root/'webserver.log').open('ab') as log:process=subprocess.Popen([str(binary)],cwd=working,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
-        pidfile.write_text(str(process.pid));ticksfile.write_text((Path('/proc')/str(process.pid)/'stat').read_text().split()[21])
-        deadline=time.monotonic()+45
-        while time.monotonic()<deadline:
-            if process.poll() is not None:raise RuntimeError('Startup failed; inspect '+str(root/'webserver.log'))
-            if subprocess.run(['curl','--noproxy','*','-fsS','--max-time','1','http://127.0.0.1:18090/health/ready'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0:break
-            time.sleep(.2)
-        else:raise RuntimeError('Readiness timed out; inspect log; no other process was stopped')
-        print(json.dumps({'pid':process.pid,'http':18090,'database':'phase11','speech':not a.no_speech,'redis':not a.no_redis,'delivery':'rocketmq' if a.mq_endpoint else 'local','log':str(root/'webserver.log')}))
+        worker_started=False
+        process=None
+        try:
+            if a.ai_worker:
+                # Keep model memory and inference CPU outside the web process.
+                env.update(ai_worker.start())
+                worker_started=True
+            with (root/'webserver.log').open('ab') as log:process=subprocess.Popen([str(binary)],cwd=working,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+            pidfile.write_text(str(process.pid));ticksfile.write_text((Path('/proc')/str(process.pid)/'stat').read_text().split()[21])
+            deadline=time.monotonic()+45
+            while time.monotonic()<deadline:
+                if process.poll() is not None:raise RuntimeError('Startup failed; inspect '+str(root/'webserver.log'))
+                if subprocess.run(['curl','--noproxy','*','-fsS','--max-time','1','http://127.0.0.1:18090/health/ready'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0:break
+                time.sleep(.2)
+            else:raise RuntimeError('Readiness timed out; inspect log; no other process was stopped')
+            print(json.dumps({'pid':process.pid,'http':18090,'database':'phase11','speech':not a.no_speech,'redis':not a.no_redis,'delivery':'rocketmq' if a.mq_endpoint else 'local','log':str(root/'webserver.log')}))
+        except BaseException:
+            # Roll back only processes created by this start. If the server
+            # cannot drain, preserve its worker for operator inspection.
+            if process is not None and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=45)
+                except subprocess.TimeoutExpired:
+                    raise RuntimeError('Startup rollback drain timed out; worker preserved, no force kill') from None
+            if worker_started:
+                ai_worker.stop()
+            raise

@@ -1,5 +1,5 @@
 #include "ModerationService.h"
-#include "backend/application/modules/shared/TextRules/TextRules.h"
+#include "backend/application/modules/shared/domain/TextRules/TextRules.h"
 namespace webserver::function3 {
 ContentReport ModerationService::report(Id actor,Id post,std::string reason){
     reason=trimText(std::move(reason));

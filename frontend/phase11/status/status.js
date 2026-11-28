@@ -1,5 +1,5 @@
-import { mountNavigation } from '../shared/AppNavigation/AppNavigation.js?v=0613976363093f95';
-import { verification } from './verification.js?v=0613976363093f95';
+import { mountNavigation } from '../shared/AppNavigation/AppNavigation.js?v=1f08ad808b467825';
+import { verification } from './verification.js?v=1f08ad808b467825';
 mountNavigation('status');
 const ledger=document.createElement('pre');ledger.textContent=JSON.stringify(verification,null,2);document.querySelector('main').append(ledger);
 for(const [id,url] of [['runtime','/health/version'],['assets','/phase11/asset-manifest.json']]) {

@@ -5,7 +5,7 @@
 #include "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.h"
 #include "backend/application/bootstrap/GrpcRuntime/GrpcRuntime.h"
 #include "backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.h"
-#include "backend/application/transport/learning/LearningRoutes/LearningRoutes.h"
+#include "backend/application/modules/learning/transport/LearningRoutes/LearningRoutes.h"
 #include "backend/server/Runtime/ServerRuntime.h"
 namespace webserver::bootstrap {
 int ApplicationRuntime::run(){

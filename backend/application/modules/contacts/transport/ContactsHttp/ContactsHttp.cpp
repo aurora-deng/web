@@ -1,5 +1,5 @@
 #include "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.h"
-#include "backend/application/transport/http/BusinessHttpCodec/BusinessHttpCodec.h"
+#include "backend/application/modules/shared/transport/BusinessHttpCodec/BusinessHttpCodec.h"
 #include "backend/server/Route/Router.h"
 #include "backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
 namespace webserver::phase11::transport {

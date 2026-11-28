@@ -1,0 +1,11 @@
+# Phase 11 Adapter 学习环境的顶层版本约束。
+# PyTorch 使用官方 CPU 索引中的 +cpu wheel，避免 Linux PyPI wheel 连带 CUDA 运行库。
+torch==2.10.0+cpu
+olive-ai==0.13.0
+transformers==5.3.0
+peft==0.21.2
+accelerate==1.15.0
+scipy==1.18.1
+onnxruntime-genai==0.17.0
+# Olive 0.13.0 的 telemetry 代码会导入 requests，但发布元数据没有声明它。
+requests==2.34.2

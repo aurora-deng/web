@@ -1,9 +1,9 @@
 #pragma once
 #include "backend/server/Route/Router.h"
-#include "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
-#include "backend/application/transport/FlatJson/FlatJson.h"
-#include "backend/application/modules/shared/BusinessContext/BusinessContext.h"
-#include "backend/application/transport/http/BusinessHttpObservation/BusinessHttpObservation.h"
+#include "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "backend/application/modules/shared/transport/FlatJson/FlatJson.h"
+#include "backend/application/modules/shared/domain/BusinessContext/BusinessContext.h"
+#include "backend/application/modules/shared/transport/BusinessHttpObservation/BusinessHttpObservation.h"
 #include <charconv>
 #include <chrono>
 

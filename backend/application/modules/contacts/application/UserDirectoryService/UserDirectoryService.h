@@ -1,6 +1,6 @@
 #pragma once
 #include "backend/application/modules/contacts/ports/IUserDirectoryRepository/IUserDirectoryRepository.h"
-#include "backend/application/ports/IUserRepository/IUserRepository.h"
+#include "backend/application/modules/accounts/ports/IUserRepository/IUserRepository.h"
 namespace webserver::contacts {
 /** Contact discovery knows account visibility, not chat sessions or SQL. */
 class UserDirectoryService final {

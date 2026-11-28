@@ -1,6 +1,6 @@
 #include "backend/application/modules/accounts/application/AuthService/AuthService.h"
-#include "backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
-#include "backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
+#include "backend/application/modules/accounts/infrastructure/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
+#include "backend/application/modules/accounts/infrastructure/SodiumCredentialCodec/SodiumCredentialCodec.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 
 #include <chrono>

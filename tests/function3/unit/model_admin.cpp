@@ -1,7 +1,7 @@
 #include "backend/application/modules/admin/application/ModelAdminService/ModelAdminService.h"
 #include "backend/application/modules/tree/infrastructure/InMemoryTreeRepository/InMemoryTreeRepository.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
-#include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
+#include "backend/ai/registry/ModelRegistryService/ModelRegistryService.h"
 #include <iostream>
 using namespace webserver::function3;
 void check(bool condition,const char*message){if(!condition)throw std::runtime_error(message);}

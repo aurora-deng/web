@@ -1,7 +1,7 @@
 #pragma once
 #include "backend/application/modules/activities/application/ActivityService/ActivityService.h"
 #include "backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h"
-#include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
+#include "backend/application/modules/contacts/ports/ISocialBusiness/ISocialBusiness.h"
 namespace webserver::function3 {
 class ActivityHttp final {
 public:

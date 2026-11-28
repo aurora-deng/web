@@ -264,15 +264,15 @@ file_objects <──── message_attachments ────> messages
 
 | 文件 | 职责 |
 |---|---|
-| `backend/application/domain/Domain/Domain.h` | `FileObject`、`MessageAttachment`、头像和消息附件字段 |
-| `backend/application/ports/Ports/Ports.h` | `IFileRepository` 与 `IFileStorage` 端口 |
+| `backend/application/modules/shared/compatibility/Domain/Domain.h` | `FileObject`、`MessageAttachment`、头像和消息附件字段 |
+| `backend/application/modules/shared/compatibility/Ports/Ports.h` | `IFileRepository` 与 `IFileStorage` 端口 |
 | `backend/application/modules/files/application/FileService/` | 上传、核验、下载权限和头像业务 |
 | `backend/application/modules/chat/application/ChatService/` | 文件消息事务、幂等和会话权限 |
 | `backend/application/storage/files/LocalFileStorage/` | 分片写入、SHA-256、原子封存和路径安全 |
 | `backend/application/storage/postgres/PostgresStore/` | 文件元数据、附件关系、头像与权限 SQL |
 | `backend/application/storage/postgres/migrations/005_files.sql` | 数据库版本 5 |
-| `backend/application/transport/http/Phase11FileHttp/` | 文件 HTTP API 与 Range 下载 |
-| `backend/application/transport/serialization/MessageJson/` | HTTP/WS/SSE 共用消息 JSON，避免三份格式漂移 |
+| `backend/application/modules/files/transport/Phase11FileHttp/` | 文件 HTTP API 与 Range 下载 |
+| `backend/application/modules/chat/transport/MessageJson/` | HTTP/WS/SSE 共用消息 JSON，避免三份格式漂移 |
 | `frontend/phase11/` | 上传、进度、头像与附件卡片 UI |
 | `tests/phase11/unit/files.cpp` | 文件业务与本地存储生命周期测试 |
 | `tests/phase11/integration/file_blackbox.py` | 真实 PostgreSQL/HTTP/离线/Range 整链黑盒 |

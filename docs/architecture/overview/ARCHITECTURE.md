@@ -142,7 +142,7 @@ DPAPI保护凭据，私人正文保存于受本机访问权限保护的SQLite，
 ## 9. 源码与讲义入口
 
 - [ApplicationRuntime](../../../backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.cpp)、[BusinessRuntime](../../../backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp)：装配与停止。
-- [RealtimeRuntime](../../../backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp)、[ChatService](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp)：消息、事务与投递衔接。
+- [RealtimeRuntime](../../../backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp)、[ChatService](../../../backend/application/modules/chat/application/ChatService/ChatService.cpp)：消息、事务与投递衔接。
 - [AI装配](../../../backend/ai/bootstrap/AiRuntime/AiRuntime.cpp)、[私人任务](../../../backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp)：Provider、取消和历史边界。
 - [接口教学](../business/guides/phase49-teaching.md)、[代码索引](../business/indexes/phase49-code-index.md)、[协议专题](../communication/README.md)、[目录边界](project-layout.md)。
 - [历史通信详细讲义](../communication/runtime-baseline.md)保留原线程/协程与协议说明，其中早期参数和001–012等阶段标记不作为当前数据模型依据。

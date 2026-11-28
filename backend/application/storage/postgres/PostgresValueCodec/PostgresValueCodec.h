@@ -1,8 +1,8 @@
 #pragma once
 #include <libpq-fe.h>
-#include "backend/application/domain/Domain/Domain.h"
-#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
-#include "backend/application/observability/Telemetry/Telemetry.h"
+#include "backend/application/modules/shared/compatibility/Domain/Domain.h"
+#include "backend/application/observability/metrics/BusinessMetrics.h"
+#include "backend/application/observability/tracing/Telemetry.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdint>

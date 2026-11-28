@@ -38,7 +38,7 @@ flowchart LR
 | `errorType` | 可选的登记异常类型，如 ValueError；不记录异常消息原文 |
 | `processId`、`threadId`、`requestId` | 进程、线程与监控请求关联；不保存用户凭据 |
 
-代码见 [C++ BusinessLog](../../backend/application/observability/BusinessLog/BusinessLog.h)、[日志存储](../../tools/observability/observer/log_store.py)、[有界队列与文件采集](../../tools/observability/observer/structured_logging.py)及[日志界面](../../frontend/observability/logs.js)。核心 `backend/server/` 的原日志宏、协议与 Reactor 保持冻结。旧版自由文本不会作为结构化日志直接导入。显式配置的旧文件只接收 `NEBULA_LOG` JSON 行，其余内容忽略。
+代码见 [C++ BusinessLog](../../backend/application/observability/logging/BusinessLog.h)、[日志存储](../../tools/observability/observer/logs/log_store.py)、[有界队列与文件采集](../../tools/observability/observer/logs/structured_logging.py)及[日志界面](../../frontend/observability/logs.js)。核心 `backend/server/` 的原日志宏、协议与 Reactor 保持冻结。旧版自由文本不会作为结构化日志直接导入。显式配置的旧文件只接收 `NEBULA_LOG` JSON 行，其余内容忽略。
 
 `nebula-traces / trace-bridge` 是由已校验根 Span 派生的完成记录，来源单列。它可以为旧埋点版提供日志到 Trace 的联动，不等同于程序主动发出的错误日志。新 C++ 日志来源为 `nebula-webserver`，带真实源码及进程线程信息。
 

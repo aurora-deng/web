@@ -1,6 +1,6 @@
 #pragma once
 #include "backend/application/modules/contacts/domain/ContactDirectoryTypes/ContactDirectoryTypes.h"
-#include "backend/application/domain/Domain/Domain.h"
+#include "backend/application/modules/shared/compatibility/Domain/Domain.h"
 namespace webserver::chat {
     using namespace webserver::phase11;
     using contacts::UserCard;

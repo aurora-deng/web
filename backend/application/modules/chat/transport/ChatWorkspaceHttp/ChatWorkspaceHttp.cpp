@@ -1,6 +1,6 @@
 #include "backend/application/modules/tree/domain/TreeContentPolicy/TreeContentPolicy.h"
 #include "ChatWorkspaceHttp.h"
-#include "backend/application/transport/serialization/MessageJson/MessageJson.h"
+#include "backend/application/modules/chat/transport/MessageJson/MessageJson.h"
 #include "backend/application/modules/files/application/FileService/FileService.h"
 namespace webserver::chat {
     namespace {

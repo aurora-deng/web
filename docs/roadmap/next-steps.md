@@ -48,12 +48,12 @@ flowchart LR
 
 |既有文件|读取的边界|
 |---|---|
-|[Phase11Realtime.cpp](../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)|`chat.send`关联、ACK形成与业务异步完成|
+|[Phase11Realtime.cpp](../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp)|`chat.send`关联、ACK形成与业务异步完成|
 |[ChatService.cpp](../../backend/application/modules/chat/application/ChatService/ChatService.cpp)|事务、幂等、消息和Outbox写入|
 |[BoundedExecutor.cpp](../../backend/application/runtime/BoundedExecutor/BoundedExecutor.cpp)|同一个任务的入队与开始，不只看总平均|
 |[PostgresStore.cpp](../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp)|同连接事务、COMMIT开始/返回、异常回滚|
-|[BusinessMetrics.h](../../backend/application/observability/BusinessMetrics/BusinessMetrics.h)|沿用聚合指标，与抽样追踪分开呈现|
-|[ChatAckTrace.h](../../backend/application/observability/ChatAckTrace/ChatAckTrace.h)|同一条消息的服务端分段记录|
+|[BusinessMetrics.h](../../backend/application/observability/metrics/BusinessMetrics.h)|沿用聚合指标，与抽样追踪分开呈现|
+|[ChatAckTrace.h](../../backend/application/observability/tracing/ChatAckTrace.h)|同一条消息的服务端分段记录|
 |[混合基准](../../benchmarks/function3_mixed.py)|客户端ACK分位数、错误、资源与追踪样本关联|
 |[三轮编排](../../scripts/function3/validation/phase47_benchmark.py)|相同参数、轮次、二进制摘要与失败记录|
 

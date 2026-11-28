@@ -1,0 +1,581 @@
+{
+  "schema": "observer-responsibility-layout-v1",
+  "date": "2026-11-27",
+  "moves": [
+    [
+      "tools/observability/observer/events.py",
+      "tools/observability/observer/contracts/events.py"
+    ],
+    [
+      "tools/observability/observer/operation_catalog.py",
+      "tools/observability/observer/contracts/operation_catalog.py"
+    ],
+    [
+      "tools/observability/observer/alert_policy.py",
+      "tools/observability/observer/alerts/alert_policy.py"
+    ],
+    [
+      "tools/observability/observer/custom_alerts.py",
+      "tools/observability/observer/alerts/custom_alerts.py"
+    ],
+    [
+      "tools/observability/observer/experiment_queries.py",
+      "tools/observability/observer/queries/experiment_queries.py"
+    ],
+    [
+      "tools/observability/observer/metric_queries.py",
+      "tools/observability/observer/queries/metric_queries.py"
+    ],
+    [
+      "tools/observability/observer/prometheus_queries.py",
+      "tools/observability/observer/queries/prometheus_queries.py"
+    ],
+    [
+      "tools/observability/observer/trace_queries.py",
+      "tools/observability/observer/queries/trace_queries.py"
+    ],
+    [
+      "tools/observability/observer/histogram.py",
+      "tools/observability/observer/metrics/histogram.py"
+    ],
+    [
+      "tools/observability/observer/local_metrics.py",
+      "tools/observability/observer/metrics/local_metrics.py"
+    ],
+    [
+      "tools/observability/observer/measurement_quality.py",
+      "tools/observability/observer/metrics/measurement_quality.py"
+    ],
+    [
+      "tools/observability/observer/service_levels.py",
+      "tools/observability/observer/metrics/service_levels.py"
+    ],
+    [
+      "tools/observability/observer/prometheus_service_levels.py",
+      "tools/observability/observer/metrics/prometheus_service_levels.py"
+    ],
+    [
+      "tools/observability/observer/gateway_logs.py",
+      "tools/observability/observer/logs/gateway_logs.py"
+    ],
+    [
+      "tools/observability/observer/log_store.py",
+      "tools/observability/observer/logs/log_store.py"
+    ],
+    [
+      "tools/observability/observer/structured_logging.py",
+      "tools/observability/observer/logs/structured_logging.py"
+    ],
+    [
+      "tools/observability/observer/linux_resources.py",
+      "tools/observability/observer/resources/linux_resources.py"
+    ],
+    [
+      "tools/observability/observer/resource_history.py",
+      "tools/observability/observer/resources/resource_history.py"
+    ],
+    [
+      "tools/observability/observer/commit_report.py",
+      "tools/observability/observer/resources/commit_report.py"
+    ],
+    [
+      "tools/observability/observer/local_traces.py",
+      "tools/observability/observer/traces/local_traces.py"
+    ],
+    [
+      "tools/observability/observer/projection.py",
+      "tools/observability/observer/analysis/projection.py"
+    ],
+    [
+      "tools/observability/observer/external_profiles.py",
+      "tools/observability/observer/sources/external_profiles.py"
+    ],
+    [
+      "tools/observability/observer/source_monitor.py",
+      "tools/observability/observer/sources/source_monitor.py"
+    ],
+    [
+      "tools/observability/observer/sources.py",
+      "tools/observability/observer/sources/sources.py"
+    ],
+    [
+      "tools/observability/observer/target_http.py",
+      "tools/observability/observer/sources/target_http.py"
+    ],
+    [
+      "tools/observability/observer/store.py",
+      "tools/observability/observer/storage/store.py"
+    ],
+    [
+      "tools/observability/observer/workspace.py",
+      "tools/observability/observer/configuration/workspace.py"
+    ],
+    [
+      "tools/observability/observer/server.py",
+      "tools/observability/observer/http/server.py"
+    ],
+    [
+      "tools/observability/observer/access_preflight.py",
+      "tools/observability/observer/http/access_preflight.py"
+    ]
+  ],
+  "behaviorChangeIntended": false,
+  "frozenCoreUnchanged": true,
+  "historicalEvidenceRewritten": false,
+  "semanticSha256": {
+    "tools/observability/observer/http/access_preflight.py": "721221c566818d61ec40cd91af11e2e3f811d1987dada9f2b8855bcf4e9657e1",
+    "tools/observability/observer/alerts/alert_policy.py": "dc5c51dcb02f83c50e96f6727e603e57cc3ee77b642261bd1840e5d5827d5b30",
+    "tools/observability/observer/resources/commit_report.py": "45f148beae40aa0cf5295e892a7b2bb00f95e59509fbdc1925242aee563f9050",
+    "tools/observability/observer/alerts/custom_alerts.py": "58ed54ae160d5042187007b9cf6adad60fc7978dbe3c27ad4b78f46c864ec310",
+    "tools/observability/observer/contracts/events.py": "50bec43d532d1b48d44c21a49a36a1237f56d78d5a36c9564a078b13271fe9c1",
+    "tools/observability/observer/queries/experiment_queries.py": "5d7e162c5eee990fe129de94b950eb8824d898758dcb06d30a4b97cae0434a35",
+    "tools/observability/observer/sources/external_profiles.py": "726e8dcce4e662cab2c351166a592b1780a4475a2201e0e4dd3ce00c13e7a42b",
+    "tools/observability/observer/logs/gateway_logs.py": "68db0f4b4f50f28dec0331d3b7dda14e6b02377752a9a3f10f88289036da147f",
+    "tools/observability/observer/metrics/histogram.py": "ba0f15e15da941e04bed50d4ad8b5ab9d72414ba3a1b166d5672ff42ad08c892",
+    "tools/observability/observer/resources/linux_resources.py": "19e2d5ba6f4baff4bd61debdc62fd196fd30c6b99aebb537d6a849c91718818c",
+    "tools/observability/observer/metrics/local_metrics.py": "69674e6282436630d68584fac11f09fdc171dc8ccd3365f941ea388c43c67200",
+    "tools/observability/observer/traces/local_traces.py": "0a84078fbcbc36e5161ca683daa05dc9ddd9fa6425005e37bc8e0d5e462ebd3d",
+    "tools/observability/observer/logs/log_store.py": "be05145aca1c70216acd360b8ccbaddb40f8279b1be8d89714fa264453413580",
+    "tools/observability/observer/metrics/measurement_quality.py": "7051131130e912b0144d8525fa56286d5b3eebd5f2f967354446325a4f42f904",
+    "tools/observability/observer/queries/metric_queries.py": "6101a27eea6ff45ed53ea46fe30c42375458c70536c9aef239795de1bab07d01",
+    "tools/observability/observer/contracts/operation_catalog.py": "12a37005cbd235fea11e803e820f4cd855311d8d0b88e1156eaea2a91272d833",
+    "tools/observability/observer/analysis/projection.py": "a99a37d776a6321036859845603fd88aacb5215d4255b1758a5ba8ff9f72b0da",
+    "tools/observability/observer/queries/prometheus_queries.py": "ecdd866dc82ba90beec6976bcb8c325ccc46721afe41b9f9fa876bd25a5de616",
+    "tools/observability/observer/metrics/prometheus_service_levels.py": "dc77aaef9ad1ffe465025f0750b2ddacca192856cd20b72b6b7d13c6b073438c",
+    "tools/observability/observer/resources/resource_history.py": "d8ca12f31358498b23f2099bc29c0cc5bc2255f7f05e514f19192fd2fc4cc1bf",
+    "tools/observability/observer/http/server.py": "3b6f9555e3efed7a14f8f4bae25b4bab05e0f76da540fa36b6b448e653c04a71",
+    "tools/observability/observer/metrics/service_levels.py": "af6b0ba76bfd6efed53ff6b7a5a6b3ace7f0644e7f9ede76575e758c3d010b8d",
+    "tools/observability/observer/sources/source_monitor.py": "9153c497754764a8cc92442dffdab3da787b4888c9d0cbb25729f48268becb63",
+    "tools/observability/observer/sources/sources.py": "6a425f6a40a6804e040d028cf6b02118261831ef6ffc6be9307c721e9afc3d28",
+    "tools/observability/observer/storage/store.py": "d6306ec73ec89eb1cdafd91ab6dd38d50ca57dd6fdeccf2c2eaa71936066a57a",
+    "tools/observability/observer/logs/structured_logging.py": "de1a22f3a278509302c1fa416ae893c998ab26f4fa8094ac1f671d1c5005b598",
+    "tools/observability/observer/sources/target_http.py": "85d78eeecbea1645296c8aefdb6899ed5b910f90b356c4878e7b92f3c20bb44f",
+    "tools/observability/observer/queries/trace_queries.py": "b3f6e2dab49d57d45c5dda21652d4d9a9106e0495fe8df2c06b44bba14be8cb7",
+    "tools/observability/observer/configuration/workspace.py": "4a1df1417881684cf01f7cd2f7ad6ec0cf2da227894c274c5fe176ec73aa1871"
+  },
+  "compatibilityEntrypoints": [
+    "tools/observability/observer/server.py"
+  ],
+  "files": [
+    {
+      "old": "docs/business/observer/README.md",
+      "new": "docs/business/observer/README.md",
+      "beforeSha256": "b8fb9a205057692ffd65bb8fecd149036b42337c298b6c62d0daaf7618e7dddb",
+      "afterSha256": "8352e6c3f224b40f975bbeb31bdcf47a97f530378e49ac1cddf4c4240d082051"
+    },
+    {
+      "old": "docs/observability/architecture.md",
+      "new": "docs/observability/architecture.md",
+      "beforeSha256": "701c8ffd13a25e89ba6d85a6b474cde9cedcc434183bc3fd15a9a9afe15ed6a7",
+      "afterSha256": "b1958f49b6f1281376cfc25dc444b94cb1f67cb883116bc6a38e1a47f7a51f2d"
+    },
+    {
+      "old": "docs/observability/business-instrumentation.md",
+      "new": "docs/observability/business-instrumentation.md",
+      "beforeSha256": "e630af2b79b0af433a28983b2e9ce94cc82e9596ba79a8a956da3eb3db198011",
+      "afterSha256": "e173c14197f846fbf789e865183127944fb3dcf3654e57756055538ae727363f"
+    },
+    {
+      "old": "docs/observability/dual-instance-lab.md",
+      "new": "docs/observability/dual-instance-lab.md",
+      "beforeSha256": "c26c8d80e8bfaacafac384b8e575a1aa69c8b63a0088a5a237b8be482bb7b27a",
+      "afterSha256": "49b400dd269fb25133e9858f2256b3c48652e5984d1e6f4bf780f4035df7331c"
+    },
+    {
+      "old": "docs/observability/envoy-gateway.md",
+      "new": "docs/observability/envoy-gateway.md",
+      "beforeSha256": "38fdd05d011af01937ec6c11e16f646cc9ce86f5ec8840880f9a5e8e932d34b0",
+      "afterSha256": "6c07c7675c6b3da92c149beb2c4ba17592addab9b30056e68b6ce13c1fd8f92a"
+    },
+    {
+      "old": "docs/observability/logging.md",
+      "new": "docs/observability/logging.md",
+      "beforeSha256": "7aed52ec1e57f49756c280d7cfaf745d6c6696ae99a6ed6a03ad998c8c74d8d8",
+      "afterSha256": "294f895ab2f4bb8400b8c295e59c4578ba026445377e2dbf83924131f88fa513"
+    },
+    {
+      "old": "docs/releases/function3.5-files.md",
+      "new": "docs/releases/function3.5-files.md",
+      "beforeSha256": "6760f422a9c680588cb54401d829c2d7e53ed04007862b11200022c17252aa1d",
+      "afterSha256": "53479df03febdc744925eb2e40a1f7de71de88bc5800746192a5a7fb2cee554f"
+    },
+    {
+      "old": "docs/roadmap/embodied-systems/m07-observability.md",
+      "new": "docs/roadmap/embodied-systems/m07-observability.md",
+      "beforeSha256": "03a8b5f212f01b2e3b0f212c5bcfa5d245a8e1034851fa9854ac82bfa63a94d6",
+      "afterSha256": "61d6683a00d940c073439bac7855c052d97690b04d50f380a266ca98cc718f24"
+    },
+    {
+      "old": "docs/roadmap/embodied-systems/m11-time-consistency.md",
+      "new": "docs/roadmap/embodied-systems/m11-time-consistency.md",
+      "beforeSha256": "53e5d7611444a3894024b29d80c30f58efa7d444794d7267683151296214de28",
+      "afterSha256": "8b9b2e75318dfd40191bbea73199500b92ffbdbafec57551df3b5849e6f0401f"
+    },
+    {
+      "old": "scripts/project/package_release.py",
+      "new": "scripts/project/package_release.py",
+      "beforeSha256": "f68d498bcfd0ac44d5940d6a3d0c4b3ae398ecb3f7cee32444adbb6847af3416",
+      "afterSha256": "c0c6e05e5220497bef25c8f8a242835bc9fb6a823066e168c30f0ebc1f8ca5ed"
+    },
+    {
+      "old": "tests/cpp_systems/fleet_process.py",
+      "new": "tests/cpp_systems/fleet_process.py",
+      "beforeSha256": "e4fa11ed787d856e91ffd667d5d1ede82fb69b8676ca662e16ee57ef03557258",
+      "afterSha256": "0e4063e2b8deeffc7d8383150a3cb91c505bbac0ee4d65cc4f5bbc9222b96607"
+    },
+    {
+      "old": "tests/observability/business_probes_live.py",
+      "new": "tests/observability/business_probes_live.py",
+      "beforeSha256": "6a3e74bcfe5bdf0ee63bdb65b0c33983c4a190acc36915335d30dda2d4d456ff",
+      "afterSha256": "18680cdf5b40d882075136919187a9564b75631813c7446577d2e09c9e7d593d"
+    },
+    {
+      "old": "tests/project/test_distributed_observability.py",
+      "new": "tests/project/test_distributed_observability.py",
+      "beforeSha256": "270ce25cb46763c019b0e158eb7a9400299affd3a1045a1fee06974bec96c7e8",
+      "afterSha256": "84cd47dd22c0c0bc9fcebe4b8f73984502357916445e93a0255315bb345b0270"
+    },
+    {
+      "old": "tests/project/test_gateway.py",
+      "new": "tests/project/test_gateway.py",
+      "beforeSha256": "b44b205e5918c8ce721e50f804d6410cb19341617c60a79a1e0d270ab98ba373",
+      "afterSha256": "cf9e6b25ed014426785e008fd18a024271bc52055798edfe894827f1d38064dc"
+    },
+    {
+      "old": "tests/project/test_observability.py",
+      "new": "tests/project/test_observability.py",
+      "beforeSha256": "826c6726926c37695d3564b14973101c9c99797a4aa9a49b459e2b71a03550fd",
+      "afterSha256": "5b226e8fc47d507802c79c9264e67b8c881afd2e1b2a864e02bf9c46aadf0e04"
+    },
+    {
+      "old": "tests/project/test_observer_queries.py",
+      "new": "tests/project/test_observer_queries.py",
+      "beforeSha256": "535fe146de1cccf8b32c16a8294f97630a7eca8e50b1a86b24a830280feaf25e",
+      "afterSha256": "7e473b054594ff3564e3a080b95cd8acdeabf1618930c746e58a1dd84d48fc3c"
+    },
+    {
+      "old": "tests/project/test_runtime_delivery.py",
+      "new": "tests/project/test_runtime_delivery.py",
+      "beforeSha256": "373e9230a55d70dda0e4cc306f7468ce858c0bc547bceca2ea10ae267c7a7213",
+      "afterSha256": "002ca072e35e060c1ce3ae7981c222dbb79239bca490a44c99d38fe83e55434b"
+    },
+    {
+      "old": "tools/observability/ack_diagnosis.py",
+      "new": "tools/observability/ack_diagnosis.py",
+      "beforeSha256": "28c85227117ab30ba424eb6f45cd840f58ce248834dd31cf0de44cdb9f1c07df",
+      "afterSha256": "a6807d2a0c528ecfeb6b2980c1e438b97077a50a7543bc1f58c85c0097f52954"
+    },
+    {
+      "old": "tools/observability/alert_lab.py",
+      "new": "tools/observability/alert_lab.py",
+      "beforeSha256": "73315d085e7ecf78cf582420d92a03c4e8b09b9267f457f2f4b42446a8d04966",
+      "afterSha256": "9df8e23d43872d83bfaf1628e1e46bd32905599fb667fd37438143962c4578a0"
+    },
+    {
+      "old": "tools/observability/experiments.py",
+      "new": "tools/observability/experiments.py",
+      "beforeSha256": "aaf662621a05f71b35938fb9348bcddb18eac9345239155c46c938309139dcb0",
+      "afterSha256": "f4ef7c344dbccc988616435dc80fc4c8ecbcc4b3fbddbcff891c7f565847b22f"
+    },
+    {
+      "old": "tools/observability/function_trace.py",
+      "new": "tools/observability/function_trace.py",
+      "beforeSha256": "25bff2c0d1bf10b850042549261d29ae204a00f5be8f8295f3581c9bf682d6b4",
+      "afterSha256": "105d10f6a2fd1a1c2a863e3a8d8e7f6228944d7ef024453ba4245a964631b3eb"
+    },
+    {
+      "old": "tools/observability/gateway.py",
+      "new": "tools/observability/gateway.py",
+      "beforeSha256": "1b4be4fa0f9aeac252e305d3e8fe0d85478fd5bdcba2e500bb64c12df785f444",
+      "afterSha256": "81455c1e225850ece3b9aebf6f2cba1917b73813d3738f9666e8cad0847eb8df"
+    },
+    {
+      "old": "tools/observability/lab.py",
+      "new": "tools/observability/lab.py",
+      "beforeSha256": "3852433bb2685849c90d63a3e03833a1150b4e19853dcb04823a034676636375",
+      "afterSha256": "77848432fecc6dde73cea76e43fdb8b2a80b2fe3c372b5ba2fe48341f38aff6e"
+    },
+    {
+      "old": "tools/observability/lab_config.py",
+      "new": "tools/observability/lab_config.py",
+      "beforeSha256": "aa80cfdc22b2fc213944949f2b9dd9039404de6fce6abfdc342ff044940ac2ac",
+      "afterSha256": "3f23cce7dc58bb75079e180c7f666966f1ce90b48f8ed0163a89f742da0574f7"
+    },
+    {
+      "old": "tools/observability/observer/access_preflight.py",
+      "new": "tools/observability/observer/http/access_preflight.py",
+      "beforeSha256": "919040166e010a5eebf6abb662c457d3c8015bdef85153087f1063d2d399a4ec",
+      "afterSha256": "919040166e010a5eebf6abb662c457d3c8015bdef85153087f1063d2d399a4ec"
+    },
+    {
+      "old": "tools/observability/observer/alert_policy.py",
+      "new": "tools/observability/observer/alerts/alert_policy.py",
+      "beforeSha256": "d30b973907c8ea131ac075bbb17cbc01ee4d8a73299433b69b7353028720b13a",
+      "afterSha256": "d30b973907c8ea131ac075bbb17cbc01ee4d8a73299433b69b7353028720b13a"
+    },
+    {
+      "old": "tools/observability/observer/commit_report.py",
+      "new": "tools/observability/observer/resources/commit_report.py",
+      "beforeSha256": "8b91c0cc1fea226abd9442c64fd3f9a874c78db0fd829e183b9c22f3ebdf8194",
+      "afterSha256": "2be8009c541492883a3d9fa0048b47b860428f249c9a21519807bba431ec7bf3"
+    },
+    {
+      "old": "tools/observability/observer/custom_alerts.py",
+      "new": "tools/observability/observer/alerts/custom_alerts.py",
+      "beforeSha256": "a6a078301cc1f19ce5e8d7e1072bc26e53323230bdcd7aa27087a67a08ea6963",
+      "afterSha256": "23ef576f3a068f8597ec3569d663e399fb60883e015f5f1bda324b1cc2826387"
+    },
+    {
+      "old": "tools/observability/observer/events.py",
+      "new": "tools/observability/observer/contracts/events.py",
+      "beforeSha256": "c52d3bcb9e118aafc009b25c19dc248cac6708017402ffda09af264c78edf9ad",
+      "afterSha256": "c52d3bcb9e118aafc009b25c19dc248cac6708017402ffda09af264c78edf9ad"
+    },
+    {
+      "old": "tools/observability/observer/experiment_queries.py",
+      "new": "tools/observability/observer/queries/experiment_queries.py",
+      "beforeSha256": "66c1f71b40210007ccd8180dda08538ab0ba4abb03245846651b1fe53c79bf3e",
+      "afterSha256": "b68859f09661da72bcf07ac82b2e750680551048887073079d35987578ace11d"
+    },
+    {
+      "old": "tools/observability/observer/external_profiles.py",
+      "new": "tools/observability/observer/sources/external_profiles.py",
+      "beforeSha256": "98214076ed62436374a802e1bed97748e0c4d0f78525169047d4da3178504585",
+      "afterSha256": "7de142dae7c1be886e02aaabf77fb6a67e5816fa605d941a203780f7d7c9ffec"
+    },
+    {
+      "old": "tools/observability/observer/gateway_logs.py",
+      "new": "tools/observability/observer/logs/gateway_logs.py",
+      "beforeSha256": "1e5f0854e2d4e5b46513491ccbac03dd181b4a01b6cc8e407b8505ac2c1546ca",
+      "afterSha256": "502e61bb6a28814c7a6b5189ed30dc2fac057a0007692ea1dc921f8dfae70411"
+    },
+    {
+      "old": "tools/observability/observer/histogram.py",
+      "new": "tools/observability/observer/metrics/histogram.py",
+      "beforeSha256": "6d5bf530d2b44a388c0972ac504e55f304ef61fedfa0c1b0b1f7ec8d5678f84d",
+      "afterSha256": "1764b1e98b38506f046cdde6b6b19aca1f5598b4e8ccdd5c438e5ad52b0e6c5b"
+    },
+    {
+      "old": "tools/observability/observer/linux_resources.py",
+      "new": "tools/observability/observer/resources/linux_resources.py",
+      "beforeSha256": "416eef8951680ade888d7be98fc4205e76886a14902a8dc2ec884c6a4300a817",
+      "afterSha256": "416eef8951680ade888d7be98fc4205e76886a14902a8dc2ec884c6a4300a817"
+    },
+    {
+      "old": "tools/observability/observer/local_metrics.py",
+      "new": "tools/observability/observer/metrics/local_metrics.py",
+      "beforeSha256": "6e90bd5353a52bc13c7e8808ca65eced3cea08a7e9d448b314087d846cb981e9",
+      "afterSha256": "be2b6342f39be8d313c6b404d31d514181658726176c90301ae7a47fa5961380"
+    },
+    {
+      "old": "tools/observability/observer/local_traces.py",
+      "new": "tools/observability/observer/traces/local_traces.py",
+      "beforeSha256": "2014159276f12d4c316b3fe97878a94237067a1fb884727a923bd00d923da5b4",
+      "afterSha256": "cee591c47bc78296578b4abecde51ce515e31743f0a1ae6a5cfb93bd7e90790a"
+    },
+    {
+      "old": "tools/observability/observer/log_store.py",
+      "new": "tools/observability/observer/logs/log_store.py",
+      "beforeSha256": "38f208cfc9802fef306d4858b26e89263b0c3cac3cbfb91377cdf732f69dec95",
+      "afterSha256": "c3350da425ced32962d73a2e261cbb6bb0ee136f81e88a79003ccd8c691145af"
+    },
+    {
+      "old": "tools/observability/observer/measurement_quality.py",
+      "new": "tools/observability/observer/metrics/measurement_quality.py",
+      "beforeSha256": "6cd85d50277c763a82fd4425dc41f9e71a4cb0df68a513d9af45f61fc125dc85",
+      "afterSha256": "ffb9589068d3bc390da11193f81ba0b67cd1e3505620dd89c1f67a4e15476562"
+    },
+    {
+      "old": "tools/observability/observer/metric_queries.py",
+      "new": "tools/observability/observer/queries/metric_queries.py",
+      "beforeSha256": "a9eaa16254834501feb0cebe7eb94144bc2a13cc3b27d9f4acd06bc29eec196b",
+      "afterSha256": "c41cadff5a7fe1ae19a2d00fe9fcc5e6a9a0e359cded4cc4d8135eda9514248d"
+    },
+    {
+      "old": "tools/observability/observer/operation_catalog.py",
+      "new": "tools/observability/observer/contracts/operation_catalog.py",
+      "beforeSha256": "c02b01ff53752db5fd6f8879c3725b4026cf893f906d3bb76c251686508673ac",
+      "afterSha256": "4e6c92e983c0f46c361a006cb351e5c3a43acc28d2d92579154fbaa9acf6c787"
+    },
+    {
+      "old": "tools/observability/observer/projection.py",
+      "new": "tools/observability/observer/analysis/projection.py",
+      "beforeSha256": "78897bf382a95aeb6ccec4da9ba8636daaa87700096616b5afa88a664966b4cc",
+      "afterSha256": "78897bf382a95aeb6ccec4da9ba8636daaa87700096616b5afa88a664966b4cc"
+    },
+    {
+      "old": "tools/observability/observer/prometheus_queries.py",
+      "new": "tools/observability/observer/queries/prometheus_queries.py",
+      "beforeSha256": "9c7ca60174d33719d762c68a2612187c5625bc2d6a13d6b1b25f5dfb27c54218",
+      "afterSha256": "ac830935f6b1cd62c708527ef522daaaefd69025907b94bc6ada76c4177b4756"
+    },
+    {
+      "old": "tools/observability/observer/prometheus_service_levels.py",
+      "new": "tools/observability/observer/metrics/prometheus_service_levels.py",
+      "beforeSha256": "2f66b9c34b766e16a078a184a3c205d84efe02b4eafedf7e7f912ab574cb4f69",
+      "afterSha256": "2fea7684ab299f3d69c9b27bd29cd3a4f74e4bfc8614d4a0046ae7420c1dd849"
+    },
+    {
+      "old": "tools/observability/observer/resource_history.py",
+      "new": "tools/observability/observer/resources/resource_history.py",
+      "beforeSha256": "872e3d2d8721cd9e91f2e6a72b48a236915ae606d147cfd86e2c7a95931ad24c",
+      "afterSha256": "409460266505a54b18f7667dd7b2f475d866d15db44822d6ff29ddba722b8307"
+    },
+    {
+      "old": "tools/observability/observer/server.py",
+      "new": "tools/observability/observer/http/server.py",
+      "beforeSha256": "767bfeaf6f6ae12350d4db819c374d0e845d3d4d595bf1feecf389e616f1e12c",
+      "afterSha256": "06a3c7a405e187c433545d4e9dbcc6764539e6d1d09dc947210db40192acb34c"
+    },
+    {
+      "old": "tools/observability/observer/service_levels.py",
+      "new": "tools/observability/observer/metrics/service_levels.py",
+      "beforeSha256": "d6b65a65d78821550c7890fb53d305dccfb7fcd2c09aa24e4b66b5212770ec0c",
+      "afterSha256": "c0d8c5a5bce56d8671aa6eeed86f8265394d079f1aa342d07cb2ac7aef6259b5"
+    },
+    {
+      "old": "tools/observability/observer/source_monitor.py",
+      "new": "tools/observability/observer/sources/source_monitor.py",
+      "beforeSha256": "03069bb9893c9db748b048d05d527082159c07304a244a93442320e63b1a7e64",
+      "afterSha256": "7cdbf04d76f59e9f466183ee96ab9afc93eb60aaec6e460d8dcc0081d4ae2b65"
+    },
+    {
+      "old": "tools/observability/observer/sources.py",
+      "new": "tools/observability/observer/sources/sources.py",
+      "beforeSha256": "d943640689e36a57e266785f5cd5611628935f99b03cf4416f4cb76b3ce61891",
+      "afterSha256": "d0d1733ae1fdb4179919d647128b036689e11961fbb1b9f015b982595c22f542"
+    },
+    {
+      "old": "tools/observability/observer/store.py",
+      "new": "tools/observability/observer/storage/store.py",
+      "beforeSha256": "dbfb9cc042cc649d25c84f126ff519629025e87a022cc80c97977b8aa6c07da7",
+      "afterSha256": "90f847c8f1174dc56320c359d8c3a107250031dbed5b05a17e3107eedcd0c205"
+    },
+    {
+      "old": "tools/observability/observer/structured_logging.py",
+      "new": "tools/observability/observer/logs/structured_logging.py",
+      "beforeSha256": "da2c91a0dc9d013b37fa9efc3fbb171144fc8624d489d3d0d4a1c15175f7e5b7",
+      "afterSha256": "16529c4e8129f5ad6179b4f8349bf863d7f7045ee71e532a1a1c8052c2af8ae6"
+    },
+    {
+      "old": "tools/observability/observer/target_http.py",
+      "new": "tools/observability/observer/sources/target_http.py",
+      "beforeSha256": "c6773c59b72610c757c394bec342e71c1e4f9c0d87798e1cc330e880c43d1f7d",
+      "afterSha256": "ebbeef1a11c5ab4cc85c98b8110afaaca9609e19e18eb18e83e6a00ebadcb3e3"
+    },
+    {
+      "old": "tools/observability/observer/trace_queries.py",
+      "new": "tools/observability/observer/queries/trace_queries.py",
+      "beforeSha256": "dfd21f25faf0602ad1b25f386ed5be4b6c361b426d94f3a2fb59e3c1d0c2ecb3",
+      "afterSha256": "60924dea08085ba5a95b68dfbb9ac993fc339e4de8f7a244eb85ee457addab78"
+    },
+    {
+      "old": "tools/observability/observer/workspace.py",
+      "new": "tools/observability/observer/configuration/workspace.py",
+      "beforeSha256": "bf36c50f139562ee00f03a08350de8450b37ea756be10c66d41ae6f3ad6c2aab",
+      "afterSha256": "8a680f21b2b18b74377f7417e227ff4c4848977ebc31334f059251f4a94c82c2"
+    },
+    {
+      "old": "tools/observability/preview.py",
+      "new": "tools/observability/preview.py",
+      "beforeSha256": "635fd8c906c294571ee704620ce81ce84440b74e31a61f2c6a367559b4d503b1",
+      "afterSha256": "7f01269cd5b41a328d3a2d4ed1d7e7bb3badb69f1d4a54bc03984414a0a080f9"
+    },
+    {
+      "old": "tools/observability/probe.py",
+      "new": "tools/observability/probe.py",
+      "beforeSha256": "9a56fb1569a6fa05163acf8a8eb52cb586891b90c97c1881cac3cd4d1cd2b089",
+      "afterSha256": "6123eabd311caa89e3b1772b0f6d656c7d86f865fc6365b34be200036eccecfc"
+    },
+    {
+      "old": "tools/observability/resource_lab.py",
+      "new": "tools/observability/resource_lab.py",
+      "beforeSha256": "f190d6220dc9955c6cffa599933879ec5d211d11bf809a4ec4ec91c2c6ddf1c7",
+      "afterSha256": "a11a4a4ace48e7e7f99beb2a3c41a292abee8f9cd00c9340bedec4c46720c156"
+    },
+    {
+      "old": "tools/observability/scenarios.py",
+      "new": "tools/observability/scenarios.py",
+      "beforeSha256": "856f451373b11bdf323c1be3775341f2f541a8dd604253c5ff55c80b5fcc855c",
+      "afterSha256": "b8bc4b72a3287aaaea73ccd07d96365cf307a29b8b79c4427901728fe1a6001b"
+    },
+    {
+      "old": "tools/observability/verify.py",
+      "new": "tools/observability/verify.py",
+      "beforeSha256": "21cbe1dffa4d62c3f2be751042ac59778b5829b587d3f2537d6e3e37b18d2dcb",
+      "afterSha256": "c3bdff6456d79622e79611401ac99acd5115881e89c8caf12309783a2d6f4c1f"
+    },
+    {
+      "old": "tools/observability/verify_alert_policy.py",
+      "new": "tools/observability/verify_alert_policy.py",
+      "beforeSha256": "0e9d5489ad123f471e47a1979ab85cf600d22e641184503d39974c1cc7c483d4",
+      "afterSha256": "41c8abf7ed5f17bdd7d6b51e8b8e0e5309bdbf8f328cff17ae830e7e804377b2"
+    },
+    {
+      "old": "tools/observability/verify_gateway.py",
+      "new": "tools/observability/verify_gateway.py",
+      "beforeSha256": "6b216543c263388c8d5fca4cf3c3d1ac4c1190557ba981a403933325b42b1c9c",
+      "afterSha256": "8173c56b12c48ada2eb5456c75f08672f268383769ebf7ec1f57e1928c48c92b"
+    },
+    {
+      "old": "tools/observability/verify_metrics.py",
+      "new": "tools/observability/verify_metrics.py",
+      "beforeSha256": "c7e7f9728fdc8c985a8cd5ed0aac64ef9fe9ef4c3ef90b402e5cdd426dfefd6c",
+      "afterSha256": "ce7d7e03786d69745235032fb0563413e4a00e9a4173300741140df396324ed8"
+    }
+  ],
+  "generated": [
+    {
+      "path": "tools/observability/observer/alerts/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/analysis/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/configuration/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/contracts/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/http/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/logs/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/metrics/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/queries/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/resources/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/server.py",
+      "sha256": "7b9306a7a00ad0f7d4265e5e1b34834450b945e691a585893fb225fd55a92a3f"
+    },
+    {
+      "path": "tools/observability/observer/sources/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/storage/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    },
+    {
+      "path": "tools/observability/observer/traces/__init__.py",
+      "sha256": "f00608dca114843dd39142afc60e4448ca70e33ff811bcf3299199eab870e22b"
+    }
+  ]
+}

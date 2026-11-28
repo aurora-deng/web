@@ -1,4 +1,4 @@
-import { formatDayKey } from '../../shared/TimeFormat/TimeFormat.js?v=0613976363093f95';
+import { formatDayKey } from '../../shared/TimeFormat/TimeFormat.js?v=1f08ad808b467825';
 /** One data row per message; neither DOM adjacency nor an extra divider row drives grouping. */
 export function groupMessages(rows) {
   let previous = null;

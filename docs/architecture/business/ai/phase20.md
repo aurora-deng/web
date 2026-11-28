@@ -168,10 +168,10 @@ database=phase11 expected=8 applied=8 latest=8
 
 | 职责 | 文件 |
 |---|---|
-| 评测、Run、结果与策略领域对象 | [Domain.h](../../../../backend/application/domain/Domain/Domain.h) |
-| Repository 与质量门接口 | [Ports.h](../../../../backend/application/ports/Ports/Ports.h) |
-| 校验、计分、终态和门禁判断 | [ModelEvaluationService.cpp](../../../../backend/ai/models/ModelEvaluationService/ModelEvaluationService.cpp) |
-| 激活前接入质量门 | [ModelRegistryService.cpp](../../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) |
+| 评测、Run、结果与策略领域对象 | [Domain.h](../../../../backend/application/modules/shared/compatibility/Domain/Domain.h) |
+| Repository 与质量门接口 | [Ports.h](../../../../backend/application/modules/shared/compatibility/Ports/Ports.h) |
+| 校验、计分、终态和门禁判断 | [ModelEvaluationService.cpp](../../../../backend/ai/registry/ModelEvaluationService/ModelEvaluationService.cpp) |
+| 激活前接入质量门 | [ModelRegistryService.cpp](../../../../backend/ai/registry/ModelRegistryService/ModelRegistryService.cpp) |
 | 无依赖参考实现 | [InMemoryStore.cpp](../../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
 | PostgreSQL 事务与查询实现 | [PostgresStore.cpp](../../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 第 7 号迁移 | [007_model_evaluation.sql](../../../../backend/application/storage/postgres/migrations/007_model_evaluation.sql) |

@@ -1,6 +1,6 @@
 #pragma once
-#include "backend/application/transport/http/BusinessHttpExecutor/BusinessHttpExecutor.h"
-#include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
+#include "backend/application/modules/shared/transport/BusinessHttpExecutor/BusinessHttpExecutor.h"
+#include "backend/application/modules/chat/ports/IChatBusiness/IChatBusiness.h"
 #include "backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.h"
 class Router;
 class WebSocketSessionManager;

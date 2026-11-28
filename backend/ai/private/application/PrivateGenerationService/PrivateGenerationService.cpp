@@ -1,6 +1,6 @@
 #include "PrivateGenerationService.h"
-#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/observability/operations/BusinessOperation.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 #include "backend/application/runtime/BoundedExecutor/BoundedExecutor.h"
 #include <openssl/sha.h>
 #include <algorithm>

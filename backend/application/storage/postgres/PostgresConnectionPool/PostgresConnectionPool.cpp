@@ -1,5 +1,5 @@
 #include "backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.h"
-#include "backend/application/observability/ChatAckTrace/ChatAckTrace.h"
+#include "backend/application/observability/tracing/ChatAckTrace.h"
 
 #include <algorithm>
 #include <stdexcept>

@@ -1,6 +1,6 @@
-#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
+#include "backend/application/observability/metrics/BusinessMetrics.h"
 #include "backend/application/runtime/BoundedExecutor/BoundedExecutor.h"
-#include "backend/application/observability/Telemetry/Telemetry.h"
+#include "backend/application/observability/tracing/Telemetry.h"
 
 #include <algorithm>
 #include <stdexcept>

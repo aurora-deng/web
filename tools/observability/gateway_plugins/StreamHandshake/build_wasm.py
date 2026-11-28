@@ -28,7 +28,7 @@ def main():
                "-I" + str(sdk), str(targets[2]), str(source / "StreamHandshake.cpp"),
                str(source / "StreamHandshakeWasm.cpp"), "-o", str(output)]
     subprocess.run(command, check=True)
-    from tools.observability.gateway import verified_wasm
+    from tools.observability.gateways.gateway import verified_wasm
     digest = hashlib.sha256(output.read_bytes()).hexdigest()
     data = verified_wasm(output, digest)
     print(json.dumps({"wasm": str(output), "sha256": digest, "bytes": len(data)}))

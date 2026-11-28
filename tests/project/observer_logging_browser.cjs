@@ -141,8 +141,9 @@ async function run() {
     assert(quantified.every(row=>row.p99!=="—"),JSON.stringify(quantified));
     await screenshot("actual-function-times");
     const catalog=await (await fetch(base+"/api/v1/function-catalog")).json();
-    if(catalog.functions.length===26) {
-      await present("26 / 26 个目录埋点");
+    if(catalog.functions.some(row=>row.key==="tree_list")) {
+      const count=catalog.functions.length;
+      await present(`${count} / ${count} 个目录埋点`);
       await js('document.querySelector("[aria-label=业务域]").value="tree";document.querySelector("[aria-label=业务域]").dispatchEvent(new Event("change"))');
       await eventually(()=>js('document.querySelectorAll(".function-stats tbody tr").length===7'),"seven tree operations");
       const tree=await js('[...document.querySelectorAll(".function-stats tbody tr")].map(r=>({fn:r.dataset.function,p99:r.cells[4].textContent,inFlight:r.cells[6].textContent}))');

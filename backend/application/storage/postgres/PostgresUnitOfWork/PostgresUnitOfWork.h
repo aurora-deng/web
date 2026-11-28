@@ -1,7 +1,7 @@
 #pragma once
 #include "backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.h"
 #include "backend/application/storage/postgres/PostgresOutboxWriter/PostgresOutboxWriter.h"
-#include "backend/application/ports/IDatabase/IDatabase.h"
+#include "backend/application/modules/shared/ports/IDatabase/IDatabase.h"
 #include <memory>
 #include <optional>
 namespace webserver::phase11 {

@@ -1,4 +1,4 @@
-import { workspaceReturn } from '../../shared/AccountSession/AccountSession.js?v=0613976363093f95';
+import { workspaceReturn } from '../../shared/AccountSession/AccountSession.js?v=1f08ad808b467825';
 
 export function accountEntryView(root = document, url = new URL(location.href)) {
   const auth = root.getElementById('auth-panel');

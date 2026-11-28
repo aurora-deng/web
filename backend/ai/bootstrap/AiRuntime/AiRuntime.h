@@ -3,7 +3,7 @@
 #include <functional>
 #include <string>
 #include <vector>
-namespace webserver::phase11 {class ModelRegistryService;class ModelEvaluationService;class AiChatService;class ResilientModelProvider;}
+namespace webserver::phase11 {class ModelRegistryService;class ModelEvaluationService;class AiChatService;class ResilientModelProvider;class BoundedExecutor;}
 class ServerRuntime;
 class Router;
 namespace webserver::bootstrap {
@@ -16,6 +16,7 @@ public:
     phase11::ModelRegistryService& registry();
     phase11::ModelEvaluationService& evaluations();
     phase11::AiChatService& chat();
+    phase11::BoundedExecutor& executor();
     const std::vector<std::shared_ptr<phase11::ResilientModelProvider>>& resilient()const;
     void registerRoutes(Router&);
     void cancelPrivate()noexcept;

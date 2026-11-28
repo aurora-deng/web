@@ -13,10 +13,10 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'scripts/project'))
 sys.path.insert(0,str(ROOT))
 from runtime_inventory import inventory,WORKERS,NATIVE
-from package_release import members, write_archive
+from package_release import members, write_archive, runtime_path
 from release_preflight import check
-from tools.observability.observer.access_preflight import metrics_access,private_file,prometheus_baseline
-from tools.observability.retention import mark,prune
+from tools.observability.observer.http.access_preflight import metrics_access,private_file,prometheus_baseline
+from tools.observability.lifecycle.retention import mark, prune
 
 
 class Delivery(unittest.TestCase):
@@ -30,6 +30,20 @@ class Delivery(unittest.TestCase):
         (self.root/'CMakeCache.txt').write_text('\n'.join('WEBSERVER_ENABLE_'+key+':BOOL=ON' for key in flags))
         for file in ('webserver',*WORKERS.values()):
             path=self.root/file;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'fixture-program')
+
+    def test_split_agent_contracts_and_documentation_are_packaged(self):
+        manifest=json.loads((ROOT/'backend/agent/catalog.json').read_text(encoding='utf-8'))
+        self.assertTrue(runtime_path('backend/agent/catalog.json'))
+        self.assertTrue(runtime_path('backend/agent/tool_runtime/catalog.py'))
+        for kind in ('tools','skills'):
+            for name in manifest[kind]:
+                directory='backend/agent/'+kind+'/'+name.replace('.','/')+'/'
+                for file in ('spec.py','README.md')+(('impl.py',) if kind=='skills' else ()):
+                    self.assertTrue(runtime_path(directory+file),directory+file)
+        for file in ('backend/agent/tools/chat/search/.env',
+                     'backend/agent/skills/chat/recall/private.key',
+                     'backend/agent/tool_runtime/__pycache__/catalog.pyc'):
+            self.assertFalse(runtime_path(file),file)
 
     def test_native_missing_worker_and_feature(self):
         self.fixture();result=inventory(self.root,'native',{},False)
@@ -144,15 +158,15 @@ class Delivery(unittest.TestCase):
             status=200
             def __enter__(self):return self
             def __exit__(self,*args):pass
-        with patch('tools.observability.observer.access_preflight.urllib.request.urlopen',return_value=Reply()):
+        with patch('tools.observability.observer.http.access_preflight.urllib.request.urlopen',return_value=Reply()):
             with self.assertRaisesRegex(ValueError,'authentication'):metrics_access(12345,'private-ops')
 
     def test_first_zero_counter_is_a_baseline_but_missing_data_is_not(self):
         def response(rows):return io.BytesIO(json.dumps({'data':{'result':rows}}).encode())
-        with patch('tools.observability.observer.access_preflight.urllib.request.urlopen',
+        with patch('tools.observability.observer.http.access_preflight.urllib.request.urlopen',
                    return_value=response([{'value':[123,'0']}])):
             self.assertIsNone(prometheus_baseline(19091,18094,0))
-        with patch('tools.observability.observer.access_preflight.urllib.request.urlopen',return_value=response([])):
+        with patch('tools.observability.observer.http.access_preflight.urllib.request.urlopen',return_value=response([])):
             with self.assertRaisesRegex(ValueError,'no baseline'):prometheus_baseline(19091,18094,0)
 
     def test_retention_only_inactive_marked_telemetry(self):

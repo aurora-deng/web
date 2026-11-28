@@ -12,7 +12,7 @@
 #include "backend/application/modules/messaging/infrastructure/PostgresEventPipeline/PostgresEventPipeline.h"
 #include "backend/application/modules/messaging/application/MessagingService/MessagingService.h"
 #include "backend/ai/speech/infrastructure/SpeechPostgresTasks/SpeechPostgresTasks.h"
-#include "backend/application/transport/FlatJson/FlatJson.h"
+#include "backend/application/modules/shared/transport/FlatJson/FlatJson.h"
 #include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
 #include "backend/application/modules/messaging/infrastructure/ChatOutboxWriter/ChatOutboxWriter.h"
 #include <cstdlib>

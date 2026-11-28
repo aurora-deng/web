@@ -1,5 +1,5 @@
 #include "ChatWorkspaceService.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 #include <algorithm>
 namespace webserver::chat {
     namespace {

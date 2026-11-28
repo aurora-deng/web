@@ -1,5 +1,5 @@
 #include "AiTriggerPolicy.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 namespace webserver::phase11 {
 void AiTriggerPolicy::validate(std::string_view trigger,std::string_view prompt,const User&ai,bool replyTargetsAi){
     if(trigger=="explicit")return;

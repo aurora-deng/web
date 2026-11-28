@@ -17,10 +17,10 @@ import time
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from tools.observability.observer.server import ObserverServer
-from tools.observability.observer.sources import Sources
-from tools.observability.observer.store import Capacity, Store
-from tools.observability.scenarios import post, read_observer
+from tools.observability.observer.http.server import ObserverServer
+from tools.observability.observer.sources.sources import Sources
+from tools.observability.observer.storage.store import Capacity, Store
+from tools.observability.laboratory.scenarios import post, read_observer
 from tools.agent.episode_recording import recording_events, replay
 from tools.agent.local_process_metrics import sample as process_metrics
 from tools.agent.simulation_models import InferenceLane, percentile, train_fixture

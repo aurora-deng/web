@@ -1,0 +1,33 @@
+"""Version 1 contract; admission, effect and bounds remain in tool_runtime."""
+from backend.agent.tool_runtime.registry import ToolSpec, Effect, Precondition
+
+SPEC = ToolSpec(
+    name='progress.write',
+    parameters={'type': 'object',
+     'properties': {'date': {'type': 'string',
+                             'minLength': 1,
+                             'maxLength': 10,
+                             'pattern': '\\d{4}-\\d{2}-\\d{2}'},
+                    'subject': {'type': 'string',
+                                'minLength': 1,
+                                'maxLength': 64,
+                                'pattern': '[A-Za-z0-9][A-Za-z0-9_-]{0,63}'},
+                    'itemId': {'type': 'string',
+                               'minLength': 1,
+                               'maxLength': 64,
+                               'pattern': '[A-Za-z0-9][A-Za-z0-9_-]{0,63}'},
+                    'minutes': {'type': 'integer', 'minimum': 0, 'maximum': 1440},
+                    'idempotencyKey': {'type': 'string',
+                                       'minLength': 1,
+                                       'maxLength': 128,
+                                       'pattern': '[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}'}},
+     'required': ['date', 'subject', 'itemId', 'minutes', 'idempotencyKey'],
+     'additionalProperties': False},
+    max_bytes=8192,
+    timeout_ms=2000,
+    max_age_seconds=30,
+    effect=Effect.EXTERNAL,
+    idempotency_key='idempotencyKey',
+    max_items=None,
+    version=1,
+)

@@ -1,8 +1,8 @@
 #pragma once
-#include "backend/application/ports/IModelRepository/IModelRepository.h"
+#include "backend/application/modules/ai/ports/IModelRepository/IModelRepository.h"
 #include "backend/application/modules/admin/ports/IModelAdministration/IModelAdministration.h"
-#include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
-#include "backend/ai/models/ModelEvaluationService/ModelEvaluationService.h"
+#include "backend/ai/registry/ModelRegistryService/ModelRegistryService.h"
+#include "backend/ai/registry/ModelEvaluationService/ModelEvaluationService.h"
 namespace webserver::function3 {
 class Phase11ModelAdministration final:public IModelAdministration {
 public:

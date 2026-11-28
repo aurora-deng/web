@@ -188,16 +188,16 @@ WebSocket 和 SSE 收到好友或 Presence 事件后刷新相同状态。页面�
 
 | 层 | 文件 |
 |---|---|
-| 领域对象 | [Domain.h](../../../../backend/application/domain/Domain/Domain.h) |
-| Repository 端口 | [Ports.h](../../../../backend/application/ports/Ports/Ports.h) |
-| 业务接口 | [BusinessInterfaces.h](../../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
+| 领域对象 | [Domain.h](../../../../backend/application/modules/shared/compatibility/Domain/Domain.h) |
+| Repository 端口 | [Ports.h](../../../../backend/application/modules/shared/compatibility/Ports/Ports.h) |
+| 业务接口 | [BusinessInterfaces.h](../../../../backend/application/modules/shared/compatibility/BusinessInterfaces/BusinessInterfaces.h) |
 | 联系人业务规则 | [SocialService.cpp](../../../../backend/application/modules/contacts/application/SocialService/SocialService.cpp) |
 | 私聊权限复查 | [ChatService.cpp](../../../../backend/application/modules/chat/application/ChatService/ChatService.cpp) |
 | 内存参考实现 | [InMemoryStore.cpp](../../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
 | PostgreSQL 实现 | [PostgresStore.cpp](../../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 第 4 号迁移 | [004_contacts_presence.sql](../../../../backend/application/storage/postgres/migrations/004_contacts_presence.sql) |
-| HTTP 接口 | [Phase11SocialChatHttp.cpp](../../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
-| Presence 与 Outbox | [Phase11Realtime.cpp](../../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) |
+| HTTP 接口 | [Phase11SocialChatHttp.cpp](../../../../backend/application/modules/chat/transport/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
+| Presence 与 Outbox | [Phase11Realtime.cpp](../../../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp) |
 | 多设备会话目录 | [WebSocketSessionManager.cpp](../../../../backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.cpp) |
 | 前端业务 | [app.js](../../../../frontend/phase11/app.js) |
 | 页面与样式 | [index.html](../../../../frontend/phase11/index.html)、[styles.css](../../../../frontend/phase11/styles.css) |

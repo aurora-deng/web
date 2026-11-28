@@ -11,3 +11,5 @@
 |[后续演进建议](../../roadmap/next-steps.md)|ACK 长尾、Envoy 网关、长稳与异机|
 |[历史通信详细讲义](../communication/runtime-baseline.md)|早期参数与阶段说明不作当前配置依据|
 |[项目目录与构建边界](project-layout.md)|project-layout.md|
+
+|[应用观测目录规范](application-observability-layout.md)|日志、指标、操作、Trace 与运行时辅助的职责边界|

@@ -189,15 +189,15 @@ PostgreSQL 实现还会在事务内使用 `SELECT ... FOR UPDATE` 锁住当前�
 
 | 职责 | 文件 |
 |---|---|
-| 角色、会话状态、公告和禁言领域字段 | [Domain.h](../../../../backend/application/domain/Domain/Domain.h) |
-| Repository Port | [Ports.h](../../../../backend/application/ports/Ports/Ports.h) |
-| 业务门面 | [BusinessInterfaces.h](../../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
+| 角色、会话状态、公告和禁言领域字段 | [Domain.h](../../../../backend/application/modules/shared/compatibility/Domain/Domain.h) |
+| Repository Port | [Ports.h](../../../../backend/application/modules/shared/compatibility/Ports/Ports.h) |
+| 业务门面 | [BusinessInterfaces.h](../../../../backend/application/modules/shared/compatibility/BusinessInterfaces/BusinessInterfaces.h) |
 | 权限矩阵、事务和 Outbox | [ChatService.cpp](../../../../backend/application/modules/chat/application/ChatService/ChatService.cpp) |
 | 内存参考实现 | [InMemoryStore.cpp](../../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
 | PostgreSQL 实现 | [PostgresStore.cpp](../../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 第 3 号迁移 | [003_group_governance.sql](../../../../backend/application/storage/postgres/migrations/003_group_governance.sql) |
-| HTTP 管理接口 | [Phase11SocialChatHttp.cpp](../../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
-| Outbox 实时广播 | [Phase11Realtime.cpp](../../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) |
+| HTTP 管理接口 | [Phase11SocialChatHttp.cpp](../../../../backend/application/modules/chat/transport/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
+| Outbox 实时广播 | [Phase11Realtime.cpp](../../../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp) |
 | 前端交互 | [app.js](../../../../frontend/phase11/app.js) |
 | 页面结构 | [index.html](../../../../frontend/phase11/index.html) |
 | 群治理样式 | [styles.css](../../../../frontend/phase11/styles.css) |

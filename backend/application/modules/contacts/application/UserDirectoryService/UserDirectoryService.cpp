@@ -1,5 +1,5 @@
 #include "UserDirectoryService.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 namespace webserver::contacts {
 UserPage UserDirectoryService::search(phase11::UserId actor,UserDirectoryQuery input)const {
     using namespace phase11;

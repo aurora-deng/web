@@ -49,18 +49,18 @@ Observer 用 Python 的 HTTP 服务和 SQLite 组织本地采样与查询，浏�
 
 | 层 | 职责与入口 |
 |---|---|
-| C++ 业务埋点 | 请求分类、阶段时延、直方图与有界 span 导出；通信核心按原职责收发。[Telemetry](../../backend/application/observability/Telemetry/Telemetry.cpp) · [ChatAckTrace](../../backend/application/observability/ChatAckTrace/ChatAckTrace.h) |
-| 数据源适配 | 抓取、解析、采样周期、端到端超时和外部数据源代理。[LocalMetrics](../../tools/observability/observer/local_metrics.py) · [Prometheus/Tempo](../../tools/observability/observer/sources.py) · [数据源工作区](../../tools/observability/observer/source_monitor.py) |
-| 领域统计 | 根据原始计数核对覆盖、计算 SLI、预算和双窗口判定。可用独立样本验证这一层。[service_levels.py](../../tools/observability/observer/service_levels.py) |
-| 空白指标诊断 | 根据请求窗口内的采样、指标族、调用速率和采集 HTTP 状态解释空结果。[measurement_quality.py](../../tools/observability/observer/measurement_quality.py) |
-| 存储 | 核验事件、限制保留期、SQLite 事务写入并按时间查询。[Store](../../tools/observability/observer/store.py) · [TraceIndex](../../tools/observability/observer/local_traces.py) |
-| 查询与视图 | HTTP 校验窗口与筛选，将查询交给适配器；浏览器据此展现状态、数量、诊断入口。[Observer 路由](../../tools/observability/observer/server.py) · [SLO 视图](../../frontend/observability/reliability.js) · [Span 视图](../../frontend/observability/trace_details.js) |
+| C++ 业务埋点 | 请求分类、阶段时延、直方图与有界 span 导出；通信核心按原职责收发。[Telemetry](../../backend/application/observability/tracing/Telemetry.cpp) · [ChatAckTrace](../../backend/application/observability/tracing/ChatAckTrace.h) |
+| 数据源适配 | 抓取、解析、采样周期、端到端超时和外部数据源代理。[LocalMetrics](../../tools/observability/observer/metrics/local_metrics.py) · [Prometheus/Tempo](../../tools/observability/observer/sources/sources.py) · [数据源工作区](../../tools/observability/observer/sources/source_monitor.py) |
+| 领域统计 | 根据原始计数核对覆盖、计算 SLI、预算和双窗口判定。可用独立样本验证这一层。[service_levels.py](../../tools/observability/observer/metrics/service_levels.py) |
+| 空白指标诊断 | 根据请求窗口内的采样、指标族、调用速率和采集 HTTP 状态解释空结果。[measurement_quality.py](../../tools/observability/observer/metrics/measurement_quality.py) |
+| 存储 | 核验事件、限制保留期、SQLite 事务写入并按时间查询。[Store](../../tools/observability/observer/storage/store.py) · [TraceIndex](../../tools/observability/observer/traces/local_traces.py) |
+| 查询与视图 | HTTP 校验窗口与筛选，将查询交给适配器；浏览器据此展现状态、数量、诊断入口。[Observer 路由](../../tools/observability/observer/http/server.py) · [SLO 视图](../../frontend/observability/reliability.js) · [Span 视图](../../frontend/observability/trace_details.js) |
 
 跨组件关联使用实例、Unix 时间和 Trace ID。固定时间窗可重复查询保留期内的数据。指标是整体分布，采样 span 是代表性明细，实验报告另存负载及环境指纹。
 
 ## 业务操作目录与异步生命周期
 
-新增 26 个固定操作覆盖账号、聊天、神树、排名、AI/RAG、语音、文件与社区数据库。C++ enum、指标名称、Observer 查询和前端目录共同读取 `OperationCatalog.def`，不再各自维护四个聊天函数的重复列表。业务 HTTP 入口只记录已注册模板，复用原有聊天 span，结束时只计一次响应。
+新增 29 个固定操作覆盖账号、聊天、神树、排名、AI/RAG、语音、文件与社区数据库。C++ enum、指标名称、Observer 查询和前端目录共同读取 `OperationCatalog.def`，不再各自维护四个聊天函数的重复列表。业务 HTTP 入口只记录已注册模板，复用原有聊天 span，结束时只计一次响应。
 
 同步计时随作用域结束；异步生成跟随最终回调，以原子终态处理取消和完成竞争。AI 准备及私人分派传递有限 `traceparent`，DetachedSpan 不在回调线程恢复其他线程的 TLS。直方图补足至 300 秒的有限桶。具体计量边界、错误口径和没有覆盖的路径见[业务埋点讲义](business-instrumentation.md)。
 
@@ -86,7 +86,7 @@ Observer 用 Python 的 HTTP 服务和 SQLite 组织本地采样与查询，浏�
 | `warming` | 已收到指标族，尚未形成所需耗时区间 |
 | `expired` / `no_samples` | 已超出保留期，或所选窗口没有足够的有效观测 |
 
-浏览器共享查询读取器保留请求失败原因，在总览、业务、函数和指标目录显示相应提示。读取超时为八秒，切换页面使用独立的取消信号；超时结束和主动取消分别处理。[查询读取器](../../frontend/observability/series.js) · [查询适配器](../../tools/observability/observer/local_metrics.py)
+浏览器共享查询读取器保留请求失败原因，在总览、业务、函数和指标目录显示相应提示。读取超时为八秒，切换页面使用独立的取消信号；超时结束和主动取消分别处理。[查询读取器](../../frontend/observability/series.js) · [查询适配器](../../tools/observability/observer/metrics/local_metrics.py)
 
 ## 信号字典
 
@@ -151,7 +151,7 @@ HTTP 5xx 下钻按实际 HTTP 状态筛选已采到的 span。延迟下钻按入
 - 设备事件为 `device.window`、`device.command`、`device.safety` 和 `device.recording`。按设备会话分组，记录源时间、接收时间、窗口序号及对齐质量。MCAP 预留记录编号。真实控制链路和原始媒体需要独立接入。
 - 实验事件为 `experiment.marker`。导入记录包含运行身份、配置/负载/夹具摘要、UTC 窗口和指标。
 
-实现的完整字段白名单以 `tools/observability/observer/events.py` 为准。浏览器访问 `/api/v1/` 下的目录、版本、概览、趋势、告警、实验详情与比较、标线、事件和 trace 查询。默认回环监听，由 SSH 访问边界保护读接口。事件发布凭据须在可信进程使用。后续跨主机接入按可信传输与来源认证扩展。
+实现的完整字段白名单以 `tools/observability/observer/contracts/events.py` 为准。浏览器访问 `/api/v1/` 下的目录、版本、概览、趋势、告警、实验详情与比较、标线、事件和 trace 查询。默认回环监听，由 SSH 访问边界保护读接口。事件发布凭据须在可信进程使用。后续跨主机接入按可信传输与来源认证扩展。
 
 `GET /api/v1/series?panel=http_p99&from=<Unix秒>&to=<Unix秒>` 按目录中的固定指标查询，最多八条序列，并返回查询耗时、步长和是否截断。点位以 Unix 秒表示，缺失值为 `null`。轻量档直接读取指标与 Linux 状态，五秒采样，以 SQLite 最多保留七天，按请求步长返回桶末观测。每秒速率在尚未填满窗口时使用已观测间隔。真实指标档由 Prometheus 求值并保留其查询步长。两档统计实现不同，比较实验应使用同一档。
 
@@ -165,7 +165,7 @@ HTTP 入站有有效 `traceparent` 时沿用上游的采样位；上游已采样
 
 ## 日志与查询编辑器
 
-业务日志位于 `backend/application/observability/BusinessLog`，通过既有遥测有界队列异步输出。HTTP 与 WS 的共用错误适配器提供稳定错误类型、源码和关联标识；通信核心日志宏保持冻结。Observer 的 `DiagnosticLogger` 统一监控请求失败与后台错误，`LogTail` 仅读取显式配置的结构化来源，`LogStore` 完成去重、七天清理和有界分页。已校验 OTLP 根跨度的派生日志单列为 `nebula-traces`，不与 C++ 主动日志混淆。
+业务日志位于 `backend/application/observability/logging`，通过既有遥测有界队列异步输出。HTTP 与 WS 的共用错误适配器提供稳定错误类型、源码和关联标识；通信核心日志宏保持冻结。Observer 的 `DiagnosticLogger` 统一监控请求失败与后台错误，`LogTail` 仅读取显式配置的结构化来源，`LogStore` 完成去重、七天清理和有界分页。已校验 OTLP 根跨度的派生日志单列为 `nebula-traces`，不与 C++ 主动日志混淆。
 
 日志页与链路详情通过同一 Trace ID 和时间窗互跳。多查询编辑器按行维护数据源与表达式；本机执行受限的直方图查询，外部 Prometheus 负责完整 PromQL。详见[字段、容量、七天轮转和学习步骤](logging.md)。函数页显示真实监控目标与 `nebula_function_seconds` 的采集状态，避免把隔离版耗时当成原日常服务的数据。
 

@@ -1,0 +1,699 @@
+{
+  "schema": "application-observability-layout-v1",
+  "date": "2026-11-28",
+  "moves": [
+    [
+      "backend/application/observability/OperationCatalog/OperationCatalog.def",
+      "backend/application/observability/catalog/OperationCatalog.def"
+    ],
+    [
+      "backend/application/observability/OperationCatalog/OperationCatalog.h",
+      "backend/application/observability/catalog/OperationCatalog.h"
+    ],
+    [
+      "backend/application/observability/BusinessLog/BusinessLog.cpp",
+      "backend/application/observability/logging/BusinessLog.cpp"
+    ],
+    [
+      "backend/application/observability/BusinessLog/BusinessLog.h",
+      "backend/application/observability/logging/BusinessLog.h"
+    ],
+    [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/metrics/BusinessMetrics.h"
+    ],
+    [
+      "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.cpp",
+      "backend/application/observability/metrics/BusinessMetricsFormatter.cpp"
+    ],
+    [
+      "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.h",
+      "backend/application/observability/metrics/BusinessMetricsFormatter.h"
+    ],
+    [
+      "backend/application/observability/BusinessOperation/BusinessOperation.cpp",
+      "backend/application/observability/operations/BusinessOperation.cpp"
+    ],
+    [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/operations/BusinessOperation.h"
+    ],
+    [
+      "backend/application/observability/ChatAckTrace/ChatAckTrace.h",
+      "backend/application/observability/tracing/ChatAckTrace.h"
+    ],
+    [
+      "backend/application/observability/CommitWakeClock/CommitWakeClock.h",
+      "backend/application/observability/runtime/CommitWakeClock.h"
+    ],
+    [
+      "backend/application/observability/DetachedSpan/DetachedSpan.cpp",
+      "backend/application/observability/tracing/DetachedSpan.cpp"
+    ],
+    [
+      "backend/application/observability/DetachedSpan/DetachedSpan.h",
+      "backend/application/observability/tracing/DetachedSpan.h"
+    ],
+    [
+      "backend/application/observability/Telemetry/Telemetry.cpp",
+      "backend/application/observability/tracing/Telemetry.cpp"
+    ],
+    [
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/tracing/Telemetry.h"
+    ]
+  ],
+  "behaviorChangeIntended": false,
+  "semanticSha256": {
+    "backend/application/observability/logging/BusinessLog.cpp": "695e29a282ca79705db067c6b89e90bf92d0758008b679b02c0b02216c4c8374",
+    "backend/application/observability/logging/BusinessLog.h": "efa4c338e6b856bb08eb565d8333497ee44882a75da5607033fe5798dd9acc01",
+    "backend/application/observability/metrics/BusinessMetrics.h": "e6313e292c70808fa86b5bd9d28ca12b8459c88bd615499bc24e87a5cbcae7cd",
+    "backend/application/observability/metrics/BusinessMetricsFormatter.cpp": "fa7369092928addf9e027504ba8d81299bc67d80bae2308af9a983883855e81a",
+    "backend/application/observability/metrics/BusinessMetricsFormatter.h": "c2662aabc4f8a0db6f8b052c2bd0288490b0f44a64fd58393fff8bf75143700d",
+    "backend/application/observability/operations/BusinessOperation.cpp": "854fe7b5bdd63a32381ff1a5fae6aabeddbf0dbc518d3480d50d36809d8b018c",
+    "backend/application/observability/operations/BusinessOperation.h": "182b7c0e3cb8b90fee37772dd0b58603dc5743b69ebf58429a0ce2ddd711da62",
+    "backend/application/observability/tracing/ChatAckTrace.h": "8eddf5234c6ab870d177cacecb0dfacd1f24b9b32446481000b3d2198d73f05c",
+    "backend/application/observability/runtime/CommitWakeClock.h": "72af519f01797de6f8977c6ba65d098615bb445b8bf267214b402930bb625be1",
+    "backend/application/observability/tracing/DetachedSpan.cpp": "ceeec511b3eb40d2e154c338525e43754e4faa1547073253d21a47ad1e7184ff",
+    "backend/application/observability/tracing/DetachedSpan.h": "67dee16ce26771943770828be544c74d5861cb8cd8c14102fef319a7ca9cfeec",
+    "backend/application/observability/catalog/OperationCatalog.def": "f9faaa35300ccb3d4c9e764b884da25c23b60a004382e7c01657addc3a0507ae",
+    "backend/application/observability/catalog/OperationCatalog.h": "053b02ccf80643c8afaff9e8fd645fb09035b1ac222847b2ca2f51e0fef5f6d6",
+    "backend/application/observability/tracing/Telemetry.cpp": "669c5395e4fcf2cfcb4f00b8cb9da139bfdded4c100df01b878cadfbba99d253",
+    "backend/application/observability/tracing/Telemetry.h": "e3c0769d2eb32f923324a6a8ad11f99bd663f06fc5d24474dc2efae9093573d7"
+  },
+  "referenceFiles": {
+    "CMakeLists.txt": [
+      "backend/application/observability/BusinessLog/BusinessLog.cpp",
+      "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.cpp",
+      "backend/application/observability/BusinessOperation/BusinessOperation.cpp",
+      "backend/application/observability/DetachedSpan/DetachedSpan.cpp",
+      "backend/application/observability/Telemetry/Telemetry.cpp",
+      "backend/application/observability/BusinessLog",
+      "backend/application/observability/BusinessMetricsFormatter",
+      "backend/application/observability/BusinessMetrics",
+      "backend/application/observability/BusinessOperation",
+      "backend/application/observability/DetachedSpan",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/ai/inference/resilience/ResilientModelProvider/ResilientModelProvider.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/ai/rag/RagService/RagService.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/ai/speech/application/SpeechService/SpeechService.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp": [
+      "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.h",
+      "backend/application/observability/BusinessMetricsFormatter",
+      "backend/application/observability/BusinessMetrics"
+    ],
+    "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/BusinessMetrics",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/modules/accounts/application/AuthService/AuthService.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/application/modules/ai/application/AiChatService/AiChatService.cpp": [
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/modules/ai/application/AiGenerationPreparation/AiGenerationPreparation.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/application/modules/chat/application/ChatService/ChatService.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/BusinessOperation",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.cpp": [
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp": [
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp": [
+      "backend/application/observability/BusinessLog/BusinessLog.h",
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/ChatAckTrace/ChatAckTrace.h",
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/BusinessLog",
+      "backend/application/observability/BusinessMetrics",
+      "backend/application/observability/ChatAckTrace",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.h": [
+      "backend/application/observability/CommitWakeClock/CommitWakeClock.h",
+      "backend/application/observability/CommitWakeClock"
+    ],
+    "backend/application/modules/files/application/FileService/FileService.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/application/modules/ranking/application/RankingService/RankingService.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/application/modules/shared/infrastructure/SqlContext/SqlContext.cpp": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessMetrics",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/application/modules/shared/transport/BusinessHttpCodec/BusinessHttpCodec.h": [
+      "backend/application/observability/BusinessLog/BusinessLog.h",
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/BusinessLog",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/modules/shared/transport/BusinessHttpObservation/BusinessHttpObservation.h": [
+      "backend/application/observability/BusinessLog/BusinessLog.h",
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/BusinessLog",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/modules/tree/application/TreeService/TreeService.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "backend/application/runtime/BoundedExecutor/BoundedExecutor.cpp": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/BusinessMetrics",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp": [
+      "backend/application/observability/ChatAckTrace/ChatAckTrace.h",
+      "backend/application/observability/ChatAckTrace"
+    ],
+    "backend/application/storage/postgres/PostgresConversationRepository/PostgresConversationRepository.cpp": [
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/storage/postgres/PostgresSql/PostgresSql.h": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/BusinessMetrics",
+      "backend/application/observability/Telemetry"
+    ],
+    "backend/application/storage/postgres/PostgresStore/PostgresStore.cpp": [
+      "backend/application/observability/ChatAckTrace/ChatAckTrace.h",
+      "backend/application/observability/ChatAckTrace"
+    ],
+    "backend/application/storage/postgres/PostgresUnitOfWork/PostgresUnitOfWork.cpp": [
+      "backend/application/observability/ChatAckTrace/ChatAckTrace.h",
+      "backend/application/observability/ChatAckTrace"
+    ],
+    "backend/application/storage/postgres/PostgresValueCodec/PostgresValueCodec.h": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/BusinessMetrics",
+      "backend/application/observability/Telemetry"
+    ],
+    "docs/architecture/business/indexes/phase43-47-code-index.md": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/BusinessMetrics"
+    ],
+    "docs/architecture/business/indexes/phase48-code-index.md": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.cpp",
+      "backend/application/observability/CommitWakeClock/CommitWakeClock.h",
+      "backend/application/observability/BusinessMetricsFormatter",
+      "backend/application/observability/BusinessMetrics",
+      "backend/application/observability/CommitWakeClock"
+    ],
+    "docs/architecture/source-layout-migration-2.json": [
+      "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.h",
+      "backend/application/observability/BusinessMetricsFormatter",
+      "backend/application/observability/BusinessMetrics"
+    ],
+    "docs/architecture/source-layout-migration-3.json": [
+      "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.h",
+      "backend/application/observability/BusinessMetricsFormatter",
+      "backend/application/observability/BusinessMetrics"
+    ],
+    "docs/observability/architecture.md": [
+      "backend/application/observability/ChatAckTrace/ChatAckTrace.h",
+      "backend/application/observability/Telemetry/Telemetry.cpp",
+      "backend/application/observability/BusinessLog",
+      "backend/application/observability/ChatAckTrace",
+      "backend/application/observability/Telemetry"
+    ],
+    "docs/observability/business-instrumentation.md": [
+      "backend/application/observability/OperationCatalog/OperationCatalog.def",
+      "backend/application/observability/BusinessOperation/BusinessOperation.cpp",
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/DetachedSpan/DetachedSpan.h",
+      "backend/application/observability/OperationCatalog",
+      "backend/application/observability/BusinessOperation",
+      "backend/application/observability/DetachedSpan"
+    ],
+    "docs/observability/logging.md": [
+      "backend/application/observability/BusinessLog/BusinessLog.h",
+      "backend/application/observability/BusinessLog"
+    ],
+    "docs/ops/validation/cpp-systems.md": [
+      "backend/application/observability/OperationCatalog/OperationCatalog.def",
+      "backend/application/observability/OperationCatalog"
+    ],
+    "docs/roadmap/next-steps.md": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/ChatAckTrace/ChatAckTrace.h",
+      "backend/application/observability/BusinessMetrics",
+      "backend/application/observability/ChatAckTrace"
+    ],
+    "scripts/project/package_release.py": [
+      "backend/application/observability/OperationCatalog"
+    ],
+    "tests/function3/unit/WorkspaceContract.h": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/BusinessMetrics"
+    ],
+    "tests/function3/unit/commit_wakeup.cpp": [
+      "backend/application/observability/CommitWakeClock/CommitWakeClock.h",
+      "backend/application/observability/CommitWakeClock"
+    ],
+    "tests/function3/unit/realtime_relay.cpp": [
+      "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "backend/application/observability/BusinessMetrics"
+    ],
+    "tests/observability/BusinessLogContract/BusinessLogContract.cpp": [
+      "backend/application/observability/BusinessLog/BusinessLog.h",
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/BusinessLog",
+      "backend/application/observability/Telemetry"
+    ],
+    "tests/observability/BusinessOperationContract/BusinessOperationContract.cpp": [
+      "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "backend/application/observability/BusinessOperation"
+    ],
+    "tests/phase11/unit/ai_chat.cpp": [
+      "backend/application/observability/Telemetry/Telemetry.h",
+      "backend/application/observability/Telemetry"
+    ],
+    "tests/project/test_ci_gates.py": [
+      "backend/application/observability/OperationCatalog/OperationCatalog.def",
+      "backend/application/observability/OperationCatalog"
+    ],
+    "tools/observability/observer/contracts/operation_catalog.py": [
+      "backend/application/observability/OperationCatalog/OperationCatalog.def",
+      "backend/application/observability/OperationCatalog"
+    ]
+  },
+  "frozenCoreUnchanged": true,
+  "historicalEvidenceRewritten": false,
+  "files": [
+    {
+      "old": "CMakeLists.txt",
+      "new": "CMakeLists.txt",
+      "beforeSha256": "c2bda12674191e53002a6815d7916c407b9f7f1941ee2e5b059a20e18b40b2de",
+      "afterSha256": "e9ba6b1674a00fbc26a359de5b7ad8975d726ab20a738eaac0eadc2a879ef70b"
+    },
+    {
+      "old": "backend/ai/inference/resilience/ResilientModelProvider/ResilientModelProvider.cpp",
+      "new": "backend/ai/inference/resilience/ResilientModelProvider/ResilientModelProvider.cpp",
+      "beforeSha256": "4c4c91b9cb4afba3c0d278d0b127e5fae927545eeb47f771facdf7be4b33a5aa",
+      "afterSha256": "56026f07fdac92711d599caa0756f3d87ad4dc8f5a4c0c2e4b0b4e36dd9a4eec"
+    },
+    {
+      "old": "backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp",
+      "new": "backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp",
+      "beforeSha256": "cf5d381b738b91b653aa830b4d98a40359e6b2292f99ce977501b1712f695240",
+      "afterSha256": "5d90ae50c955933e1da78ccc84ac198453978329265ae5b592c1ba0ad799ae9a"
+    },
+    {
+      "old": "backend/ai/rag/RagService/RagService.cpp",
+      "new": "backend/ai/rag/RagService/RagService.cpp",
+      "beforeSha256": "3be3ebdad2838b77eb800ceb0a0569a175e5ad67cc5c692415ea9af91c20e808",
+      "afterSha256": "9d43df4febd7deb636d7312851931c91514e47a14dae1cabf97859a404ac2cca"
+    },
+    {
+      "old": "backend/ai/speech/application/SpeechService/SpeechService.cpp",
+      "new": "backend/ai/speech/application/SpeechService/SpeechService.cpp",
+      "beforeSha256": "fa8d2f79350c03fb010cab01c42d7044ccd5ee9bb9d0f264b2310f0348f9bc7e",
+      "afterSha256": "f31053df871b2455d5300ce9ae499ff7a5c1709bc6f2733d28b547e6509ab947"
+    },
+    {
+      "old": "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
+      "new": "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
+      "beforeSha256": "8b3584ce5ae09496d4e03e648e648b68c87b967a5f6b15935d973e0e3c0e4c40",
+      "afterSha256": "e9eee7db3bcb44734ac4b9476e7e3c89325633a1651b608fcc4c0d8bd95b4177"
+    },
+    {
+      "old": "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp",
+      "new": "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp",
+      "beforeSha256": "33c5d60fd299f46c2602c4dea549e02748221bd3d4c74111078549332d665d0b",
+      "afterSha256": "0367d0e4d088821d5909e86706ef89a91f980799dc0dd461b2d0fe0b90ac4ef3"
+    },
+    {
+      "old": "backend/application/modules/accounts/application/AuthService/AuthService.cpp",
+      "new": "backend/application/modules/accounts/application/AuthService/AuthService.cpp",
+      "beforeSha256": "7710cab408367b9dfad60881b59434de359d2591908b507331d8ec8cef32e4b4",
+      "afterSha256": "ed00c98d034bbba1e7793a2a2301591009b78c5dfb33c1d7e809c5b1e5dc00ed"
+    },
+    {
+      "old": "backend/application/modules/ai/application/AiChatService/AiChatService.cpp",
+      "new": "backend/application/modules/ai/application/AiChatService/AiChatService.cpp",
+      "beforeSha256": "24506cb21353b3b3503932c636c724ad15a6cd2ada99e0e1c13c2c55f7a955ef",
+      "afterSha256": "47f901ca4e02efb8fa4bbc7c9ab3192ad51f43b8e6efa1af6369f10526cbdbdd"
+    },
+    {
+      "old": "backend/application/modules/ai/application/AiGenerationPreparation/AiGenerationPreparation.cpp",
+      "new": "backend/application/modules/ai/application/AiGenerationPreparation/AiGenerationPreparation.cpp",
+      "beforeSha256": "8de2a0251c1dcd1fe94fa4e0030e3fe0a76d479efc91e68886a705f44d0c45f4",
+      "afterSha256": "655248a87df267af23a4b053fe67053a39af62041afc15854cb9cfe0d56847db"
+    },
+    {
+      "old": "backend/application/modules/chat/application/ChatService/ChatService.cpp",
+      "new": "backend/application/modules/chat/application/ChatService/ChatService.cpp",
+      "beforeSha256": "f4aae8814ff23e0441f91803a8ffc4e973a7d406964a1210b76825d7524ff220",
+      "afterSha256": "bcdc7d69b82b05157fdaa48faab5d91cdb8848989ecd52af88cf3082583d0484"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.cpp",
+      "new": "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.cpp",
+      "beforeSha256": "7c0707a2a82f376d43518ecb16602f62bd3fc0e51d1c2067063e4bcf074cbed2",
+      "afterSha256": "0b7264cdf2776214f6d3128f502fe0df43564dd7c332965e08ef3ff9d4fc8517"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp",
+      "new": "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp",
+      "beforeSha256": "65d2404a072f5d90bb1d66d705332b36bc59babc3687d782c38097306e3de6e5",
+      "afterSha256": "32c1cc998c9cf33762eb6c32b123ac510375a12d5fe8456b7cebc8edc0a56fd5"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp",
+      "new": "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp",
+      "beforeSha256": "99b5fbbc83f4100c26004446b03911a26793b8f600b86df1116fdec38bd494bc",
+      "afterSha256": "cfe38f324ef93643cef56a529f6e9f43287ead543f006d522af7c4749bd74804"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.h",
+      "new": "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.h",
+      "beforeSha256": "b85232e4ba0f3a99fedb4a5769dc02a6473d9a8115e67e685be718057a897635",
+      "afterSha256": "bf3b5be7bbc3f995eb98868310324aa60f4beb53f6d7ebe543f720fa4452f2d9"
+    },
+    {
+      "old": "backend/application/modules/files/application/FileService/FileService.cpp",
+      "new": "backend/application/modules/files/application/FileService/FileService.cpp",
+      "beforeSha256": "bfd40b3e99c695f89781a67495bbb2fe85364568e04f6389e2a1b834a0b715ca",
+      "afterSha256": "07a2f42d8be7c9a2d851638fa4cf79b5d0d8209bdec74a4b438071d53e4a68aa"
+    },
+    {
+      "old": "backend/application/modules/ranking/application/RankingService/RankingService.cpp",
+      "new": "backend/application/modules/ranking/application/RankingService/RankingService.cpp",
+      "beforeSha256": "f950f2470435486e145df371a3a7994ced06bf3e001de41e91ab04da76633d82",
+      "afterSha256": "f797c37a88154948a20b41649d03cc75271441d2cf1f357b91f2d9c7efc1a2dd"
+    },
+    {
+      "old": "backend/application/modules/shared/infrastructure/SqlContext/SqlContext.cpp",
+      "new": "backend/application/modules/shared/infrastructure/SqlContext/SqlContext.cpp",
+      "beforeSha256": "0854f7e14751397983bb0a6d243a0b5eebcf26566a7a6d34b5ca3ac663b4c045",
+      "afterSha256": "fe8cb22ecda844a443f0e85f85074e7ae07740db094e5d92a41619ad0c12ae0d"
+    },
+    {
+      "old": "backend/application/modules/shared/transport/BusinessHttpCodec/BusinessHttpCodec.h",
+      "new": "backend/application/modules/shared/transport/BusinessHttpCodec/BusinessHttpCodec.h",
+      "beforeSha256": "6939a573a35d3cb7a51f2f8bd604947fa04fd6569629f7e2b4e6f39bd61e9158",
+      "afterSha256": "997ab74ca13e87d602e4a113cac611d8d6de852be8f561bc2d73c23f52efce0d"
+    },
+    {
+      "old": "backend/application/modules/shared/transport/BusinessHttpObservation/BusinessHttpObservation.h",
+      "new": "backend/application/modules/shared/transport/BusinessHttpObservation/BusinessHttpObservation.h",
+      "beforeSha256": "5e2642fb0718e1838700be7d2f5c5062ebac7b4c776f4c61ab66a7a61542621c",
+      "afterSha256": "0d63d5cf4693fdcf92ca4d7368e35b591b67ea4ce039c93221b06a6018441835"
+    },
+    {
+      "old": "backend/application/modules/tree/application/TreeService/TreeService.cpp",
+      "new": "backend/application/modules/tree/application/TreeService/TreeService.cpp",
+      "beforeSha256": "d1e175b94e05a255511b47bf445fb648e3a41715d1a76c0becd0b71678277d33",
+      "afterSha256": "144c81cf17a9239233c55bc4a629521b740d26269aa0655700960663c3ad6e9e"
+    },
+    {
+      "old": "backend/application/observability/BusinessLog/BusinessLog.cpp",
+      "new": "backend/application/observability/logging/BusinessLog.cpp",
+      "beforeSha256": "f2d140f48a852ad091b6619131996c6ced309a356408a8e2532e4bb223757b06",
+      "afterSha256": "9cf4dd8940d046051c13308bdf2bfc007d965afccc48906f3e547f8f58467306"
+    },
+    {
+      "old": "backend/application/observability/BusinessLog/BusinessLog.h",
+      "new": "backend/application/observability/logging/BusinessLog.h",
+      "beforeSha256": "2f20ece51e3a308905ad190acdaefc60df31cb8c1d3ffa863efc6abf6a30f8f8",
+      "afterSha256": "2f20ece51e3a308905ad190acdaefc60df31cb8c1d3ffa863efc6abf6a30f8f8"
+    },
+    {
+      "old": "backend/application/observability/BusinessMetrics/BusinessMetrics.h",
+      "new": "backend/application/observability/metrics/BusinessMetrics.h",
+      "beforeSha256": "4391d419c71ac81aa1b989e85281a24dc2f26979714ca480f4867df2f4aa8f48",
+      "afterSha256": "4391d419c71ac81aa1b989e85281a24dc2f26979714ca480f4867df2f4aa8f48"
+    },
+    {
+      "old": "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.cpp",
+      "new": "backend/application/observability/metrics/BusinessMetricsFormatter.cpp",
+      "beforeSha256": "ad2d299ab4f8de16a74c7487cb7e2c27ab14da6d6592c6051f3eb2c5b4b61e75",
+      "afterSha256": "a2dcb28baed8f122fc3e07664f0fb4a3e245084edd9dd593f17c8b6deb7a70c7"
+    },
+    {
+      "old": "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.h",
+      "new": "backend/application/observability/metrics/BusinessMetricsFormatter.h",
+      "beforeSha256": "64308e387361d578b938794191e3aee7d6aa234dc323228ca3d9e3048842e819",
+      "afterSha256": "64308e387361d578b938794191e3aee7d6aa234dc323228ca3d9e3048842e819"
+    },
+    {
+      "old": "backend/application/observability/BusinessOperation/BusinessOperation.cpp",
+      "new": "backend/application/observability/operations/BusinessOperation.cpp",
+      "beforeSha256": "cfb7b4c48e33c1fb5fd549de0c7340ecb747b610cc81cc1ec3ad08f0f57f13da",
+      "afterSha256": "d0f58ecca6c9dc5bdef042a1417927b8af1e6dae5e18ea215c83242ce23c6179"
+    },
+    {
+      "old": "backend/application/observability/BusinessOperation/BusinessOperation.h",
+      "new": "backend/application/observability/operations/BusinessOperation.h",
+      "beforeSha256": "095491eb81912b3716b68dc35da2c1a2cdd58de6e5e3ec02d6a7469fa41e3c18",
+      "afterSha256": "065953abb4f924643b84643f6c67f6a99773c037037292968369ddd8691656b8"
+    },
+    {
+      "old": "backend/application/observability/ChatAckTrace/ChatAckTrace.h",
+      "new": "backend/application/observability/tracing/ChatAckTrace.h",
+      "beforeSha256": "bf6382a7803d0b5a70f370afa0e420e33e93b8a9fa1f8a8268bb2fc6d153dc7e",
+      "afterSha256": "c18079d57418677081059d418846e7a470d4f890078114ead3afdb354bea8ae0"
+    },
+    {
+      "old": "backend/application/observability/CommitWakeClock/CommitWakeClock.h",
+      "new": "backend/application/observability/runtime/CommitWakeClock.h",
+      "beforeSha256": "cf42e132e15e5484b736d3ad50ec28db7b5aa10ebd71702b1dd28a8c4c6a70a3",
+      "afterSha256": "cf42e132e15e5484b736d3ad50ec28db7b5aa10ebd71702b1dd28a8c4c6a70a3"
+    },
+    {
+      "old": "backend/application/observability/DetachedSpan/DetachedSpan.cpp",
+      "new": "backend/application/observability/tracing/DetachedSpan.cpp",
+      "beforeSha256": "db1ef45ed58c4cc93f326cf3cfa74942d7240617ba879192a6d5de8df49a93ec",
+      "afterSha256": "e7bd2cdfb18d24754fa80e8d701091fe928c0190fc56a797b81897fe4833a81d"
+    },
+    {
+      "old": "backend/application/observability/DetachedSpan/DetachedSpan.h",
+      "new": "backend/application/observability/tracing/DetachedSpan.h",
+      "beforeSha256": "802f070246563865161c8269c7a2b95ea838ca8b2aa26a51882c238ca2109a7f",
+      "afterSha256": "b774325119be77067bd3195d74b4a8ac9c68e90a5c67ef6c31e9244cb8e03e9d"
+    },
+    {
+      "old": "backend/application/observability/OperationCatalog/OperationCatalog.def",
+      "new": "backend/application/observability/catalog/OperationCatalog.def",
+      "beforeSha256": "f9faaa35300ccb3d4c9e764b884da25c23b60a004382e7c01657addc3a0507ae",
+      "afterSha256": "f9faaa35300ccb3d4c9e764b884da25c23b60a004382e7c01657addc3a0507ae"
+    },
+    {
+      "old": "backend/application/observability/OperationCatalog/OperationCatalog.h",
+      "new": "backend/application/observability/catalog/OperationCatalog.h",
+      "beforeSha256": "37b9609c79d6c4f77f9cfaea6b25439a94d1f3648ead788449c433a15cb886d7",
+      "afterSha256": "37b9609c79d6c4f77f9cfaea6b25439a94d1f3648ead788449c433a15cb886d7"
+    },
+    {
+      "old": "backend/application/observability/Telemetry/Telemetry.cpp",
+      "new": "backend/application/observability/tracing/Telemetry.cpp",
+      "beforeSha256": "632d25976eef0b43c03057208f76d48cccde53470a10ee9936d126d4efe2b008",
+      "afterSha256": "e6cfda7b959b2378e1b18b3984ccd1ac119b00c39ee4b69c6bf6a4dc4a1a287e"
+    },
+    {
+      "old": "backend/application/observability/Telemetry/Telemetry.h",
+      "new": "backend/application/observability/tracing/Telemetry.h",
+      "beforeSha256": "ef54b091e2c29553fdc992bfa3812b7e41c7ab3462b01dd8b759b09a6cadb4f1",
+      "afterSha256": "21ac7373a89867e761d06baddca0c9acc08e8d13c3c0f7a3f96ae45db06569d2"
+    },
+    {
+      "old": "backend/application/runtime/BoundedExecutor/BoundedExecutor.cpp",
+      "new": "backend/application/runtime/BoundedExecutor/BoundedExecutor.cpp",
+      "beforeSha256": "0f462da64493593743e337afcfe4bf23a06bbb66ad8c8f37ecaa2a6a78968ad4",
+      "afterSha256": "5b09fb4e149b40fe8292a82e32c082d31e9cadc350fac2d3faea7ad04a842d8b"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp",
+      "new": "backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp",
+      "beforeSha256": "3f785bec3c7eb3b878fb5af6279bc84f7234683f3f444cec957774be55f34945",
+      "afterSha256": "2956953127652ae1a150669ad1b409d18d708cf2464c879f7f07d96b365e6518"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresConversationRepository/PostgresConversationRepository.cpp",
+      "new": "backend/application/storage/postgres/PostgresConversationRepository/PostgresConversationRepository.cpp",
+      "beforeSha256": "7cd9cb37e1d0527428ddccd649e35e913d4ff125d70e165bd63c1d48406956c8",
+      "afterSha256": "6ee5c9e9d850e119f83dec40dcc4979347562b73f977f7711fde9bef4cfd7e72"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresSql/PostgresSql.h",
+      "new": "backend/application/storage/postgres/PostgresSql/PostgresSql.h",
+      "beforeSha256": "ae740af1080263d77c2ba7ffeaee9190d1e3339baf518b6d992edfef4f8fdf44",
+      "afterSha256": "753280a9f2ca5546ffeb75651b19eeaa9866f579393c92f050a76e65c4ca74d2"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresStore/PostgresStore.cpp",
+      "new": "backend/application/storage/postgres/PostgresStore/PostgresStore.cpp",
+      "beforeSha256": "27d033087781bfa0f29620d06a88ac10bd46a891b63e5484bf6dcf68f3b0503a",
+      "afterSha256": "8334d4480fe9a6858b752aea9d04974fbab7b7a43dfb09e15a2e1a60ecd574b7"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresUnitOfWork/PostgresUnitOfWork.cpp",
+      "new": "backend/application/storage/postgres/PostgresUnitOfWork/PostgresUnitOfWork.cpp",
+      "beforeSha256": "5bc9b2422e02574913d8f285925801132225971f519342369ef8ee914ac6348a",
+      "afterSha256": "8e79b47f955068c165087090033fa602b058186ce48e11daa0353ebd39f7c750"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresValueCodec/PostgresValueCodec.h",
+      "new": "backend/application/storage/postgres/PostgresValueCodec/PostgresValueCodec.h",
+      "beforeSha256": "31eecf0ee964e94d62ec5f233e7017dc2938466d3afff8e58f81a0f7cd08591e",
+      "afterSha256": "08000fbefeb55eee6287ce3ea26b77ba67c2146d9f566cc53e877ce2fc969480"
+    },
+    {
+      "old": "docs/architecture/business/indexes/phase43-47-code-index.md",
+      "new": "docs/architecture/business/indexes/phase43-47-code-index.md",
+      "beforeSha256": "8d2d6a28fe0b17d0a85e0976efb959f602f40b2a6a978326f96b041b358f3beb",
+      "afterSha256": "9ad2873fa302c94e1fa55a44562ebc15dcb251e91bede1e54f57708660ac0557"
+    },
+    {
+      "old": "docs/architecture/business/indexes/phase48-code-index.md",
+      "new": "docs/architecture/business/indexes/phase48-code-index.md",
+      "beforeSha256": "67e5d6eca217ead0442b535db8d4318ef2cd8ce646aeedd74d2153a0d6b80a45",
+      "afterSha256": "d157478b9824474483d401a31a169c4c8b7829def64ed2f3d04d8561c3bfe9ff"
+    },
+    {
+      "old": "docs/architecture/source-layout-migration-2.json",
+      "new": "docs/architecture/source-layout-migration-2.json",
+      "beforeSha256": "6b3f1858ce24d28bb58d333c8b3cc5b1d43eff89a24bea16d6f12e0e294066dc",
+      "afterSha256": "684d4b8d071c4a988b1737db3db745fe7b8d970e6932695a389932f799528144"
+    },
+    {
+      "old": "docs/architecture/source-layout-migration-3.json",
+      "new": "docs/architecture/source-layout-migration-3.json",
+      "beforeSha256": "6a335bdd2450342c6b004280e7b3d891f54d7f0f1d66eb4e26ac1f603587d82f",
+      "afterSha256": "36867d1e59fe7990afbd72006b6fe58348e3b43b500e2bde72706ed9d9f3b05d"
+    },
+    {
+      "old": "docs/observability/architecture.md",
+      "new": "docs/observability/architecture.md",
+      "beforeSha256": "b1958f49b6f1281376cfc25dc444b94cb1f67cb883116bc6a38e1a47f7a51f2d",
+      "afterSha256": "44a13c55b219a9450198847a8ebcd464d2a11a89ad47df28ed91c3ca1652bcb3"
+    },
+    {
+      "old": "docs/observability/business-instrumentation.md",
+      "new": "docs/observability/business-instrumentation.md",
+      "beforeSha256": "e173c14197f846fbf789e865183127944fb3dcf3654e57756055538ae727363f",
+      "afterSha256": "f80c9e6d0f439d046d79bf4196e549b3c06694ba77aeb5249b3284a6f244def3"
+    },
+    {
+      "old": "docs/observability/logging.md",
+      "new": "docs/observability/logging.md",
+      "beforeSha256": "294f895ab2f4bb8400b8c295e59c4578ba026445377e2dbf83924131f88fa513",
+      "afterSha256": "d557fe9ce8e1e00949b4be5f88cf16e62a2926297ad61ed72afa7a8beeb84ce4"
+    },
+    {
+      "old": "docs/ops/validation/cpp-systems.md",
+      "new": "docs/ops/validation/cpp-systems.md",
+      "beforeSha256": "ea165c6c24f72471ea75daa98eb3d246113bd3a08054046b9c6d0935c7f3a1b0",
+      "afterSha256": "b046ed4e06ef049a6f321f6f00e3066df2813a39887da3ecdacd12352360e6b1"
+    },
+    {
+      "old": "docs/roadmap/next-steps.md",
+      "new": "docs/roadmap/next-steps.md",
+      "beforeSha256": "272fde7c1eb5dbe6fe8a2e4a6682d88d72846b4cc8f649859cf5298757b102ec",
+      "afterSha256": "df5343ae56a4d96fdf7261db0e2aeb45926b744b43a5d9b0c1ab1879a73f2401"
+    },
+    {
+      "old": "scripts/project/package_release.py",
+      "new": "scripts/project/package_release.py",
+      "beforeSha256": "494b3ad1af19a3bfe3ab08978797842673de96497c3c60bc5a2b2404d7373f9c",
+      "afterSha256": "d0c164e2adef47e75f547d9e6cb313228d075972423cf86011675f3a6dbe7c20"
+    },
+    {
+      "old": "tests/function3/unit/WorkspaceContract.h",
+      "new": "tests/function3/unit/WorkspaceContract.h",
+      "beforeSha256": "48274499add08740134dcbb9d08ee82c5275b351b5e9b1c1d2e49b5d51b06c1c",
+      "afterSha256": "f9db93fc5230f191abc30a27f26ecc4d2c9c9bde14cc934a850f7fe9d49f412b"
+    },
+    {
+      "old": "tests/function3/unit/commit_wakeup.cpp",
+      "new": "tests/function3/unit/commit_wakeup.cpp",
+      "beforeSha256": "6d5a568f8ec2de068952021cd89b0f15b58cb56acb16c417202ac291489bca32",
+      "afterSha256": "6deb34331567c1cda8646deb92da4c6ea699ded10a2d34cde0a1571f4242ba64"
+    },
+    {
+      "old": "tests/function3/unit/realtime_relay.cpp",
+      "new": "tests/function3/unit/realtime_relay.cpp",
+      "beforeSha256": "311a1c6a0132b6b9a10ca37aae9e5de1a94e652a2678fd54e608543bbfd16f52",
+      "afterSha256": "14af6de0239681e0bfad4c30107d5d11e0083e560a26314e55ba2007b6d9cad8"
+    },
+    {
+      "old": "tests/observability/BusinessLogContract/BusinessLogContract.cpp",
+      "new": "tests/observability/BusinessLogContract/BusinessLogContract.cpp",
+      "beforeSha256": "1c063d2a9ad00794ed5ad5731c8935e03bc18b80115b95b5880d0d2892ae8bba",
+      "afterSha256": "bcf6be163e1ece81673a16d857c3162384fb1c03504730eababa8fb5b7c68543"
+    },
+    {
+      "old": "tests/observability/BusinessOperationContract/BusinessOperationContract.cpp",
+      "new": "tests/observability/BusinessOperationContract/BusinessOperationContract.cpp",
+      "beforeSha256": "dd64e7baca0f7c43d26dca9512281193d6be2ebd196cab318410d29177b76900",
+      "afterSha256": "3fa06362d7aba0b8073b7bb86074562a657e8174098d5db30691f8d6e8ec11b2"
+    },
+    {
+      "old": "tests/phase11/unit/ai_chat.cpp",
+      "new": "tests/phase11/unit/ai_chat.cpp",
+      "beforeSha256": "24ce50b84b306f40d48c7de72dffc78057a05094a4e026046aac777346b1bfa0",
+      "afterSha256": "777e5c1acde50acfef52ae975bb39d66430a4338f146bfb123a5096c2562bb19"
+    },
+    {
+      "old": "tests/project/test_ci_gates.py",
+      "new": "tests/project/test_ci_gates.py",
+      "beforeSha256": "5f56f963d4dd3251442ea5bb05d4fa47e8ae4fe5a3b5e39ba16797148cc4f724",
+      "afterSha256": "c91868677582eb25ef277fd1537931463fc25452850e07d7578067dc90dc4001"
+    },
+    {
+      "old": "tools/observability/observer/contracts/operation_catalog.py",
+      "new": "tools/observability/observer/contracts/operation_catalog.py",
+      "beforeSha256": "4e6c92e983c0f46c361a006cb351e5c3a43acc28d2d92579154fbaa9acf6c787",
+      "afterSha256": "8ab66dfb62b2bdd142967d6a613aff6a8ac884b60594393e7cff74b2143b4e13"
+    }
+  ],
+  "generated": [
+    {
+      "path": "backend/application/observability/README.md",
+      "sha256": "cd79f72fa603df04ba1675838311c9004ddad870cfb25b395e48791b64069926"
+    },
+    {
+      "path": "docs/architecture/overview/application-observability-layout.md",
+      "sha256": "de68963f8f95a2268108279e26888c779b083c8dd45ed68de96a64fb29a7d3b2"
+    }
+  ]
+}

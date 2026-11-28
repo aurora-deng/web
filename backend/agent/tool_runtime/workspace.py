@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from .runtime import ToolError, encode
 from .sources import Binding, observed
+from .catalog import load_tool_handlers
 
 
 @contextmanager
@@ -111,6 +112,7 @@ class NativeFleetPort:
 class WorkspaceStore:
     SOURCE="workspace.sqlite"
     def __init__(self, database, owner, fleet=None):
+        self._read_handlers, self._write_handlers = load_tool_handlers("workspace")
         self.database=Path(database).resolve(); self.owner=owner; self.fleet=fleet
         if self.database.is_symlink(): raise ValueError("invalid workspace database")
         with connect(self.database) as db:
@@ -151,60 +153,21 @@ class WorkspaceStore:
         return [dict(r) for r in db.execute("SELECT id,seq,substr(text,1,2048) AS text,parent FROM messages WHERE actor=? AND conversation=? AND seq BETWEEN ? AND ? ORDER BY seq LIMIT 41",
                (actor,p["conversationId"],anchor[0]-p["radius"],anchor[0]+p["radius"]))]
 
-    def read(self,name,p,ctx):
-        if time.monotonic()>=ctx.deadline: raise ToolError("timeout")
-        if ctx.actor_id!=self.owner: raise ToolError("denied")
-        actor=ctx.actor_id
-        if name.startswith("fleet.") or name in {"evidence.get","workflow.get_run"}:
-            if self.fleet is None: raise ToolError("unavailable")
-            if name=="fleet.list_tasks": value=self.fleet.tasks(p,ctx.deadline) if isinstance(self.fleet,NativeFleetPort) else self.fleet.tasks(p)
-            elif name=="workflow.get_run": value=self.fleet.trace(p)
-            else: value=self.fleet.status(p.get("taskId",p.get("evidenceId")),ctx.deadline) if isinstance(self.fleet,NativeFleetPort) else self.fleet.status(p.get("taskId",p.get("evidenceId")))
-            source="workflow.checkpoint.projection" if name=="workflow.get_run" and isinstance(self.fleet,NativeFleetPort) else "workflow.sqlite.checkpoint" if name=="workflow.get_run" else "fleet.grpc.live" if isinstance(self.fleet,NativeFleetPort) else "fleet.sqlite.snapshot"
-            stamp=observed(value,source)
-            if name=="workflow.get_run" and isinstance(self.fleet,NativeFleetPort):
-                from .sources import SourceValue
-                stamp=SourceValue(value,source,datetime.fromtimestamp(self.fleet.checkpoint.stat().st_mtime,timezone.utc),True)
-            return stamp
-        with connect(self.database) as db:
-            if name=="chat.search":
-                clause=" AND conversation=?" if p["scope"]=="conversation" else ""
-                values=[actor,p["query"]]+([p["conversationId"]] if clause else [])+[p["limit"]]
-                value=[dict(r) for r in db.execute("SELECT id,conversation,seq,substr(text,1,2048) AS text FROM messages WHERE actor=? AND instr(lower(text),lower(?))>0"+clause+" ORDER BY conversation,seq LIMIT ?",values)]
-            elif name=="chat.get_context": value=self._context(db,p,actor)
-            elif name=="chat.tree_node":
-                row=db.execute("SELECT id,parent,substr(text,1,2048) AS text FROM messages WHERE actor=? AND conversation=? AND id=?",(actor,p["conversationId"],p["nodeId"])).fetchone()
-                if not row: raise ToolError("not_found")
-                value=dict(row)
-            elif name=="memory.read": value=[dict(r) for r in db.execute("SELECT id,text FROM memories WHERE actor=? ORDER BY id LIMIT ?",(actor,p["limit"]))]
-            elif name=="preference.get":
-                row=db.execute("SELECT value FROM preferences WHERE actor=?",(actor,)).fetchone();value=json.loads(row[0]) if row else {}
-            elif name=="material.search":
-                value=[{"materialId":r["id"],"title":r["title"],"kind":r["kind"]} for r in db.execute("SELECT id,substr(title,1,256) AS title,kind FROM materials WHERE actor=? AND subject=? AND kind=? AND instr(lower(title),lower(?))>0 ORDER BY id LIMIT ?",(actor,p["subject"],p["type"],p["query"],p["limit"]))]
-            elif name=="material.chunk":
-                a=p["anchor"];row=db.execute("SELECT text FROM chunks WHERE actor=? AND material=? AND kind=? AND offset=?",(actor,p["materialId"],a["kind"],a["offset"])).fetchone()
-                if not row: raise ToolError("not_found")
-                value={"materialId":p["materialId"],"anchor":a,"text":row[0]}
-            elif name=="material.stats":
-                value={"count":db.execute("SELECT COUNT(*) FROM materials WHERE actor=?",(actor,)).fetchone()[0],"scope":"actor_index_only"}
-            elif name=="quiz.next":
-                row=db.execute("SELECT id,question,answer FROM questions WHERE actor=? AND subject=? AND mastered=0 ORDER BY id LIMIT 1",(actor,p["subject"])).fetchone()
-                if not row: raise ToolError("not_found")
-                value=dict(row)
-            elif name=="progress.read": value=[dict(r) for r in db.execute("SELECT id,date,item,minutes FROM progress WHERE actor=? AND subject=? ORDER BY date DESC,id LIMIT ?",(actor,p["subject"],p["limit"]))]
-            elif name=="metrics.get":
-                now=time.time()
-                if self.fleet:
-                    for metric,number in self.fleet.counts().items(): db.execute("INSERT INTO metric_samples VALUES (?,?,?)",(metric,now,number))
-                db.execute("DELETE FROM metric_samples WHERE at<?",(now-86400,))
-                db.execute("DELETE FROM metric_samples WHERE rowid NOT IN (SELECT rowid FROM metric_samples ORDER BY at DESC LIMIT 10000)")
-                value=[]
-                for metric in p["names"]:
-                    rows=db.execute("SELECT at,value FROM metric_samples WHERE name=? AND at>=? ORDER BY at DESC LIMIT 64",(metric,now-p["windowSeconds"])).fetchall()
-                    if not rows: raise ToolError("unavailable")
-                    value.extend({"name":metric,"sampledAt":datetime.fromtimestamp(r[0],timezone.utc).isoformat(),"value":r[1]} for r in rows)
-            else: raise ToolError("not_found")
-        return observed(value,self.SOURCE)
+    def read(self, name, p, ctx):
+        if time.monotonic() >= ctx.deadline:
+            raise ToolError("timeout")
+        if ctx.actor_id != self.owner:
+            raise ToolError("denied")
+        handler = self._read_handlers.get(name)
+        if handler is None:
+            raise ToolError("not_found")
+        return handler(self, p, ctx)
+
+    def _write_handler(self, tool):
+        handler = self._write_handlers.get(tool)
+        if handler is None:
+            raise ToolError("not_found")
+        return handler
 
     def execute_once(self,tool,p,ctx):
         if ctx.actor_id!=self.owner: raise ToolError("denied")
@@ -218,10 +181,7 @@ class WorkspaceStore:
                 return observed(json.loads(row[1]),self.SOURCE)
             if db.execute("SELECT COUNT(*) FROM receipts").fetchone()[0]>=10000: raise ToolError("unavailable")
             identity=uuid4().hex
-            if tool=="memory.write": db.execute("INSERT INTO memories VALUES (?,?,?)",(ctx.actor_id,identity,p["text"]))
-            elif tool=="progress.write": db.execute("INSERT INTO progress VALUES (?,?,?,?,?,?)",(ctx.actor_id,identity,p["date"],p["subject"],p["itemId"],p["minutes"]))
-            elif tool=="mistake.write": db.execute("INSERT INTO mistakes VALUES (?,?,?,?,?)",(ctx.actor_id,identity,p["subject"],p["itemId"],p["text"]))
-            else: raise ToolError("not_found")
+            self._write_handler(tool)(self, db, p, ctx, identity)
             result={"stored":True,"recordId":identity}
             db.execute("INSERT INTO receipts VALUES (?,?,?,?,?)",(ctx.actor_id,tool,key,digest,encode(result).decode()))
             if time.monotonic()>=ctx.deadline: raise ToolError("timeout") # rollback before commit

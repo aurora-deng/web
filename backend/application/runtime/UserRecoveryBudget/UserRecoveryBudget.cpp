@@ -1,5 +1,5 @@
 #include "UserRecoveryBudget.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 #include <algorithm>
 #include <stdexcept>
 namespace webserver::phase11 {

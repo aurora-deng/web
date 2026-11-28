@@ -1,6 +1,6 @@
-#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
+#include "backend/application/observability/metrics/BusinessMetrics.h"
 #include "SqlContext.h"
-#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
+#include "backend/application/observability/operations/BusinessOperation.h"
 #include <map>
 #include <memory>
 #include <iostream>

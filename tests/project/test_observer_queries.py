@@ -5,13 +5,30 @@ import threading
 import time
 import unittest
 ROOT=Path(__file__).resolve().parents[2];sys.path.insert(0,str(ROOT))
-from tools.observability.observer.metric_queries import MetricQueries
-from tools.observability.observer.sources import BackendError,Sources
-from tools.observability.observer.source_monitor import SourceMonitor,matrix_rows
+from tools.observability.observer.queries.metric_queries import MetricQueries
+from tools.observability.observer.sources.sources import BackendError,Sources
+from tools.observability.observer.sources.source_monitor import SourceMonitor,matrix_rows
 from unittest.mock import patch
 
 
 class Queries(unittest.TestCase):
+    def test_ai_preparation_stages_have_fixed_bounded_queries(self):
+        from tools.observability.observer.contracts.operation_catalog import FUNCTION_DEFINITIONS
+        from tools.observability.observer.sources.sources import PANELS
+        expected = {'ai_prepare_audit': 'AiChatService::prepareAudit',
+                    'ai_prepare_history': 'AiChatService::prepareHistory',
+                    'ai_prepare_rag': 'AiChatService::prepareRag'}
+        catalog = {row['key']: row for row in FUNCTION_DEFINITIONS}
+        self.assertEqual(len(catalog), 29)
+        for key, symbol in expected.items():
+            self.assertEqual(catalog[key]['domain'], 'ai')
+            self.assertEqual(catalog[key]['symbol'], symbol)
+            for suffix in ('p95', 'p99', 'rate', 'error_rate', 'in_flight'):
+                query = PANELS[f'function_{key}_{suffix}'][2]
+                self.assertIn(f'function="{symbol}"', query)
+                self.assertNotIn('requestId', query)
+                self.assertNotIn('conversationId', query)
+
     def test_batch_is_bounded_and_keeps_partial_failures(self):
         class Backend(Sources):
             def __init__(self):self.lock=threading.Lock();self.running=0;self.high=0

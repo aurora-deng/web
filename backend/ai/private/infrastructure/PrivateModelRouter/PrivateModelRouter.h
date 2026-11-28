@@ -1,7 +1,7 @@
 #pragma once
-#include "backend/application/ports/IUserRepository/IUserRepository.h"
+#include "backend/application/modules/accounts/ports/IUserRepository/IUserRepository.h"
 #include "backend/ai/private/ports/IPrivateInference/IPrivateInference.h"
-#include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
+#include "backend/ai/registry/ModelRegistryService/ModelRegistryService.h"
 namespace webserver::phase11 {
 class PrivateModelRouter final:public IPrivateInference {
 public:

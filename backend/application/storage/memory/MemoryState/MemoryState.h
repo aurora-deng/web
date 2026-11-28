@@ -1,5 +1,5 @@
 #pragma once
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/modules/shared/compatibility/Ports/Ports.h"
 #include "backend/application/modules/chat/domain/WorkspaceTypes/WorkspaceTypes.h"
 #include <map>
 #include <set>

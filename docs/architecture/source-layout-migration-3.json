@@ -1,0 +1,1731 @@
+{
+  "schema": "application-domain-layout-v1",
+  "date": "2026-11-27",
+  "moves": [
+    [
+      "backend/application/domain/AccountTypes",
+      "backend/application/modules/accounts/domain/AccountTypes"
+    ],
+    [
+      "backend/application/domain/SocialTypes",
+      "backend/application/modules/contacts/domain/SocialTypes"
+    ],
+    [
+      "backend/application/domain/ConversationTypes",
+      "backend/application/modules/chat/domain/ConversationTypes"
+    ],
+    [
+      "backend/application/domain/MessageTypes",
+      "backend/application/modules/chat/domain/MessageTypes"
+    ],
+    [
+      "backend/application/domain/FileTypes",
+      "backend/application/modules/files/domain/FileTypes"
+    ],
+    [
+      "backend/application/domain/OutboxTypes",
+      "backend/application/modules/messaging/domain/OutboxTypes"
+    ],
+    [
+      "backend/application/domain/IdentityTypes",
+      "backend/application/modules/shared/domain/IdentityTypes"
+    ],
+    [
+      "backend/application/domain/EvaluationTypes",
+      "backend/application/modules/ai/domain/EvaluationTypes"
+    ],
+    [
+      "backend/application/domain/GenerationTypes",
+      "backend/application/modules/ai/domain/GenerationTypes"
+    ],
+    [
+      "backend/application/domain/KnowledgeTypes",
+      "backend/application/modules/ai/domain/KnowledgeTypes"
+    ],
+    [
+      "backend/application/domain/ModelTypes",
+      "backend/application/modules/ai/domain/ModelTypes"
+    ],
+    [
+      "backend/application/domain/TrainingTypes",
+      "backend/application/modules/ai/domain/TrainingTypes"
+    ],
+    [
+      "backend/application/ports/ICredentialCodec",
+      "backend/application/modules/accounts/ports/ICredentialCodec"
+    ],
+    [
+      "backend/application/ports/ILoginRateLimiter",
+      "backend/application/modules/accounts/ports/ILoginRateLimiter"
+    ],
+    [
+      "backend/application/ports/ISessionRepository",
+      "backend/application/modules/accounts/ports/ISessionRepository"
+    ],
+    [
+      "backend/application/ports/IUserRepository",
+      "backend/application/modules/accounts/ports/IUserRepository"
+    ],
+    [
+      "backend/application/ports/ISocialRepository",
+      "backend/application/modules/contacts/ports/ISocialRepository"
+    ],
+    [
+      "backend/application/ports/IConversationRepository",
+      "backend/application/modules/chat/ports/IConversationRepository"
+    ],
+    [
+      "backend/application/ports/IMessageRepository",
+      "backend/application/modules/chat/ports/IMessageRepository"
+    ],
+    [
+      "backend/application/ports/IFileRepository",
+      "backend/application/modules/files/ports/IFileRepository"
+    ],
+    [
+      "backend/application/ports/IFileStorage",
+      "backend/application/modules/files/ports/IFileStorage"
+    ],
+    [
+      "backend/application/ports/IOutboxRepository",
+      "backend/application/modules/messaging/ports/IOutboxRepository"
+    ],
+    [
+      "backend/application/ports/IDatabase",
+      "backend/application/modules/shared/ports/IDatabase"
+    ],
+    [
+      "backend/application/ports/ITransaction",
+      "backend/application/modules/shared/ports/ITransaction"
+    ],
+    [
+      "backend/application/ports/IAiGenerationAuditRepository",
+      "backend/application/modules/ai/ports/IAiGenerationAuditRepository"
+    ],
+    [
+      "backend/application/ports/IKnowledgeIndex",
+      "backend/application/modules/ai/ports/IKnowledgeIndex"
+    ],
+    [
+      "backend/application/ports/IKnowledgeRepository",
+      "backend/application/modules/ai/ports/IKnowledgeRepository"
+    ],
+    [
+      "backend/application/ports/IModelEvaluationRepository",
+      "backend/application/modules/ai/ports/IModelEvaluationRepository"
+    ],
+    [
+      "backend/application/ports/IModelQualityGate",
+      "backend/application/modules/ai/ports/IModelQualityGate"
+    ],
+    [
+      "backend/application/ports/IModelRepository",
+      "backend/application/modules/ai/ports/IModelRepository"
+    ],
+    [
+      "backend/application/ports/IRagContextProvider",
+      "backend/application/modules/ai/ports/IRagContextProvider"
+    ],
+    [
+      "backend/application/ports/ITrainingRepository",
+      "backend/application/modules/ai/ports/ITrainingRepository"
+    ],
+    [
+      "backend/application/business/AiChatService",
+      "backend/application/modules/ai/application/AiChatService"
+    ],
+    [
+      "backend/application/business/AiGenerationAudit",
+      "backend/application/modules/ai/application/AiGenerationAudit"
+    ],
+    [
+      "backend/application/business/AiGenerationCompletion",
+      "backend/application/modules/ai/application/AiGenerationCompletion"
+    ],
+    [
+      "backend/application/business/AiGenerationPreparation",
+      "backend/application/modules/ai/application/AiGenerationPreparation"
+    ],
+    [
+      "backend/application/business/AiGenerationState",
+      "backend/application/modules/ai/application/AiGenerationState"
+    ],
+    [
+      "backend/application/business/OutboxDispatcher",
+      "backend/application/modules/messaging/application/OutboxDispatcher"
+    ],
+    [
+      "backend/application/business/ApplicationError",
+      "backend/application/modules/shared/domain/ApplicationError"
+    ],
+    [
+      "backend/application/bootstrap/IdentityRuntime",
+      "backend/application/modules/accounts/bootstrap/IdentityRuntime"
+    ],
+    [
+      "backend/application/bootstrap/ContactsRuntime",
+      "backend/application/modules/contacts/bootstrap/ContactsRuntime"
+    ],
+    [
+      "backend/application/bootstrap/ChatRuntime",
+      "backend/application/modules/chat/bootstrap/ChatRuntime"
+    ],
+    [
+      "backend/application/bootstrap/RealtimeRuntime",
+      "backend/application/modules/chat/bootstrap/RealtimeRuntime"
+    ],
+    [
+      "backend/application/bootstrap/FileRuntime",
+      "backend/application/modules/files/bootstrap/FileRuntime"
+    ],
+    [
+      "backend/application/transport/http/Phase11AuthHttp",
+      "backend/application/modules/accounts/transport/Phase11AuthHttp"
+    ],
+    [
+      "backend/application/transport/http/Phase11FileHttp",
+      "backend/application/modules/files/transport/Phase11FileHttp"
+    ],
+    [
+      "backend/application/transport/http/Phase11KnowledgeHttp",
+      "backend/application/modules/ai/transport/Phase11KnowledgeHttp"
+    ],
+    [
+      "backend/application/transport/http/Phase11TrainingHttp",
+      "backend/application/modules/ai/transport/Phase11TrainingHttp"
+    ],
+    [
+      "backend/application/transport/http/Phase11SocialChatHttp",
+      "backend/application/modules/chat/transport/Phase11SocialChatHttp"
+    ],
+    [
+      "backend/application/transport/http/BusinessHttpCodec",
+      "backend/application/modules/shared/transport/BusinessHttpCodec"
+    ],
+    [
+      "backend/application/transport/http/BusinessHttpExecutor",
+      "backend/application/modules/shared/transport/BusinessHttpExecutor"
+    ],
+    [
+      "backend/application/transport/http/BusinessHttpObservation",
+      "backend/application/modules/shared/transport/BusinessHttpObservation"
+    ],
+    [
+      "backend/application/transport/FlatJson",
+      "backend/application/modules/shared/transport/FlatJson"
+    ],
+    [
+      "backend/application/transport/Contracts",
+      "backend/application/modules/shared/transport/Contracts"
+    ],
+    [
+      "backend/application/transport/serialization/MessageJson",
+      "backend/application/modules/chat/transport/MessageJson"
+    ],
+    [
+      "backend/application/transport/realtime/Phase11Realtime",
+      "backend/application/modules/chat/transport/Phase11Realtime"
+    ],
+    [
+      "backend/application/transport/learning/LearningRoutes",
+      "backend/application/modules/learning/transport/LearningRoutes"
+    ],
+    [
+      "backend/application/security/SodiumCredentialCodec",
+      "backend/application/modules/accounts/infrastructure/SodiumCredentialCodec"
+    ],
+    [
+      "backend/application/security/InMemoryLoginRateLimiter",
+      "backend/application/modules/accounts/infrastructure/InMemoryLoginRateLimiter"
+    ],
+    [
+      "backend/application/domain/Domain",
+      "backend/application/modules/shared/compatibility/Domain"
+    ],
+    [
+      "backend/application/ports/Ports",
+      "backend/application/modules/shared/compatibility/Ports"
+    ],
+    [
+      "backend/application/business/BusinessInterfaces",
+      "backend/application/modules/shared/compatibility/BusinessInterfaces"
+    ],
+    [
+      "backend/application/modules/shared/BusinessContext",
+      "backend/application/modules/shared/domain/BusinessContext"
+    ],
+    [
+      "backend/application/modules/shared/TextRules",
+      "backend/application/modules/shared/domain/TextRules"
+    ],
+    [
+      "tools/phase11_model_admin.cpp",
+      "tools/ai/ModelAdmin/ModelAdmin.cpp"
+    ],
+    [
+      "tools/phase11_training_admin.cpp",
+      "tools/ai/TrainingAdmin/TrainingAdmin.cpp"
+    ]
+  ],
+  "frozenCoreUnchanged": true,
+  "historicalEvidenceRewritten": false,
+  "behaviorChangeIntended": false,
+  "contractDefinitions": {
+    "LoginSession": "15d3eb8031f981c090cc7021b83c426e7117c329a0b32188dd3cc5c59bccc6a9",
+    "RestoredSession": "de3a1721429589740419d4efbd2ed0c7cb3bc5914342839fcf1597cada59f66e",
+    "AiChatRequest": "8bb377a940e3100ae6a5e756892d57a326e23ffd3de7dc6c8c1606d7c5ea7090",
+    "TrainingSubmission": "199359840ffc4c244e0fb065afad905cee889fa9dfb14268358a067ec3871a74",
+    "ConversationParticipant": "aeffba9133085856ea5696f02c83944f1a3df5212c238045b0f3267e5589fc86",
+    "KnowledgeCitationView": "e7285c2fe32638162a86168d130dfd304a58e5af7c8f29538ab9a9099b60734d",
+    "IAuthBusiness": "41b7bf5fe904fceb2f2c5240a044c7a43e8f0a3d56ac50b8b315bac0679318a1",
+    "ISocialBusiness": "092472c0d2bed2b14f195e4b8d5eb2edc4ad6b2740cc8b58de769965f6681034",
+    "IChatBusiness": "d010c2d770d17dd61f9d4ea8b622eaa5296654d214bde548d1e3df091ea73ba2",
+    "IFileBusiness": "0cb46e01f6204e4af1e1646415bd918cd442381d1f07b3e0fd581e16d0104b42",
+    "IKnowledgeBusiness": "308fa16b93971dbc3991420f811f69efc83756bd1b443a7f94a5703fc53e2d49",
+    "ITrainingBusiness": "3413862a13550a46c155444d6aacf6fe17c0df94b9175d994f0a8b44215a32a7",
+    "IAiChatBusiness": "1ab5cfcea54e21e1e50daf7f985267deb1c8d511bd356e8b7818f06ce29f4c98"
+  },
+  "generated": [
+    {
+      "path": "backend/application/modules/accounts/domain/AuthBusinessTypes/AuthBusinessTypes.h",
+      "sha256": "7e19dfbb4285a91e6c21bfffd7150e7b72ecd407900209ee6c6fd8780dc2632b"
+    },
+    {
+      "path": "backend/application/modules/accounts/ports/IAuthBusiness/IAuthBusiness.h",
+      "sha256": "5c58794420c7c1f39567c9553dafb2f84320d1d2fe766628ffc1429695500428"
+    },
+    {
+      "path": "backend/application/modules/ai/domain/AiChatRequest/AiChatRequest.h",
+      "sha256": "6512a91bea1f14c231f6a056c2835ab372501b7bc9c9238df9b45481d637a7cf"
+    },
+    {
+      "path": "backend/application/modules/ai/domain/KnowledgeCitationView/KnowledgeCitationView.h",
+      "sha256": "93fc4d8196906ce1672b264e782996b70ba213c983e804b00ce352bdf8ce2f20"
+    },
+    {
+      "path": "backend/application/modules/ai/domain/TrainingSubmission/TrainingSubmission.h",
+      "sha256": "71ae6c75c4ade00d776c5d891ab47b0b0ebb426026eea7c26863bce40a6a2eb0"
+    },
+    {
+      "path": "backend/application/modules/ai/ports/IAiChatBusiness/IAiChatBusiness.h",
+      "sha256": "2931794b32409fb9c1c218df56a6c8497c7ce908946936e8dabaaecca7408e94"
+    },
+    {
+      "path": "backend/application/modules/ai/ports/IKnowledgeBusiness/IKnowledgeBusiness.h",
+      "sha256": "44f08c70dc288b471e53ce48b078fbee4ad7382b4830168346d94fd1f0c57051"
+    },
+    {
+      "path": "backend/application/modules/ai/ports/ITrainingBusiness/ITrainingBusiness.h",
+      "sha256": "b16c7c2b56dc2714882687b27b58ece102e923c0140a4c6b4074a90470953448"
+    },
+    {
+      "path": "backend/application/modules/chat/domain/ConversationParticipant/ConversationParticipant.h",
+      "sha256": "141a597cde4800e09a92f82e1dd0a4c723d8c8555ac8739a98b97ce829e1695d"
+    },
+    {
+      "path": "backend/application/modules/chat/ports/IChatBusiness/IChatBusiness.h",
+      "sha256": "306eca7304d34da7d7814754332a276ee9997515062700692492ac2a7b411e1e"
+    },
+    {
+      "path": "backend/application/modules/contacts/ports/ISocialBusiness/ISocialBusiness.h",
+      "sha256": "5f7a7786a9a3a9f6741cb9e8edd5387110276a92fb9be418fe77d6cdb64db7b3"
+    },
+    {
+      "path": "backend/application/modules/files/ports/IFileBusiness/IFileBusiness.h",
+      "sha256": "e29573b53c20fc7804ef8d7fcda96827cbf15e5322c96dc7fbe180be8b4c7edf"
+    }
+  ],
+  "preservedArtifacts": {
+    "backend/agent/domain/SkillCatalog/SkillCatalog.generated.inc": "a15651599aec04f251cbd29ee03d1371d2d6788ceee8a10a85cfb66e4cad1615",
+    "frontend/phase11/asset-manifest.json": "510ff5b5bd3884430544c577a534372f0c8ba8c28776f6ab793cfcb98f0613e9",
+    "docs/contracts/business-routes.json": "aa8f5f7ef6ed4672c96c75d34044d81d9e516154cb9cf30a5e7b0441c1dd9bf0"
+  },
+  "files": [
+    {
+      "old": "CMakeLists.txt",
+      "new": "CMakeLists.txt",
+      "beforeSha256": "21d4bf4ce765ccefe29f16f9605f77f962c42299df85286a26ab2940297c132a",
+      "afterSha256": "e85a0acbc1f625141c066b068c4659483c9bd182e1f9fe1439e46eb7cad4b6f6"
+    },
+    {
+      "old": "backend/ai/bootstrap/AiRuntime/AiRuntime.cpp",
+      "new": "backend/ai/bootstrap/AiRuntime/AiRuntime.cpp",
+      "beforeSha256": "dd4b4c35b16c69cbe256d27d86c4ef5b76ba05b482a5bd44e16716c5b58e0910",
+      "afterSha256": "f95e471aed71b4fc1f4955fe64c8baa723d5d5b028a89747b8e2b8fcb7f0c8eb"
+    },
+    {
+      "old": "backend/ai/inference/contract/ModelProvider/ModelProvider.h",
+      "new": "backend/ai/inference/contract/ModelProvider/ModelProvider.h",
+      "beforeSha256": "08cfd7a5eb189fb02adab3bf17088adf06f90000ec12d489968a0edf5b8578e4",
+      "afterSha256": "65b8f5152ce9bacf8467590125258c486c39ea081080b2954ede1a94638d4269"
+    },
+    {
+      "old": "backend/ai/inference/inprocess/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp",
+      "new": "backend/ai/inference/inprocess/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp",
+      "beforeSha256": "3e9b61d4c63aaae031bca9835c6d496a583a50926f522eca735e6216c234625f",
+      "afterSha256": "e2806d1b77f6b6e72f915f9736ddb66f898afc539f657a25d7cf02d9decf75ab"
+    },
+    {
+      "old": "backend/ai/inference/remote/OllamaModelProvider/OllamaModelProvider.cpp",
+      "new": "backend/ai/inference/remote/OllamaModelProvider/OllamaModelProvider.cpp",
+      "beforeSha256": "7fd06350a74f705681c3eb4f42bddfc45b9de3863b147d53e82a51ba7fc61488",
+      "afterSha256": "abcf7872e9aa1fb7bf66ada7e3c3093fc696bc6ad0a2187db05b741722840c26"
+    },
+    {
+      "old": "backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp",
+      "new": "backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp",
+      "beforeSha256": "e96b2779c7400cde5e4a2aca650aa15d4c3c9806878b3ea91d22e9ef81fde663",
+      "afterSha256": "cf5d381b738b91b653aa830b4d98a40359e6b2292f99ce977501b1712f695240"
+    },
+    {
+      "old": "backend/ai/private/infrastructure/PrivateModelRouter/PrivateModelRouter.h",
+      "new": "backend/ai/private/infrastructure/PrivateModelRouter/PrivateModelRouter.h",
+      "beforeSha256": "e545ee3c185e41556f9d28abfec4372f3474baf835ed59d0fa4e130838524ae2",
+      "afterSha256": "12e93c5cdee73870a21ebe27ba6d8ca5c80c63cf44bf83e4fade532f631c1e4e"
+    },
+    {
+      "old": "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.h",
+      "new": "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.h",
+      "beforeSha256": "c0dd42679cf806045712ff82b48360e6e3a46b26d9fa049de983b4098928c56b",
+      "afterSha256": "da9832a80ddd1146001aa11cfa3503844f82b00e47c11c7b0c28d254df3db65f"
+    },
+    {
+      "old": "backend/ai/rag/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h",
+      "new": "backend/ai/rag/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h",
+      "beforeSha256": "69a9b0b948f196507c30431a89179a522b6856b1c56fd487cb4b0047df107d82",
+      "afterSha256": "8d282baa7349a08e0c8df024fa615225ab5a9c47fa7bac35e603aad68e00d271"
+    },
+    {
+      "old": "backend/ai/rag/KnowledgeRuntime/KnowledgeRuntime.cpp",
+      "new": "backend/ai/rag/KnowledgeRuntime/KnowledgeRuntime.cpp",
+      "beforeSha256": "40bb26f40eeaaa955c26de3cfa237ac33fea52c00196e4c5e97554d6d361b4a9",
+      "afterSha256": "520f64b0d1967994191e72198006142a2cf0f1f186264867c0a40ce703670e4a"
+    },
+    {
+      "old": "backend/ai/rag/RagService/RagService.h",
+      "new": "backend/ai/rag/RagService/RagService.h",
+      "beforeSha256": "3176b87b9b5b9a1b6199c2b8464c862eb0e69b3886d6e9312132323f98fae040",
+      "afterSha256": "1e404418f60238488024f26f00fd9eacd6986fd380d555d59f454e5d6301d53e"
+    },
+    {
+      "old": "backend/ai/registry/ModelEvaluationService/ModelEvaluationService.h",
+      "new": "backend/ai/registry/ModelEvaluationService/ModelEvaluationService.h",
+      "beforeSha256": "de04d21c413c4ba0619ff10e37703abca7576b3116592a8c979b6799a361c303",
+      "afterSha256": "0668d1e2e2cc584fc3459161d402499fc90b6fd81f3fd583c10686539406f361"
+    },
+    {
+      "old": "backend/ai/registry/ModelRegistryService/ModelRegistryService.h",
+      "new": "backend/ai/registry/ModelRegistryService/ModelRegistryService.h",
+      "beforeSha256": "353366f988ffb47acc2551744fcdc962d01eec3dd798a8f6180f6a704994f809",
+      "afterSha256": "8bbfcf1ce6a0ac085e6f5dd12b6f9f7d3d6ecc28717543d812f56640d7ebf863"
+    },
+    {
+      "old": "backend/ai/speech/infrastructure/SiteSpeechRenderer/SiteSpeechRenderer.cpp",
+      "new": "backend/ai/speech/infrastructure/SiteSpeechRenderer/SiteSpeechRenderer.cpp",
+      "beforeSha256": "350b763edb4ffe79f567efcd23b803bef6d2ee840a51ae42b0b8aa12706bf00c",
+      "afterSha256": "e086392ef6efe5e36774e196a08e975d0fd6285543f4c52f1477dd10307e9f9c"
+    },
+    {
+      "old": "backend/ai/speech/ports/ISpeechTasks/ISpeechTasks.h",
+      "new": "backend/ai/speech/ports/ISpeechTasks/ISpeechTasks.h",
+      "beforeSha256": "e0361b231e00252ba13beff06b51b0ee2654f973cfe82842d3fb287944fee0e4",
+      "afterSha256": "1fa6a65115eff01558645ffab8777910efa8baa514680d00ccd463c5fbe84ed4"
+    },
+    {
+      "old": "backend/ai/training/data/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp",
+      "new": "backend/ai/training/data/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp",
+      "beforeSha256": "664ae40beb012bb2cc683fec43276d4fccf8f59b100453e8c03214200a56955a",
+      "afterSha256": "3c4d017e9928551e0c25dcb74afe1ec01a2d6fbf309900f0ded3516b7c012ef6"
+    },
+    {
+      "old": "backend/ai/training/data/TrainingDataService/TrainingDataService.h",
+      "new": "backend/ai/training/data/TrainingDataService/TrainingDataService.h",
+      "beforeSha256": "e8136677eabbdb320bfd8a30c8702488526fe26a40e3bc6b006e446cc2a4b6bc",
+      "afterSha256": "421cd9ca29d7c9f4039931059566291adb56f3f64c85309dbebe6470a6665b08"
+    },
+    {
+      "old": "backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.cpp",
+      "new": "backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.cpp",
+      "beforeSha256": "1d08d1e4ac8a99a74b8d665ae2ff8c799b101748e2fe41c07259523506e3e12a",
+      "afterSha256": "07fb08aad3c356debb11d415ac6dbf2a31d5f0be4a7201f4ca408569639680f8"
+    },
+    {
+      "old": "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
+      "new": "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
+      "beforeSha256": "c519256f79f4fb6d29f6a28526778183493f8cde377d627d69e00a17c84f8cce",
+      "afterSha256": "8b3584ce5ae09496d4e03e648e648b68c87b967a5f6b15935d973e0e3c0e4c40"
+    },
+    {
+      "old": "backend/application/bootstrap/ChatRuntime/ChatRuntime.cpp",
+      "new": "backend/application/modules/chat/bootstrap/ChatRuntime/ChatRuntime.cpp",
+      "beforeSha256": "748efb039603c409a78c22a4085e12d02c0f4f94b169aa721fea6f08a7b1da35",
+      "afterSha256": "714341f867b03fe2b47578ec025c575d9a84e9d6076a524d3437aec043a138c9"
+    },
+    {
+      "old": "backend/application/bootstrap/ChatRuntime/ChatRuntime.h",
+      "new": "backend/application/modules/chat/bootstrap/ChatRuntime/ChatRuntime.h",
+      "beforeSha256": "86ba2aa31875379d3841d3305405be343e680082ffc3813df24db8ea8f5de906",
+      "afterSha256": "86ba2aa31875379d3841d3305405be343e680082ffc3813df24db8ea8f5de906"
+    },
+    {
+      "old": "backend/application/bootstrap/ContactsRuntime/ContactsRuntime.cpp",
+      "new": "backend/application/modules/contacts/bootstrap/ContactsRuntime/ContactsRuntime.cpp",
+      "beforeSha256": "0c19b84c3f0a37677e7772c05d2465aded460e5b73b387ef66a5c794a43e5810",
+      "afterSha256": "3de31c7a2826cc520a4f481599dcbb94acaa80c2399b2b7b46b46e647d070516"
+    },
+    {
+      "old": "backend/application/bootstrap/ContactsRuntime/ContactsRuntime.h",
+      "new": "backend/application/modules/contacts/bootstrap/ContactsRuntime/ContactsRuntime.h",
+      "beforeSha256": "6da92bc47d8c96b8ab53aed5d959ee30cdf6a5c92c1e30cf5e4ac79ad3878a6d",
+      "afterSha256": "6da92bc47d8c96b8ab53aed5d959ee30cdf6a5c92c1e30cf5e4ac79ad3878a6d"
+    },
+    {
+      "old": "backend/application/bootstrap/FileRuntime/FileRuntime.cpp",
+      "new": "backend/application/modules/files/bootstrap/FileRuntime/FileRuntime.cpp",
+      "beforeSha256": "92e3c2217692a33cb22dc73698c1e83afb32b386b228b6703b49abb48c3e9b55",
+      "afterSha256": "e7d75ab08b5642a62b0e186be5cda56e6a7676979d1b17b5b9f35b2b4c937b4d"
+    },
+    {
+      "old": "backend/application/bootstrap/FileRuntime/FileRuntime.h",
+      "new": "backend/application/modules/files/bootstrap/FileRuntime/FileRuntime.h",
+      "beforeSha256": "ed056b98d63101e8ee4d4e006106d92126878655a1143654f9b18c42731bcbfc",
+      "afterSha256": "ed056b98d63101e8ee4d4e006106d92126878655a1143654f9b18c42731bcbfc"
+    },
+    {
+      "old": "backend/application/bootstrap/IdentityRuntime/IdentityRuntime.cpp",
+      "new": "backend/application/modules/accounts/bootstrap/IdentityRuntime/IdentityRuntime.cpp",
+      "beforeSha256": "793795b538b5398d0150f92a11de2c870f0b627cd4d5ebd64f1c00fc61c113ab",
+      "afterSha256": "c6ee4e02e5714cfbb662c6af61f89511e61be16b5febfad1e8a8d9215cfefd69"
+    },
+    {
+      "old": "backend/application/bootstrap/IdentityRuntime/IdentityRuntime.h",
+      "new": "backend/application/modules/accounts/bootstrap/IdentityRuntime/IdentityRuntime.h",
+      "beforeSha256": "f932883f35362f506effb8552bac233a5128cdf173252eb0f44ff548256d1e91",
+      "afterSha256": "f932883f35362f506effb8552bac233a5128cdf173252eb0f44ff548256d1e91"
+    },
+    {
+      "old": "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp",
+      "new": "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp",
+      "beforeSha256": "a5e7302f6493163577862b3c1ab174300b749216e4e7c7db46f9a2b072326c52",
+      "afterSha256": "33c5d60fd299f46c2602c4dea549e02748221bd3d4c74111078549332d665d0b"
+    },
+    {
+      "old": "backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp",
+      "new": "backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp",
+      "beforeSha256": "74865e2d1776796cb0d80df08c2c084fb516f5cc302c33076965453d046b53cf",
+      "afterSha256": "717df79759611ad1c6e427d82014d8283f23c5e5c3de28371826c171c7bb67ed"
+    },
+    {
+      "old": "backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.h",
+      "new": "backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.h",
+      "beforeSha256": "7919108bdcfe5f1e11eba4947c986b5b8aa3b4b9723ba73ec04a88535d77bbde",
+      "afterSha256": "7919108bdcfe5f1e11eba4947c986b5b8aa3b4b9723ba73ec04a88535d77bbde"
+    },
+    {
+      "old": "backend/application/business/AiChatService/AiChatService.cpp",
+      "new": "backend/application/modules/ai/application/AiChatService/AiChatService.cpp",
+      "beforeSha256": "1eb7b5a80f764e77d29bcd99c01f761b274477e9101a7e8d0fe476e6f4727845",
+      "afterSha256": "24506cb21353b3b3503932c636c724ad15a6cd2ada99e0e1c13c2c55f7a955ef"
+    },
+    {
+      "old": "backend/application/business/AiChatService/AiChatService.h",
+      "new": "backend/application/modules/ai/application/AiChatService/AiChatService.h",
+      "beforeSha256": "950f2e79e1a93fb8c7fcb1f461265d628be019f7566738c0f12f9fecc1a9d42c",
+      "afterSha256": "5a3aff7138e288f8fb149c6784e96b7a57caaeff179fc10c2a1464c119107489"
+    },
+    {
+      "old": "backend/application/business/AiGenerationAudit/AiGenerationAudit.cpp",
+      "new": "backend/application/modules/ai/application/AiGenerationAudit/AiGenerationAudit.cpp",
+      "beforeSha256": "d86b014e2705cbe772478abc72e0acb69f36b9ecced37534da364560550548e4",
+      "afterSha256": "d86b014e2705cbe772478abc72e0acb69f36b9ecced37534da364560550548e4"
+    },
+    {
+      "old": "backend/application/business/AiGenerationAudit/AiGenerationAudit.h",
+      "new": "backend/application/modules/ai/application/AiGenerationAudit/AiGenerationAudit.h",
+      "beforeSha256": "996bc9217718028982533ca28c1b1744b0f1f095bf98598431e89d347eb65696",
+      "afterSha256": "6024cf3572a283aa3d46ce31f1ae4ee4a111140eb5ac2f12955abe29bfa966e3"
+    },
+    {
+      "old": "backend/application/business/AiGenerationCompletion/AiGenerationCompletion.cpp",
+      "new": "backend/application/modules/ai/application/AiGenerationCompletion/AiGenerationCompletion.cpp",
+      "beforeSha256": "91d2e871657017e2c499c902aef010a8cab79dd8f15c128fa7bb9167787f5f1e",
+      "afterSha256": "eb37e2128ae61e3953f70f21043a6a3dfa3da3809e5e6390dbb61d8ce9358a4a"
+    },
+    {
+      "old": "backend/application/business/AiGenerationCompletion/AiGenerationCompletion.h",
+      "new": "backend/application/modules/ai/application/AiGenerationCompletion/AiGenerationCompletion.h",
+      "beforeSha256": "0eb4d240c129e61464a863836085d68b710f9afbc02a1ac94ad7d5e90fc5071c",
+      "afterSha256": "6460c720889970a24889ea535ddde1de72dbee882518260a722ee718ea48ff9b"
+    },
+    {
+      "old": "backend/application/business/AiGenerationPreparation/AiGenerationPreparation.cpp",
+      "new": "backend/application/modules/ai/application/AiGenerationPreparation/AiGenerationPreparation.cpp",
+      "beforeSha256": "07806e09ed8f4e5e2e51aa9d2a0302fabc8291dbefcbae9055a10f3c118f2de9",
+      "afterSha256": "8de2a0251c1dcd1fe94fa4e0030e3fe0a76d479efc91e68886a705f44d0c45f4"
+    },
+    {
+      "old": "backend/application/business/AiGenerationPreparation/AiGenerationPreparation.h",
+      "new": "backend/application/modules/ai/application/AiGenerationPreparation/AiGenerationPreparation.h",
+      "beforeSha256": "ba75e5583d177cc07e9a453a50caf5b60456758c3306abb842114cfd73ce03ee",
+      "afterSha256": "8f41b8109f5128e5a0b9c2e073fd3058a56eeef8e5b8b8011a41292f3c3741a6"
+    },
+    {
+      "old": "backend/application/business/AiGenerationState/AiGenerationState.h",
+      "new": "backend/application/modules/ai/application/AiGenerationState/AiGenerationState.h",
+      "beforeSha256": "cffb48c8ab5a3680dd79efbc4c37a8b827c7047701692a54cca106f806dde4c3",
+      "afterSha256": "40b8252859a5100bc283cdc5355831652bc5cb780d683d064dd76aa623e4e913"
+    },
+    {
+      "old": "backend/application/business/ApplicationError/ApplicationError.h",
+      "new": "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h",
+      "beforeSha256": "1499fd99f1e53b73113ec1a07f1f6dc20cd6070c7f340645867b6a3e73eed94a",
+      "afterSha256": "1499fd99f1e53b73113ec1a07f1f6dc20cd6070c7f340645867b6a3e73eed94a"
+    },
+    {
+      "old": "backend/application/business/BusinessInterfaces/BusinessInterfaces.h",
+      "new": "backend/application/modules/shared/compatibility/BusinessInterfaces/BusinessInterfaces.h",
+      "beforeSha256": "71fe362b12e89f01b47e7d024272477e00d6e3c41803114842602c29c65ba8de",
+      "afterSha256": "f73a4a840624a8938a6127ba7408d9cb613823b38505144531be21f677a5a4f5"
+    },
+    {
+      "old": "backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp",
+      "new": "backend/application/modules/messaging/application/OutboxDispatcher/OutboxDispatcher.cpp",
+      "beforeSha256": "e280d29380513bd7c28c44a0f9e937ad3aa44d9e5b455ccc1c1676c2f658a859",
+      "afterSha256": "a33f1fe57a50c946877f42b20556ce6cedeca9f8c7ca5047e242ba03a7f1e465"
+    },
+    {
+      "old": "backend/application/business/OutboxDispatcher/OutboxDispatcher.h",
+      "new": "backend/application/modules/messaging/application/OutboxDispatcher/OutboxDispatcher.h",
+      "beforeSha256": "36b6c9d34106682a58533bb1df5ea319d9a3b28ce5e553ed4089463d373d2b93",
+      "afterSha256": "d6682b70d84e6e9d22a651a2308f062222e1edc1a375f1b6f368515db81a1054"
+    },
+    {
+      "old": "backend/application/domain/AccountTypes/AccountTypes.h",
+      "new": "backend/application/modules/accounts/domain/AccountTypes/AccountTypes.h",
+      "beforeSha256": "cca1f4ff15f00c21a5b3d65113f1b2df4797ea5fb84ddb2ad5b0b1705719d305",
+      "afterSha256": "39f3b6181c0a564f52c5c7d4a54e8f4fa461f99d6b7ffc4cea0f0238b7009ac3"
+    },
+    {
+      "old": "backend/application/domain/ConversationTypes/ConversationTypes.h",
+      "new": "backend/application/modules/chat/domain/ConversationTypes/ConversationTypes.h",
+      "beforeSha256": "f80d6b40a85d06a79e344da7626890420c9869f6dca7e7532d85371c1c8f3f84",
+      "afterSha256": "4fc2ef9fe9d745451aeb60cfabb2f7957ac4f6ac5a731cbfcaf2407d58d58282"
+    },
+    {
+      "old": "backend/application/domain/Domain/Domain.h",
+      "new": "backend/application/modules/shared/compatibility/Domain/Domain.h",
+      "beforeSha256": "8aaf338a6f5d485b24c0d5bfb3b1a206ddfd057b636d35794484b0a9e2d94c1a",
+      "afterSha256": "26de8c2cf115e1443833b5f96ae45fecb16c59b4352c4d6fb8ea59a53baf8062"
+    },
+    {
+      "old": "backend/application/domain/EvaluationTypes/EvaluationTypes.h",
+      "new": "backend/application/modules/ai/domain/EvaluationTypes/EvaluationTypes.h",
+      "beforeSha256": "87657aa93b858587410696c5ba37074895798c5c41d51dcbf0f0eeff02077b1b",
+      "afterSha256": "d42f60f1c773d3035237b78a3908049cf5929f5ec9df93b82a08b240a5ad2765"
+    },
+    {
+      "old": "backend/application/domain/FileTypes/FileTypes.h",
+      "new": "backend/application/modules/files/domain/FileTypes/FileTypes.h",
+      "beforeSha256": "9835d0727a515b081c1172c822d5f4e67e7bf1fe7d08b441354544c346d97cfc",
+      "afterSha256": "89d564a68c48f641ce15654277d09513d87552db615c0250916ce11dc17ec922"
+    },
+    {
+      "old": "backend/application/domain/GenerationTypes/GenerationTypes.h",
+      "new": "backend/application/modules/ai/domain/GenerationTypes/GenerationTypes.h",
+      "beforeSha256": "79f57a19286fd987ad266fd6c79e859a66f64c03ca60599a68d0f2a7150c759a",
+      "afterSha256": "2895b3c63c13fe7caab1bdac7caaeb8724b7264000d874c5fd26e03bee5abf8b"
+    },
+    {
+      "old": "backend/application/domain/IdentityTypes/IdentityTypes.h",
+      "new": "backend/application/modules/shared/domain/IdentityTypes/IdentityTypes.h",
+      "beforeSha256": "f4a60e3691ae3b7d0877b81ed23f6843042fff8a9b60cee5634246ff4b42d7f8",
+      "afterSha256": "f4a60e3691ae3b7d0877b81ed23f6843042fff8a9b60cee5634246ff4b42d7f8"
+    },
+    {
+      "old": "backend/application/domain/KnowledgeTypes/KnowledgeTypes.h",
+      "new": "backend/application/modules/ai/domain/KnowledgeTypes/KnowledgeTypes.h",
+      "beforeSha256": "adc8b12384a3dd6dc8c298b4a3b9f7175bb9c18e0769f7e73e582c55290cbdce",
+      "afterSha256": "063cd6ba6eb955543edfa32f9cb00eb2332ddcf72c8d2c82c14751998dd2aab7"
+    },
+    {
+      "old": "backend/application/domain/MessageTypes/MessageTypes.h",
+      "new": "backend/application/modules/chat/domain/MessageTypes/MessageTypes.h",
+      "beforeSha256": "34c3a1c839799c916a704fe7035e125ea3251483ac9dc043a877bedd03fce243",
+      "afterSha256": "a751df048711aca150530b6730591106070fac8968defe7140034743419612f1"
+    },
+    {
+      "old": "backend/application/domain/ModelTypes/ModelTypes.h",
+      "new": "backend/application/modules/ai/domain/ModelTypes/ModelTypes.h",
+      "beforeSha256": "8a23201bf223ba4a2ad6784bb015ccb92cc82c7c84fa365c3fd43f6d1039d193",
+      "afterSha256": "e5c053b0562777f9645a40e2aabe4fe1eb9a0986960a5bb46d634e5ef50412ac"
+    },
+    {
+      "old": "backend/application/domain/OutboxTypes/OutboxTypes.h",
+      "new": "backend/application/modules/messaging/domain/OutboxTypes/OutboxTypes.h",
+      "beforeSha256": "9c98228fdaa4697ef25ff031c865388715d79db67c629dcf972716979240c608",
+      "afterSha256": "417e3962734c7380d8c9f78d7710974c6fe843392254ecd416651564183b87e6"
+    },
+    {
+      "old": "backend/application/domain/SocialTypes/SocialTypes.h",
+      "new": "backend/application/modules/contacts/domain/SocialTypes/SocialTypes.h",
+      "beforeSha256": "a3943b34d46d4f406dc63a1431ae1c0f7351a752120852084ee365ac3c8d6dc1",
+      "afterSha256": "76d213fabcd51640f3dbcd0af84aad7d34a1ea18b7c6f4545d785f2d7e3fb987"
+    },
+    {
+      "old": "backend/application/domain/TrainingTypes/TrainingTypes.h",
+      "new": "backend/application/modules/ai/domain/TrainingTypes/TrainingTypes.h",
+      "beforeSha256": "deeb65c34316f5755fde8a4eb53790e161ee21c5d7bc250f8d2c67dfb02568e4",
+      "afterSha256": "e9834347dcc7e3ae7b24293b7f84c96a2be0e3e6682f630f936bcea1d6ce7e68"
+    },
+    {
+      "old": "backend/application/modules/accounts/application/AuthService/AuthService.h",
+      "new": "backend/application/modules/accounts/application/AuthService/AuthService.h",
+      "beforeSha256": "e946d65fb10f974acb31aded676bf937dd5fdf78106fe780e2a81341c1c5e46d",
+      "afterSha256": "61759ba5769dbe4f19b77c540d608208522ec46bb3eb90e39222816f7b7a8f44"
+    },
+    {
+      "old": "backend/application/modules/activities/application/ActivityService/ActivityService.cpp",
+      "new": "backend/application/modules/activities/application/ActivityService/ActivityService.cpp",
+      "beforeSha256": "3040cc3cc0807903058d52907494523de548b91ac17dc4df36da91e68b0b02c0",
+      "afterSha256": "00bc9b22804734387f60d1deae5426900b9f292802edcf214e74df20d79fad10"
+    },
+    {
+      "old": "backend/application/modules/activities/ports/IActivityBookmarks/IActivityBookmarks.h",
+      "new": "backend/application/modules/activities/ports/IActivityBookmarks/IActivityBookmarks.h",
+      "beforeSha256": "22c576f488c4cf270014f059402a9ef4e0caa3f5992a8f0ffec2adf344001e22",
+      "afterSha256": "ea592aa403d2e6130b5da410141aa8dd41188351f442a06b15d381e00b2f2687"
+    },
+    {
+      "old": "backend/application/modules/activities/ports/IContentAudience/IContentAudience.h",
+      "new": "backend/application/modules/activities/ports/IContentAudience/IContentAudience.h",
+      "beforeSha256": "7e0633f74021dc08fd5422d3b7f6d4ac5aa243ff95146975891373768b5f82e6",
+      "afterSha256": "a64a8fe7f0dae41aa00ef4843e515fc332e3b582e4efbb887848eb8cb5547264"
+    },
+    {
+      "old": "backend/application/modules/activities/ports/IProfileDirectory/IProfileDirectory.h",
+      "new": "backend/application/modules/activities/ports/IProfileDirectory/IProfileDirectory.h",
+      "beforeSha256": "f8608fac8ff5fa46710b4ab3d722c8c9db1d7e57f68a2a35df1e93b5d4c1584d",
+      "afterSha256": "0ce5935e4047b7e4887a381997980da3455917957d0b71bbec484f5b43b19e95"
+    },
+    {
+      "old": "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.h",
+      "new": "backend/application/modules/activities/transport/ActivityHttp/ActivityHttp.h",
+      "beforeSha256": "ff4a222f0132e5839977d7f4c60ecd1d64ec247b51b8dbfbcee9c45b30285658",
+      "afterSha256": "c9c241c446aa3e5db937c655206d4816aab5cf823adb61dc408065ab80d321b1"
+    },
+    {
+      "old": "backend/application/modules/admin/application/AdminService/AdminService.cpp",
+      "new": "backend/application/modules/admin/application/AdminService/AdminService.cpp",
+      "beforeSha256": "4689bb7684b7c961277326c9cb82f155f9e75198baf45498a3155ca8e062d149",
+      "afterSha256": "7bb8ecdf8cce3416c383e0f7d405d8689c0bc3cde3f7a0ab6c4b9d97cca71566"
+    },
+    {
+      "old": "backend/application/modules/admin/application/ModelAdminService/ModelAdminService.cpp",
+      "new": "backend/application/modules/admin/application/ModelAdminService/ModelAdminService.cpp",
+      "beforeSha256": "488322afaed9a0ce4c52b10ee370b819bcf025d8d7b7785b39e213017656c9c7",
+      "afterSha256": "21d248c01eb9eda41433dd83108b0a8a62c9d766f5bde8852bf13f06a09a7976"
+    },
+    {
+      "old": "backend/application/modules/admin/infrastructure/Phase11ModelAdministration/Phase11ModelAdministration.h",
+      "new": "backend/application/modules/admin/infrastructure/Phase11ModelAdministration/Phase11ModelAdministration.h",
+      "beforeSha256": "c97999ec85f71c02d67f0fb86ef8f1c99ba080a4b5ce5ff8e64817f40d9f4cbb",
+      "afterSha256": "cf81faff8a18991b9638486c47585513e2c8fae433a9feb3ce4db458e51df839"
+    },
+    {
+      "old": "backend/application/modules/admin/ports/IAdminRepository/IAdminRepository.h",
+      "new": "backend/application/modules/admin/ports/IAdminRepository/IAdminRepository.h",
+      "beforeSha256": "e53593398139b955a3231da45c01528f7b982d4981197b2afe3a50e1ba0e5150",
+      "afterSha256": "ff26bf29e5e582ec10213fa98e4d5916a2f63087ab36445d23d20bbda29e8392"
+    },
+    {
+      "old": "backend/application/modules/admin/ports/IModelAdministration/IModelAdministration.h",
+      "new": "backend/application/modules/admin/ports/IModelAdministration/IModelAdministration.h",
+      "beforeSha256": "55cf527a19bc5344a04e9eb4b585d452e3fb3c01507b01a424618c0e2b687fa3",
+      "afterSha256": "1fdd673677e3ee89f190311f6fd93289e3eed965a5709b84ad1f1faeec773d6c"
+    },
+    {
+      "old": "backend/application/modules/agentcontrol/transport/AgentControlHttp/AgentControlHttp.h",
+      "new": "backend/application/modules/agentcontrol/transport/AgentControlHttp/AgentControlHttp.h",
+      "beforeSha256": "8e194d964789eefe9ec47515dfc826ef52eccc3e5eb68ade6a7be3afa05302b3",
+      "afterSha256": "8d3df7c1c84cd73ffe353da3526356514f0a9ca0a1571f9956d8b7b9876ba40e"
+    },
+    {
+      "old": "backend/application/modules/announcement/ports/IAnnouncementRepository/IAnnouncementRepository.h",
+      "new": "backend/application/modules/announcement/ports/IAnnouncementRepository/IAnnouncementRepository.h",
+      "beforeSha256": "7c5dbe7740d7ab03784c7fd33d58d9daf9412467910cab8fb37d90797e8dcb56",
+      "afterSha256": "b26c8ddde9104ad0a39aa24c820fc59176c375ca6c168d4498bb217f8b4ecb9a"
+    },
+    {
+      "old": "backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.cpp",
+      "new": "backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.cpp",
+      "beforeSha256": "9b47f13f35cc69f45bc28056b8bf41c824967f447474110ee9a982c9785ea0a6",
+      "afterSha256": "763876bcc200c4f900d2fb0380c678777cd15b80656223f0970bc2043e0e98b9"
+    },
+    {
+      "old": "backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.h",
+      "new": "backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.h",
+      "beforeSha256": "28117609c59fcc0d203fde6c5a9452cb9735050aaa4b465bdd4dc30c999261d0",
+      "afterSha256": "7aad3575d17540c1c47bf9551c81924c6e1d6a74f37e1ae3b2dda206ed11b70b"
+    },
+    {
+      "old": "backend/application/modules/assistant/domain/PrivateArchive/PrivateArchive.h",
+      "new": "backend/application/modules/assistant/domain/PrivateArchive/PrivateArchive.h",
+      "beforeSha256": "296527d0fad9d722d0e13b7b884f5727f39acba5fac69bacd5f4250c83e004d4",
+      "afterSha256": "f3eda43824928dd5e21f2962b986db65d89d1c6cfe2b3c790c999365defc837d"
+    },
+    {
+      "old": "backend/application/modules/assistant/ports/IAssistantModels/IAssistantModels.h",
+      "new": "backend/application/modules/assistant/ports/IAssistantModels/IAssistantModels.h",
+      "beforeSha256": "99f300aa5a5722aa365687647082ce0d65ddb318c6ef3c6ea0895c86da402b00",
+      "afterSha256": "6021e2bb36d55e9b2aa8aff9d8f4bf8d416031e11e2e99e10c19fe59d2626ec6"
+    },
+    {
+      "old": "backend/application/modules/assistant/transport/AssistantModelsHttp/AssistantModelsHttp.h",
+      "new": "backend/application/modules/assistant/transport/AssistantModelsHttp/AssistantModelsHttp.h",
+      "beforeSha256": "2d0dbc843feffe02b5ac90386d8e6661fd2a340cb3f84999443ff5e3b02966d0",
+      "afterSha256": "6389b90f657327e6b1c7c32391244711ef4c6cdfae4da1432b3ed309c6930dc8"
+    },
+    {
+      "old": "backend/application/modules/assistant/transport/PrivateArchiveHttp/PrivateArchiveHttp.h",
+      "new": "backend/application/modules/assistant/transport/PrivateArchiveHttp/PrivateArchiveHttp.h",
+      "beforeSha256": "7a2b7f7499e79189102382f34c0a8dd924c922e3da1e902aa976a25f4c2f86ed",
+      "afterSha256": "58d6a0453e949e32e494d6edaafabcb333c61e539deb4bd7a53c18456605d93b"
+    },
+    {
+      "old": "backend/application/modules/chat/application/ChatService/ChatService.h",
+      "new": "backend/application/modules/chat/application/ChatService/ChatService.h",
+      "beforeSha256": "d8572c235c1bbec0073a181a8e94bdd146b798bea35f4c03ed80eefa62073ab1",
+      "afterSha256": "b89557c3d6d2895fed8a846c15b67bedb26a23822372d69b81e88de6515f9a87"
+    },
+    {
+      "old": "backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.cpp",
+      "new": "backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.cpp",
+      "beforeSha256": "f024c9c96a7aa0953dc1c72a751725618276513f84fa1c68f5b337ff6eda047e",
+      "afterSha256": "cc5679f86ab601fa5c5ffb986b7e89ca3d06178139c224ee85b5c9e4d049e3dc"
+    },
+    {
+      "old": "backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.h",
+      "new": "backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.h",
+      "beforeSha256": "0dc827eee51a7f2b1688551ecfc6d801f1d6366548ef3eb763b9eb049f216af1",
+      "afterSha256": "fad015b12846d4e68c98da72fddd058a736d9106ca3e7e8885a78877b0dcd6a7"
+    },
+    {
+      "old": "backend/application/modules/chat/application/RealtimeRelay/RealtimeRelay.h",
+      "new": "backend/application/modules/chat/application/RealtimeRelay/RealtimeRelay.h",
+      "beforeSha256": "9058346f87dc416a3210df1ea8f5a6870b208ed902d642742cddf2df6aadffd6",
+      "afterSha256": "6df28b514158b2b46e850d1b05566a4724097857f33cafb7b842c27dbb74b3b3"
+    },
+    {
+      "old": "backend/application/modules/chat/application/WorkspaceRequests/WorkspaceRequests.h",
+      "new": "backend/application/modules/chat/application/WorkspaceRequests/WorkspaceRequests.h",
+      "beforeSha256": "ce256fffc3110522db0104738c1c8ed09c842fded247234f05ec8e423b56e4f8",
+      "afterSha256": "8e06561eff05f2d4f7e41d85150b2f6cba94f16db52b0d87c1740848effaa9e1"
+    },
+    {
+      "old": "backend/application/modules/chat/bootstrap/ChatWorkspaceModule/ChatWorkspaceModule.h",
+      "new": "backend/application/modules/chat/bootstrap/ChatWorkspaceModule/ChatWorkspaceModule.h",
+      "beforeSha256": "edc11e300be7f0146c24bde7f468f6ab7854fbb8cffa151eb763795db2157c26",
+      "afterSha256": "27494f4c99171ea349c5cb181e17f21f553a8f5027d8db7bcc1734fa2fbc1ac2"
+    },
+    {
+      "old": "backend/application/modules/chat/domain/WorkspaceTypes/WorkspaceTypes.h",
+      "new": "backend/application/modules/chat/domain/WorkspaceTypes/WorkspaceTypes.h",
+      "beforeSha256": "31218fa22b12f73593795bea88005e5c2f78a0d9e8c115866301befdc6596abb",
+      "afterSha256": "8d42013fd8ae52996aa3d182f911699a1e44bc68ff6b5f7fffb8710a59b87c0d"
+    },
+    {
+      "old": "backend/application/modules/chat/ports/IRealtimeRelayRepository/IRealtimeRelayRepository.h",
+      "new": "backend/application/modules/chat/ports/IRealtimeRelayRepository/IRealtimeRelayRepository.h",
+      "beforeSha256": "e90a6130ff36fac42ad9644ed7cb59b60fad40530ce51b503c4c2259444e2781",
+      "afterSha256": "a638aa97ffd9b707fcf692124d72adda8e5e318f27f6f1c281c9c068ee97dbad"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp",
+      "new": "backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp",
+      "beforeSha256": "72c7e42b0a12ef46914b393f2ef0b38168779ff79a9d80169ff6219ed038cd0e",
+      "afterSha256": "c8384b3b6fbe94e744f5017bf32133f8bd54306a6115b744b8f39892aa0873f0"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.cpp",
+      "new": "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.cpp",
+      "beforeSha256": "7cbaf441aec992abb98618fa9ce02967a58a68678c3833de1b71b6a26b6d3185",
+      "afterSha256": "7c0707a2a82f376d43518ecb16602f62bd3fc0e51d1c2067063e4bcf074cbed2"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.h",
+      "new": "backend/application/modules/chat/transport/ConversationsHttp/ConversationsHttp.h",
+      "beforeSha256": "2648f013de84017971fe63330a9ff912efb11cff54ebdd611ca75626322a573e",
+      "afterSha256": "4db12424f1017450713c4b7a39b7ef1ecbb275256db3d72b54768b11083f8475"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp",
+      "new": "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.cpp",
+      "beforeSha256": "5dc4b2dddf0f76ba1b769e3cb4db94237973d9d97e9753892579cb068e056179",
+      "afterSha256": "6d282811b46c8ddafb785e76177395f2c2a4b50ed7c12a775d4906df2e368609"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.h",
+      "new": "backend/application/modules/chat/transport/GroupGovernanceHttp/GroupGovernanceHttp.h",
+      "beforeSha256": "9891a2d5f9680cc90c9d4030b89344730242efe4a21bb8bcf9b2bcde05786cd2",
+      "afterSha256": "7fd671566b9bae617ba263bbff8acc6e2dd4c23a4aec4f6c1e62a35aeefda8a9"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp",
+      "new": "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.cpp",
+      "beforeSha256": "48074afbc07a371e19dd1837898360e3e157afa63085ac8d254185d53ac2ba24",
+      "afterSha256": "65d2404a072f5d90bb1d66d705332b36bc59babc3687d782c38097306e3de6e5"
+    },
+    {
+      "old": "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.h",
+      "new": "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.h",
+      "beforeSha256": "82cb8a7fe2956e58725ba8c45cccc1494769fd20b8c922d1587a625d40a71292",
+      "afterSha256": "8809e376d0dd2d94c67027b1f523cba1a0674afbaf8faea217db032fcc9c9984"
+    },
+    {
+      "old": "backend/application/modules/contacts/application/SocialService/SocialService.h",
+      "new": "backend/application/modules/contacts/application/SocialService/SocialService.h",
+      "beforeSha256": "43c19ec4bc98493d7d456c5b54b952edaecc52dc2380b1d2d5daf4a4cfc09dda",
+      "afterSha256": "b181009761658d6301ac96c2b87e98ce9c5fb577a3f5b429a7f4fcb2eefea79a"
+    },
+    {
+      "old": "backend/application/modules/contacts/application/UserDirectoryService/UserDirectoryService.cpp",
+      "new": "backend/application/modules/contacts/application/UserDirectoryService/UserDirectoryService.cpp",
+      "beforeSha256": "7ce3802a6910917f7ed26033fdea9079aedc68a77b7a82c383b35b8930ff0d67",
+      "afterSha256": "d3b7aa92be4a0dcf5297145bc6e02a3acffe1f84820f9462fe5c14bb096de94d"
+    },
+    {
+      "old": "backend/application/modules/contacts/application/UserDirectoryService/UserDirectoryService.h",
+      "new": "backend/application/modules/contacts/application/UserDirectoryService/UserDirectoryService.h",
+      "beforeSha256": "952b9903f4e7c7ddbf4a635bb245d76f9be3e87bdc595ce480a04c7368effd52",
+      "afterSha256": "5babb235a1f4c3dda891d749fbbd45dabfeabb0042d2478a20435a4ae0c615b9"
+    },
+    {
+      "old": "backend/application/modules/contacts/domain/ContactDirectoryTypes/ContactDirectoryTypes.h",
+      "new": "backend/application/modules/contacts/domain/ContactDirectoryTypes/ContactDirectoryTypes.h",
+      "beforeSha256": "cf5b6a7d6fb14871eabda7e479607f41f7805e690f20c6feccfff958cd1e5ab9",
+      "afterSha256": "0533c301b6680b009b81af85624fbe0c3fc7a4ed1ccc2040acf7b32bab70514b"
+    },
+    {
+      "old": "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp",
+      "new": "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.cpp",
+      "beforeSha256": "631c259b3de3658a7b43ee6d426abdb20ad1e3caa75320e5f6368b93b41966ca",
+      "afterSha256": "82b439af5cbf8ed4768eb88716639922c0cc278486e132380fdcd10376321d73"
+    },
+    {
+      "old": "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.h",
+      "new": "backend/application/modules/contacts/transport/ContactsHttp/ContactsHttp.h",
+      "beforeSha256": "c462a950c561ac5a9cdf00857b8a987727ce8689b4f561f6e8180f91381d523e",
+      "afterSha256": "4a4b4022c0748a053389897ce8f2005bfd886c8b8d00a1a3bcf9bdec0e61a093"
+    },
+    {
+      "old": "backend/application/modules/files/application/FileService/FileService.h",
+      "new": "backend/application/modules/files/application/FileService/FileService.h",
+      "beforeSha256": "ec75d62e9649c5e46f34405807d0ff23664960efdeab8029fe8341cec70cc2f7",
+      "afterSha256": "26a08a6f2eb463b5850c335c0d7ef82e3cf94da3da4a5e568663d7e6ebdbe788"
+    },
+    {
+      "old": "backend/application/modules/messaging/application/MessagingService/MessagingService.cpp",
+      "new": "backend/application/modules/messaging/application/MessagingService/MessagingService.cpp",
+      "beforeSha256": "4540083059261fa61e3657753e52c4e74d6f09ef83603a180de50e5ea5dd51a6",
+      "afterSha256": "ba2440ef0d922b0e60d8f3bb57e42c42472714d895ccf3d7e50910298258ade6"
+    },
+    {
+      "old": "backend/application/modules/messaging/infrastructure/ChatOutboxWriter/ChatOutboxWriter.cpp",
+      "new": "backend/application/modules/messaging/infrastructure/ChatOutboxWriter/ChatOutboxWriter.cpp",
+      "beforeSha256": "08c3ec485709e56de7346ae0ecdeedff2e59072b95aa9719a55d25c78c1b0406",
+      "afterSha256": "721774cb2c920380c53dcd324d5c3302576ef8b5903b785891a6f286ab6f95e3"
+    },
+    {
+      "old": "backend/application/modules/messaging/infrastructure/PostgresEventPipeline/PostgresEventPipeline.cpp",
+      "new": "backend/application/modules/messaging/infrastructure/PostgresEventPipeline/PostgresEventPipeline.cpp",
+      "beforeSha256": "28ffdc947b46349cd4d9a2a7b0fbf1cb4e3e40645ac2b8cd79b4d96a56c8ceac",
+      "afterSha256": "f4ca8059954dcab1f55a4078cca479a876681eefc4e5e5ff9750a35863b292be"
+    },
+    {
+      "old": "backend/application/modules/messaging/infrastructure/PostgresEventPipeline/PostgresEventPipeline.h",
+      "new": "backend/application/modules/messaging/infrastructure/PostgresEventPipeline/PostgresEventPipeline.h",
+      "beforeSha256": "8f8d2f78a7ec3b612a0a2f29defd91605ee9d9c1d83d02168fa4469477749311",
+      "afterSha256": "154ef3d29f1a846a656f7b2e0d5323016a327e879db1a8eebc51c2a7baf6170c"
+    },
+    {
+      "old": "backend/application/modules/messaging/infrastructure/PostgresEventWriter/PostgresEventWriter.cpp",
+      "new": "backend/application/modules/messaging/infrastructure/PostgresEventWriter/PostgresEventWriter.cpp",
+      "beforeSha256": "5619da6996fe3a935f0ce21295da11d61f3eb4d409fbff174671ad7e35e83687",
+      "afterSha256": "a98ae4100f32136e576b26e7d183dd0fcd734d8453ab4e8b6fc10430ed6816fe"
+    },
+    {
+      "old": "backend/application/modules/messaging/ports/IMessagingOperations/IMessagingOperations.h",
+      "new": "backend/application/modules/messaging/ports/IMessagingOperations/IMessagingOperations.h",
+      "beforeSha256": "4fcd9849e59fcec9f8ddf577cf9364ea7393a1507a1857fae80e12139127bcac",
+      "afterSha256": "5dc1366050865ae02754ed69a47d48d737a08203751085c6d7c6a4b42152188e"
+    },
+    {
+      "old": "backend/application/modules/moderation/application/ModerationService/ModerationService.cpp",
+      "new": "backend/application/modules/moderation/application/ModerationService/ModerationService.cpp",
+      "beforeSha256": "187ce3f85b76615c590d697ec4f417fe8c3ba88f70d8a8d565a8919d0c4f0676",
+      "afterSha256": "5004013ea789ae3b924db8a53991f621c8aa445a411a97f55b648d0aceed6e85"
+    },
+    {
+      "old": "backend/application/modules/moderation/ports/IReportRepository/IReportRepository.h",
+      "new": "backend/application/modules/moderation/ports/IReportRepository/IReportRepository.h",
+      "beforeSha256": "0366c0fc5ef755275401cf0e8e7f7f2d31c40d2705ae8040649c95857294214c",
+      "afterSha256": "495b0dcb4930339429e22f1db30ebb0b8c7cff042e0d57aa728c2076c9e095f2"
+    },
+    {
+      "old": "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h",
+      "new": "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h",
+      "beforeSha256": "52575827eedbbb15ab43db5b5459b003d597ddc5bf433b458745b46d0d5ff0a8",
+      "afterSha256": "98bb88eb0ea4b7228cef5f2ea317067afcd10ecf01c34a8c5280025b5b5f69b3"
+    },
+    {
+      "old": "backend/application/modules/ranking/domain/Ranking/Ranking.h",
+      "new": "backend/application/modules/ranking/domain/Ranking/Ranking.h",
+      "beforeSha256": "e7b95470b7970161fd79714d14c6d1e5a67cafc579f30435d9fed65d03a35c60",
+      "afterSha256": "1cf4f558621003a6e7e420de0a9a84b3c5c2949e739c44c4f70dadddb4845e92"
+    },
+    {
+      "old": "backend/application/modules/shared/BusinessContext/BusinessContext.h",
+      "new": "backend/application/modules/shared/domain/BusinessContext/BusinessContext.h",
+      "beforeSha256": "6188ef3671d9bac6157f9f50268052a17fe2bdab4360b50fa92b6c2b4bba2b7c",
+      "afterSha256": "6188ef3671d9bac6157f9f50268052a17fe2bdab4360b50fa92b6c2b4bba2b7c"
+    },
+    {
+      "old": "backend/application/modules/shared/TextRules/TextRules.h",
+      "new": "backend/application/modules/shared/domain/TextRules/TextRules.h",
+      "beforeSha256": "b6b0bdc453cd4ddb1f3e1eceed7185753e4ee8ce6d39316e42cd06179e25eb43",
+      "afterSha256": "c7b9c538c59c652b81a55e47e09febb3117b7ef02e294e728e34250b739b1560"
+    },
+    {
+      "old": "backend/application/modules/shared/infrastructure/SqlContext/SqlContext.h",
+      "new": "backend/application/modules/shared/infrastructure/SqlContext/SqlContext.h",
+      "beforeSha256": "497fef0f6a2409e36eaf051267fd957e7e24d61930a6db45ff06f2ee6d16ed98",
+      "afterSha256": "5cf4605df789edd992e72fd272f455496e0917d9b05ee19bbc5d212055be6845"
+    },
+    {
+      "old": "backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h",
+      "new": "backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h",
+      "beforeSha256": "cd9b478d5d423410fec089f15d28325237158943b49a763861cbdf2a7a4cc5fa",
+      "afterSha256": "e35cb40aace21f955c96d71fdf68d6306b0e48fce8b70e5931a1afffb19f9084"
+    },
+    {
+      "old": "backend/application/modules/tree/application/TreeMediaService/TreeMediaService.h",
+      "new": "backend/application/modules/tree/application/TreeMediaService/TreeMediaService.h",
+      "beforeSha256": "cd6b54264b27ec595e11ec879c4efd475ddba27bf0c24632c93266ac4e5adb02",
+      "afterSha256": "dc5f5e02de7c9e16b3a9d4d4b1dbe07866f2370e56b48d3865a7cfd0ba616dbd"
+    },
+    {
+      "old": "backend/application/modules/tree/application/TreeService/TreeService.cpp",
+      "new": "backend/application/modules/tree/application/TreeService/TreeService.cpp",
+      "beforeSha256": "3464d10cfcae40f37e244c9580e5019860e11c38ec4d0949d64babe0c4e5f4e1",
+      "afterSha256": "d1e175b94e05a255511b47bf445fb648e3a41715d1a76c0becd0b71678277d33"
+    },
+    {
+      "old": "backend/application/modules/tree/application/TreeTrainingService/TreeTrainingService.cpp",
+      "new": "backend/application/modules/tree/application/TreeTrainingService/TreeTrainingService.cpp",
+      "beforeSha256": "933b012441a8a18f470df84effb96f24dad02589211ee742acda2bd971a04441",
+      "afterSha256": "a441eb36f9bca6911f8426ce6a58407c0e1e5f6beba126992344b68ef1c6e8d5"
+    },
+    {
+      "old": "backend/application/modules/tree/domain/TreePost/TreePost.h",
+      "new": "backend/application/modules/tree/domain/TreePost/TreePost.h",
+      "beforeSha256": "66e163ee2afbbab9ecbff6a17c9f89c999cfec7acc82ab3b1a730e1bf3e13aeb",
+      "afterSha256": "40904c5f8f9f052aa9991c427bd2908c897e31e24b2f160b91bfb9bafdb0b578"
+    },
+    {
+      "old": "backend/application/modules/tree/domain/TreeReply/TreeReply.h",
+      "new": "backend/application/modules/tree/domain/TreeReply/TreeReply.h",
+      "beforeSha256": "3268ba5443521fd032b90598d7a1470bf1c56467167806cbfad19d5a0da7c0f9",
+      "afterSha256": "e7631034793c1dec1a6a551ed6c02876c9ec9925dd93a47f8ce954c5a0b48aee"
+    },
+    {
+      "old": "backend/application/modules/tree/ports/ITreeTrainingRepository/ITreeTrainingRepository.h",
+      "new": "backend/application/modules/tree/ports/ITreeTrainingRepository/ITreeTrainingRepository.h",
+      "beforeSha256": "58a9068e51b27cd5df6036de946f5e0ce42754a385270b29a55cbfddd0864e48",
+      "afterSha256": "f8697e7fa630ac50ebfaa6bd40ab6e191e7b9f80844aec407491f83d9a9cc698"
+    },
+    {
+      "old": "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.h",
+      "new": "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.h",
+      "beforeSha256": "da3f39925150c801ab59f5a65c3dce44c960cf4e4cf3b8ed2413cee426b08825",
+      "afterSha256": "64308e387361d578b938794191e3aee7d6aa234dc323228ca3d9e3048842e819"
+    },
+    {
+      "old": "backend/application/ports/IAiGenerationAuditRepository/IAiGenerationAuditRepository.h",
+      "new": "backend/application/modules/ai/ports/IAiGenerationAuditRepository/IAiGenerationAuditRepository.h",
+      "beforeSha256": "270353d693c9ebc4984d360aee0ec4bff5ccb066a1f09d0d8141649e6cc484c8",
+      "afterSha256": "6ea27d83ba8da1ce77c61540d2051f04d979ca18ea40e32bc5230e07be469dc6"
+    },
+    {
+      "old": "backend/application/ports/IConversationRepository/IConversationRepository.h",
+      "new": "backend/application/modules/chat/ports/IConversationRepository/IConversationRepository.h",
+      "beforeSha256": "90d61a283c1d0748f14de0094fe6010212f12ea0cbffda6a86ee4c6698c1bf90",
+      "afterSha256": "7480624ac9199324878e4f6b15305ae2dbd644f3dfe148f7b223bfdbbb743ddd"
+    },
+    {
+      "old": "backend/application/ports/ICredentialCodec/ICredentialCodec.h",
+      "new": "backend/application/modules/accounts/ports/ICredentialCodec/ICredentialCodec.h",
+      "beforeSha256": "de33db3e42ed971bd0d7d1339c787c7f6abaa7ee865816c8bc1e88468c2a9897",
+      "afterSha256": "5a9383fcef051c6449f8ee17e8e2f5c1a8cae807968e2a414827b775cd035d25"
+    },
+    {
+      "old": "backend/application/ports/IDatabase/IDatabase.h",
+      "new": "backend/application/modules/shared/ports/IDatabase/IDatabase.h",
+      "beforeSha256": "e6b24357cf3c0d3c6fc8e577a7b5c57836deb2a08b596936afe204458ce2480b",
+      "afterSha256": "4c3e19c9a9e8fe4cbc597c43eede0d68664736c628ebdfe685659858f0d1da32"
+    },
+    {
+      "old": "backend/application/ports/IFileRepository/IFileRepository.h",
+      "new": "backend/application/modules/files/ports/IFileRepository/IFileRepository.h",
+      "beforeSha256": "027c73be0421c11903570f526ec16b57d018aa77f5c250c01d15747d0b98f9f3",
+      "afterSha256": "ddbdce5fb6b10baac99b905149e5bb24b3bbd710265e20060675499ef0396b69"
+    },
+    {
+      "old": "backend/application/ports/IFileStorage/IFileStorage.h",
+      "new": "backend/application/modules/files/ports/IFileStorage/IFileStorage.h",
+      "beforeSha256": "542b344bb2f0872ba9668dd572990997feb8c77d00d904a4293f67b26d23ed12",
+      "afterSha256": "bbbd9afb7306001e48a3db7e810a7fd2ea439c2ff4700c1ffc70cb745d5098f5"
+    },
+    {
+      "old": "backend/application/ports/IKnowledgeIndex/IKnowledgeIndex.h",
+      "new": "backend/application/modules/ai/ports/IKnowledgeIndex/IKnowledgeIndex.h",
+      "beforeSha256": "204121495ed02ab3933c499a93585debfa7cdedfe0e5090b010e6c89727d5020",
+      "afterSha256": "b776e3920d4da0bb881496db2f51b6a1314da7773a5374691bf743f783607806"
+    },
+    {
+      "old": "backend/application/ports/IKnowledgeRepository/IKnowledgeRepository.h",
+      "new": "backend/application/modules/ai/ports/IKnowledgeRepository/IKnowledgeRepository.h",
+      "beforeSha256": "82ec2850aae663a0e39f43481ddef4b67ea4948b4bd07e2394b1244eb6bf3694",
+      "afterSha256": "6f0dfc63f797efb762dddf35d7dd9564a81fe8bd02ad3d79eb7ed9faf35230dc"
+    },
+    {
+      "old": "backend/application/ports/ILoginRateLimiter/ILoginRateLimiter.h",
+      "new": "backend/application/modules/accounts/ports/ILoginRateLimiter/ILoginRateLimiter.h",
+      "beforeSha256": "968f9bfb743095ad179778b7cfac71dc06ef3d9e0820e471ed303b312bf79b0f",
+      "afterSha256": "90a7b3ead19516a1182aece2f5997217a86d9b3e4d8d2a50ce6078957f696b68"
+    },
+    {
+      "old": "backend/application/ports/IMessageRepository/IMessageRepository.h",
+      "new": "backend/application/modules/chat/ports/IMessageRepository/IMessageRepository.h",
+      "beforeSha256": "df0473a9c44ae2dbed24411381f49964f7e9dbd3f00cd5fa74cbccf653f9dbb2",
+      "afterSha256": "bfee62f09a1c783892005df5c5b67d8279548da88cc818920cabbafd33712fb8"
+    },
+    {
+      "old": "backend/application/ports/IModelEvaluationRepository/IModelEvaluationRepository.h",
+      "new": "backend/application/modules/ai/ports/IModelEvaluationRepository/IModelEvaluationRepository.h",
+      "beforeSha256": "c64bef2879fd1f732e3a4ffdd6ffb9b0ec89a5a98f25fedb26e1be64c5840094",
+      "afterSha256": "9c1dbfd333b28e150d102c8843e79a00c6291fd323caf080eb99f5389e0e2f88"
+    },
+    {
+      "old": "backend/application/ports/IModelQualityGate/IModelQualityGate.h",
+      "new": "backend/application/modules/ai/ports/IModelQualityGate/IModelQualityGate.h",
+      "beforeSha256": "c0bad6dec869e5a94f5ac471874fa44b644a1c8593744018ccf774663c751368",
+      "afterSha256": "3a2a9886400b6a2c4a4a7b28509bcb14069a6351892a423969fb8ccc41b0c024"
+    },
+    {
+      "old": "backend/application/ports/IModelRepository/IModelRepository.h",
+      "new": "backend/application/modules/ai/ports/IModelRepository/IModelRepository.h",
+      "beforeSha256": "2a5da7f7199896d858b92c5b872da35b26df90cfcbedefe9cf6eeab7bb6ec5ef",
+      "afterSha256": "5b6f82d8d9f2809c4256aec9f05c871863aae0e060f359b78d755344caaeffa2"
+    },
+    {
+      "old": "backend/application/ports/IOutboxRepository/IOutboxRepository.h",
+      "new": "backend/application/modules/messaging/ports/IOutboxRepository/IOutboxRepository.h",
+      "beforeSha256": "addcd29c4002634883c9b402fe605f43c7464ae291943caa1dd51de7d956cdd4",
+      "afterSha256": "f27583c197bf3a96622eda10a50e6e3ffa9e952f8cd45aa6ebe833d71ddc9d35"
+    },
+    {
+      "old": "backend/application/ports/IRagContextProvider/IRagContextProvider.h",
+      "new": "backend/application/modules/ai/ports/IRagContextProvider/IRagContextProvider.h",
+      "beforeSha256": "2befe793f0bc6c09e2fc418e29fb1d60f8b74a4ddd239235ee448bffe75f4d19",
+      "afterSha256": "8ad4720b06ddf2f3b283db9c179e28db7b328c155c19304117e94bcd4f2d15a2"
+    },
+    {
+      "old": "backend/application/ports/ISessionRepository/ISessionRepository.h",
+      "new": "backend/application/modules/accounts/ports/ISessionRepository/ISessionRepository.h",
+      "beforeSha256": "9e92b4e71cbddc6c0b7e0e9895447dc7b98661cfc1a9768092b0a5ef21988319",
+      "afterSha256": "d3e6fc4ea01ace44629bc4e743e5112daa83855e3c3b7ce0c3b29bc3cbba25e5"
+    },
+    {
+      "old": "backend/application/ports/ISocialRepository/ISocialRepository.h",
+      "new": "backend/application/modules/contacts/ports/ISocialRepository/ISocialRepository.h",
+      "beforeSha256": "43f21789b9a05c88b11c1c81aa1476a3e914cde32b4c0ec709daf13c0438d4d3",
+      "afterSha256": "edc0dd3d352ebfa3b2d68a4dd1e98d55468d21f31467b06636bb88dbbe5841ff"
+    },
+    {
+      "old": "backend/application/ports/ITrainingRepository/ITrainingRepository.h",
+      "new": "backend/application/modules/ai/ports/ITrainingRepository/ITrainingRepository.h",
+      "beforeSha256": "033d002045c01fe481a3010fda3687339ff37fee13e31973659cdfdaa0f1aa89",
+      "afterSha256": "57d908d3af6bb40d086961159d2d30966ebf3935f806e8d7502971fabd2ece1b"
+    },
+    {
+      "old": "backend/application/ports/ITransaction/ITransaction.h",
+      "new": "backend/application/modules/shared/ports/ITransaction/ITransaction.h",
+      "beforeSha256": "c0fe6d5525f3d8685f9fe1f4087a21f1f4eef62bbdfd6712bcc43be6a277d975",
+      "afterSha256": "2a5292207bd0827b0464de8a4bc4ad129e0ba18b9bbd01368fda809536bba7da"
+    },
+    {
+      "old": "backend/application/ports/IUserRepository/IUserRepository.h",
+      "new": "backend/application/modules/accounts/ports/IUserRepository/IUserRepository.h",
+      "beforeSha256": "ed0c58065d14a8b03033c8bbd374f39536410c4cccd23b9d442dd5646c409731",
+      "afterSha256": "bea4cf977952e8d1eb42d9534f4a6db268c19e09144b0953f6fb89ffc0e5bee1"
+    },
+    {
+      "old": "backend/application/ports/Ports/Ports.h",
+      "new": "backend/application/modules/shared/compatibility/Ports/Ports.h",
+      "beforeSha256": "c2fcad24d7593772864ebce538ef84afcf376476f7d9f798a5cf8e52c962c157",
+      "afterSha256": "21bb9b368f59be5fa0c9fae97c430f0b960858bba8154cc81154283cc60bb261"
+    },
+    {
+      "old": "backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.cpp",
+      "new": "backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.cpp",
+      "beforeSha256": "6e2916371864a28a3d37ffedad80b80c3da16fc02c71a448b0579c6c0024bb94",
+      "afterSha256": "631382fc80b5217e7e03666f5b4f0596373b73bb31ef1e0997b1a0ab4955ae62"
+    },
+    {
+      "old": "backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.h",
+      "new": "backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.h",
+      "beforeSha256": "d888a946043f41b0bf48b05b714840f78bfd08d55138362dc2d429a5ef356f1e",
+      "afterSha256": "3b778aff10edf678e07d3bc82b3b6be607e0bc4d2dbc1631ae65ccf2f9ba7271"
+    },
+    {
+      "old": "backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp",
+      "new": "backend/application/modules/accounts/infrastructure/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp",
+      "beforeSha256": "afabb890aa05f0a590df6aa77f5013e99e703caac61be52a252e23e1eb5ab9d2",
+      "afterSha256": "e1c1267889d7d2e471467ad58dd18b34ea7dc5cfbcee33581b626132e3f35dba"
+    },
+    {
+      "old": "backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h",
+      "new": "backend/application/modules/accounts/infrastructure/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h",
+      "beforeSha256": "7b8de9356158aee59926b2f34ab6a7d67f9950b0f2db7cb09cf0955ced90a911",
+      "afterSha256": "28045cfadd8b4a6e8c6341d797d72cf8c9370098106edd71f9cfd8854fa495f3"
+    },
+    {
+      "old": "backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp",
+      "new": "backend/application/modules/accounts/infrastructure/SodiumCredentialCodec/SodiumCredentialCodec.cpp",
+      "beforeSha256": "c7d8173591da29abd5edd579c5e8750f3a34ed3595b04660af8c270fb6fd17ef",
+      "afterSha256": "9db02becae14957e6a74249c9c7d31162b9b565685e0890ad560ee47744d8daa"
+    },
+    {
+      "old": "backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.h",
+      "new": "backend/application/modules/accounts/infrastructure/SodiumCredentialCodec/SodiumCredentialCodec.h",
+      "beforeSha256": "03af49638fa2800aaa4c90d123cf342f36a17b86dd85f29f675b9634b650da29",
+      "afterSha256": "fb31c3fb81153b6645f466470140a6ea40a1decb1bf061f1e77c6417fcb944a1"
+    },
+    {
+      "old": "backend/application/storage/InMemoryStore/InMemoryStore.h",
+      "new": "backend/application/storage/InMemoryStore/InMemoryStore.h",
+      "beforeSha256": "3888347aa104a04f28154deb1c0285650afa54d1c906dc3017883bb259548e47",
+      "afterSha256": "fb46bd67ac1630da416f8b7f6b0e1f72a07a8b49a9a4307d8ed7cc37d0ac0e64"
+    },
+    {
+      "old": "backend/application/storage/files/LocalFileStorage/LocalFileStorage.h",
+      "new": "backend/application/storage/files/LocalFileStorage/LocalFileStorage.h",
+      "beforeSha256": "49010ffd807ad39535a11bf8959fbff67b87ef785f50022ca3603a158be49b7c",
+      "afterSha256": "2eb2647921b857fbda6356a38e1310f41e3a2ea0ae7c4035593125eba415563f"
+    },
+    {
+      "old": "backend/application/storage/memory/MemoryState/MemoryState.h",
+      "new": "backend/application/storage/memory/MemoryState/MemoryState.h",
+      "beforeSha256": "a29213cb921c036ff8281d71cb09dcc5d5e02352366e005e752c551e39953b44",
+      "afterSha256": "efe6798b2178fd2a93e13e0a79f03e14ccf8483e0bb139086bd3ae4b8b989d5c"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresAccountRepository/PostgresAccountRepository.h",
+      "new": "backend/application/storage/postgres/PostgresAccountRepository/PostgresAccountRepository.h",
+      "beforeSha256": "e395f15479ffd6204b76a48dce824f02975d41f8f103902cf72b3d8a56af5b7a",
+      "afterSha256": "066b08dc8bfa62b35d21d102c0b1ecee772fbd9dc06603b01acbe96f3dc58b00"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresContactsRepository/PostgresContactsRepository.h",
+      "new": "backend/application/storage/postgres/PostgresContactsRepository/PostgresContactsRepository.h",
+      "beforeSha256": "9ab362c3f27b70cf78092aa9f292f8c6ea24b18152b84b0b697ae5f0819c2219",
+      "afterSha256": "5fd6b10ece35639bd20ec8ffbdea66b543eef7c0230b732ff8dde625e34a1ea8"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresConversationRepository/PostgresConversationRepository.h",
+      "new": "backend/application/storage/postgres/PostgresConversationRepository/PostgresConversationRepository.h",
+      "beforeSha256": "ee4b03c19dd85be2b15a42582fdf1a90b04e3962437ec122711f9384866ff773",
+      "afterSha256": "381ff8d2f04b16ce03d6e0bbe4148dced607083442e0cc61de3fc0c4fbb9b792"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresEvaluationRepository/PostgresEvaluationRepository.h",
+      "new": "backend/application/storage/postgres/PostgresEvaluationRepository/PostgresEvaluationRepository.h",
+      "beforeSha256": "251fb56e4c1a2766de60a8980ac4e595b863a951939bc9b5515c5da85006b81f",
+      "afterSha256": "6335d1d542dcf5372276d9e05502c6d45be310e675be11e6a888cd3a1aad4885"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresFileRepository/PostgresFileRepository.h",
+      "new": "backend/application/storage/postgres/PostgresFileRepository/PostgresFileRepository.h",
+      "beforeSha256": "f69192458215675f964e4c320cc5ad8edf55ba31191ed3f551614062c0f89f1f",
+      "afterSha256": "786e0f3cd6e57421de1cdb2566617e5513b9b3623a2ab7bf874a1b1a44a8db8a"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresGenerationAuditRepository/PostgresGenerationAuditRepository.h",
+      "new": "backend/application/storage/postgres/PostgresGenerationAuditRepository/PostgresGenerationAuditRepository.h",
+      "beforeSha256": "2ffc2446f433babd237d34a6c47c241a611c5723d5127524f609d571da3ab7f1",
+      "afterSha256": "94501470dce8ff6db06669830e862f93ab3c3b9136aab939597688344dd7d73c"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresKnowledgeRepository/PostgresKnowledgeRepository.h",
+      "new": "backend/application/storage/postgres/PostgresKnowledgeRepository/PostgresKnowledgeRepository.h",
+      "beforeSha256": "2ee15c7c61a6ce60ebfa88a776a72560f2994a451842aabd1a2be941e1816ab4",
+      "afterSha256": "64c76146b4c82c3bf412c607da89b93d08ac298869870e91fd10cb75223e262d"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.h",
+      "new": "backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.h",
+      "beforeSha256": "2ef719201a9664088c207b9d5ffebbd8d197eca0879631fa9716a704f86968dc",
+      "afterSha256": "6a02aa7e186f2dcdb00671898d516335f85d3314beca8003cd89bd80ec060486"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresMessageWriteRepository/PostgresMessageWriteRepository.h",
+      "new": "backend/application/storage/postgres/PostgresMessageWriteRepository/PostgresMessageWriteRepository.h",
+      "beforeSha256": "425841fad6e713017d75adefd4edcb0c0c3483bba58c97e10720663a8e666d23",
+      "afterSha256": "59c988839945fcb6ec7e6b4fe44ff8820ee2d373fdf3da57c16be30817bef900"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresModelRepository/PostgresModelRepository.h",
+      "new": "backend/application/storage/postgres/PostgresModelRepository/PostgresModelRepository.h",
+      "beforeSha256": "187385592ca5c7849a158c35654e96ffdd667e4c14e1608253256f1f44d9de31",
+      "afterSha256": "a2cf472049732ebe6334d513bcc3813a6a456ba80c483bed6a883bf9372250d6"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresOutboxRepository/PostgresOutboxRepository.h",
+      "new": "backend/application/storage/postgres/PostgresOutboxRepository/PostgresOutboxRepository.h",
+      "beforeSha256": "b7a39c07bf95139e1bf51fee41283e5b0d45fc986b2e1bcf072f6f0c7b4f9348",
+      "afterSha256": "4b314baca4ebc683bff364a592a78f09b4c10b82eac870d2b19a92fd6adfef06"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresOutboxWriter/PostgresOutboxWriter.h",
+      "new": "backend/application/storage/postgres/PostgresOutboxWriter/PostgresOutboxWriter.h",
+      "beforeSha256": "029a78b4cc876472eaae1e772b29cd2368932115d661dbadef0e796c6e3da949",
+      "afterSha256": "56de7e2b74617bb6a2904cb0825f859bfecc6c4df74482c205367711e9916bb1"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresSql/PostgresSql.h",
+      "new": "backend/application/storage/postgres/PostgresSql/PostgresSql.h",
+      "beforeSha256": "56aff5b4fe40e26718e6b503253e58012d4882377edcaea143cf6de20233d598",
+      "afterSha256": "ae740af1080263d77c2ba7ffeaee9190d1e3339baf518b6d992edfef4f8fdf44"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresStore/PostgresStore.h",
+      "new": "backend/application/storage/postgres/PostgresStore/PostgresStore.h",
+      "beforeSha256": "c0cfc4c1d1a2fd8d91e3c2ca51eff8c861f322cd8e6527776cc497d0292742cd",
+      "afterSha256": "5df5405176c77f1983ce3ca47e8514236dc6f8aad61277be318fe10fd9f5ba6d"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresTrainingRepository/PostgresTrainingRepository.h",
+      "new": "backend/application/storage/postgres/PostgresTrainingRepository/PostgresTrainingRepository.h",
+      "beforeSha256": "e3a2319cb755a26be63e0e4ecf2f725d574f0df3965c19068ace7ca98d8f6365",
+      "afterSha256": "81efe790eaa69aef1e2cfbf14e81a555d64cfb58c464fbc19c42f3f0f242cc56"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresUnitOfWork/PostgresUnitOfWork.h",
+      "new": "backend/application/storage/postgres/PostgresUnitOfWork/PostgresUnitOfWork.h",
+      "beforeSha256": "addade9b00dcf09d6fc7b669c9ac66fafe439f135d4670e84164ec1d0865f7d5",
+      "afterSha256": "3994fdd176605e57f92ede66d8f8aa8d37419c96cf0b09cbc444fe3d34545ab8"
+    },
+    {
+      "old": "backend/application/storage/postgres/PostgresValueCodec/PostgresValueCodec.h",
+      "new": "backend/application/storage/postgres/PostgresValueCodec/PostgresValueCodec.h",
+      "beforeSha256": "28efd22f1eafcd780e9b47b82f365120b4dd3043c8f64f2f514aba112a1f9550",
+      "afterSha256": "31eecf0ee964e94d62ec5f233e7017dc2938466d3afff8e58f81a0f7cd08591e"
+    },
+    {
+      "old": "backend/application/transport/Contracts/Contracts.h",
+      "new": "backend/application/modules/shared/transport/Contracts/Contracts.h",
+      "beforeSha256": "ebcad4f91418df20436eb176b308ff89b2475a39f6134556cd6cdc4df708c790",
+      "afterSha256": "226e7acf45beed2efea3930c7213d955994477f762463081809db65917b2c059"
+    },
+    {
+      "old": "backend/application/transport/FlatJson/FlatJson.cpp",
+      "new": "backend/application/modules/shared/transport/FlatJson/FlatJson.cpp",
+      "beforeSha256": "a3291574e0d81eaf91b33f4223a10d5d685417c388cb318a77ac0a942131bcde",
+      "afterSha256": "4609e007dddc895e07bdf905cc76c18543b4217fa135264fad052fa2039711ee"
+    },
+    {
+      "old": "backend/application/transport/FlatJson/FlatJson.h",
+      "new": "backend/application/modules/shared/transport/FlatJson/FlatJson.h",
+      "beforeSha256": "c5265e3a79b5a7929ba31e7f5cd7eb34c56cc8ac69837f267e43fcd1dce0c994",
+      "afterSha256": "c5265e3a79b5a7929ba31e7f5cd7eb34c56cc8ac69837f267e43fcd1dce0c994"
+    },
+    {
+      "old": "backend/application/transport/http/BusinessHttpCodec/BusinessHttpCodec.h",
+      "new": "backend/application/modules/shared/transport/BusinessHttpCodec/BusinessHttpCodec.h",
+      "beforeSha256": "bb17c3ceeb75005d4985a50ba8e113225f8753594f88a08b56be9978979ef003",
+      "afterSha256": "6939a573a35d3cb7a51f2f8bd604947fa04fd6569629f7e2b4e6f39bd61e9158"
+    },
+    {
+      "old": "backend/application/transport/http/BusinessHttpExecutor/BusinessHttpExecutor.h",
+      "new": "backend/application/modules/shared/transport/BusinessHttpExecutor/BusinessHttpExecutor.h",
+      "beforeSha256": "f330aefd80fa0b72a188e2757acb42e3fc14af9038c9f524a504c7079b24ba78",
+      "afterSha256": "13adac28dc175b1e3a8b948f2b53619ae55e7502cb89ec672e5bc6addf37fb55"
+    },
+    {
+      "old": "backend/application/transport/http/BusinessHttpObservation/BusinessHttpObservation.h",
+      "new": "backend/application/modules/shared/transport/BusinessHttpObservation/BusinessHttpObservation.h",
+      "beforeSha256": "5e2642fb0718e1838700be7d2f5c5062ebac7b4c776f4c61ab66a7a61542621c",
+      "afterSha256": "5e2642fb0718e1838700be7d2f5c5062ebac7b4c776f4c61ab66a7a61542621c"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp",
+      "new": "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp",
+      "beforeSha256": "cc24b47b337d24994b896495e3772bc86d544c8455efb8e22e548dca91d62790",
+      "afterSha256": "e27e2b7d65b6406ea1756bf1a3f3012a0b6618dc1a4f4d9f00fe089dad09687e"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h",
+      "new": "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.h",
+      "beforeSha256": "2e956a2e351c891943df14a11d70029535f01bf688d04a7ce265e4334fa1e897",
+      "afterSha256": "7826fcf7f4233015afebfd9bde5519fb4db96a6e9d235fa63d94e274ad84a843"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp",
+      "new": "backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp",
+      "beforeSha256": "6a7801469763644a24ba636de7d6fe26635bbd4290404100ab2526c7bfc5803c",
+      "afterSha256": "cf3adbce8cc49dd7dae1138e84fb9909b7909cff55e870188b626c62ef469670"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.h",
+      "new": "backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.h",
+      "beforeSha256": "9b39bf94774a849c674735783b76cf63c1207185c707704b0f9a0ec8dd253159",
+      "afterSha256": "b58c57c2e9682fdf4f2445146641c536e7b9a45c1dad7981db5055e292dba859"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp",
+      "new": "backend/application/modules/ai/transport/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp",
+      "beforeSha256": "b3039a02e8eb89173e651004f64f2f6a7cbc453cb90b5f60a833996aa39e7d3c",
+      "afterSha256": "4843f5c247d78b5ed36e02d29a3e88ca8f54fe5548317b231be245713d094eff"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h",
+      "new": "backend/application/modules/ai/transport/Phase11KnowledgeHttp/Phase11KnowledgeHttp.h",
+      "beforeSha256": "475b9f37580e41d60a0a70cf00d05ecac50ce7ae142ce6545b3b22cd9fee85a2",
+      "afterSha256": "3ecad638a267db049b1cc6448ddd19d59594dd490f69e0f7a0987771ae1962c3"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp",
+      "new": "backend/application/modules/chat/transport/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp",
+      "beforeSha256": "927d37249946361af0e24a31378671d25041b464416506af96a1cb6dfd0c659c",
+      "afterSha256": "644618af65afcb1f5fd28b0a2e845fbc9687795c46b8f41e5b2a857b5b3fb9c7"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.h",
+      "new": "backend/application/modules/chat/transport/Phase11SocialChatHttp/Phase11SocialChatHttp.h",
+      "beforeSha256": "4562a80f64e6230a034130725a0285f5f0b2a5811427babbf3b2f290dd2eb86a",
+      "afterSha256": "4562a80f64e6230a034130725a0285f5f0b2a5811427babbf3b2f290dd2eb86a"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp",
+      "new": "backend/application/modules/ai/transport/Phase11TrainingHttp/Phase11TrainingHttp.cpp",
+      "beforeSha256": "0bb4b43cd3b342c4fd73763ffc8920b5e796634b3bf348270e10460090208089",
+      "afterSha256": "dbd7cce8fe4be93f7e415424e71007a741b1066b70c8b3372e88a28150ae8ff9"
+    },
+    {
+      "old": "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.h",
+      "new": "backend/application/modules/ai/transport/Phase11TrainingHttp/Phase11TrainingHttp.h",
+      "beforeSha256": "9a16648f9d84c42aa47b11d9d35348a12cfd8461556df18e7982f494d1e75692",
+      "afterSha256": "296d4a4b0ea527cc9e95f4e3111407db11ddc23e7cbac15536b4c9390029ca06"
+    },
+    {
+      "old": "backend/application/transport/learning/LearningRoutes/LearningRoutes.cpp",
+      "new": "backend/application/modules/learning/transport/LearningRoutes/LearningRoutes.cpp",
+      "beforeSha256": "91f18121c8f4c0e1cc4a1e2142cd60c519482415195ae3bbf78c8848db725229",
+      "afterSha256": "58aa5b13327cccd61f535322de90c4864a07ec089db8f8c1d626fd6fbcc76a0c"
+    },
+    {
+      "old": "backend/application/transport/learning/LearningRoutes/LearningRoutes.h",
+      "new": "backend/application/modules/learning/transport/LearningRoutes/LearningRoutes.h",
+      "beforeSha256": "227bc8c210018a1acc371682f6780359d96a87e68e57044e1da4a5321138aebb",
+      "afterSha256": "227bc8c210018a1acc371682f6780359d96a87e68e57044e1da4a5321138aebb"
+    },
+    {
+      "old": "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp",
+      "new": "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp",
+      "beforeSha256": "f39872fd0cb205ac9767dbe53bb3c7777b49d58aa434cf87dca7c6e9bfa7cac8",
+      "afterSha256": "99b5fbbc83f4100c26004446b03911a26793b8f600b86df1116fdec38bd494bc"
+    },
+    {
+      "old": "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h",
+      "new": "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.h",
+      "beforeSha256": "02d02d1ea80c210194f69d1bf12f449d2d721947a157605ea90ef2ab77255422",
+      "afterSha256": "b85232e4ba0f3a99fedb4a5769dc02a6473d9a8115e67e685be718057a897635"
+    },
+    {
+      "old": "backend/application/transport/serialization/MessageJson/MessageJson.cpp",
+      "new": "backend/application/modules/chat/transport/MessageJson/MessageJson.cpp",
+      "beforeSha256": "551e2a3c102ce36bda8047ed56a2766ddcc98251b9b3b98544c8e8ecc34c3523",
+      "afterSha256": "22bb9f4057683f5326502d6386ae1c3b86884c99296acfb7b5769687e8d36089"
+    },
+    {
+      "old": "backend/application/transport/serialization/MessageJson/MessageJson.h",
+      "new": "backend/application/modules/chat/transport/MessageJson/MessageJson.h",
+      "beforeSha256": "9d16aee531e7cb993242d390126372b83f062e59cdb6287ad014be43624229e1",
+      "afterSha256": "1659cc150802222bbb03a9d2a26a2e07b54b74dc7d6647b58da24e18bb520501"
+    },
+    {
+      "old": "docs/architecture/business/accounts-chat/phase11.md",
+      "new": "docs/architecture/business/accounts-chat/phase11.md",
+      "beforeSha256": "c89245fa53ed6954f0e2bfbfdf5c342b37b90ca7c5e193cf20be07e788378d92",
+      "afterSha256": "244689bfa2982e47f899cf8f5247f858506697eae86aaef5bab3a13075e742d6"
+    },
+    {
+      "old": "docs/architecture/business/accounts-chat/phase12.md",
+      "new": "docs/architecture/business/accounts-chat/phase12.md",
+      "beforeSha256": "f2d4986fb1512db061511882edcc16d53fcd7927974220be9b650aa098c1bf42",
+      "afterSha256": "6156ad739a7e078f1572008698322c173c73dce66ebc9bf3a704a467c44b9154"
+    },
+    {
+      "old": "docs/architecture/business/accounts-chat/phase13.md",
+      "new": "docs/architecture/business/accounts-chat/phase13.md",
+      "beforeSha256": "25e82941d402a1965f8be2bd79b75dadd8849a0a81833c28cc8aa79f2635172b",
+      "afterSha256": "78e9cad7c327181cf169ca0fcb599041bcce3af60467f889250167a47c0c6729"
+    },
+    {
+      "old": "docs/architecture/business/accounts-chat/phase14.md",
+      "new": "docs/architecture/business/accounts-chat/phase14.md",
+      "beforeSha256": "4766a1f3ba8a1a780a782295123b3e25efa815bfa6e3d07ca0c592c76ce96c1c",
+      "afterSha256": "8aef9739ef68428394d7133e4f712be2de86a8c099948af4f27bbf09067cbf80"
+    },
+    {
+      "old": "docs/architecture/business/accounts-chat/phase17.md",
+      "new": "docs/architecture/business/accounts-chat/phase17.md",
+      "beforeSha256": "0a7cbf54a3979a8f1efe8f44827fe9da6ce4228359b16bec3c026fb1fd302f97",
+      "afterSha256": "41722f22e3dee14ce581d49b11c1b941f3daea6bb7d390b5ffe5404059ce7b43"
+    },
+    {
+      "old": "docs/architecture/business/accounts-chat/phase27.md",
+      "new": "docs/architecture/business/accounts-chat/phase27.md",
+      "beforeSha256": "6d5a247eaef2336bb94dc701bd6b14c010228e6df4e619e88236ab9cc203c316",
+      "afterSha256": "cd5070440fb90052344beacff88e55425d4fe3609ebb22addd926f51a6ad0eea"
+    },
+    {
+      "old": "docs/architecture/business/ai/phase18.md",
+      "new": "docs/architecture/business/ai/phase18.md",
+      "beforeSha256": "533cc9838384ca7f35ec2e48cf1e0242dcf414bcf5be39a6693ec1d6e9904b0a",
+      "afterSha256": "811d704ba518da6cc83b019a333609dc8260522e0ffff612bbd66eec6e362e46"
+    },
+    {
+      "old": "docs/architecture/business/ai/phase19.md",
+      "new": "docs/architecture/business/ai/phase19.md",
+      "beforeSha256": "b8ddb64b5500d0de3aac6c3fbf2fb7b2fe6217247b7cd52041cb67774d27ab9c",
+      "afterSha256": "3d3bf4398877ce7f3a6195a3aa19acdb0ffd7735eeafc294b3664a7e0f2e4986"
+    },
+    {
+      "old": "docs/architecture/business/ai/phase20.md",
+      "new": "docs/architecture/business/ai/phase20.md",
+      "beforeSha256": "411a43e85d32b7e367ec43d6de1a91537c9c5955964b21a55f7e4ceeaa3d1937",
+      "afterSha256": "ff91e33076cfc652ca2635ea6dfc74d91b6f0fd9f350778df943149e73d392cb"
+    },
+    {
+      "old": "docs/architecture/business/ai/phase21.md",
+      "new": "docs/architecture/business/ai/phase21.md",
+      "beforeSha256": "8e4df83fea66ab207491f11bbe606a4b4da3a38a0980d7e76329900e579d838f",
+      "afterSha256": "23908c55efa35ec12084ec3019801e4616f176f814cfbd37d3908ef347135f24"
+    },
+    {
+      "old": "docs/architecture/business/ai/phase22.md",
+      "new": "docs/architecture/business/ai/phase22.md",
+      "beforeSha256": "8b5d065c57c45b97437aef4543b4b67492308745b3428ff4c788bb30eb352cbd",
+      "afterSha256": "a3495ae79235862cfc676b77b27d764d6d331c846c33e0f26dda769088a339b8"
+    },
+    {
+      "old": "docs/architecture/business/ai/phase23.md",
+      "new": "docs/architecture/business/ai/phase23.md",
+      "beforeSha256": "fde35167220e592041c71f654965c2fc12d8aa770ab6a61d2ab776c3680634da",
+      "afterSha256": "3f70b32f8e4d91e7a7f99138b441ce420178be7c8a777d71573b0029dbb4c1f4"
+    },
+    {
+      "old": "docs/architecture/business/ai/phase24.md",
+      "new": "docs/architecture/business/ai/phase24.md",
+      "beforeSha256": "4683fa9628012fdfe5d1c0a02c1cee4d17aa6a11acdf1f5df021338fd9fd68f2",
+      "afterSha256": "e4b9bf41183004a8b748ed2b6448fb54fb80b4cc3c3a9023750a2418a0d76707"
+    },
+    {
+      "old": "docs/architecture/business/engineering/community-runtime-modules.md",
+      "new": "docs/architecture/business/engineering/community-runtime-modules.md",
+      "beforeSha256": "ba8b7451423d0132c07e94588a6a1daf9367f2ad2ee2d3ae4cb7da04607b980a",
+      "afterSha256": "960841c69022d0ec84f9d2adb27b3a86700c61e6abba975dff69f516f16ac602"
+    },
+    {
+      "old": "docs/architecture/business/flows/business-call-flows.md",
+      "new": "docs/architecture/business/flows/business-call-flows.md",
+      "beforeSha256": "14cfcb8891d2baa42a8f6f97855ed1a274757ada0d10a6f1240b34af1065204f",
+      "afterSha256": "7edb9affca52e125ca91d268c8209c881a96543015b4ffdae86c8a848165e673"
+    },
+    {
+      "old": "docs/architecture/business/guides/server-business-integration-tutorial.md",
+      "new": "docs/architecture/business/guides/server-business-integration-tutorial.md",
+      "beforeSha256": "23931578b7f901f6fe9f36e52c18346608d42b79a74b2beee61741ada03989f7",
+      "afterSha256": "84b572a77b68aeb7ea571908617217dd5d1829d7725c5827b7be076895518e05"
+    },
+    {
+      "old": "docs/architecture/business/indexes/function3-code-index.md",
+      "new": "docs/architecture/business/indexes/function3-code-index.md",
+      "beforeSha256": "ab78a554685d3b0d8e7fbc6f3ba3bbb233cbb100cf7c3858715ec13f86a27d96",
+      "afterSha256": "27f53f74eb113f1d28c37df57fd4c16420fa401b1ff52565b44e6a05e5726861"
+    },
+    {
+      "old": "docs/architecture/business/indexes/phase48-code-index.md",
+      "new": "docs/architecture/business/indexes/phase48-code-index.md",
+      "beforeSha256": "ae3f6121a859549f38191551d57fc1d65d3c842cfecafd9fc82af969e57f6690",
+      "afterSha256": "67e5d6eca217ead0442b535db8d4318ef2cd8ce646aeedd74d2153a0d6b80a45"
+    },
+    {
+      "old": "docs/architecture/business/indexes/phase49-code-index.md",
+      "new": "docs/architecture/business/indexes/phase49-code-index.md",
+      "beforeSha256": "f4db055ff6b222bce14202394bca3b53295980ea9df83a65b57cb49eeb758ab4",
+      "afterSha256": "e9c84fd3f01d593dcdfa9863f776432fd29b5fb078c0ceb9a592a94692879821"
+    },
+    {
+      "old": "docs/architecture/business/runtime/phase16.md",
+      "new": "docs/architecture/business/runtime/phase16.md",
+      "beforeSha256": "0650600213ebfdf316f4f29658b6c891657ff3a9f3fb0f5214bdd35eb8f47622",
+      "afterSha256": "cd6b4bdca90301502a2977a44a7946f3815137e43ea236e57bb98aa2e7d4d65f"
+    },
+    {
+      "old": "docs/architecture/overview/ARCHITECTURE.md",
+      "new": "docs/architecture/overview/ARCHITECTURE.md",
+      "beforeSha256": "bca62523758526c2dadb9d20fd06781dfd65d09ade53411834462349f3bc9941",
+      "afterSha256": "0160a0d6eba25fa9244c01ee2d1ef24aa4bad68b4da2fe049b33e634c0f9c9ec"
+    },
+    {
+      "old": "docs/contracts/business-routes.json",
+      "new": "docs/contracts/business-routes.json",
+      "beforeSha256": "aa8f5f7ef6ed4672c96c75d34044d81d9e516154cb9cf30a5e7b0441c1dd9bf0",
+      "afterSha256": "a981759766eee19c2bdbbf1d0ef61fe16c51321a4da224156aec86379e74afb2"
+    },
+    {
+      "old": "docs/database/README.md",
+      "new": "docs/database/README.md",
+      "beforeSha256": "fdf204bf4253f3d4f1ce170f9068646a9822e1d1c012e10529368ce43c7aeba5",
+      "afterSha256": "07c432ee0bfbe1e1393f6e24a339dd8805a5d1fdf79cac9a19db82146855f69b"
+    },
+    {
+      "old": "docs/observability/business-instrumentation.md",
+      "new": "docs/observability/business-instrumentation.md",
+      "beforeSha256": "45adba06fb6f9e0b466db6b6c86bc51c9c819c5df15cb3a07b5ad11d7889ca45",
+      "afterSha256": "e630af2b79b0af433a28983b2e9ce94cc82e9596ba79a8a956da3eb3db198011"
+    },
+    {
+      "old": "docs/observability/envoy-gateway.md",
+      "new": "docs/observability/envoy-gateway.md",
+      "beforeSha256": "b060098cd610a3ce547b69b06ee64a682eda4bd5bebb3807a428b1ebc413465e",
+      "afterSha256": "38fdd05d011af01937ec6c11e16f646cc9ce86f5ec8840880f9a5e8e932d34b0"
+    },
+    {
+      "old": "docs/releases/function2.1-vs-function2.md",
+      "new": "docs/releases/function2.1-vs-function2.md",
+      "beforeSha256": "bc45ca6ffd4175e31826a661b1a943c4137bca9e18e022a2510d1875802d8a74",
+      "afterSha256": "0787d7526f95c7988e08880ac362770c429b8c7393c1b113d4b518a0d02d5e10"
+    },
+    {
+      "old": "docs/roadmap/next-steps.md",
+      "new": "docs/roadmap/next-steps.md",
+      "beforeSha256": "6b774e7f1133ad63242f88c05dc74ff495b42e58b098dd9908c1b0d1f03d1a77",
+      "afterSha256": "272fde7c1eb5dbe6fe8a2e4a6682d88d72846b4cc8f649859cf5298757b102ec"
+    },
+    {
+      "old": "tests/architecture/ModuleLinkContract/AiLink.cpp",
+      "new": "tests/architecture/ModuleLinkContract/AiLink.cpp",
+      "beforeSha256": "c07c7716236c13ad0f8819e5a215745382af8a22801378488a559d40e21ab31e",
+      "afterSha256": "e72af52d8efc060901661b7c88936fb3e60f6fa7d682b012dd38aee9c574d5fb"
+    },
+    {
+      "old": "tests/function3/integration/postgres_modules.cpp",
+      "new": "tests/function3/integration/postgres_modules.cpp",
+      "beforeSha256": "87ccdc798d1cff52fff75affad7a3b796d5aa3bc9f73c47f476c3309e4fd82a8",
+      "afterSha256": "1dbc58ec3d226848ed933c9cdfa5ad8cbe5d775879f41c354d338309356bd889"
+    },
+    {
+      "old": "tests/function3/unit/WorkspaceContract.h",
+      "new": "tests/function3/unit/WorkspaceContract.h",
+      "beforeSha256": "711a3b2fe349ce3155483724c8f84481029c7dff81dd3b5c3919c9130efb5edf",
+      "afterSha256": "48274499add08740134dcbb9d08ee82c5275b351b5e9b1c1d2e49b5d51b06c1c"
+    },
+    {
+      "old": "tests/function3/unit/private_generation.cpp",
+      "new": "tests/function3/unit/private_generation.cpp",
+      "beforeSha256": "a86539911b0ec269d5dc329bab4b3d3c811a36280c0b726afd0275276b862486",
+      "afterSha256": "ea2ed54124ee3d064f3e25406ff7464aad0069b41bf0e41df5f57885eece1034"
+    },
+    {
+      "old": "tests/function3/unit/recovery_budget.cpp",
+      "new": "tests/function3/unit/recovery_budget.cpp",
+      "beforeSha256": "0e52223ca2c62068ffd0c692b5b6f43b9607a2c8bf9452d3bad7c9ecf9161766",
+      "afterSha256": "786dcdede9d3ec64a9a950485627d18282af9d848884c6256e9e340ac0271df7"
+    },
+    {
+      "old": "tests/observability/BusinessOperationContract/BusinessOperationContract.cpp",
+      "new": "tests/observability/BusinessOperationContract/BusinessOperationContract.cpp",
+      "beforeSha256": "e6415aa5574372ce9ede7b83a4ba371ae815ae801fcb458f8e6c3818cde44a68",
+      "afterSha256": "dd64e7baca0f7c43d26dca9512281193d6be2ebd196cab318410d29177b76900"
+    },
+    {
+      "old": "tests/phase11/smoke/OnnxBenchmark.h",
+      "new": "tests/phase11/smoke/OnnxBenchmark.h",
+      "beforeSha256": "885b5ba5211d88a2f3057adedd5da5810bd23c11b446137c5b6ea17a82e525ad",
+      "afterSha256": "bd2095e7dc8f339d580bd6a86b605109719d6b3aece331da4df0377ee0750e7f"
+    },
+    {
+      "old": "tests/phase11/unit/RepositoryContract.h",
+      "new": "tests/phase11/unit/RepositoryContract.h",
+      "beforeSha256": "ae90cee34e017b6e2e874ff36410a1e695cf827c2c31819ae285cb80f33b8535",
+      "afterSha256": "00098a672a634fe4e4bc0f9e16f68ace00356056918305b9877b3784cdf097b6"
+    },
+    {
+      "old": "tests/phase11/unit/ai_chat.cpp",
+      "new": "tests/phase11/unit/ai_chat.cpp",
+      "beforeSha256": "30327f0a6906b8d43d2082b029911595b9095790c72beb452a965d13074b4545",
+      "afterSha256": "24ce50b84b306f40d48c7de72dffc78057a05094a4e026046aac777346b1bfa0"
+    },
+    {
+      "old": "tests/phase11/unit/core.cpp",
+      "new": "tests/phase11/unit/core.cpp",
+      "beforeSha256": "fd75c983026cf3d0fbdf80d95733122e73c8dae6046099be1cae2b51a2b99ea7",
+      "afterSha256": "4cf74fee79e326ab191ccf9999208c3b8b1e1796c8ea9ec11d0d4c8936b6fcbb"
+    },
+    {
+      "old": "tests/phase11/unit/files.cpp",
+      "new": "tests/phase11/unit/files.cpp",
+      "beforeSha256": "e846456a4ef70e193d6bf63ed196a6ee3180a14fee7b516e259425519f70efda",
+      "afterSha256": "cf2af3c76eced4ca025feb896dad6c31f5c6103bb2bf2772d8e3d6933568762d"
+    },
+    {
+      "old": "tests/phase11/unit/http_auth.cpp",
+      "new": "tests/phase11/unit/http_auth.cpp",
+      "beforeSha256": "5c070b84eb0eb6a4fc9e5a29ecc9d46bbf1a6cf84df739c420869c560a3ce7c8",
+      "afterSha256": "cb7e150578643ac89685d4b31784b9625e5cbf4b69da59e7bb17d38fb4020e14"
+    },
+    {
+      "old": "tests/phase11/unit/postgres_contract.cpp",
+      "new": "tests/phase11/unit/postgres_contract.cpp",
+      "beforeSha256": "7c8178b6d3a474745daa0abfcd24e95d5dba0bc25e2df6fe5897cead6133afe7",
+      "afterSha256": "b69277c895e292fa1269a7c7dc216f7df06f22704bade5a5cdc67db2c92f87a3"
+    },
+    {
+      "old": "tests/phase11/unit/sodium_credentials.cpp",
+      "new": "tests/phase11/unit/sodium_credentials.cpp",
+      "beforeSha256": "62ff16e5e74fd77b4d7f09e9dc1d437360bb7d8e51d72aaef5c11162e885cb23",
+      "afterSha256": "19afc703666a9f0fca7cd4d5e1a8f49b2721e08abb9ce516b5fbafd97dcca010"
+    },
+    {
+      "old": "tools/function3/SiteAdmin/SiteAdmin.cpp",
+      "new": "tools/function3/SiteAdmin/SiteAdmin.cpp",
+      "beforeSha256": "f0e08dd62dc1be87cb2aace5b92e39064719b5be9e31ee6abd49af61348a4e53",
+      "afterSha256": "a3337ba5bcede3467cf4866e70d625ab53d541fa255d1695df95ddc1eb4c5883"
+    },
+    {
+      "old": "tools/phase11_model_admin.cpp",
+      "new": "tools/ai/ModelAdmin/ModelAdmin.cpp",
+      "beforeSha256": "f6ba31b321f6581960660a4d40eabc1df189242273843426accf92e733a7c9de",
+      "afterSha256": "b0064b190adc0a14b083f81ed0c45016634284bfeced6c3de3c0aa799fa7fd4f"
+    },
+    {
+      "old": "tools/phase11_training_admin.cpp",
+      "new": "tools/ai/TrainingAdmin/TrainingAdmin.cpp",
+      "beforeSha256": "c3933b84c935c0d00901a1b6cbb8dbfc131acb2e9e8e4b5b229522527a09a684",
+      "afterSha256": "6852846fa38a9e42099f0eb003267ef9fcdfe8ab375bebaf4b6ac0a45e06d5cf"
+    }
+  ]
+}

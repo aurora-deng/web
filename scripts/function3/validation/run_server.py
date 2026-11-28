@@ -16,6 +16,7 @@ p.add_argument('--with-mq',action='store_true')
 p.add_argument('--tts',action='store_true')
 p.add_argument('--ai',action='store_true',help='Reuse existing local ONNX model root without downloads')
 p.add_argument('--ai-worker',action='store_true',help='Recommended independent ONNX gRPC Worker on isolated loopback TLS 50062; requires a bound onnx-grpc model version')
+p.add_argument('--model-root',type=Path,default=Path('/home/pikachu/phase11-models'),help='Installed model root for --ai in the isolated test server only')
 p.add_argument('--http-port',type=int,default=18094)
 p.add_argument('--tls-port',type=int,default=18444,help='Isolated TLS listener; daily service keeps 18443')
 p.add_argument('--runtime-certificate',action='store_true',help='Reuse the existing LAN-IP learning certificate; never imports client trust')
@@ -69,7 +70,7 @@ else:
         'WEB_FUNCTION3_MEDIA_ROOT':str(root/(a.variant+'-tree-media')),
         'WEB_PHASE11_DB_WORKERS':'4','WEB_PHASE11_DB_POOL':'4','WEB_FUNCTION3_ENABLE':'1' if a.variant=='current' else '0',
         'WEB_TLS_CERT':str(certificate),'WEB_TLS_KEY':str(private),'WEB_TLS_PORT':str(a.tls_port)})
-    if a.ai:env.update({'WEB_PHASE11_ONNX_MODEL_ROOT':'/home/pikachu/phase11-models','WEB_PHASE11_ONNX_WORKERS':'1','WEB_PHASE11_ONNX_MODELS':'1','WEB_PHASE11_ONNX_QUEUE':'2'})
+    if a.ai:env.update({'WEB_PHASE11_ONNX_MODEL_ROOT':str(a.model_root.resolve(strict=True)),'WEB_PHASE11_ONNX_WORKERS':'1','WEB_PHASE11_ONNX_MODELS':'1','WEB_PHASE11_ONNX_QUEUE':'2'})
     if a.ai_worker:
         if a.variant!='current':p.error('Independent Worker validation is only for the current isolated server')
         subprocess.run(['python3',str(source/'scripts/function3/validation/onnx_worker.py'),'start'],check=True)

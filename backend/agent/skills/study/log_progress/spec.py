@@ -1,0 +1,32 @@
+"""Version 1 contract; admission, effect and bounds remain in tool_runtime."""
+from backend.agent.tool_runtime.registry import SkillSpec, Effect, Precondition
+
+SPEC = SkillSpec(
+    name='study.log_progress',
+    effect=Effect.EXTERNAL,
+    parameters={'type': 'object',
+     'properties': {'date': {'type': 'string',
+                             'minLength': 1,
+                             'maxLength': 10,
+                             'pattern': '\\d{4}-\\d{2}-\\d{2}'},
+                    'subject': {'type': 'string',
+                                'minLength': 1,
+                                'maxLength': 64,
+                                'pattern': '[A-Za-z0-9][A-Za-z0-9_-]{0,63}'},
+                    'itemId': {'type': 'string',
+                               'minLength': 1,
+                               'maxLength': 64,
+                               'pattern': '[A-Za-z0-9][A-Za-z0-9_-]{0,63}'},
+                    'minutes': {'type': 'integer', 'minimum': 0, 'maximum': 1440},
+                    'idempotencyKey': {'type': 'string',
+                                       'minLength': 1,
+                                       'maxLength': 128,
+                                       'pattern': '[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}'}},
+     'required': ['date', 'subject', 'itemId', 'minutes', 'idempotencyKey'],
+     'additionalProperties': False},
+    preconditions=(Precondition.AUTHORIZED_ACTOR, Precondition.CONFIRMED_USER_INTENT, Precondition.ATOMIC_IDEMPOTENT_PORT,),
+    timeout_ms=2500,
+    idempotency_key='idempotencyKey',
+    version=1,
+    description='Commit one confirmed progress record and its replay receipt atomically.',
+)

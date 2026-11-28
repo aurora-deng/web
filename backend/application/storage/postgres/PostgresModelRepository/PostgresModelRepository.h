@@ -1,5 +1,5 @@
 #pragma once
-#include "backend/application/domain/ModelTypes/ModelTypes.h"
+#include "backend/application/modules/ai/domain/ModelTypes/ModelTypes.h"
 #include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
 #include "backend/application/storage/postgres/PostgresOutboxWriter/PostgresOutboxWriter.h"
 namespace webserver::phase11 {

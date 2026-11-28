@@ -10,25 +10,25 @@
 |backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.h|[ApplicationRuntime.h](../../../../backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.h)|
 |backend/application/bootstrap/BootstrapSettings/BootstrapSettings.h|[BootstrapSettings.h](../../../../backend/application/bootstrap/BootstrapSettings/BootstrapSettings.h)|
 |backend/application/bootstrap/BusinessRuntime/BusinessRuntime.h|[BusinessRuntime.h](../../../../backend/application/bootstrap/BusinessRuntime/BusinessRuntime.h)|
-|backend/application/bootstrap/ChatRuntime/ChatRuntime.h|[ChatRuntime.h](../../../../backend/application/bootstrap/ChatRuntime/ChatRuntime.h)|
-|backend/application/bootstrap/ContactsRuntime/ContactsRuntime.h|[ContactsRuntime.h](../../../../backend/application/bootstrap/ContactsRuntime/ContactsRuntime.h)|
-|backend/application/bootstrap/FileRuntime/FileRuntime.h|[FileRuntime.h](../../../../backend/application/bootstrap/FileRuntime/FileRuntime.h)|
+|backend/application/modules/chat/bootstrap/ChatRuntime/ChatRuntime.h|[ChatRuntime.h](../../../../backend/application/modules/chat/bootstrap/ChatRuntime/ChatRuntime.h)|
+|backend/application/modules/contacts/bootstrap/ContactsRuntime/ContactsRuntime.h|[ContactsRuntime.h](../../../../backend/application/modules/contacts/bootstrap/ContactsRuntime/ContactsRuntime.h)|
+|backend/application/modules/files/bootstrap/FileRuntime/FileRuntime.h|[FileRuntime.h](../../../../backend/application/modules/files/bootstrap/FileRuntime/FileRuntime.h)|
 |backend/application/bootstrap/GrpcRuntime/GrpcRuntime.h|[GrpcRuntime.h](../../../../backend/application/bootstrap/GrpcRuntime/GrpcRuntime.h)|
-|backend/application/bootstrap/IdentityRuntime/IdentityRuntime.h|[IdentityRuntime.h](../../../../backend/application/bootstrap/IdentityRuntime/IdentityRuntime.h)|
+|backend/application/modules/accounts/bootstrap/IdentityRuntime/IdentityRuntime.h|[IdentityRuntime.h](../../../../backend/application/modules/accounts/bootstrap/IdentityRuntime/IdentityRuntime.h)|
 |backend/application/bootstrap/NetworkSetup/NetworkSetup.h|[NetworkSetup.h](../../../../backend/application/bootstrap/NetworkSetup/NetworkSetup.h)|
 |backend/application/bootstrap/OperationalRuntime/OperationalRuntime.h|[OperationalRuntime.h](../../../../backend/application/bootstrap/OperationalRuntime/OperationalRuntime.h)|
-|backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.h|[RealtimeRuntime.h](../../../../backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.h)|
+|backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.h|[RealtimeRuntime.h](../../../../backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.h)|
 |backend/application/bootstrap/StorageRuntime/StorageRuntime.h|[StorageRuntime.h](../../../../backend/application/bootstrap/StorageRuntime/StorageRuntime.h)|
 |backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.cpp|[ApplicationRuntime.cpp](../../../../backend/application/bootstrap/ApplicationRuntime/ApplicationRuntime.cpp)|
 |backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp|[BusinessRuntime.cpp](../../../../backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp)|
-|backend/application/bootstrap/ChatRuntime/ChatRuntime.cpp|[ChatRuntime.cpp](../../../../backend/application/bootstrap/ChatRuntime/ChatRuntime.cpp)|
-|backend/application/bootstrap/ContactsRuntime/ContactsRuntime.cpp|[ContactsRuntime.cpp](../../../../backend/application/bootstrap/ContactsRuntime/ContactsRuntime.cpp)|
-|backend/application/bootstrap/FileRuntime/FileRuntime.cpp|[FileRuntime.cpp](../../../../backend/application/bootstrap/FileRuntime/FileRuntime.cpp)|
+|backend/application/modules/chat/bootstrap/ChatRuntime/ChatRuntime.cpp|[ChatRuntime.cpp](../../../../backend/application/modules/chat/bootstrap/ChatRuntime/ChatRuntime.cpp)|
+|backend/application/modules/contacts/bootstrap/ContactsRuntime/ContactsRuntime.cpp|[ContactsRuntime.cpp](../../../../backend/application/modules/contacts/bootstrap/ContactsRuntime/ContactsRuntime.cpp)|
+|backend/application/modules/files/bootstrap/FileRuntime/FileRuntime.cpp|[FileRuntime.cpp](../../../../backend/application/modules/files/bootstrap/FileRuntime/FileRuntime.cpp)|
 |backend/application/bootstrap/GrpcRuntime/GrpcRuntime.cpp|[GrpcRuntime.cpp](../../../../backend/application/bootstrap/GrpcRuntime/GrpcRuntime.cpp)|
-|backend/application/bootstrap/IdentityRuntime/IdentityRuntime.cpp|[IdentityRuntime.cpp](../../../../backend/application/bootstrap/IdentityRuntime/IdentityRuntime.cpp)|
+|backend/application/modules/accounts/bootstrap/IdentityRuntime/IdentityRuntime.cpp|[IdentityRuntime.cpp](../../../../backend/application/modules/accounts/bootstrap/IdentityRuntime/IdentityRuntime.cpp)|
 |backend/application/bootstrap/NetworkSetup/NetworkSetup.cpp|[NetworkSetup.cpp](../../../../backend/application/bootstrap/NetworkSetup/NetworkSetup.cpp)|
 |backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp|[OperationalRuntime.cpp](../../../../backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp)|
-|backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp|[RealtimeRuntime.cpp](../../../../backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp)|
+|backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp|[RealtimeRuntime.cpp](../../../../backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp)|
 |backend/application/bootstrap/StorageRuntime/StorageRuntime.cpp|[StorageRuntime.cpp](../../../../backend/application/bootstrap/StorageRuntime/StorageRuntime.cpp)|
 
 ## AI 装配
@@ -37,8 +37,8 @@
 |---|---|
 |backend/ai/bootstrap/AiRuntime/AiRuntime.cpp|[AiRuntime.cpp](../../../../backend/ai/bootstrap/AiRuntime/AiRuntime.cpp)|
 |backend/ai/bootstrap/AiRuntime/AiRuntime.h|[AiRuntime.h](../../../../backend/ai/bootstrap/AiRuntime/AiRuntime.h)|
-|backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.cpp|[KnowledgeRuntime.cpp](../../../../backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.cpp)|
-|backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.h|[KnowledgeRuntime.h](../../../../backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.h)|
+|backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.cpp|[KnowledgeRuntime.cpp](../../../../backend/ai/rag/KnowledgeRuntime/KnowledgeRuntime.cpp)|
+|backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.h|[KnowledgeRuntime.h](../../../../backend/ai/rag/KnowledgeRuntime/KnowledgeRuntime.h)|
 
 ## 领域服务与协议入口
 

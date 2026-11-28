@@ -1,7 +1,7 @@
-#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
+#include "backend/application/observability/operations/BusinessOperation.h"
 #include "backend/application/modules/tree/domain/TreeContentPolicy/TreeContentPolicy.h"
 #include "TreeService.h"
-#include "backend/application/modules/shared/TextRules/TextRules.h"
+#include "backend/application/modules/shared/domain/TextRules/TextRules.h"
 #include <algorithm>
 #include <set>
 

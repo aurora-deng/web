@@ -148,10 +148,10 @@ scripts/phase11/postgres-migrate.sh phase11_test \
 
 | 职责 | 文件 |
 |---|---|
-| 审计领域对象 | [Domain.h](../../../../backend/application/domain/Domain/Domain.h) |
-| Repository 端口 | [Ports.h](../../../../backend/application/ports/Ports/Ports.h) |
-| 模型试装、启用、回滚与选择回调 | [ModelRegistryService.cpp](../../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) |
-| 生成状态、摘要、时间点和直方图采样 | [AiChatService.cpp](../../../../backend/application/business/AiChatService/AiChatService.cpp) |
+| 审计领域对象 | [Domain.h](../../../../backend/application/modules/shared/compatibility/Domain/Domain.h) |
+| Repository 端口 | [Ports.h](../../../../backend/application/modules/shared/compatibility/Ports/Ports.h) |
+| 模型试装、启用、回滚与选择回调 | [ModelRegistryService.cpp](../../../../backend/ai/registry/ModelRegistryService/ModelRegistryService.cpp) |
+| 生成状态、摘要、时间点和直方图采样 | [AiChatService.cpp](../../../../backend/application/modules/ai/application/AiChatService/AiChatService.cpp) |
 | 内存参考实现 | [InMemoryStore.cpp](../../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
 | PostgreSQL 原子切换与 revision upsert | [PostgresStore.cpp](../../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 第 6 号迁移 | [006_ai_governance.sql](../../../../backend/application/storage/postgres/migrations/006_ai_governance.sql) |

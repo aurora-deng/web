@@ -11,7 +11,7 @@ P0 · S1 定时间语义，P1 实测跨主机。时钟像两台各自走的秒�
 
 ## 已有基础与待补能力
 
-- **已有**。Observer 的设备窗口和命令事件已包含序列、缺帧、迟到、偏差质量等字段。合成场景已有重排参考。[设备事件](../../../tools/observability/observer/events.py) · [样例](../../../tools/observability/scenarios.py)
+- **已有**。Observer 的设备窗口和命令事件已包含序列、缺帧、迟到、偏差质量等字段。合成场景已有重排参考。[设备事件](../../../tools/observability/observer/contracts/events.py) · [样例](../../../tools/observability/scenarios.py)
 - **待补**。机器人进程的时钟接口、会话切换和跨机误差测量。来源到接收的时间差同时混有时钟偏差、链路延迟和排队，需要单独校正。
 
 ## 学习内容与目标深度

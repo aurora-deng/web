@@ -177,16 +177,16 @@ Outbox 仍是至少一次投递，所以浏览器维护一个有界的“验票�
 
 | 职责 | 文件 |
 |---|---|
-| 会话摘要、消息状态、撤回结果 | [Domain.h](../../../../backend/application/domain/Domain/Domain.h) |
-| Repository 接口 | [Ports.h](../../../../backend/application/ports/Ports/Ports.h) |
-| 业务门面 | [BusinessInterfaces.h](../../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) |
+| 会话摘要、消息状态、撤回结果 | [Domain.h](../../../../backend/application/modules/shared/compatibility/Domain/Domain.h) |
+| Repository 接口 | [Ports.h](../../../../backend/application/modules/shared/compatibility/Ports/Ports.h) |
+| 业务门面 | [BusinessInterfaces.h](../../../../backend/application/modules/shared/compatibility/BusinessInterfaces/BusinessInterfaces.h) |
 | 发送、回执、未读与撤回规则 | [ChatService.cpp](../../../../backend/application/modules/chat/application/ChatService/ChatService.cpp) |
 | 内存 Repository | [InMemoryStore.cpp](../../../../backend/application/storage/InMemoryStore/InMemoryStore.cpp) |
 | PostgreSQL 查询与原子更新 | [PostgresStore.cpp](../../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 第 2 号迁移 | [002_message_lifecycle.sql](../../../../backend/application/storage/postgres/migrations/002_message_lifecycle.sql) |
 | 顺序增量迁移脚本 | [postgres-migrate.sh](../../../../scripts/phase11/postgres-migrate.sh) |
-| HTTP 会话摘要与历史 JSON | [Phase11SocialChatHttp.cpp](../../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
-| WebSocket 命令与 Outbox 实时事件 | [Phase11Realtime.cpp](../../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) |
+| HTTP 会话摘要与历史 JSON | [Phase11SocialChatHttp.cpp](../../../../backend/application/modules/chat/transport/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp) |
+| WebSocket 命令与 Outbox 实时事件 | [Phase11Realtime.cpp](../../../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp) |
 | 浏览器状态与交互 | [app.js](../../../../frontend/phase11/app.js) |
 | 消息状态样式 | [styles.css](../../../../frontend/phase11/styles.css) |
 | 领域与事务测试 | [core.cpp](../../../../tests/phase11/unit/core.cpp) |

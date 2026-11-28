@@ -1,5 +1,5 @@
 #pragma once
-#include "backend/application/domain/Domain/Domain.h"
+#include "backend/application/modules/shared/compatibility/Domain/Domain.h"
 #include <libpq-fe.h>
 namespace webserver::phase11 {
 /** 存储驱动内部的写入策略。只借用当前事务连接，不拥有连接、不自行提交。

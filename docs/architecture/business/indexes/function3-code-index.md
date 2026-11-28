@@ -46,11 +46,11 @@
 | ranking | domain | `Ranking` | [Ranking.h](../../../../backend/application/modules/ranking/domain/Ranking/Ranking.h) |
 | ranking | infrastructure | `RankingPostgresRepository` | [RankingPostgresRepository.cpp](../../../../backend/application/modules/ranking/infrastructure/RankingPostgresRepository/RankingPostgresRepository.cpp), [RankingPostgresRepository.h](../../../../backend/application/modules/ranking/infrastructure/RankingPostgresRepository/RankingPostgresRepository.h) |
 | ranking | ports | `IRankingRepository` | [IRankingRepository.h](../../../../backend/application/modules/ranking/ports/IRankingRepository/IRankingRepository.h) |
-| shared | BusinessContext | `BusinessContext` | [BusinessContext.h](../../../../backend/application/modules/shared/BusinessContext/BusinessContext.h) |
+| shared | BusinessContext | `BusinessContext` | [BusinessContext.h](../../../../backend/application/modules/shared/domain/BusinessContext/BusinessContext.h) |
 | shared | infrastructure | `Phase11Bridge` | [Phase11Bridge.cpp](../../../../backend/application/modules/shared/infrastructure/Phase11Bridge/Phase11Bridge.cpp), [Phase11Bridge.h](../../../../backend/application/modules/shared/infrastructure/Phase11Bridge/Phase11Bridge.h) |
 | shared | infrastructure | `ProcessRunner` | [ProcessRunner.cpp](../../../../backend/application/modules/shared/infrastructure/ProcessRunner/ProcessRunner.cpp), [ProcessRunner.h](../../../../backend/application/modules/shared/infrastructure/ProcessRunner/ProcessRunner.h) |
 | shared | infrastructure | `SqlContext` | [SqlContext.cpp](../../../../backend/application/modules/shared/infrastructure/SqlContext/SqlContext.cpp), [SqlContext.h](../../../../backend/application/modules/shared/infrastructure/SqlContext/SqlContext.h) |
-| shared | TextRules | `TextRules` | [TextRules.h](../../../../backend/application/modules/shared/TextRules/TextRules.h) |
+| shared | TextRules | `TextRules` | [TextRules.h](../../../../backend/application/modules/shared/domain/TextRules/TextRules.h) |
 | shared | transport | `BusinessHttp` | [BusinessHttp.h](../../../../backend/application/modules/shared/transport/BusinessHttp/BusinessHttp.h) |
 | shared | transport | `FrontendAssets` | [FrontendAssets.cpp](../../../../backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.cpp), [FrontendAssets.h](../../../../backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.h) |
 | speech | application | `SpeechService` | [SpeechService.cpp](../../../../backend/ai/speech/application/SpeechService/SpeechService.cpp), [SpeechService.h](../../../../backend/ai/speech/application/SpeechService/SpeechService.h) |

@@ -15,15 +15,15 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from tools.observability import isolated_dual
-from tools.observability.alert_receiver import project
-from tools.observability.install_pipeline import PACKAGES, VerifiedStream, extract_programs
-from tools.observability.lab_config import build
-from tools.observability.observer.local_traces import TraceIndex
-from tools.observability.observer.projection import trace_view
-from tools.observability.observer.prometheus_service_levels import EPOCH, report
-from tools.observability.observer.sources import HTTP_RESPONSES
-from tools.observability.observer.store import Store
+from tools.observability.laboratory import isolated_dual
+from tools.observability.laboratory.alert_receiver import project
+from tools.observability.pipeline.install_pipeline import PACKAGES, VerifiedStream, extract_programs
+from tools.observability.laboratory.lab_config import build
+from tools.observability.observer.traces.local_traces import TraceIndex
+from tools.observability.observer.analysis.projection import trace_view
+from tools.observability.observer.metrics.prometheus_service_levels import EPOCH, report
+from tools.observability.observer.sources.sources import HTTP_RESPONSES
+from tools.observability.observer.storage.store import Store
 
 
 def matrix(start, end, instance="nebula-b", fail=None):

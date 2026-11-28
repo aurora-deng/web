@@ -1,4 +1,4 @@
-#include "backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
+#include "backend/ai/inference/inprocess/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
 
 #include <chrono>
 #include <condition_variable>
@@ -126,6 +126,11 @@ int main(int argc, char **argv)
             return 1;
         }
 
+        if (!completion.usage || !completion.usage->valid() || !completion.usage->outputTokens)
+            throw std::runtime_error("ONNX tokenizer measurement missing or invalid");
+        GenerationMetricsSnapshot measured;
+        measured.observe(*completion.usage);
+        std::cout << measured.format();
         std::cout << "ONNX smoke passed; checksum=" << request.modelChecksum
                   << ", bytes=" << generated.size() << '\n';
         return 0;

@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from backend.study.AccountWorkspace.FrontendSnapshot import FrontendSnapshot
 from backend.study.AccountWorkspace.GatewayConfig import add_workspace
-from tools.observability.gateway import render
+from tools.observability.gateways.gateway import render
 
 
 def selected(config, path):
@@ -49,6 +49,15 @@ class AgentRoutes(unittest.TestCase):
                     self.assertEqual(route['name'], 'agent_control_page')
                     self.assertNotEqual(route['route']['cluster'], 'nebula_study')
 
+    def test_permission_workspace_stays_native_with_public_snapshot_enabled(self):
+        for serve in (False, True):
+            for path in ('/phase11/admin/permissions', '/phase11/admin/permissions/',
+                         '/phase11/admin/permissions/index.html', '/phase11/admin/permissions/app.js'):
+                route = selected(self.config(serve), path)
+                self.assertEqual(route['name'], 'permissions_page')
+                self.assertNotEqual(route['route']['cluster'], 'nebula_study')
+        self.assertNotEqual(selected(self.config(True), '/phase11/admin/permissions-public/app.js')['name'], 'permissions_page')
+
     def test_control_page_match_has_segment_boundary(self):
         self.assertNotEqual(selected(self.config(True), '/phase11/agent-control-public/app.js')['name'], 'agent_control_page')
 
@@ -56,7 +65,8 @@ class AgentRoutes(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='agent-snapshot-') as folder:
             root = Path(folder)
             for rel in ('index.html', 'study/index.html', 'asset-manifest.json',
-                        'agent-control/index.html', 'agent-control/app.js', 'agent-control/style.css'):
+                        'agent-control/index.html', 'agent-control/app.js', 'agent-control/style.css',
+                        'admin/permissions/index.html', 'admin/permissions/app.js', 'admin/permissions/style.css'):
                 p = root / rel
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text('fixture', encoding='utf8')
@@ -64,6 +74,7 @@ class AgentRoutes(unittest.TestCase):
             self.assertIsNotNone(snapshot.asset('/phase11/'))
             self.assertIsNotNone(snapshot.asset('/phase11/study/'))
             self.assertFalse(any(path.startswith('/phase11/agent-control') for path in snapshot.routes))
+            self.assertFalse(any(path.startswith('/phase11/admin/permissions') for path in snapshot.routes))
 
 
 if __name__ == '__main__':

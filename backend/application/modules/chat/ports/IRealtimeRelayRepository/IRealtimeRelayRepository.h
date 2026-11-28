@@ -1,6 +1,6 @@
 #pragma once
 
-#include "backend/application/domain/OutboxTypes/OutboxTypes.h"
+#include "backend/application/modules/messaging/domain/OutboxTypes/OutboxTypes.h"
 #include <cstddef>
 #include <cstdint>
 #include <vector>

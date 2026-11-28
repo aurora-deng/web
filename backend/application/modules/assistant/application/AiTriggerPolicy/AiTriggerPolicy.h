@@ -1,5 +1,5 @@
 #pragma once
-#include "backend/application/domain/Domain/Domain.h"
+#include "backend/application/modules/shared/compatibility/Domain/Domain.h"
 namespace webserver::phase11 {
 /** AI参与群聊的显式语义，不把普通群消息自动送进推理。 */
 class AiTriggerPolicy final{

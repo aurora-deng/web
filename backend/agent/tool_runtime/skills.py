@@ -68,16 +68,8 @@ class SkillRuntime:
     def __init__(self, tools, store, fleet_bridge=None):
         self.tools=tools; self.registry=tools.registry; self.store=store; self.fleet_bridge=fleet_bridge
         self.planner=RulesPlanner(self.registry); self._issuer=object()
-        self.recipes={
-            "fleet.get_task_status":self._status,"fleet.fleet.overview":self._overview,
-            "workflow.run.trace":self._trace,"metrics.query":self._metrics,"chat.recall":self._recall,
-            "chat.summarize":self._summary,"study.search_material":self._search,
-            "study.explain":self._excerpt,"study.quiz":self._quiz,
-            "study.log_progress":self._progress,"study.mistake_add":self._mistake,
-            "fleet.review_failures":self._review,"fleet.propose_sim_reschedule":self._reschedule,
-            "fleet.task.reassign":self._reassign,"fleet.robot.quarantine":self._quarantine,
-            "chat.draft_reply":self._draft,"chat.remind":self._remind,"chat.escalate":self._escalate,
-            "study.plan_day":self._plan_day}
+        from .catalog import load_recipes
+        self.recipes=load_recipes(self)
         if set(self.recipes)!=set(self.registry.skills): raise ValueError("every advertised skill must have exactly one executable recipe")
 
     def confirm(self, actor, name, parameters, version=1):
@@ -134,63 +126,7 @@ class SkillRuntime:
             except Exception: code="unavailable"
             return {"ok":False,"error":{"code":code},"source":"skill.runtime","readAt":datetime.now(timezone.utc).isoformat(),"fresh":False,"truncated":False,"value":None}
 
-    @staticmethod
-    def _status(p,call,*_): return call("fleet.get_task_status",p)
-    @staticmethod
-    def _overview(p,call,*_): return {"entity":"tasks","tasks":call("fleet.list_tasks",{"limit":p["limit"]})}
-    @staticmethod
-    def _trace(p,call,*_): return call("workflow.get_run",p)
-    @staticmethod
-    def _metrics(p,call,*_): return call("metrics.get",p)
-    @staticmethod
-    def _recall(p,call,*_): return call("chat.search",p)
-    @staticmethod
-    def _summary(p,call,*_):
-        rows=call("chat.get_context",p)
-        return {"method":"extractive_rules","messageIds":[r["id"] for r in rows],"summary":" | ".join(r["text"][:160] for r in rows),"radius":p["radius"]}
-    @staticmethod
-    def _search(p,call,*_): return call("material.search",p)
-    @staticmethod
-    def _excerpt(p,call,*_): return call("material.chunk",p)
-    @staticmethod
-    def _quiz(p,call,*_): return call("quiz.next",dict(p,excludeMastered=True))
-    @staticmethod
-    def _progress(p,call,*_): return call("progress.write",p)
-    @staticmethod
-    def _mistake(p,call,*_): return call("mistake.write",p)
     def _stage(self,name,p,artifact,actor): return self.store.stage(actor,name,1,p,artifact)
-    def _review(self,p,call,actor,deadline):
-        tasks=[call("fleet.get_task_status",{"taskId":identity}) for identity in p["taskIds"]]
-        failed=[task for task in tasks if task["phase"] in {"failed","uncertain"} or task["needsReconciliation"]]
-        if not failed: raise ToolError("invalid")
-        return self._stage("fleet.review_failures",p,{"kind":"diagnostic_review","tasks":failed,"dispatch":False},actor)
-    def _reschedule(self,p,call,actor,deadline):
-        task=call("fleet.get_task_status",p)
-        if task["phase"]!="queued" or task["robotId"] or task["needsReconciliation"]: raise ToolError("denied")
-        if self.fleet_bridge is None: raise ToolError("unavailable")
-        review=self.fleet_bridge.call("stage",p["taskId"],deadline)
-        return self._stage("fleet.propose_sim_reschedule",p,{"kind":"simulation_review","review":review},actor)
-    def _reassign(self,p,call,actor,deadline):
-        task=call("fleet.get_task_status",{"taskId":p["taskId"]})
-        return self._stage("fleet.task.reassign",p,{"kind":"operator_reassignment_request","task":task,"targetRobot":p["robotId"],"dispatch":False},actor)
-    def _quarantine(self,p,call,actor,deadline):
-        return self._stage("fleet.robot.quarantine",p,{"kind":"operator_quarantine_request","robotId":p["robotId"],"reason":p["reason"],"dispatch":False},actor)
-    def _draft(self,p,call,actor,deadline):
-        rows=call("chat.get_context",p)
-        return self._stage("chat.draft_reply",p,{"kind":"reply_draft","text":"Regarding: "+rows[-1]["text"][:300],"messageIds":[r["id"] for r in rows],"sent":False},actor)
-    def _remind(self,p,call,actor,deadline):
-        row=call("chat.tree_node",{"conversationId":p["conversationId"],"nodeId":p["messageId"]})
-        return self._stage("chat.remind",p,{"kind":"reminder_draft","message":row,"delivered":False},actor)
-    def _escalate(self,p,call,actor,deadline):
-        # Read a bounded preference to prove the authorized workspace; escalation does not leak messages.
-        call("preference.get",{})
-        return self._stage("chat.escalate",p,{"kind":"human_handoff_request","reason":p["reason"],"contacted":False},actor)
-    def _plan_day(self,p,call,actor,deadline):
-        progress=call("progress.read",{"subject":p["subject"],"limit":50});preference=call("preference.get",{})
-        used=sum(r["minutes"] for r in progress if r["date"]==p["date"])
-        budget=preference.get("dailyMinutes",60)
-        if type(budget) is not int: budget=60
-        return self._stage("study.plan_day",p,{"kind":"daily_plan_draft","remainingMinutes":max(0,min(1440,budget)-used),"calendarWritten":False},actor)
 
     def decide(self,identity,*,actor_id,approve):
         """Human decision only. Non-simulation proposals remain artifacts, not hidden dispatches."""

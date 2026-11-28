@@ -1,6 +1,6 @@
 #pragma once
 #include "backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.h"
-#include "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.h"
 namespace webserver::phase11::transport {
 class PrivateGenerationHttp final {
 public:

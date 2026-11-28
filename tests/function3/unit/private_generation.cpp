@@ -1,5 +1,5 @@
 #include "backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 #include <condition_variable>
 #include <iostream>
 #include <mutex>

@@ -1,5 +1,5 @@
 #include "ModelAdminService.h"
-#include "backend/application/modules/shared/TextRules/TextRules.h"
+#include "backend/application/modules/shared/domain/TextRules/TextRules.h"
 #include <chrono>
 namespace webserver::function3 {
 void ModelAdminService::authorize(Id actor)const{if(activeActor(actors_,actor).role!=Role::Administrator)throw BusinessError(Failure::Forbidden,"site administrator required");}

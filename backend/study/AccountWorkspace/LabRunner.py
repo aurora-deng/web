@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 from backend.study.AccountWorkspace.FrontendSnapshot import FrontendSnapshot
 from backend.study.AccountWorkspace.GatewayConfig import add_workspace
 from backend.study.AccountWorkspace.AccountWorkspace import origin, prepare_data_directory
-from tools.observability.gateway import add_upstream_tls_arguments, check_ports, render, upstream_tls_arguments
+from tools.observability.gateways.gateway import add_upstream_tls_arguments, check_ports, render, upstream_tls_arguments
 
 
 ROOT = Path(__file__).resolve().parents[3]

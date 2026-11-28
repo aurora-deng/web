@@ -8,7 +8,7 @@
 |---|---|---|
 | [CommunityContentRuntime](../../../../backend/application/modules/bootstrap/CommunityContentRuntime/CommunityContentRuntime.cpp) | 树、动态、举报、媒体的服务/仓储/HTTP 适配，媒体执行器 | 注册内容路由，提供树和举报服务供管理接口使用 |
 | [CommunityDeliveryRuntime](../../../../backend/application/modules/messaging/bootstrap/CommunityDeliveryRuntime/CommunityDeliveryRuntime.cpp) | 写入 Outbox 的适配器、发布线程、Broker、失败重放路由 | 提供事件写入 Port、提交唤醒函数和通知回调 |
-| [RealtimeRuntime](../../../../backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp) | 聊天实时 Sink、持久 Outbox Pump、WS 命令与在线状态 | 在借出的 Sink 析构前停止 Broker 回调，包括装配失败时 |
+| [RealtimeRuntime](../../../../backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp) | 聊天实时 Sink、持久 Outbox Pump、WS 命令与在线状态 | 在借出的 Sink 析构前停止 Broker 回调，包括装配失败时 |
 
 ```mermaid
 flowchart LR

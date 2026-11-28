@@ -13,7 +13,7 @@
 #include "backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.h"
 #include "backend/application/storage/postgres/PostgresWorkspaceRepository/PostgresWorkspaceRepository.h"
 #include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
-#include "backend/application/observability/ChatAckTrace/ChatAckTrace.h"
+#include "backend/application/observability/tracing/ChatAckTrace.h"
 
 #include <algorithm>
 #include <chrono>

@@ -1,11 +1,12 @@
-#include "backend/ai/models/ModelRegistryService/ModelRegistryService.h"
-#include "backend/application/business/AiChatService/AiChatService.h"
+#include "backend/ai/registry/ModelRegistryService/ModelRegistryService.h"
+#include "backend/application/modules/ai/application/AiChatService/AiChatService.h"
+#include "backend/application/observability/tracing/Telemetry.h"
 #include "backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.h"
-#include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
-#include "backend/ai/models/RagService/RagService.h"
+#include "backend/ai/rag/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "backend/ai/rag/RagService/RagService.h"
 #include "backend/application/modules/chat/application/ChatService/ChatService.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
-#include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
+#include "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.h"
 #include "backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.h"
 #include "backend/server/websocket/WebSocketDispatcher/WsMessageContext.h"
 
@@ -13,6 +14,8 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <iostream>
+#include <future>
+#include <latch>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -32,6 +35,43 @@ using namespace webserver::phase11;
 
 namespace
 {
+
+void localTelemetry()
+{
+    // Synthetic local metrics only: never export spans or business logs.
+    for (const auto &[name, value] : {
+             std::pair{"WEB_OBSERVABILITY", "1"},
+             std::pair{"WEB_OBSERVABILITY_OTLP", ""},
+             std::pair{"WEB_BUSINESS_LOG_LEVEL", "off"},
+             std::pair{"WEB_OBSERVABILITY_LOG", "off"}})
+    {
+#if defined(_WIN32)
+        _putenv_s(name, value);
+#else
+        setenv(name, value, 1);
+#endif
+    }
+}
+
+std::uint64_t preparationMetric(std::string_view name, std::string_view outcome)
+{
+    const std::string prefix = "nebula_function_calls_total{function=\"AiChatService::" +
+        std::string(name) + "\",outcome=\"" + std::string(outcome) + "\"} ";
+    const auto metrics = webserver::telemetry::metrics();
+    const auto position = metrics.find(prefix);
+    CHECK(position != metrics.npos);
+    return std::stoull(metrics.substr(position + prefix.size()));
+}
+
+class RejectingAudits final : public IAiGenerationAuditRepository
+{
+public:
+    bool upsertGenerationAudit(AiGenerationAudit) override { return false; }
+    std::optional<AiGenerationAudit> findGenerationAudit(std::string_view) const override
+    {
+        return std::nullopt;
+    }
+};
 
 class RecordingEvents final : public IAiGenerationEventSink
 {
@@ -129,7 +169,10 @@ public:
                 }
                 onToken("hello ");
                 onToken("phase11");
-                onComplete({true, false, {}, {}});
+                const TokenizerUsage usage{11, 5, 4, 800'000, 60'000, 0, 2'000, false};
+                const GenerationCompletion completion{true, false, {}, {}, usage};
+                onComplete(completion);
+                onComplete(completion); // A broken provider must not double-count success.
             });
         {
             std::lock_guard lock(mutex_);
@@ -192,6 +235,7 @@ AiGenerationAudit waitForAudit(InMemoryStore &store, const std::string &id,
 
 int main()
 {
+    localTelemetry();
     User target;target.username="nebula_ai";target.displayName="星云助手";
     AiTriggerPolicy::validate("explicit","普通问题",target,false);
     AiTriggerPolicy::validate("mention","@星云助手 帮忙总结",target,false);
@@ -203,6 +247,7 @@ int main()
     ModelRegistryService registry(store);
     ModelRouter router(store);
     DatabaseExecutor databaseExecutor(2, 32);
+    DatabaseExecutor aiDatabaseExecutor(2, 32);
     RecordingEvents events;
 
     const auto alice = makeUser(store, "alice-ai-test", false, now);
@@ -231,20 +276,38 @@ int main()
     aiConfig.maxActiveGenerations = 4;
     aiConfig.maxActivePerUser = 1;
     aiConfig.maxActivePerAiAccount = 2;
-    aiConfig.generationTimeout = std::chrono::milliseconds(80);
-    AiChatService aiChat(chat, store, store, router, databaseExecutor, store,
+    // Keep the timeout test bounded without a scheduler-sensitive 80ms budget.
+    aiConfig.generationTimeout = std::chrono::milliseconds(500);
+    AiChatService aiChat(chat, store, store, router, aiDatabaseExecutor, store,
                          events, aiConfig, &rag);
     webserver::phase11::transport::Phase11Realtime realtime(
         chat, databaseExecutor, &aiChat);
     WebSocketDispatcher dispatcher;
     realtime.registerHandlers(dispatcher);
 
+    // Fill every ordinary DB worker. AI preparation and completion must still
+    // finish on the independently supplied executor, without SQL or a real DB.
+    std::latch generalPoolBlocked(2);
+    std::promise<void> releaseGeneralPool;
+    const auto generalReleased = releaseGeneralPool.get_future().share();
+    for (int i = 0; i < 2; ++i)
+        CHECK(databaseExecutor.submit([&generalPoolBlocked, generalReleased] {
+            generalPoolBlocked.count_down();
+            generalReleased.wait();
+        }));
+    generalPoolBlocked.wait();
     auto success = generateContext(alice.id, ai.id, conversation.id,
                                    "generation-success", "hello model");
     CHECK(dispatcher.dispatch(success));
     CHECK(success.hasOutbound);
     CHECK(success.outbound.type == "ai.accepted");
     const auto completed = events.waitFor("generation-success");
+    CHECK(databaseExecutor.snapshot().active == 2);
+    releaseGeneralPool.set_value();
+    const auto inference = aiChat.snapshot().inference;
+    CHECK(inference.measuredGenerations == 1);
+    CHECK(inference.outputTokens == 5 && inference.decodeTokens == 4);
+    CHECK(inference.rejectedMeasurements == 0);
     CHECK(completed.success && !completed.cancelled && completed.message);
     CHECK(completed.message->senderId == ai.id);
     CHECK(completed.message->body == "hello phase11");
@@ -287,6 +350,11 @@ int main()
     CHECK(successAudit.startedAt && successAudit.firstTokenAt &&
           successAudit.completedAt && successAudit.responseMessageId);
 
+    CHECK(preparationMetric("prepareAudit", "success") == 3);
+    CHECK(preparationMetric("prepareAudit", "error") == 0);
+    CHECK(preparationMetric("prepareHistory", "success") == 1);
+    CHECK(preparationMetric("prepareRag", "success") == 1);
+
     // 普通账号不能冒充 AI；错误通过异步完成事件返回，不阻塞 WebSocket Worker。
     auto invalid = generateContext(alice.id, bob.id, group.id,
                                    "generation-invalid", "hello");
@@ -304,7 +372,8 @@ int main()
     auto slow = generateContext(alice.id, ai.id, conversation.id,
                                 "generation-cancel", "slow");
     CHECK(dispatcher.dispatch(slow));
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    // Cancellation is valid immediately after admission; do not race a fixed sleep
+    // against the watchdog or rely on provider startup scheduling.
     WsMessageContext cancel;
     cancel.uid = alice.id;
     cancel.inbound.type = "ai.cancel";
@@ -334,6 +403,7 @@ int main()
     const auto timedOut = events.waitFor("generation-hang");
     CHECK(!timedOut.success && !timedOut.cancelled);
     CHECK(timedOut.error.find("deadline") != std::string::npos);
+    CHECK(provider->snapshot().messages.back().content == "hang");
     const auto timeoutAudit = waitForAudit(
         store, "generation-hang", AiGenerationStatus::TimedOut);
     CHECK(timeoutAudit.modelVersionId == version.id && timeoutAudit.completedAt);
@@ -355,9 +425,52 @@ int main()
     CHECK(!stopped.success && stopped.cancelled);
     CHECK(aiChat.snapshot().active == 0);
     databaseExecutor.shutdown();
+    aiDatabaseExecutor.shutdown();
+    // Isolate the failure fixture from any late cancelled preparation work.
+    // A handled false return is an audit error, not a successful stage.
+    DatabaseExecutor rejectingExecutor(1, 8);
+    RejectingAudits rejectingAudits;
+    AiChatService rejectedAuditChat(chat, store, store, router, rejectingExecutor,
+                                    rejectingAudits, events, aiConfig, &rag);
+    const auto previousAuditErrors = preparationMetric("prepareAudit", "error");
+    const auto previousHistory = preparationMetric("prepareHistory", "success");
+    const auto previousRag = preparationMetric("prepareRag", "success");
+    rejectedAuditChat.generate({alice.id, ai.id, conversation.id,
+                                "generation-audit-rejected", "hello", 64});
+    CHECK(!events.waitFor("generation-audit-rejected").success);
+    CHECK(preparationMetric("prepareAudit", "error") == previousAuditErrors + 1);
+    CHECK(preparationMetric("prepareHistory", "success") == previousHistory);
+    CHECK(preparationMetric("prepareRag", "success") == previousRag);
+    rejectedAuditChat.shutdown();
+    rejectingExecutor.shutdown();
     const auto shutdownAudit = store.findGenerationAudit("generation-shutdown");
     CHECK(shutdownAudit &&
           shutdownAudit->status == AiGenerationStatus::Cancelled);
     CHECK(aiChat.snapshot().totalLatencyCount == 5);
+    {
+        // A bounded latest-page query must preserve chronological order and not
+        // accidentally feed the oldest 64 records or reverse the latest window.
+        const auto windowConversation = chat.createDirectConversation(bob.id, ai.id, now);
+        for (int i = 0; i < 70; ++i)
+            (void)chat.sendText(bob.id, windowConversation.id,
+                                "window-seed-" + std::to_string(i),
+                                "history-" + std::to_string(i), now);
+        DatabaseExecutor windowExecutor(1, 8);
+        RecordingEvents windowEvents;
+        AiChatService windowChat(chat, store, store, router, windowExecutor, store,
+                                 windowEvents);
+        windowChat.generate({bob.id, ai.id, windowConversation.id,
+                             "window-generation", "current-window-question", 64});
+        CHECK(windowEvents.waitFor("window-generation").success);
+        const auto prompt = provider->snapshot();
+        CHECK(prompt.messages.size() == 64);
+        CHECK(prompt.messages.front().content == "history-7");
+        CHECK(prompt.messages.back().content == "current-window-question");
+        for (std::size_t i = 0; i < 63; ++i)
+            CHECK(prompt.messages[i].content == "history-" + std::to_string(i + 7));
+        CHECK(windowChat.snapshot().inference.measuredGenerations == 1);
+        windowChat.shutdown();
+        windowExecutor.shutdown();
+    }
     return 0;
 }

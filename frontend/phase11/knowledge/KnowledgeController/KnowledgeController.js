@@ -1,4 +1,4 @@
-import { knowledgeApi } from "../KnowledgeApi/KnowledgeApi.js?v=0613976363093f95";
+import { knowledgeApi } from "../KnowledgeApi/KnowledgeApi.js?v=1f08ad808b467825";
 export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","conversationTitle","api","actionListEmpty"],"types":[]};
 /** KnowledgeController: explicit use cases; shared state/other controllers arrive through context. */
 export function createKnowledgeController(context) {

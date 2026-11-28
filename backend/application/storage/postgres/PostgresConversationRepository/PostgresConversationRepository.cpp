@@ -1,6 +1,6 @@
 #include "backend/application/storage/postgres/PostgresConversationRepository/PostgresConversationRepository.h"
 #include "backend/application/storage/postgres/PostgresValueCodec/PostgresValueCodec.h"
-#include "backend/application/observability/Telemetry/Telemetry.h"
+#include "backend/application/observability/tracing/Telemetry.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdint>

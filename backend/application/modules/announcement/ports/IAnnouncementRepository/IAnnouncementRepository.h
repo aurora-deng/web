@@ -1,5 +1,5 @@
 #pragma once
-#include "backend/application/modules/shared/BusinessContext/BusinessContext.h"
+#include "backend/application/modules/shared/domain/BusinessContext/BusinessContext.h"
 #include <vector>
 namespace webserver::function3 {
 struct Announcement { Id id{},version{}; std::string text; Milliseconds createdAt{},expiresAt{}; };

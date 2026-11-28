@@ -1,5 +1,5 @@
 #pragma once
-#include "backend/application/domain/Domain/Domain.h"
+#include "backend/application/modules/shared/compatibility/Domain/Domain.h"
 namespace webserver::phase11 {
 enum class ProfileWriteResult{Applied,Replay,Conflict,NotFound};
 /** 数据库驱动将操作收据和资料更新放在一个事务，不向业务暴露SQL/连接。 */

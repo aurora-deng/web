@@ -1,10 +1,9 @@
-"""Package the local JPEG into a versioned native module; never downloads assets.
+"""Generate bounded metadata for the existing hash-named lazy JPEG; no image edits.
 
-FrontendAssets currently exposes HTML/CSS/JS only. Keeping artwork in a generated
-data module lets the existing server load it without changing its binary/routes.
+The native static route serves JPEG separately so its bytes are no longer parsed
+as JavaScript or included in the eager module dependency graph.
 """
 import argparse
-import base64
 import hashlib
 import json
 from pathlib import Path
@@ -34,9 +33,9 @@ def main():
     source=sources[0];data=source.read_bytes();assert len(data)<512*1024,'Artwork exceeds the download budget'
     digest=hashlib.sha256(data).hexdigest();assert source.stem.endswith(digest[:12]),'Stale artwork hash filename'
     width,height=dimensions(data)
-    asset={'width':width,'height':height,'sha256':digest,'uri':'data:image/jpeg;base64,'+base64.b64encode(data).decode()}
-    output='/** Generated artwork data. Edit the JPEG source and run scripts/project/chat_backdrop_artwork.py. */\nexport const CHAT_BACKDROP_ARTWORK = Object.freeze('+json.dumps(asset,indent=2)+');\n'
-    assert len(output.encode())<512*1024,'Generated artwork module exceeds 512 KiB'
+    asset={'width':width,'height':height,'sha256':digest,'uri':'/phase11/chat/ChatBackdrop/'+source.name+'?v='+digest[:12]}
+    output='/** Generated artwork metadata. Edit the JPEG source and run scripts/project/chat_backdrop_artwork.py. */\nexport const CHAT_BACKDROP_ARTWORK = Object.freeze('+json.dumps(asset,indent=2)+');\n'
+    assert len(output.encode())<1024,'Artwork metadata exceeds 1 KiB'
     target=COMPONENT/'ChatBackdropArtwork.js'
     if args.check:
         assert target.is_file() and target.read_text(encoding='utf-8')==output,'Stale artwork module; run scripts/project/chat_backdrop_artwork.py'

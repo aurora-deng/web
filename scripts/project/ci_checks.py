@@ -55,19 +55,42 @@ def source_checks(report, observer_http):
         ('apiContracts', 'tests/project/test_api_contracts.py'),
         ('releaseGates', 'tests/project/test_ci_gates.py'),
         ('cppSystemsGates', 'tests/project/test_cpp_systems_gate.py'),
+        ('agentCatalog', 'tests/project/test_agent_catalog_layout.py'),
+        ('nativeSkillCatalog', 'scripts/project/generate_skill_catalog.py', '--check'),
         ('toolRuntime', 'tests/project/test_tool_runtime.py'),
+        ('nebulaToolAdapters', 'tests/project/test_nebula_tool_adapters.py'),
         ('skillRuntime', 'tests/project/test_skill_runtime.py'),
         ('workbenchHttp', 'tests/project/test_workbench_http.py'),
         ('agentControl', 'tests/project/test_agent_control_integration.py'),
         ('agentRoutes', 'tests/project/test_agent_control_routes.py'),
+        ('controlStartup', 'tests/project/test_control_startup_config.py'),
         ('runtimeDelivery', 'tests/project/test_runtime_delivery.py'),
         ('observerQueries', 'tests/project/test_observer_queries.py'),
+        ('observerLayout', 'tests/project/test_observer_layout.py'),
+        ('observabilityToolsLayout', 'tests/project/test_observability_tools_layout.py'),
+        ('phase11OperationsLayout', 'tests/project/test_phase11_operations_layout.py'),
+        ('applicationObservabilityLayout', 'tests/project/test_application_observability_layout.py'),
         ('gatewayContracts', 'tests/project/test_gateway.py'),
+        ('gatewayTlsPreflight', 'tests/project/test_gateway_tls_preflight.py'),
+        ('grpcTlsCompatibility', 'tests/project/test_grpc_tls_compatibility.py'),
         ('distributedObservability', 'tests/project/test_distributed_observability.py'),
         ('processIdentity', 'tests/project/test_process_identity.py'),
         ('inventory', 'tests/project/test_source_inventory.py'),
         ('snapshotPruning', 'tests/project/test_snapshot_pruning.py'),
         ('measurement', 'tests/project/test_measurement_evidence.py'),
+        ('postgresTuningGate', 'tests/project/test_postgres_tuning_gate.py'),
+        ('postgresSettings', 'tests/project/test_postgres_settings.py'),
+        ('postgresActivity', 'tests/project/test_postgres_activity.py'),
+        ('modelSelection', 'tests/project/test_model_selection.py'),
+        ('modelBenchmark', 'tests/project/test_model_benchmark.py'),
+        ('frontendGraph', 'tests/project/test_frontend_graph.py'),
+        ('frontendReleaseAssets', 'tests/project/test_frontend_release_assets.py'),
+        ('trainingDataGenerator', 'tests/phase11/test_training_data_generator.py'),
+        ('aiPipelineContracts', 'tests/project/test_ai_pipeline_contracts.py'),
+        ('aiScriptLayout', 'tests/project/test_ai_script_layout.py'),
+        ('aiCppLayout', 'tests/project/test_ai_cpp_layout.py'),
+        ('applicationLayout', 'tests/project/test_application_layout.py'),
+        ('dailyOnnxWorker', 'tests/project/test_daily_onnx_worker.py'),
     ]:
         check(name, python, script, *args)
     if os.name != 'nt' or observer_http:
@@ -93,6 +116,7 @@ def source_checks(report, observer_http):
         raise RuntimeError('No frontend tests found')
     check('frontendContracts', 'node', '--test', *frontend_tests)
     check('agentFrontendContracts', 'node', 'tests/project/test_agent_control_frontend.cjs')
+    check('personnelFrontendContracts', 'node', 'tests/project/test_personnel_frontend.cjs')
 
 
 def main():

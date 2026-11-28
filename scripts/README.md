@@ -288,13 +288,13 @@ sudo perf script | ~/FlameGraph/stackcollapse-perf.pl | ~/FlameGraph/flamegraph.
 
 ## Phase 11 演示用户初始化
 
-`scripts/phase11/seed-demo-users.py` 使用 Python 标准库调用正在运行的 Phase 11 HTTP API，创建不同
+`scripts/function3/data/seed_demo_users.py` 使用 Python 标准库调用正在运行的 Phase 11 HTTP API，创建不同
 岗位的演示用户、两两好友关系和“星云全栈协作组”。脚本不直连数据库，也不会在源码中保存密码。
 
 ```bash
 install -m 600 /dev/null /home/pikachu/phase11-data/secrets/phase11-demo.password
 # 交互式写入演示密码后再执行；不要把密码放进命令历史或 Git。
-python3 scripts/phase11/seed-demo-users.py \
+python3 scripts/function3/data/seed_demo_users.py \
   --password-file /home/pikachu/phase11-data/secrets/phase11-demo.password
 ```
 

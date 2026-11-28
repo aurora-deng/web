@@ -1,0 +1,491 @@
+{
+  "schema": "observability-tools-responsibility-layout-v1",
+  "date": "2026-11-27",
+  "moves": [
+    [
+      "tools/observability/gateway.py",
+      "tools/observability/gateways/gateway.py"
+    ],
+    [
+      "tools/observability/lab.py",
+      "tools/observability/laboratory/lab.py"
+    ],
+    [
+      "tools/observability/lab_config.py",
+      "tools/observability/laboratory/lab_config.py"
+    ],
+    [
+      "tools/observability/isolated_dual.py",
+      "tools/observability/laboratory/isolated_dual.py"
+    ],
+    [
+      "tools/observability/isolated_gateway.py",
+      "tools/observability/laboratory/isolated_gateway.py"
+    ],
+    [
+      "tools/observability/scenarios.py",
+      "tools/observability/laboratory/scenarios.py"
+    ],
+    [
+      "tools/observability/probe.py",
+      "tools/observability/laboratory/probe.py"
+    ],
+    [
+      "tools/observability/alert_lab.py",
+      "tools/observability/laboratory/alert_lab.py"
+    ],
+    [
+      "tools/observability/alert_receiver.py",
+      "tools/observability/laboratory/alert_receiver.py"
+    ],
+    [
+      "tools/observability/resource_lab.py",
+      "tools/observability/laboratory/resource_lab.py"
+    ],
+    [
+      "tools/observability/preview.py",
+      "tools/observability/laboratory/preview.py"
+    ],
+    [
+      "tools/observability/install_metrics_backend.py",
+      "tools/observability/pipeline/install_metrics_backend.py"
+    ],
+    [
+      "tools/observability/install_pipeline.py",
+      "tools/observability/pipeline/install_pipeline.py"
+    ],
+    [
+      "tools/observability/ack_diagnosis.py",
+      "tools/observability/diagnostics/ack_diagnosis.py"
+    ],
+    [
+      "tools/observability/function_trace.py",
+      "tools/observability/diagnostics/function_trace.py"
+    ],
+    [
+      "tools/observability/experiments.py",
+      "tools/observability/diagnostics/experiments.py"
+    ],
+    [
+      "tools/observability/profile_formats.py",
+      "tools/observability/diagnostics/profile_formats.py"
+    ],
+    [
+      "tools/observability/verify.py",
+      "tools/observability/verification/verify.py"
+    ],
+    [
+      "tools/observability/verify_alert_policy.py",
+      "tools/observability/verification/verify_alert_policy.py"
+    ],
+    [
+      "tools/observability/verify_dual_chat.py",
+      "tools/observability/verification/verify_dual_chat.py"
+    ],
+    [
+      "tools/observability/verify_gateway.py",
+      "tools/observability/verification/verify_gateway.py"
+    ],
+    [
+      "tools/observability/verify_metrics.py",
+      "tools/observability/verification/verify_metrics.py"
+    ],
+    [
+      "tools/observability/retention.py",
+      "tools/observability/lifecycle/retention.py"
+    ]
+  ],
+  "semanticSha256": {
+    "tools/observability/diagnostics/ack_diagnosis.py": "483fefa673ceab994910b222c368d121f238f044b968f16cfe983561c54b5670",
+    "tools/observability/laboratory/alert_lab.py": "0aa15632254c98df5ae15f640125dd9ac54c2a082c60ba078fc4ac6caf15122b",
+    "tools/observability/laboratory/alert_receiver.py": "1e605b585cd0b5a3f79c125dfb62559f143d68a90d205cdeecc44caecb92da8f",
+    "tools/observability/diagnostics/experiments.py": "1625cad3bf6d3d14fd87aaac3df0781145676e5fe0e6b4c6177219a43cd2af44",
+    "tools/observability/diagnostics/function_trace.py": "2740f16c52d2542098910f55817353db9a6e9dc78e5ed28bf1d4e7fc92766e25",
+    "tools/observability/gateways/gateway.py": "ffe9613aad8d3ad56c20c70dd989efec4ea62a54b144c924693ce69ff906f98b",
+    "tools/observability/pipeline/install_metrics_backend.py": "478ad5415b02d162dd4b71e3f4029aadc2012932e63ecd0582a5490fd83a0106",
+    "tools/observability/pipeline/install_pipeline.py": "4f40d5e45e3fb3be47a657d29ac50bdf089c4f3a935afe9f17dd54d6f4f455c5",
+    "tools/observability/laboratory/isolated_dual.py": "ecc232ee6ace56210c8e0b35704c668ab5e53da0c2e5099d2ec47e43dfc5e5ae",
+    "tools/observability/laboratory/isolated_gateway.py": "324a802fbebe0824c32bd658ad531a34b8fb48e5c71f9bb3534061b4efc31618",
+    "tools/observability/laboratory/lab.py": "3e4a46ea3646f7b6605ec71c4a62e4d3ed8c834abf64cd876d63e0c5304fad59",
+    "tools/observability/laboratory/lab_config.py": "0857adf82248e39cfc4480e96669b7e68154fee90abe5346ab92fde010207f22",
+    "tools/observability/laboratory/preview.py": "61e91d3c6d579b4b2df9703fef71afda0605d796caeaa0824d49ed12173ee8d6",
+    "tools/observability/laboratory/probe.py": "bddcf3335b3d10251326d8d6191023cef0e94f181cb8b514fbab1fd39e186542",
+    "tools/observability/diagnostics/profile_formats.py": "a1341940b31ebc87948f5a76b0c2785dbe06830b162e99280b148c7d19f1873c",
+    "tools/observability/laboratory/resource_lab.py": "0cf1b69285467955ca9e2292c9e22ff42a60c7d0231ef01bc2a1be20adc95e08",
+    "tools/observability/lifecycle/retention.py": "1ad1dfa1df464471016c71d68c2ef7332dc74b8e2d2181b6f6dab45135796e20",
+    "tools/observability/laboratory/scenarios.py": "b4bd9d6757854c8eae7fd101375d9d40d8adb73284164354af4189e052cbe335",
+    "tools/observability/verification/verify.py": "450e03bafdf0f413d867d8dd522edab8ca60fc99ff3ee0ea2a4d7a6b820ca6d2",
+    "tools/observability/verification/verify_alert_policy.py": "2feec3f40ed131fa7b9448cbbbc2dbd9c5f57bb6df1798c425719a0cc9b5f979",
+    "tools/observability/verification/verify_dual_chat.py": "848144fa7118a3ccf6f0c72693260e765efb98003b02c322102b070b982a4910",
+    "tools/observability/verification/verify_gateway.py": "a5a46e265612866f8d39511edbaeaf418c60fe0fd235e5029fca1a50912fe0d5",
+    "tools/observability/verification/verify_metrics.py": "4981a6bf647b2b9e63e46638c55137a9df31d3485aabab299f11d4504c4f23cf"
+  },
+  "behaviorChangeIntended": false,
+  "stableCommandEntrypoints": [
+    "tools/observability/ack_diagnosis.py",
+    "tools/observability/alert_lab.py",
+    "tools/observability/alert_receiver.py",
+    "tools/observability/experiments.py",
+    "tools/observability/function_trace.py",
+    "tools/observability/install_metrics_backend.py",
+    "tools/observability/install_pipeline.py",
+    "tools/observability/isolated_dual.py",
+    "tools/observability/isolated_gateway.py",
+    "tools/observability/lab.py",
+    "tools/observability/preview.py",
+    "tools/observability/probe.py",
+    "tools/observability/resource_lab.py",
+    "tools/observability/retention.py",
+    "tools/observability/scenarios.py",
+    "tools/observability/verify.py",
+    "tools/observability/verify_alert_policy.py",
+    "tools/observability/verify_dual_chat.py",
+    "tools/observability/verify_gateway.py",
+    "tools/observability/verify_metrics.py"
+  ],
+  "processIdentityLiteralsPreserved": true,
+  "compatibilityImports": [
+    "tools/observability/gateway.py",
+    "tools/observability/lab.py",
+    "tools/observability/lab_config.py",
+    "tools/observability/isolated_dual.py",
+    "tools/observability/isolated_gateway.py",
+    "tools/observability/scenarios.py",
+    "tools/observability/probe.py",
+    "tools/observability/alert_lab.py",
+    "tools/observability/alert_receiver.py",
+    "tools/observability/resource_lab.py",
+    "tools/observability/preview.py",
+    "tools/observability/install_metrics_backend.py",
+    "tools/observability/install_pipeline.py",
+    "tools/observability/ack_diagnosis.py",
+    "tools/observability/function_trace.py",
+    "tools/observability/experiments.py",
+    "tools/observability/profile_formats.py",
+    "tools/observability/verify.py",
+    "tools/observability/verify_alert_policy.py",
+    "tools/observability/verify_dual_chat.py",
+    "tools/observability/verify_gateway.py",
+    "tools/observability/verify_metrics.py",
+    "tools/observability/retention.py"
+  ],
+  "historicalEvidenceRewritten": false,
+  "files": [
+    {
+      "old": "backend/study/AccountWorkspace/GatewayConfig.py",
+      "new": "backend/study/AccountWorkspace/GatewayConfig.py",
+      "beforeSha256": "c4dc30093bce2903efa0b36653c6df78555d570cf2fd6189f43f66d5334ca310",
+      "afterSha256": "d8e203ca5cea7eaa3980ed963a0c43db794fa079c002b4a36830bdf7f898fff3"
+    },
+    {
+      "old": "backend/study/AccountWorkspace/LabRunner.py",
+      "new": "backend/study/AccountWorkspace/LabRunner.py",
+      "beforeSha256": "81dbdda0afd1a6b5d3ae9927ea39df7abd26bb14636f4d2892b91ad9bb482f1a",
+      "afterSha256": "4c6ae7aacc12d87a0dc5c0911d2cd7e077c4da92cfcc9d0b1369b11efbdbb5fa"
+    },
+    {
+      "old": "tests/cpp_systems/fleet_process.py",
+      "new": "tests/cpp_systems/fleet_process.py",
+      "beforeSha256": "0e4063e2b8deeffc7d8383150a3cb91c505bbac0ee4d65cc4f5bbc9222b96607",
+      "afterSha256": "b7068923c92be56afa5a60a63cd76e9ccdb0c25ac4ff8cef7db53d236aabb4e6"
+    },
+    {
+      "old": "tests/project/test_agent_control_routes.py",
+      "new": "tests/project/test_agent_control_routes.py",
+      "beforeSha256": "cfbb9aa110359612f58a05be2314fcd374b85fd6022369b088edbdf560400e20",
+      "afterSha256": "e88c9b055f29af37ca66819f3fae32ef6916a4e866c6d28052d48955f2260856"
+    },
+    {
+      "old": "tests/project/test_distributed_observability.py",
+      "new": "tests/project/test_distributed_observability.py",
+      "beforeSha256": "84cd47dd22c0c0bc9fcebe4b8f73984502357916445e93a0255315bb345b0270",
+      "afterSha256": "5868efbd8baf912a31af71cbecffe2bef253b4b7059c881772513a1143736cb8"
+    },
+    {
+      "old": "tests/project/test_gateway.py",
+      "new": "tests/project/test_gateway.py",
+      "beforeSha256": "cf9e6b25ed014426785e008fd18a024271bc52055798edfe894827f1d38064dc",
+      "afterSha256": "59bdcb08a9ce615bb1077e74eca1f4ebd373d1f2b5a2d557285f8a80d2aff19a"
+    },
+    {
+      "old": "tests/project/test_observability.py",
+      "new": "tests/project/test_observability.py",
+      "beforeSha256": "035e4f181d61c09d1c2a056910b43c6c6155a71b67f65e2e8f55a6b89715cb1c",
+      "afterSha256": "bc21cf1fc626d66ba664a3e0b213f8ad3db66b181ef120727e77766ce3b72c9e"
+    },
+    {
+      "old": "tests/project/test_runtime_delivery.py",
+      "new": "tests/project/test_runtime_delivery.py",
+      "beforeSha256": "002ca072e35e060c1ce3ae7981c222dbb79239bca490a44c99d38fe83e55434b",
+      "afterSha256": "fddc1b49fd8f0527bd9d27a809e52ab5a6bc09731ed3ae48bf88029758db2ac9"
+    },
+    {
+      "old": "tools/observability/ack_diagnosis.py",
+      "new": "tools/observability/diagnostics/ack_diagnosis.py",
+      "beforeSha256": "a6807d2a0c528ecfeb6b2980c1e438b97077a50a7543bc1f58c85c0097f52954",
+      "afterSha256": "61fd1f06a5fa35acd0c4df5787545eb3cec1754c98940a124627531987390882"
+    },
+    {
+      "old": "tools/observability/alert_lab.py",
+      "new": "tools/observability/laboratory/alert_lab.py",
+      "beforeSha256": "9df8e23d43872d83bfaf1628e1e46bd32905599fb667fd37438143962c4578a0",
+      "afterSha256": "ffdae0d93c9fd82223b21b3a84be5b7c78e79efc4c9e2bb00462e2f4b792990e"
+    },
+    {
+      "old": "tools/observability/alert_receiver.py",
+      "new": "tools/observability/laboratory/alert_receiver.py",
+      "beforeSha256": "78d6ac6a832ce741bc34b496d7614f191eb6a06ec305320e70261511fa34889a",
+      "afterSha256": "78d6ac6a832ce741bc34b496d7614f191eb6a06ec305320e70261511fa34889a"
+    },
+    {
+      "old": "tools/observability/experiments.py",
+      "new": "tools/observability/diagnostics/experiments.py",
+      "beforeSha256": "f4ef7c344dbccc988616435dc80fc4c8ecbcc4b3fbddbcff891c7f565847b22f",
+      "afterSha256": "d9dfdb1c2fc450fcc90e9aa2f1c96dd58eee477e9ee51f19b06261a3ce2c81ba"
+    },
+    {
+      "old": "tools/observability/function_trace.py",
+      "new": "tools/observability/diagnostics/function_trace.py",
+      "beforeSha256": "105d10f6a2fd1a1c2a863e3a8d8e7f6228944d7ef024453ba4245a964631b3eb",
+      "afterSha256": "919d9412ebf4fe31b3153a2a186638301079e749ae1ec530347aa9ad3253c1c8"
+    },
+    {
+      "old": "tools/observability/gateway.py",
+      "new": "tools/observability/gateways/gateway.py",
+      "beforeSha256": "81455c1e225850ece3b9aebf6f2cba1917b73813d3738f9666e8cad0847eb8df",
+      "afterSha256": "f43ad145236bc1689ae8ae0034942b5d6f2f969090301d867fb261a4a37c4779"
+    },
+    {
+      "old": "tools/observability/gateway_plugins/StreamHandshake/build_wasm.py",
+      "new": "tools/observability/gateway_plugins/StreamHandshake/build_wasm.py",
+      "beforeSha256": "d33a5f2be35894caeb0e2198ede21f3449e2276389ed120cc8dfa69aa18e22e7",
+      "afterSha256": "30df7cccc541f4f5a24cf627a7fa2536516f9504c6ba1eca65767cee5fd6b93a"
+    },
+    {
+      "old": "tools/observability/install_metrics_backend.py",
+      "new": "tools/observability/pipeline/install_metrics_backend.py",
+      "beforeSha256": "2445a52983ef1b08c305bcabec96f6d3c0467dc17d0c5d53febe9e42eab3e5f0",
+      "afterSha256": "2445a52983ef1b08c305bcabec96f6d3c0467dc17d0c5d53febe9e42eab3e5f0"
+    },
+    {
+      "old": "tools/observability/install_pipeline.py",
+      "new": "tools/observability/pipeline/install_pipeline.py",
+      "beforeSha256": "cb0ee8e8b030c3b1ec5341108faff402951bd48bbd51dedfc42a4755dff029a7",
+      "afterSha256": "e9dd3405d8a6cd1881594b8daf70c33dcc92ba5dd6f082ba7e30828cb2f06e47"
+    },
+    {
+      "old": "tools/observability/isolated_dual.py",
+      "new": "tools/observability/laboratory/isolated_dual.py",
+      "beforeSha256": "dd4b98b123278d3ab7001b5707081af3b354cf8be75bcc470f97910862f9ee2c",
+      "afterSha256": "dd4b98b123278d3ab7001b5707081af3b354cf8be75bcc470f97910862f9ee2c"
+    },
+    {
+      "old": "tools/observability/isolated_gateway.py",
+      "new": "tools/observability/laboratory/isolated_gateway.py",
+      "beforeSha256": "d933a1a76f1735c386348166d97c1b10f7acec5e5bfb5352a7d2fa450b7f5759",
+      "afterSha256": "31c12e20e1a02947288d4f1f9ecbab25e5ce444639d68eb00513501251c141fb"
+    },
+    {
+      "old": "tools/observability/lab.py",
+      "new": "tools/observability/laboratory/lab.py",
+      "beforeSha256": "77848432fecc6dde73cea76e43fdb8b2a80b2fe3c372b5ba2fe48341f38aff6e",
+      "afterSha256": "3b91a41eefc183e2e3f9ed9b992c211b583b5d32d996c0287c1ee7558b4bc07d"
+    },
+    {
+      "old": "tools/observability/lab_config.py",
+      "new": "tools/observability/laboratory/lab_config.py",
+      "beforeSha256": "3f23cce7dc58bb75079e180c7f666966f1ce90b48f8ed0163a89f742da0574f7",
+      "afterSha256": "3f23cce7dc58bb75079e180c7f666966f1ce90b48f8ed0163a89f742da0574f7"
+    },
+    {
+      "old": "tools/observability/observer/http/server.py",
+      "new": "tools/observability/observer/http/server.py",
+      "beforeSha256": "06a3c7a405e187c433545d4e9dbcc6764539e6d1d09dc947210db40192acb34c",
+      "afterSha256": "ae6d85e28180125bf78ecbabba1765235d9da1ca5120381f8452345152f006bd"
+    },
+    {
+      "old": "tools/observability/preview.py",
+      "new": "tools/observability/laboratory/preview.py",
+      "beforeSha256": "7f01269cd5b41a328d3a2d4ed1d7e7bb3badb69f1d4a54bc03984414a0a080f9",
+      "afterSha256": "6f1160a07d3e0422fe8f96f79757eb7546e77baa3b5553b2f99bce8085fbf7a2"
+    },
+    {
+      "old": "tools/observability/probe.py",
+      "new": "tools/observability/laboratory/probe.py",
+      "beforeSha256": "6123eabd311caa89e3b1772b0f6d656c7d86f865fc6365b34be200036eccecfc",
+      "afterSha256": "2fd72289a5ffedb25ca25de36ca2d47d05662be5270458c88743754dc34e739e"
+    },
+    {
+      "old": "tools/observability/profile_formats.py",
+      "new": "tools/observability/diagnostics/profile_formats.py",
+      "beforeSha256": "553cc875119fea8b166f303c7a1c76f316e2f30a521d1bb01ed8a9cd1ef2843a",
+      "afterSha256": "553cc875119fea8b166f303c7a1c76f316e2f30a521d1bb01ed8a9cd1ef2843a"
+    },
+    {
+      "old": "tools/observability/resource_lab.py",
+      "new": "tools/observability/laboratory/resource_lab.py",
+      "beforeSha256": "a11a4a4ace48e7e7f99beb2a3c41a292abee8f9cd00c9340bedec4c46720c156",
+      "afterSha256": "111a77ad38d759d126e691e615c9ac20fb2af6654f797e9f16e1e9040857c798"
+    },
+    {
+      "old": "tools/observability/retention.py",
+      "new": "tools/observability/lifecycle/retention.py",
+      "beforeSha256": "42065b6bfc7ff89f78066d4e11b0505c1f2aae96770c51f69d07f1259350a0e7",
+      "afterSha256": "42065b6bfc7ff89f78066d4e11b0505c1f2aae96770c51f69d07f1259350a0e7"
+    },
+    {
+      "old": "tools/observability/scenarios.py",
+      "new": "tools/observability/laboratory/scenarios.py",
+      "beforeSha256": "b8bc4b72a3287aaaea73ccd07d96365cf307a29b8b79c4427901728fe1a6001b",
+      "afterSha256": "b8bc4b72a3287aaaea73ccd07d96365cf307a29b8b79c4427901728fe1a6001b"
+    },
+    {
+      "old": "tools/observability/verify.py",
+      "new": "tools/observability/verification/verify.py",
+      "beforeSha256": "c3bdff6456d79622e79611401ac99acd5115881e89c8caf12309783a2d6f4c1f",
+      "afterSha256": "b0ddc7a9ee8cd88f985952e16811894ac2372d1f3521b32c81f74f47483a2b4a"
+    },
+    {
+      "old": "tools/observability/verify_alert_policy.py",
+      "new": "tools/observability/verification/verify_alert_policy.py",
+      "beforeSha256": "41c8abf7ed5f17bdd7d6b51e8b8e0e5309bdbf8f328cff17ae830e7e804377b2",
+      "afterSha256": "41c8abf7ed5f17bdd7d6b51e8b8e0e5309bdbf8f328cff17ae830e7e804377b2"
+    },
+    {
+      "old": "tools/observability/verify_dual_chat.py",
+      "new": "tools/observability/verification/verify_dual_chat.py",
+      "beforeSha256": "22446f3c1f6c2162c2f0fe3543e4022d4f1068f2dcead179b3f8c0ac6557eb83",
+      "afterSha256": "d3d55368c34c91fe1f3d75c0072e9d657de3c5e882bdfb66fd7276f3dcf84b12"
+    },
+    {
+      "old": "tools/observability/verify_gateway.py",
+      "new": "tools/observability/verification/verify_gateway.py",
+      "beforeSha256": "8173c56b12c48ada2eb5456c75f08672f268383769ebf7ec1f57e1928c48c92b",
+      "afterSha256": "3281b25475e61b53c54992e095f3b864265bb54eecb791bb95b8f0e935a1dff7"
+    },
+    {
+      "old": "tools/observability/verify_metrics.py",
+      "new": "tools/observability/verification/verify_metrics.py",
+      "beforeSha256": "ce7d7e03786d69745235032fb0563413e4a00e9a4173300741140df396324ed8",
+      "afterSha256": "ce7d7e03786d69745235032fb0563413e4a00e9a4173300741140df396324ed8"
+    }
+  ],
+  "generated": [
+    {
+      "path": "tools/observability/ack_diagnosis.py",
+      "sha256": "d3c2b5779b9d37927cb5cbed86c4f2f3fe5c650e01430d25ba38f50266112b63"
+    },
+    {
+      "path": "tools/observability/alert_lab.py",
+      "sha256": "580b98e88946fef7a5af04cec12c6fb1aa8c7f10689c8b428c559efd9fa38d08"
+    },
+    {
+      "path": "tools/observability/alert_receiver.py",
+      "sha256": "48334679e847621577fbd39a39572a34760000b91240414c78aeb4a61789293d"
+    },
+    {
+      "path": "tools/observability/diagnostics/__init__.py",
+      "sha256": "3ef243f0d7d417a92578f98e9935f7ce5e0a0393961f80e39cae3e079519a771"
+    },
+    {
+      "path": "tools/observability/experiments.py",
+      "sha256": "e52d5828299605ddf4aabea967878e576f61dccae24694504e81603ed5957b58"
+    },
+    {
+      "path": "tools/observability/function_trace.py",
+      "sha256": "d4ce5043d626651e341704d7b41398a4ee534c40e6968a3f8d6a97dfb512f44f"
+    },
+    {
+      "path": "tools/observability/gateway.py",
+      "sha256": "30789ee7e18e55a1542db8cb211ba666d69af9ad8c0baa27caf1b6963de71836"
+    },
+    {
+      "path": "tools/observability/gateways/__init__.py",
+      "sha256": "3ef243f0d7d417a92578f98e9935f7ce5e0a0393961f80e39cae3e079519a771"
+    },
+    {
+      "path": "tools/observability/install_metrics_backend.py",
+      "sha256": "171208d26e666d003ff0fd51107478b9df24bbbb14cc531fb4c53117ecf35020"
+    },
+    {
+      "path": "tools/observability/install_pipeline.py",
+      "sha256": "08d269d5c26ec830b069a058fac97e58abbad3e71cd9471fef2609d8d937292e"
+    },
+    {
+      "path": "tools/observability/isolated_dual.py",
+      "sha256": "a9681d749120388f65373fc3ac091d9a100ea4f3572bef989a35c04e92560ad0"
+    },
+    {
+      "path": "tools/observability/isolated_gateway.py",
+      "sha256": "9b4282ecade86c7d65645e677a4b5c10721e290b96074461a594377b2ad454ee"
+    },
+    {
+      "path": "tools/observability/lab.py",
+      "sha256": "fe42e58db60e989947e1f02c148992905dd0396252a19675374670f1f229ee9b"
+    },
+    {
+      "path": "tools/observability/lab_config.py",
+      "sha256": "202db8fcf3f7fa024d21c771b40dc1cc0ebe0c3ad0a6b2e0fc322c15dac0d9c9"
+    },
+    {
+      "path": "tools/observability/laboratory/__init__.py",
+      "sha256": "3ef243f0d7d417a92578f98e9935f7ce5e0a0393961f80e39cae3e079519a771"
+    },
+    {
+      "path": "tools/observability/lifecycle/__init__.py",
+      "sha256": "3ef243f0d7d417a92578f98e9935f7ce5e0a0393961f80e39cae3e079519a771"
+    },
+    {
+      "path": "tools/observability/pipeline/__init__.py",
+      "sha256": "3ef243f0d7d417a92578f98e9935f7ce5e0a0393961f80e39cae3e079519a771"
+    },
+    {
+      "path": "tools/observability/preview.py",
+      "sha256": "781ac80fc7ab8d10e0c8b64caa9dcd06ff4f2f5348c13fae94fe1e590c77cc9d"
+    },
+    {
+      "path": "tools/observability/probe.py",
+      "sha256": "687ff989a2d6d7c18c2d87b89ab33b057ba97798763e7f0ac403849b8a8d0f49"
+    },
+    {
+      "path": "tools/observability/profile_formats.py",
+      "sha256": "fa379d93c54fb0ce66d14a741ccd72ed06cba2ad9429d2e1aa0e0b4b80fbbe6a"
+    },
+    {
+      "path": "tools/observability/resource_lab.py",
+      "sha256": "18d870a765266b8863117add64fe7cb7e006f19d2e04202fba04bd8d3ee09d1d"
+    },
+    {
+      "path": "tools/observability/retention.py",
+      "sha256": "d7138410143640debbea6f55177ebde1d2672cead063efb6635e464d20392f95"
+    },
+    {
+      "path": "tools/observability/scenarios.py",
+      "sha256": "bc9bc980c6278a7a8309fb7f520bdc54a95b087b57ae3f4fa2a6d24b7c98bd3a"
+    },
+    {
+      "path": "tools/observability/verification/__init__.py",
+      "sha256": "3ef243f0d7d417a92578f98e9935f7ce5e0a0393961f80e39cae3e079519a771"
+    },
+    {
+      "path": "tools/observability/verify.py",
+      "sha256": "e4d4ede1241acba9b71f33691d1d8db9d143d03e3e52d1eba2903ed2984ebd24"
+    },
+    {
+      "path": "tools/observability/verify_alert_policy.py",
+      "sha256": "74d6ead5c0bc025e4ff3638fb3a0e40435f2e825e9653c624c3bb71a761137ed"
+    },
+    {
+      "path": "tools/observability/verify_dual_chat.py",
+      "sha256": "07101d60bad9e6c42df9cc6f4f04c721f462d207661bbc6aa577664aad2bac39"
+    },
+    {
+      "path": "tools/observability/verify_gateway.py",
+      "sha256": "3189f4682304a6e34e973b9221e36a14e36714ab7554ef14b23a4e3b2c8a0fd9"
+    },
+    {
+      "path": "tools/observability/verify_metrics.py",
+      "sha256": "bb4ad032c6c2395b964e1854c364147f74de3af3d0f9922dc63b69fe5e465814"
+    }
+  ]
+}

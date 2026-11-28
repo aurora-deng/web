@@ -1,9 +1,9 @@
 #pragma once
-#include "backend/application/ports/IConversationRepository/IConversationRepository.h"
-#include "backend/application/ports/IDatabase/IDatabase.h"
-#include "backend/application/ports/IMessageRepository/IMessageRepository.h"
-#include "backend/application/ports/IOutboxRepository/IOutboxRepository.h"
-#include "backend/application/ports/IUserRepository/IUserRepository.h"
+#include "backend/application/modules/chat/ports/IConversationRepository/IConversationRepository.h"
+#include "backend/application/modules/shared/ports/IDatabase/IDatabase.h"
+#include "backend/application/modules/chat/ports/IMessageRepository/IMessageRepository.h"
+#include "backend/application/modules/messaging/ports/IOutboxRepository/IOutboxRepository.h"
+#include "backend/application/modules/accounts/ports/IUserRepository/IUserRepository.h"
 #include "backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.h"
 namespace webserver::chat {
     /** Domain composition root: drivers are injected, neither routes nor main duplicate use-case rules. */

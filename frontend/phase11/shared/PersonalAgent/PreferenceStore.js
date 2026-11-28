@@ -1,5 +1,5 @@
-import { emptyProfile } from './PreferenceProfile.js?v=0613976363093f95';
-import { readCheckpoint } from './ContextWindow.js?v=0613976363093f95';
+import { emptyProfile } from './PreferenceProfile.js?v=1f08ad808b467825';
+import { readCheckpoint } from './ContextWindow.js?v=1f08ad808b467825';
 
 const storeName = 'profiles';
 let connection;

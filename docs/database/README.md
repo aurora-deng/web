@@ -567,11 +567,11 @@ ORDER BY r.created_at DESC, c.rank;
 | RAG 资料、切片、检索与引用 | [009_rag_knowledge_and_citations.sql](../../backend/application/storage/postgres/migrations/009_rag_knowledge_and_citations.sql) |
 | 训练数据集文件路径、记录数与 SHA-256 约束 | [010_training_dataset_artifacts.sql](../../backend/application/storage/postgres/migrations/010_training_dataset_artifacts.sql) |
 | 未撤销训练授权来源去重 | [011_training_candidate_deduplication.sql](../../backend/application/storage/postgres/migrations/011_training_candidate_deduplication.sql) |
-| RAG 编排与权限校验 | [RagService.cpp](../../backend/ai/models/RagService/RagService.cpp) |
-| 可替换的确定性学习索引 | [DeterministicKnowledgeIndex.cpp](../../backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp) |
+| RAG 编排与权限校验 | [RagService.cpp](../../backend/ai/rag/RagService/RagService.cpp) |
+| 可替换的确定性学习索引 | [DeterministicKnowledgeIndex.cpp](../../backend/ai/rag/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp) |
 | PostgreSQL Repository | [PostgresStore.cpp](../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp) |
 | 连接池 | [PostgresConnectionPool.cpp](../../backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
-| Repository 业务接口 | [Ports.h](../../backend/application/ports/Ports/Ports.h) |
+| Repository 业务接口 | [Ports.h](../../backend/application/modules/shared/compatibility/Ports/Ports.h) |
 | 数据库契约测试 | [postgres_contract.cpp](../../tests/phase11/unit/postgres_contract.cpp) |
 | 迁移脚本 | [postgres-migrate.sh](../../scripts/phase11/postgres-migrate.sh) |
 

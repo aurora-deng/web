@@ -13,6 +13,7 @@ from uuid import uuid4
 from .registry import Effect
 from .runtime import ToolError, encode
 from .sources import Binding, observed
+from .catalog import load_tool_handlers
 
 
 class NativeSession:
@@ -92,6 +93,7 @@ class NativeSession:
 class NebulaWorkspace:
     SOURCE = "nebula.account.workspace"
     def __init__(self, storage, native, control, fleet=None):
+        self._read_handlers, self._write_handlers = load_tool_handlers("nebula")
         self.storage,self.native,self.control,self.fleet = storage,native,control,fleet
         self.owner = native.actor
         with storage.lock:
@@ -139,81 +141,20 @@ class NebulaWorkspace:
                 "text":"" if row.get("state") == "recalled" else str(row.get("body",""))[:2048]}
 
     def read(self, name, p, ctx):
-        if not self.authorize(ctx.actor_id,name,p):
+        if not self.authorize(ctx.actor_id, name, p):
             raise ToolError("denied")
-        if name in {"chat.search","chat.get_context","chat.tree_node"}:
-            if name == "chat.search":
-                value = [self.message(r) for r in self.native.call("chat.search",p,ctx.deadline)["items"][:p["limit"]]]
-            else:
-                params = p if name == "chat.get_context" else {"conversationId":p["conversationId"],"messageId":p["nodeId"],"radius":0}
-                response = self.native.call("chat.context",params,ctx.deadline)
-                rows = response["items"] if params["radius"] else [response["target"]]
-                value = [self.message(r) for r in rows]
-                if name == "chat.tree_node":
-                    value = value[0]
-            return observed(value,"nebula.chat.authorized")
-        if name.startswith("fleet.") or name in {"workflow.get_run","evidence.get","metrics.get"}:
-            if self.fleet is None:
-                raise ToolError("unavailable")
-            if name == "fleet.get_task_status":
-                value = self.fleet.status(p["taskId"],ctx.deadline)
-            elif name == "fleet.list_tasks":
-                value = self.fleet.tasks(p,ctx.deadline)
-            elif name == "evidence.get":
-                value = self.fleet.status(p["evidenceId"],ctx.deadline)
-            elif name == "workflow.get_run":
-                return observed(self.fleet.trace(p),"workflow.checkpoint.projection",fresh=False)
-            elif name == "metrics.get":
-                if p["names"] != ["fleet.active_tasks"]:
-                    raise ToolError("unavailable")
-                value = [{"name":"fleet.active_tasks","value":self.fleet.counts()["fleet.active_tasks"],
-                          "sampledAt":datetime.now(timezone.utc).isoformat(),"aggregation":"instant","requestedWindowSeconds":p["windowSeconds"]}]
-            return observed(value,"fleet.grpc.live")
-        with self.locked(ctx.deadline) as db:
-            if name == "material.search":
-                value=[]
-                for col in ("resources","notes"):
-                    rows=self.records(db,col,"coalesce(json_extract(j.value,'$.subjectId'),json_extract(j.value,'$.subject'),'')=? AND instr(lower(coalesce(json_extract(j.value,'$.title'),'')),lower(?))>0 AND (?='note' AND ?='notes' OR ?!='note' AND ?='resources' AND (coalesce(json_extract(j.value,'$.type'),json_extract(j.value,'$.kind'),'')=? OR lower(coalesce(json_extract(j.value,'$.name'),json_extract(j.value,'$.title'),'')) LIKE ?))",
-                        (p["subject"],p["query"],p["type"],col,p["type"],col,p["type"],"%."+({"document":"docx"}.get(p["type"],p["type"]))),p["limit"]-len(value))
-                    value.extend({"materialId":r["id"],"title":str(r.get("title",r["id"]))[:256],"kind":p["type"]} for r in rows)
-                    if len(value) >= p["limit"]:
-                        break
-            elif name == "material.chunk":
-                col,row=self.record(db,p["materialId"])
-                a=p["anchor"]
-                if col == "notes" and a == {"kind":"page","offset":1}:
-                    text=str(row.get("content",row.get("text","")))
-                elif col == "resources" and a["kind"] == "page" and row.get("fileId"):
-                    found=db.execute("SELECT body FROM attachment_text WHERE id=? AND page=? LIMIT 1", (row["fileId"],a["offset"])).fetchone()
-                    if not found:
-                        raise ToolError("not_found")
-                    cached=json.loads(found[0]);text=cached.get("text","")
-                else:
-                    raise ToolError("unavailable")
-                if not text:
-                    raise ToolError("not_found")
-                value={"materialId":p["materialId"],"anchor":a,"text":text[:2048]}
-            elif name == "quiz.next":
-                rows=self.records(db,"flashcards","coalesce(json_extract(j.value,'$.subjectId'),json_extract(j.value,'$.subject'),'')=? AND coalesce(json_extract(j.value,'$.mastery'),'new') NOT IN ('mastered','done')",(p["subject"],),1)
-                if not rows:
-                    raise ToolError("not_found")
-                row=rows[0];value={"id":row["id"],"question":str(row.get("front",""))[:2048],"answer":str(row.get("back",""))[:2048]}
-            elif name == "progress.read":
-                rows=self.records(db,"focusSessions","coalesce(json_extract(j.value,'$.subjectId'),json_extract(j.value,'$.subject'),'')=?",(p["subject"],),p["limit"])
-                value=[{"id":r["id"],"date":r.get("date",r.get("startedAt","")[:10]),"item":r.get("itemId",""),"minutes":int(r.get("seconds",0))//60} for r in rows]
-            elif name == "preference.get":
-                row=db.execute("SELECT json_extract(body,'$.planCapacities') FROM document WHERE id=1").fetchone()
-                capacities=json.loads(row[0]) if row and row[0] else {}
-                daily=capacities.get("dailyMinutes",[])
-                value={"dailyMinutes":min(1440,max(0,sum(daily)//len(daily))) if daily and all(type(n) is int for n in daily) else 60}
-            elif name == "memory.read":
-                rows=self.records(db,"notes","json_extract(j.value,'$.source')='agent-memory'",(),p["limit"])
-                value=[{"id":r["id"],"text":str(r.get("content",""))[:2048]} for r in rows]
-            elif name == "material.stats":
-                value={"scope":"account_metadata_only","count":sum(db.execute("SELECT count(*) FROM document d,json_each(d.body,?)",("$."+col,)).fetchone()[0] for col in ("resources","notes"))}
-            else:
-                raise ToolError("not_found")
-        return observed(value,self.SOURCE)
+        if time.monotonic() >= ctx.deadline:
+            raise ToolError("timeout")
+        handler = self._read_handlers.get(name)
+        if handler is None:
+            raise ToolError("not_found")
+        return handler(self, p, ctx)
+
+    def _write_handler(self, tool):
+        handler = self._write_handlers.get(tool)
+        if handler is None:
+            raise ToolError("not_found")
+        return handler
 
     def execute_once(self, tool, p, ctx):
         if not self.authorize(ctx.actor_id,tool,p):
@@ -233,16 +174,7 @@ class NebulaWorkspace:
                     _,item=self.record(db,p["itemId"])
                     if item.get("subjectId",item.get("subject")) != p["subject"]:
                         raise ToolError("denied")
-                if tool == "progress.write":
-                    col="focusSessions";start=datetime.fromisoformat(p["date"]).replace(tzinfo=timezone.utc)
-                    record={"id":identity,"subject":p["subject"],"itemId":p["itemId"],"date":p["date"],"seconds":p["minutes"]*60,
-                            "startedAt":start.isoformat(),"endedAt":(start+timedelta(minutes=p["minutes"])).isoformat(),"source":"agent-control","activityType":item.get("activityType","unclassified"),"createdAt":now}
-                elif tool == "mistake.write":
-                    col="mistakes";record={"id":identity,"title":p["text"][:120],"subject":p["subject"],"itemId":p["itemId"],"cause":p["text"],"mastery":"new","source":"agent-control","createdAt":now}
-                elif tool == "memory.write":
-                    col="notes";record={"id":identity,"title":"Agent memory","content":p["text"],"source":"agent-memory","createdAt":now}
-                else:
-                    raise ToolError("not_found")
+                col, record = self._write_handler(tool)(self, db, p, ctx, identity, now, item if tool in {"progress.write", "mistake.write"} else None)
                 self.storage.apply([{"opId":uuid4().hex,"kind":"upsert","collection":col,"id":identity,"fields":record}],commit=False)
                 current=self.records(db,col,"json_extract(j.value,'$.id')=?",(identity,),1)
                 if not current:

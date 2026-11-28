@@ -18,26 +18,26 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from tools.observability.alert_receiver import Receiver
-from tools.observability.observer.events import Invalid
-from tools.observability.function_trace import FunctionRun, demo_workload
-from tools.observability.observer.custom_alerts import advance, inspect_series
-from tools.observability.observer.local_metrics import (LocalMetrics, business_alerts, histogram_points,
+from tools.observability.laboratory.alert_receiver import Receiver
+from tools.observability.observer.contracts.events import Invalid
+from tools.observability.diagnostics.function_trace import FunctionRun, demo_workload
+from tools.observability.observer.alerts.custom_alerts import advance, inspect_series
+from tools.observability.observer.metrics.local_metrics import (LocalMetrics, business_alerts, histogram_points,
     parse_metrics, response_ratio, total_difference)
-from tools.observability.observer.local_traces import TraceIndex
-from tools.observability.observer.linux_resources import cpu_stat, paired, process_rates, process_stat, proportions, TICKS
-from tools.observability.observer.resource_history import DETAIL_SAMPLES, ResourceHistory
-from tools.observability.observer.measurement_quality import empty_diagnostic
-from tools.observability.observer.log_store import LogStore
-from tools.observability.observer.structured_logging import LogTail,DiagnosticLogger,prune_log_files
-from tools.observability.profile_formats import callgrind, dhat, syscalls
-from tools.observability.observer.projection import agent_summary, device_summary, compare, trace_view
-from tools.observability.observer.server import ObserverServer
-from tools.observability.observer.service_levels import capture_counters, report
-from tools.observability.observer.sources import BackendError, NoTrace, PANELS, Sources
-from tools.observability.observer.store import Conflict, Store, WEEK_SECONDS
-from tools.observability.observer.workspace import provision_files
-from tools.observability.scenarios import agent, dag, device, span
+from tools.observability.observer.traces.local_traces import TraceIndex
+from tools.observability.observer.resources.linux_resources import cpu_stat, paired, process_rates, process_stat, proportions, TICKS
+from tools.observability.observer.resources.resource_history import DETAIL_SAMPLES, ResourceHistory
+from tools.observability.observer.metrics.measurement_quality import empty_diagnostic
+from tools.observability.observer.logs.log_store import LogStore
+from tools.observability.observer.logs.structured_logging import LogTail,DiagnosticLogger,prune_log_files
+from tools.observability.diagnostics.profile_formats import callgrind, dhat, syscalls
+from tools.observability.observer.analysis.projection import agent_summary, device_summary, compare, trace_view
+from tools.observability.observer.http.server import ObserverServer
+from tools.observability.observer.metrics.service_levels import capture_counters, report
+from tools.observability.observer.sources.sources import BackendError, NoTrace, PANELS, Sources
+from tools.observability.observer.storage.store import Conflict, Store, WEEK_SECONDS
+from tools.observability.observer.configuration.workspace import provision_files
+from tools.observability.laboratory.scenarios import agent, dag, device, span
 
 
 class ExternalFixture:
@@ -69,7 +69,7 @@ class LocalMetricContract(unittest.TestCase):
                     pass
 
             with store.connect() as writer:
-                with patch("tools.observability.observer.store.SQLITE_WAIT_SECONDS", 0):
+                with patch("tools.observability.observer.storage.store.SQLITE_WAIT_SECONDS", 0):
                     with ThreadPoolExecutor(max_workers=1) as worker:
                         with self.assertRaisesRegex(sqlite3.OperationalError, "database is locked"):
                             worker.submit(second_writer).result(timeout=3)
@@ -81,10 +81,17 @@ class LocalMetricContract(unittest.TestCase):
                 self.assertEqual(reader.execute("SELECT count(*) FROM runs").fetchone()[0], 1)
 
     def test_fixed_business_catalog_and_outcome_metrics_do_not_turn_absence_into_zero(self):
-        from tools.observability.observer.operation_catalog import FUNCTION_DEFINITIONS,FUNCTION_CALLS,FUNCTION_IN_FLIGHT
-        from tools.observability.observer.measurement_quality import empty_diagnostic
-        self.assertEqual(len(FUNCTION_DEFINITIONS),26)
-        self.assertEqual(len({row['symbol'] for row in FUNCTION_DEFINITIONS}),26)
+        from tools.observability.observer.contracts.operation_catalog import FUNCTION_DEFINITIONS,FUNCTION_CALLS,FUNCTION_IN_FLIGHT
+        from tools.observability.observer.metrics.measurement_quality import empty_diagnostic
+        self.assertEqual(len(FUNCTION_DEFINITIONS),29)
+        self.assertEqual(len({row['symbol'] for row in FUNCTION_DEFINITIONS}),29)
+        preparation = {row['key']: row['symbol'] for row in FUNCTION_DEFINITIONS
+                       if row['key'].startswith('ai_prepare_')}
+        self.assertEqual(preparation, {
+            'ai_prepare_audit': 'AiChatService::prepareAudit',
+            'ai_prepare_history': 'AiChatService::prepareHistory',
+            'ai_prepare_rag': 'AiChatService::prepareRag',
+        })
         body=(FUNCTION_CALLS+'{function="TreeService::list",outcome="error"} 0\n'+
               FUNCTION_IN_FLIGHT+'{function="TreeService::list"} 0\n').encode()
         captured=parse_metrics(body)
@@ -418,7 +425,7 @@ class ObserverContract(unittest.TestCase):
         def row(i,stamp):
             return {"schemaVersion":1,"recordId":str(i),"timeUnixNano":str(stamp),"level":"INFO",
                     "component":"business","code":"business.operation.completed"}
-        with patch("tools.observability.observer.log_store.time.time_ns",return_value=now):
+        with patch("tools.observability.observer.logs.log_store.time.time_ns",return_value=now):
             logs.append("lab",[row(i,now-i) for i in range(5)])
             first=logs.search(now-100,now,{"limit":"2","source":"lab"})
             second=logs.search(now-100,now,{"limit":"2","source":"lab","cursor":first["next"]})
@@ -482,7 +489,7 @@ class ObserverContract(unittest.TestCase):
         self.assertIn("NEBULA_LOG",files[0].read_text())
 
     def test_lab_private_publication_preserves_previous_value_on_failed_replace(self):
-        from tools.observability.lab import private_write
+        from tools.observability.laboratory.lab import private_write
         path=Path(self.temp.name)/"session.json"
         path.write_text('{"nebulaPort":18000}')
         with patch("tools.observability.lab.os.replace",side_effect=OSError("injected replacement failure")):
@@ -528,7 +535,7 @@ class ObserverContract(unittest.TestCase):
         self.assertEqual(self.workspace("query",{**request,"queryType":"unbounded"})[0],400)
 
     def test_trace_completion_creates_safe_linked_diagnostic(self):
-        from tools.observability.observer.local_traces import allowed_spans
+        from tools.observability.observer.traces.local_traces import allowed_spans
         trace,ident="c"*32,"d"*16
         now=time.time_ns()
         payload={"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"nebula-webserver"}}]},
@@ -800,7 +807,7 @@ class ObserverContract(unittest.TestCase):
         template={"host":"lab","kernel":"fixture","cpus":cpu,"counters":{},"gauges":{},
                   "processes":[],"schedstats":False}
         for i in range(DETAIL_SAMPLES+1):
-            with patch("tools.observability.observer.resource_history.snapshot",
+            with patch("tools.observability.observer.resources.resource_history.snapshot",
                        return_value={**template,"at":stamp+i,"clock":float(i)}):
                 self.server.resources.capture()
         oldest=self.server.resources.history(stamp,stamp)["latest"]
@@ -1119,7 +1126,9 @@ class ObserverContract(unittest.TestCase):
         status, catalog = self.http('/api/v1/function-catalog')
         self.assertEqual(status, 200)
         self.assertTrue(catalog['fixedCardinality'])
-        self.assertEqual(len(catalog['functions']), 26)
+        self.assertEqual(len(catalog['functions']), 29)
+        keys = {row['key'] for row in catalog['functions']}
+        self.assertTrue({'ai_prepare_audit', 'ai_prepare_history', 'ai_prepare_rag'} <= keys)
         self.assertIn('GET /api/tree/posts/:post', catalog['httpOperations'])
         status, report = self.http("/api/v1/series?panel=http")
         self.assertEqual(status, 200)

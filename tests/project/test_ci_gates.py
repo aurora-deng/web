@@ -72,7 +72,7 @@ class CiGates(unittest.TestCase):
 
     def test_delivery_path_allowlist(self):
         self.assertTrue(runtime_path('frontend/observability/index.html'))
-        self.assertTrue(runtime_path('backend/application/observability/OperationCatalog/OperationCatalog.def'))
+        self.assertTrue(runtime_path('backend/application/observability/catalog/OperationCatalog.def'))
         self.assertTrue(runtime_path('docs/contracts/business-routes.json'))
         self.assertTrue(runtime_path('backend/application/storage/postgres/migrations/024_latest.sql'))
         for name in ('/webserver', 'frontend/phase11/../../credentials.json', 'frontend/phase11/.local/token.json',

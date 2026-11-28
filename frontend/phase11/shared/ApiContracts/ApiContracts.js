@@ -1,4 +1,4 @@
-import { apiCatalog } from './ApiCatalog.js?v=0613976363093f95';
+import { apiCatalog } from './ApiCatalog.js?v=1f08ad808b467825';
 
 /** A route contract is a transport descriptor, never an authorization decision. */
 const patterns=apiCatalog.map(row=>({...row,pattern:new RegExp('^'+row.path.split('/').map(part=>part.startsWith(':')?'[^/?#]+':part.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('/')+'$')}));

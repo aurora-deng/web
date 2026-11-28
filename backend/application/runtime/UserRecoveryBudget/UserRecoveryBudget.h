@@ -1,5 +1,5 @@
 #pragma once
-#include "backend/application/domain/Domain/Domain.h"
+#include "backend/application/modules/shared/compatibility/Domain/Domain.h"
 #include <chrono>
 #include <mutex>
 #include <unordered_map>

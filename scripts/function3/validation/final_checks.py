@@ -13,13 +13,15 @@ import subprocess
 import time
 import uuid
 import re
+from model_selection import add_model_arguments, resolve_selection
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--wait-pid',type=int,required=True)
 p.add_argument('--integration-only',action='store_true')
 p.add_argument('--reuse-release',action='store_true',help='Reuse the verified binary after removing only regenerable objects')
 p.add_argument('--history-tag',default='before-delivery-isolation')
-a=p.parse_args();source=Path('/home/pikachu/function3-src')
+add_model_arguments(p)
+a=p.parse_args();selection=resolve_selection(a);source=Path('/home/pikachu/function3-src')
 assert re.fullmatch(r'[a-z0-9-]{1,40}',a.history_tag)
 root=Path('/home/pikachu/phase11-data/function3/validation')
 assert (root.parent/'pg/FUNCTION3_TEST_CLUSTER').exists()
@@ -80,18 +82,18 @@ try:
     print('Final performance gate exit',gate,flush=True)
     run(['python3',controller,'stop']);run(['python3',controller,'stop','--variant','baseline'])
     # Existing real model; checksum is computed locally, never inferred from a name.
-    model=Path('/home/pikachu/phase11-models/phi3-mini-4k-instruct-cpu-int4')
+    model=selection.directory
     checksum=subprocess.check_output(['python3',str(source/'scripts/phase11/model_checksum.py'),str(model)],text=True).strip()
     pg='/home/pikachu/phase11-deps/postgresql/18.6/bin/psql'
     connection='host=/home/pikachu/phase11-data/function3/pg/run port=55434 user=function3_test_admin dbname=function3_runtime_test'
-    seed=[pg,connection,'-w','-qAt','-v','test_suffix=f3_'+uuid.uuid4().hex[:8],'-v','model_artifact='+model.name,'-v','model_checksum='+checksum,'-f',str(source/'tests/phase11/integration/seed_onnx.sql')]
+    seed=[pg,connection,'-w','-qAt','-v','test_suffix=f3_'+uuid.uuid4().hex[:8],'-v','model_artifact='+selection.artifact,'-v','adapter_artifact='+selection.adapter,'-v','model_checksum='+checksum,'-f',str(source/'tests/phase11/integration/seed_onnx.sql')]
     ai=int(subprocess.check_output(seed,text=True).strip().splitlines()[-1])
     # 种子默认 active；本轮改为候选，以真实后台异步试装流程激活，然后才开始推理。
     run([pg,connection,'-w','-qAtc',f"UPDATE model_versions SET state='candidate' WHERE node_id=(SELECT model_node_id FROM model_bindings WHERE ai_user_id={ai});UPDATE model_nodes SET active_version_id=NULL WHERE id=(SELECT model_node_id FROM model_bindings WHERE ai_user_id={ai})"])
-    run(['python3',controller,'start','--with-mq','--tts','--ai'])
+    run(['python3',controller,'start','--with-mq','--tts','--ai','--model-root',selection.root])
     pid=(root/'current.pid').read_text().strip()
     with (root/'ai-final.log').open('w') as log:
-        run(network+['python3',source/'tests/function3/integration/ai_mixed.py','--ai-user-id',str(ai),'--server-pid',pid,'--output',root/'ai-mixed.json'],stdout=log,stderr=subprocess.STDOUT)
+        run(network+['python3',source/'tests/function3/integration/ai_mixed.py','--ai-user-id',str(ai),'--server-pid',pid,'--output',root/'ai-mixed.json',*selection.arguments()],stdout=log,stderr=subprocess.STDOUT)
     print('Real existing ONNX model + ordinary chat passed',flush=True)
 finally:
     run(['python3',controller,'stop']);run(['python3',controller,'stop','--variant','baseline'])

@@ -1,4 +1,4 @@
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 #include "backend/application/modules/chat/application/ChatService/ChatService.h"
 #include "backend/application/modules/files/application/FileService/FileService.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"

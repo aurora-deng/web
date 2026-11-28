@@ -1,5 +1,5 @@
 #include "backend/application/modules/chat/application/RealtimeRelay/RealtimeRelay.h"
-#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
+#include "backend/application/observability/metrics/BusinessMetrics.h"
 
 #include <algorithm>
 #include <chrono>

@@ -1,6 +1,6 @@
 #pragma once
-#include "backend/application/transport/http/BusinessHttpExecutor/BusinessHttpExecutor.h"
-#include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
+#include "backend/application/modules/shared/transport/BusinessHttpExecutor/BusinessHttpExecutor.h"
+#include "backend/application/modules/contacts/ports/ISocialBusiness/ISocialBusiness.h"
 class Router;
 class WebSocketSessionManager;
 namespace webserver::phase11::transport {

@@ -1,7 +1,7 @@
 #pragma once
 #include "backend/application/modules/chat/application/ChatWorkspaceService/ChatWorkspaceService.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
-#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
+#include "backend/application/observability/metrics/BusinessMetrics.h"
 #include <stdexcept>
 
 namespace webserver::chat::test {

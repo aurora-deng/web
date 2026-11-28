@@ -1,5 +1,6 @@
 const workspacePaths = new Set(['/phase11/', '/phase11/tree/', '/phase11/study/',
-  '/phase11/profile/', '/phase11/assistant/', '/phase11/admin/']);
+  '/phase11/profile/', '/phase11/assistant/', '/phase11/admin/',
+  '/phase11/admin/permissions/', '/phase11/agent-control/']);
 
 let identityRead;
 let channel;

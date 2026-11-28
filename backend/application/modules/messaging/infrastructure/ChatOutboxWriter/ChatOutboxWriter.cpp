@@ -1,5 +1,5 @@
 #include "ChatOutboxWriter.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 #include <memory>
 namespace webserver::function3 {
 phase11::OutboxEvent ChatOutboxWriter::append(PGconn*connection,phase11::OutboxEvent event){

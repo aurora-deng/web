@@ -1,7 +1,7 @@
 #include "backend/ai/speech/infrastructure/SpeechCredentialStore/SpeechCredentialStore.h"
 #include "SiteSpeechRenderer.h"
 #include "backend/ai/speech/application/WaveCodec/WaveCodec.h"
-#include "backend/application/transport/FlatJson/FlatJson.h"
+#include "backend/application/modules/shared/transport/FlatJson/FlatJson.h"
 #include <fstream>
 #include <cstdlib>
 #include <sys/stat.h>

@@ -1,5 +1,5 @@
 #include "PostgresEventWriter.h"
-#include "backend/application/transport/FlatJson/FlatJson.h"
+#include "backend/application/modules/shared/transport/FlatJson/FlatJson.h"
 namespace webserver::function3 {
 void PostgresEventWriter::appendEvent(DomainEvent event) {
     sql_.requireTransaction();

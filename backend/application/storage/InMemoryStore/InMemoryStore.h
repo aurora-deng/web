@@ -2,7 +2,7 @@
 #include "backend/application/storage/memory/MemoryState/MemoryState.h"
 #include "backend/application/modules/chat/ports/IWorkspaceRepository/IWorkspaceRepository.h"
 
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/modules/shared/compatibility/Ports/Ports.h"
 #include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
 
 #include <map>

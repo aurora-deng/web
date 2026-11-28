@@ -1,5 +1,5 @@
 #include "MessagingService.h"
-#include "backend/application/modules/shared/TextRules/TextRules.h"
+#include "backend/application/modules/shared/domain/TextRules/TextRules.h"
 namespace webserver::function3 {
 void MessagingService::administrator(Id actor)const{if(activeActor(actors_,actor).role!=Role::Administrator)throw BusinessError(Failure::Forbidden,"site administrator required");}
 std::vector<QueueState>MessagingService::status(Id actor)const{administrator(actor);return operations_.status();}

@@ -50,9 +50,9 @@ sequenceDiagram
     end
 ```
 
-代码：[`Phase11AuthHttp`](../../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp)、
+代码：[`Phase11AuthHttp`](../../../../backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp)、
 [`AuthService`](../../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp)、
-[`SodiumCredentialCodec`](../../../../backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)。
+[`SodiumCredentialCodec`](../../../../backend/application/modules/accounts/infrastructure/SodiumCredentialCodec/SodiumCredentialCodec.cpp)。
 
 ## 3. 好友与联系人
 
@@ -75,7 +75,7 @@ flowchart TD
 好友关系是双方确认后的关系；备注和免打扰是每个用户自己的单向设置。联系人离线不会阻止发送持久消息。
 
 代码：[`SocialService`](../../../../backend/application/modules/contacts/application/SocialService/SocialService.cpp)、
-[`Phase11SocialChatHttp`](../../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)。
+[`Phase11SocialChatHttp`](../../../../backend/application/modules/chat/transport/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)。
 
 ## 4. 消息发送与离线接收
 
@@ -124,8 +124,8 @@ sequenceDiagram
 文字命令 5 秒未确认时，先用 `messages/by-client-id` 查询当前发送者的原幂等键，再有限重试；前端按角色显示“管理撤回”，最终仍由 `ChatService` 授权。
 
 代码：[`ChatService`](../../../../backend/application/modules/chat/application/ChatService/ChatService.cpp)、
-[`Phase11Realtime`](../../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)、
-[`OutboxDispatcher`](../../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp)。
+[`Phase11Realtime`](../../../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp)、
+[`OutboxDispatcher`](../../../../backend/application/modules/messaging/application/OutboxDispatcher/OutboxDispatcher.cpp)。
 
 ## 5. 群聊治理
 
@@ -168,7 +168,7 @@ flowchart TD
 元数据由 Repository 管理，文件正文由 `LocalFileStorage` 管理；临时分片只有完成摘要校验后才原子变成正式文件。
 
 代码：[`FileService`](../../../../backend/application/modules/files/application/FileService/FileService.cpp)、
-[`Phase11FileHttp`](../../../../backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp)、
+[`Phase11FileHttp`](../../../../backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp)、
 [`LocalFileStorage`](../../../../backend/application/storage/files/LocalFileStorage/LocalFileStorage.cpp)。
 
 ## 7. Outbox 与实时通知
@@ -260,10 +260,10 @@ sequenceDiagram
 Provider 统一接口屏蔽 Ollama HTTP、进程内 ONNX 和独立 gRPC Worker 的差异。RAG 先做权限集合，再做检索；
 引用保存的是生成当时真正使用的切片，而不是事后重新搜索的结果。
 
-代码：[`AiChatService`](../../../../backend/application/business/AiChatService/AiChatService.cpp)、
-[`RagService`](../../../../backend/ai/models/RagService/RagService.cpp)、
-[`ModelRegistryService`](../../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp)、
-[`ResilientModelProvider`](../../../../backend/ai/models/ResilientModelProvider/ResilientModelProvider.cpp)。
+代码：[`AiChatService`](../../../../backend/application/modules/ai/application/AiChatService/AiChatService.cpp)、
+[`RagService`](../../../../backend/ai/rag/RagService/RagService.cpp)、
+[`ModelRegistryService`](../../../../backend/ai/registry/ModelRegistryService/ModelRegistryService.cpp)、
+[`ResilientModelProvider`](../../../../backend/ai/inference/resilience/ResilientModelProvider/ResilientModelProvider.cpp)。
 
 ## 9. 训练、评测、发布与回滚
 
@@ -294,12 +294,12 @@ flowchart TD
 训练脚本不直接改线上活动模型。数据授权、数据集摘要、模型制品摘要、评测结果、人工发布和审计串成一条可追踪血缘。
 任何一步失败都保留当前活动版本。
 
-代码：[`TrainingDataService`](../../../../backend/ai/training/TrainingDataService/TrainingDataService.cpp)、
-[`JsonlTrainingDataExporter`](../../../../backend/ai/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp)、
-[`ModelEvaluationService`](../../../../backend/ai/models/ModelEvaluationService/ModelEvaluationService.cpp)、
-[`ModelRegistryService`](../../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp)、
-[`训练管理工具`](../../../../tools/phase11_training_admin.cpp)、
-[`模型管理工具`](../../../../tools/phase11_model_admin.cpp)。
+代码：[`TrainingDataService`](../../../../backend/ai/training/data/TrainingDataService/TrainingDataService.cpp)、
+[`JsonlTrainingDataExporter`](../../../../backend/ai/training/data/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp)、
+[`ModelEvaluationService`](../../../../backend/ai/registry/ModelEvaluationService/ModelEvaluationService.cpp)、
+[`ModelRegistryService`](../../../../backend/ai/registry/ModelRegistryService/ModelRegistryService.cpp)、
+[`训练管理工具`](../../../../tools/ai/TrainingAdmin/TrainingAdmin.cpp)、
+[`模型管理工具`](../../../../tools/ai/ModelAdmin/ModelAdmin.cpp)。
 
 ## 10. 数据与迁移对应关系
 

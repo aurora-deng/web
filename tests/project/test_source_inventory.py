@@ -16,11 +16,19 @@ class Inventory(unittest.TestCase):
             root=Path(folder)
             # B precedes a in the canonical manifest, regardless of host Path rules.
             entries=[('CMakeLists.txt',b'cmake\n'),('backend/B.cpp',b'B\n'),
-                     ('backend/a.cpp',b'a\n'),('backend/operations.def',b'fixed catalog\n'),('main.cpp',b'main\n')]
+                     ('backend/a.cpp',b'a\n'),('backend/operations.def',b'fixed catalog\n'),
+                     ('cmake/GrpcTlsCompatibility.cmake',b'guard\n'),('main.cpp',b'main\n')]
             for name,data in entries:
                 p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data.replace(b'\n',b'\r\n'))
             expected=hashlib.sha256(b''.join(name.encode()+b'\0'+data for name,data in entries)).hexdigest()
             with patch.object(stamp,'ROOT',root):self.assertEqual(stamp.fingerprint(),expected)
+    def test_cmake_guard_changes_binary_source_fingerprint(self):
+        base=ROOT/'build-function3/inventory-contract';base.mkdir(parents=True,exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=base) as folder:
+            root=Path(folder);(root/'main.cpp').write_text('main');(root/'CMakeLists.txt').write_text('cmake')
+            guard=root/'cmake/GrpcTlsCompatibility.cmake';guard.parent.mkdir();guard.write_text('guard v1')
+            with patch.object(stamp,'ROOT',root):
+                before=stamp.fingerprint();guard.write_text('guard v2');self.assertNotEqual(before,stamp.fingerprint())
     def test_public_build_scripts_and_workflow_included_private_outputs_excluded(self):
         base=(ROOT/'build-function3/inventory-contract').resolve();assert base.is_relative_to(ROOT.resolve());base.mkdir(parents=True,exist_ok=True)
         with tempfile.TemporaryDirectory(dir=base) as folder:

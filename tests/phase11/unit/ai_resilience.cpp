@@ -1,4 +1,4 @@
-#include "backend/ai/models/ResilientModelProvider/ResilientModelProvider.h"
+#include "backend/ai/inference/resilience/ResilientModelProvider/ResilientModelProvider.h"
 
 #include <atomic>
 #include <chrono>
@@ -66,6 +66,11 @@ public:
         return {request.requestId, std::move(cancellation)};
     }
 
+    std::optional<ModelProviderQueueSnapshot> queueSnapshot() const noexcept override
+    {
+        return queue;
+    }
+    std::optional<ModelProviderQueueSnapshot> queue;
     std::atomic<ProviderMode> mode;
     std::atomic_size_t calls{0};
 };
@@ -118,6 +123,22 @@ GenerationRequest request(std::string id)
 
 int main()
 {
+    {
+        auto one = std::make_shared<ScriptedProvider>(ProviderMode::Success);
+        auto two = std::make_shared<ScriptedProvider>(ProviderMode::Success);
+        ResilientModelProvider unsupported(one);
+        CHECK(!unsupported.queueSnapshot());
+        one->queue = ModelProviderQueueSnapshot{1, 2, 8, 2, 3, 1};
+        two->queue = ModelProviderQueueSnapshot{2, 3, 16, 4, 5, 1};
+        ResilientModelProvider combined(one, two);
+        const auto queue = combined.queueSnapshot();
+        CHECK(queue && queue->active == 3 && queue->queued == 5);
+        CHECK(queue->capacity == 24 && queue->workers == 6);
+        CHECK(queue->queueHighWatermark == 8 && queue->pools == 2);
+        ResilientModelProvider duplicate(one, one);
+        CHECK(duplicate.queueSnapshot()->capacity == 8);
+        CHECK(duplicate.queueSnapshot()->pools == 1);
+    }
     auto primary = std::make_shared<ScriptedProvider>(ProviderMode::Failure);
     auto fallback = std::make_shared<ScriptedProvider>(ProviderMode::Success);
     ModelProviderResilienceConfig config;

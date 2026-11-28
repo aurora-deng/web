@@ -1,4 +1,4 @@
-#include "backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
+#include "backend/ai/inference/inprocess/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
 
 #include <chrono>
 #include <condition_variable>

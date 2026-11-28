@@ -1,5 +1,5 @@
 #include "backend/application/bootstrap/OperationalRuntime/OperationalRuntime.h"
-#include "backend/application/observability/Telemetry/Telemetry.h"
+#include "backend/application/observability/tracing/Telemetry.h"
 #include "backend/application/bootstrap/BootstrapSettings/BootstrapSettings.h"
 
 #include "ProjectBuild.h"
@@ -8,9 +8,9 @@
 #include "backend/server/security/AuthToken.h"
 #include "backend/server/security/FixedWindowRateLimiter.h"
 #include "backend/server/observability/logger/logger.h"
-#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
+#include "backend/application/observability/metrics/BusinessMetrics.h"
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
-#include "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.h"
 #endif
 #include <unordered_set>
 #include <cctype>

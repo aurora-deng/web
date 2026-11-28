@@ -1,5 +1,5 @@
 #include "TreeTrainingService.h"
-#include "backend/application/modules/shared/TextRules/TextRules.h"
+#include "backend/application/modules/shared/domain/TextRules/TextRules.h"
 
 namespace webserver::function3 {
 TreeTrainingSource TreeTrainingService::ownSource(Id actor, Id post) const {

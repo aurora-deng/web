@@ -3,6 +3,24 @@ namespace webserver::function3 {
 namespace {std::string roleName(Role role){return role==Role::Administrator?"administrator":role==Role::Moderator?"moderator":"user";}}
 void AdminHttp::registerRoutes(Router &router){
     auto scope=http::executor(router,executor_);
+    // The personnel workspace and its assets never use public static delivery.
+    auto permissionAsset=[this](RequestContext&ctx,const std::string&name,const std::string&mime){
+        return http::guarded(ctx,[&]{
+            const auto actor=admin_.identity(auth_.authorizeRequest(ctx).user.id);
+            if(actor.role!=Role::Administrator)throw BusinessError(Failure::Forbidden,"site administrator required");
+            ctx.response->setHeader("Content-Type",mime);
+            ctx.response->setHeader("Cache-Control","no-store");
+            ctx.response->setHeader("X-Content-Type-Options","nosniff");
+            const auto path="./frontend/phase11/admin/permissions/"+name;
+            if(!ctx.response->sendfile(path,ctx.request,ctx.request.range)){
+                ctx.response->status=404;ctx.response->statusText="Not Found";ctx.response->text("Not Found");
+            }
+        });
+    };
+    for(const auto*path:{"/phase11/admin/permissions","/phase11/admin/permissions/","/phase11/admin/permissions/index.html"})
+        router.GET(path,[permissionAsset](RequestContext&ctx){return permissionAsset(ctx,"index.html","text/html; charset=utf-8");});
+    router.GET("/phase11/admin/permissions/app.js",[permissionAsset](RequestContext&ctx){return permissionAsset(ctx,"app.js","text/javascript; charset=utf-8");});
+    router.GET("/phase11/admin/permissions/style.css",[permissionAsset](RequestContext&ctx){return permissionAsset(ctx,"style.css","text/css; charset=utf-8");});
     router.GET("/api/admin/me",[this](RequestContext&ctx){return http::guarded(ctx,[&]{auto actor=admin_.identity(auth_.authorizeRequest(ctx).user.id);http::reply(ctx,"{\"id\":"+http::id(actor.id)+",\"role\":"+http::quote(roleName(actor.role))+"}");});});
     router.GET("/api/admin/users",[this](RequestContext&ctx){return http::guarded(ctx,[&]{auto users=admin_.users(auth_.authorizeRequest(ctx).user.id,http::number(http::query(ctx,"after","0"),true));http::reply(ctx,http::array(users,[](const auto&u){return "{\"id\":"+http::id(u.actor.id)+",\"name\":"+http::quote(u.actor.name)+",\"username\":"+http::quote(u.username)+",\"role\":"+http::quote(roleName(u.actor.role))+",\"active\":"+(u.actor.active?"true":"false")+"}";}));});});
     router.POST("/api/admin/users/:user",[this](RequestContext&ctx){return http::guarded(ctx,[&]{auto actor=auth_.authorizeRequest(ctx,true).user.id;auto f=http::body(ctx);auto user=http::path(ctx,"user");auto action=http::field(f,"action"),reason=http::field(f,"reason");

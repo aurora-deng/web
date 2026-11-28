@@ -13,7 +13,7 @@ python3 scripts/project/cpp_systems.py --build-dir build/systems-debug --config 
 python3 scripts/project/cpp_systems.py --build-dir build/systems-release --with-grpc
 ```
 
-已有 SDK 放在私有前缀时加 `--prefix /path/to/existing-sdk`。Windows 使用 `python`。脚本会核对测试注册数并写入 `cpp-systems-evidence.json` 与 `ctest.xml`。使用完整仓库运行 gRPC 套件，Observer 集成测试还会加载已有的 [操作目录](../../../backend/application/observability/OperationCatalog/OperationCatalog.def)、[路由清单](../../contracts/business-routes.json) 和 Observer 静态资源。
+已有 SDK 放在私有前缀时加 `--prefix /path/to/existing-sdk`。Windows 使用 `python`。脚本会核对测试注册数并写入 `cpp-systems-evidence.json` 与 `ctest.xml`。使用完整仓库运行 gRPC 套件，Observer 集成测试还会加载已有的 [操作目录](../../../backend/application/observability/catalog/OperationCatalog.def)、[路由清单](../../contracts/business-routes.json) 和 Observer 静态资源。
 
 在 Linux 有对应运行库的环境可以分别执行下列档位。启动或链接阶段失败时，从证据的 `phase` 和日志区分环境与测试失败。
 

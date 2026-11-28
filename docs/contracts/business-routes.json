@@ -10,7 +10,7 @@
       "operation": "postAuthLogin",
       "sources": [
         "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
-        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+        "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp"
       ]
     },
     {
@@ -20,7 +20,7 @@
       "operation": "postAuthLogout",
       "sources": [
         "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
-        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+        "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp"
       ]
     },
     {
@@ -30,7 +30,7 @@
       "operation": "postAuthRegister",
       "sources": [
         "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
-        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+        "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp"
       ]
     },
     {
@@ -40,7 +40,7 @@
       "operation": "getMe",
       "sources": [
         "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
-        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+        "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp"
       ]
     },
     {
@@ -50,7 +50,7 @@
       "operation": "patchMe",
       "sources": [
         "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp",
-        "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp"
+        "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "domain": "accounts",
       "operation": "postMeAvatar",
       "sources": [
-        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+        "backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp"
       ]
     },
     {
@@ -365,7 +365,7 @@
       "domain": "ai",
       "operation": "getAiGenerationsGenerationCitations",
       "sources": [
-        "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp"
+        "backend/application/modules/ai/transport/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp"
       ]
     },
     {
@@ -671,7 +671,7 @@
       "domain": "files",
       "operation": "postConversationsConversationFileMessages",
       "sources": [
-        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+        "backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp"
       ]
     },
     {
@@ -680,7 +680,7 @@
       "domain": "files",
       "operation": "getFilesFile",
       "sources": [
-        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+        "backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp"
       ]
     },
     {
@@ -689,7 +689,7 @@
       "domain": "files",
       "operation": "postFilesFileComplete",
       "sources": [
-        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+        "backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp"
       ]
     },
     {
@@ -698,7 +698,7 @@
       "domain": "files",
       "operation": "patchFilesFileContent",
       "sources": [
-        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+        "backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp"
       ]
     },
     {
@@ -707,7 +707,7 @@
       "domain": "files",
       "operation": "postFilesUploads",
       "sources": [
-        "backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp"
+        "backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp"
       ]
     },
     {
@@ -716,7 +716,7 @@
       "domain": "knowledge",
       "operation": "getKnowledgeDocuments",
       "sources": [
-        "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp"
+        "backend/application/modules/ai/transport/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp"
       ]
     },
     {
@@ -725,7 +725,7 @@
       "domain": "knowledge",
       "operation": "postKnowledgeDocuments",
       "sources": [
-        "backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp"
+        "backend/application/modules/ai/transport/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp"
       ]
     },
     {
@@ -914,7 +914,7 @@
       "domain": "training",
       "operation": "getTrainingCandidates",
       "sources": [
-        "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp"
+        "backend/application/modules/ai/transport/Phase11TrainingHttp/Phase11TrainingHttp.cpp"
       ]
     },
     {
@@ -923,7 +923,7 @@
       "domain": "training",
       "operation": "postTrainingCandidates",
       "sources": [
-        "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp"
+        "backend/application/modules/ai/transport/Phase11TrainingHttp/Phase11TrainingHttp.cpp"
       ]
     },
     {
@@ -932,7 +932,7 @@
       "domain": "training",
       "operation": "postTrainingCandidatesCandidateRevoke",
       "sources": [
-        "backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp"
+        "backend/application/modules/ai/transport/Phase11TrainingHttp/Phase11TrainingHttp.cpp"
       ]
     },
     {

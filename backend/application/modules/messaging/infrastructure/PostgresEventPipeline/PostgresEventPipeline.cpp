@@ -1,5 +1,5 @@
 #include "PostgresEventPipeline.h"
-#include "backend/application/transport/FlatJson/FlatJson.h"
+#include "backend/application/modules/shared/transport/FlatJson/FlatJson.h"
 namespace webserver::function3 {
 namespace {
 using phase11::transport::quoteJson;

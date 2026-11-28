@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 from backend.study.AccountWorkspace.AccountWorkspace import PREFIX, origin, origin_key
 from backend.study.AccountWorkspace.FrontendSnapshot import FRONTEND_PREFIX
-from tools.observability.gateway import add_upstream_tls_arguments, address, check_ports, proxy_route, render, upstream_tls_arguments
+from tools.observability.gateways.gateway import add_upstream_tls_arguments, address, check_ports, proxy_route, render, upstream_tls_arguments
 
 
 def add_workspace(config, study_port, origins, *, serve_frontend=False):
@@ -46,6 +46,8 @@ def add_workspace(config, study_port, origins, *, serve_frontend=False):
             # Private control assets must never fall through to a public snapshot.
             page = proxy_route('agent_control_page', {'path_separated_prefix': '/phase11/agent-control'})
             routes.insert(api, page)
+            permissions = proxy_route('permissions_page', {'path_separated_prefix': '/phase11/admin/permissions'})
+            routes.insert(api, permissions)
             if serve_frontend:
                 for route in routes:
                     if route['name'] in ('assistant_page', 'assistant_assets', 'agent_runtime', 'page'):

@@ -1,0 +1,97 @@
+{
+  "schema": "ai-script-layout-v1",
+  "date": "2026-11-27",
+  "entries": [
+    {
+      "old": "scripts/phase11/compare-onnx-adapters.py",
+      "new": "scripts/ai/export/compare_onnx_adapters.py",
+      "beforeSha256": "f038e2e986496e3f8c0ca8443f3804b7ee2455bc96173cc941ae8bd3e50552ae",
+      "implementationSha256": "f038e2e986496e3f8c0ca8443f3804b7ee2455bc96173cc941ae8bd3e50552ae",
+      "adjustment": "byte-identical",
+      "compatibility": "python-entrypoint"
+    },
+    {
+      "old": "scripts/phase11/create-learning-lora-adapter.py",
+      "new": "scripts/ai/training/lora/create_learning_lora_adapter.py",
+      "beforeSha256": "c2fbe902cc78f0f51480430b7881756c5535e0885fc1584b17982f5f5b3e88db",
+      "implementationSha256": "c2fbe902cc78f0f51480430b7881756c5535e0885fc1584b17982f5f5b3e88db",
+      "adjustment": "byte-identical",
+      "compatibility": "python-entrypoint"
+    },
+    {
+      "old": "scripts/phase11/create-zero-lora-reference.py",
+      "new": "scripts/ai/training/lora/create_zero_lora_reference.py",
+      "beforeSha256": "b6b0d209a318f914a3282f3efd42a6f807fb1d631afbf642d6a468649d356c1f",
+      "implementationSha256": "b6b0d209a318f914a3282f3efd42a6f807fb1d631afbf642d6a468649d356c1f",
+      "adjustment": "byte-identical",
+      "compatibility": "python-entrypoint"
+    },
+    {
+      "old": "scripts/phase11/inspect-onnx-adapter-inputs.py",
+      "new": "scripts/ai/export/inspect_onnx_adapter_inputs.py",
+      "beforeSha256": "b2af21a4db7f07abaf7a47b81645df96de8628274100a57486a5d51c45edb8ec",
+      "implementationSha256": "b2af21a4db7f07abaf7a47b81645df96de8628274100a57486a5d51c45edb8ec",
+      "adjustment": "byte-identical",
+      "compatibility": "python-entrypoint"
+    },
+    {
+      "old": "scripts/phase11/model_checksum.py",
+      "new": "scripts/ai/export/model_checksum.py",
+      "beforeSha256": "77546a4c6386514db4b758c3c9009319f7937974a565b8c069117a1558561645",
+      "implementationSha256": "77546a4c6386514db4b758c3c9009319f7937974a565b8c069117a1558561645",
+      "adjustment": "byte-identical",
+      "compatibility": "python-entrypoint"
+    },
+    {
+      "old": "scripts/phase11/olive-oga017-compat.py",
+      "new": "scripts/ai/toolchain/olive_oga017_compat.py",
+      "beforeSha256": "dc8f767c7f64c8e5a30499548a5c4f10a0aa73818dd588023af17f1406b94bfc",
+      "implementationSha256": "dc8f767c7f64c8e5a30499548a5c4f10a0aa73818dd588023af17f1406b94bfc",
+      "adjustment": "byte-identical",
+      "compatibility": "python-entrypoint"
+    },
+    {
+      "old": "scripts/phase11/download-qwen-adapter-model.py",
+      "new": "scripts/ai/toolchain/download_qwen_adapter_model.py",
+      "beforeSha256": "272d0083cda9f324f0d35284c5c5dcd836566165dea9da4cd9227afca043f8d9",
+      "implementationSha256": "272d0083cda9f324f0d35284c5c5dcd836566165dea9da4cd9227afca043f8d9",
+      "adjustment": "byte-identical",
+      "compatibility": "python-entrypoint"
+    },
+    {
+      "old": "scripts/ai/training/train_qwen_lora.py",
+      "new": "scripts/ai/training/lora/train_qwen_lora.py",
+      "beforeSha256": "cd42809b32d491ba016e7fa6927753ec570760088b977145061f1b81d7a0066b",
+      "implementationSha256": "9214dc2c866e704dd9fbe52340b592eaeba35a5bcb099746b341694e58962246",
+      "adjustment": "repository root depth only",
+      "compatibility": "python-entrypoint"
+    },
+    {
+      "old": "scripts/phase11/lora-constraints.txt",
+      "new": "scripts/ai/toolchain/lora-constraints.txt",
+      "beforeSha256": "30d3760b713c123f7741968c0e5e2512cdc2cf5f3799ca28c2cd2e659862cddc",
+      "implementationSha256": "30d3760b713c123f7741968c0e5e2512cdc2cf5f3799ca28c2cd2e659862cddc",
+      "adjustment": "byte-identical",
+      "compatibility": "constraint-copy"
+    },
+    {
+      "old": "scripts/phase11/lora-requirements.lock.txt",
+      "new": "scripts/ai/toolchain/lora-requirements.lock.txt",
+      "beforeSha256": "83399226a50e70a45bd8cee860b9f4f37d270df7dd569d1b2d5e866afdaf67ae",
+      "implementationSha256": "83399226a50e70a45bd8cee860b9f4f37d270df7dd569d1b2d5e866afdaf67ae",
+      "adjustment": "byte-identical",
+      "compatibility": "constraint-copy"
+    },
+    {
+      "old": "scripts/phase11/install-lora-toolchain.sh",
+      "new": "scripts/ai/toolchain/install-lora-toolchain.sh",
+      "beforeSha256": "b046f61eb07dbd16bf3fddd8f6d9e02f1ce96381e84001319d974d372e7ce437",
+      "implementationSha256": "b046f61eb07dbd16bf3fddd8f6d9e02f1ce96381e84001319d974d372e7ce437",
+      "adjustment": "byte-identical",
+      "compatibility": "shell-entrypoint"
+    }
+  ],
+  "noDependenciesInstalled": true,
+  "noModelsDownloaded": true,
+  "noTrainingExecuted": true
+}

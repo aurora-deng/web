@@ -1,6 +1,6 @@
 #pragma once
 #include "backend/application/modules/contacts/domain/ContactDirectoryTypes/ContactDirectoryTypes.h"
-#include "backend/application/domain/IdentityTypes/IdentityTypes.h"
+#include "backend/application/modules/shared/domain/IdentityTypes/IdentityTypes.h"
 #include <cstddef>
 #include <string>
 

@@ -78,13 +78,13 @@ class EvidenceTests(unittest.TestCase):
             root=Path(folder);source=root/'summary.json';source.write_text(json.dumps(calibration()),encoding='utf-8')
             original=source.read_bytes();output=root/'analysis'
             command=[sys.executable,str(FILE),'--summary',str(source),'--out-dir',str(output)]
-            first=subprocess.run(command,capture_output=True,text=True)
+            first=subprocess.run(command,capture_output=True,text=True,encoding="utf-8")
             self.assertEqual(first.returncode,0,first.stderr);self.assertEqual(source.read_bytes(),original)
             self.assertNotEqual(subprocess.run(command,capture_output=True).returncode,0)
 
     def test_harness_invalid_calibration_fails_before_runtime_access(self):
         command=[sys.executable,str(ROOT/'scripts/function3/validation/phase47_benchmark.py'),'--calibration','--rounds','1']
-        result=subprocess.run(command,capture_output=True,text=True)
+        result=subprocess.run(command,capture_output=True,text=True,encoding="utf-8")
         self.assertNotEqual(result.returncode,0);self.assertIn('Calibration needs',result.stderr)
 
     def test_presets_are_explicit_linux_only_and_no_empty_green(self):

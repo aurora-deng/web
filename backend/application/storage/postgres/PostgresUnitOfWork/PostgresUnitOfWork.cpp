@@ -1,6 +1,6 @@
 #include "PostgresUnitOfWork.h"
 #include "backend/application/storage/postgres/PostgresValueCodec/PostgresValueCodec.h"
-#include "backend/application/observability/ChatAckTrace/ChatAckTrace.h"
+#include "backend/application/observability/tracing/ChatAckTrace.h"
 #include <thread>
 #include <unordered_map>
 #include <stdexcept>

@@ -1,13 +1,13 @@
 #pragma once
 
-#include "backend/application/business/ApplicationError/ApplicationError.h"
-#include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
-#include "backend/application/ports/IDatabase/IDatabase.h"
-#include "backend/application/ports/IUserRepository/IUserRepository.h"
-#include "backend/application/ports/IFileRepository/IFileRepository.h"
-#include "backend/application/ports/IFileStorage/IFileStorage.h"
-#include "backend/application/domain/AccountTypes/AccountTypes.h"
-#include "backend/application/domain/FileTypes/FileTypes.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/files/ports/IFileBusiness/IFileBusiness.h"
+#include "backend/application/modules/shared/ports/IDatabase/IDatabase.h"
+#include "backend/application/modules/accounts/ports/IUserRepository/IUserRepository.h"
+#include "backend/application/modules/files/ports/IFileRepository/IFileRepository.h"
+#include "backend/application/modules/files/ports/IFileStorage/IFileStorage.h"
+#include "backend/application/modules/accounts/domain/AccountTypes/AccountTypes.h"
+#include "backend/application/modules/files/domain/FileTypes/FileTypes.h"
 #include <map>
 
 namespace webserver::phase11

@@ -1,17 +1,17 @@
 #include "backend/ai/bootstrap/AiRuntime/AiRuntime.h"
 #include "backend/application/bootstrap/BootstrapSettings/BootstrapSettings.h"
 #include "backend/application/bootstrap/StorageRuntime/StorageRuntime.h"
-#include "backend/application/bootstrap/IdentityRuntime/IdentityRuntime.h"
-#include "backend/application/bootstrap/ChatRuntime/ChatRuntime.h"
-#include "backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.h"
+#include "backend/application/modules/accounts/bootstrap/IdentityRuntime/IdentityRuntime.h"
+#include "backend/application/modules/chat/bootstrap/ChatRuntime/ChatRuntime.h"
+#include "backend/ai/rag/KnowledgeRuntime/KnowledgeRuntime.h"
 
 #include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
-#include "backend/application/business/AiChatService/AiChatService.h"
+#include "backend/application/modules/ai/application/AiChatService/AiChatService.h"
 #include "backend/application/modules/chat/application/ChatService/ChatService.h"
-#include "backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h"
+#include "backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.h"
 #include "backend/ai/bootstrap/ModelProviderAssembly/ModelProviderAssembly.h"
-#include "backend/ai/models/ModelEvaluationService/ModelEvaluationService.h"
-#include "backend/ai/models/RagService/RagService.h"
+#include "backend/ai/registry/ModelEvaluationService/ModelEvaluationService.h"
+#include "backend/ai/rag/RagService/RagService.h"
 #include "backend/ai/private/infrastructure/PrivateModelRouter/PrivateModelRouter.h"
 #include "backend/ai/private/transport/PrivateGenerationHttp/PrivateGenerationHttp.h"
 #include "backend/server/Runtime/ServerRuntime.h"
@@ -41,6 +41,8 @@ struct PrivateEndpoint {
 };
 }
 struct AiRuntime::Impl {
+    // Declared first so orchestration and provider callbacks die before the pool.
+    phase11::BoundedExecutor preparationExecutor;
     phase11::ModelEvaluationService evaluations;
     phase11::ModelRegistryService registry;
     phase11::ModelRouter router;
@@ -51,9 +53,9 @@ struct AiRuntime::Impl {
     phase11::PrivateModelRouter privateModel;
     std::unique_ptr<PrivateEndpoint> privateEndpoint,webEndpoint;
     Impl(StorageRuntime&s,IdentityRuntime&i,ChatRuntime&c,KnowledgeRuntime&k,ServerRuntime&net,bool prod)
-    :evaluations(s.store(),s.store()),registry(s.store(),&evaluations),router(s.store()),events(net.sseManager()),privateModel(router,s.store()){
+    :preparationExecutor(size("WEB_PHASE11_AI_DB_WORKERS",2,1,16),size("WEB_PHASE11_AI_DB_QUEUE",32,1,4096)),evaluations(s.store(),s.store()),registry(s.store(),&evaluations),router(s.store()),events(net.sseManager()),privateModel(router,s.store()){
         phase11::configureModelProviders(router,registry,providers,resilient,prod);
-        chat=std::make_unique<phase11::AiChatService>(c.chat(),s.store(),s.store(),router,s.executor(),s.store(),events,chatOptions(k.maxChunks()),&k.rag());
+        chat=std::make_unique<phase11::AiChatService>(c.chat(),s.store(),s.store(),router,preparationExecutor,s.store(),events,chatOptions(k.maxChunks()),&k.rag());
         privateEndpoint=std::make_unique<PrivateEndpoint>(privateModel,i,s,false);
         webEndpoint=std::make_unique<PrivateEndpoint>(privateModel,i,s,true);
     }
@@ -63,8 +65,9 @@ AiRuntime::~AiRuntime(){cancelPrivate();stop();}
 phase11::ModelRegistryService& AiRuntime::registry(){return impl_->registry;}
 phase11::ModelEvaluationService& AiRuntime::evaluations(){return impl_->evaluations;}
 phase11::AiChatService& AiRuntime::chat(){return *impl_->chat;}
+phase11::BoundedExecutor& AiRuntime::executor(){return impl_->preparationExecutor;}
 const std::vector<std::shared_ptr<phase11::ResilientModelProvider>>& AiRuntime::resilient()const{return impl_->resilient;}
 void AiRuntime::registerRoutes(Router&r){impl_->privateEndpoint->http.registerRoutes(r);impl_->webEndpoint->http.registerRoutes(r);}
 void AiRuntime::cancelPrivate()noexcept{impl_->privateEndpoint.reset();impl_->webEndpoint.reset();}
-void AiRuntime::stop()noexcept{if(impl_->chat)impl_->chat->shutdown();}
+void AiRuntime::stop()noexcept{if(impl_->chat)impl_->chat->shutdown();impl_->preparationExecutor.shutdown();}
 }

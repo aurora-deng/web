@@ -46,14 +46,22 @@ test('可见撤回入口在180秒后移除，只有一个定时器，销毁会�
   mutation();assert.equal(job.delay,50);
   lifecycle.abort();assert.equal(job,null);assert.equal(disconnected,true);
 });
-test('神树背景只生成固定数量粒子，模块内嵌图片不请求未注册的图片路由',async()=>{
+test('背景元数据仅导出固定同源 JPEG，保留原图字节且不再内嵌 base64',async()=>{
   const markup=backdropMarkup();
   assert.equal((markup.match(/class="chat-tree-drift /g)||[]).length,20);
   assert.equal((markup.match(/<img /g)||[]).length,1);
-  assert.match(markup,/src="data:image\/jpeg;base64,/);
+  assert.match(markup,/src="\/phase11\/chat\/ChatBackdrop\/sakura-lake-[a-f0-9]{12}\.jpg\?v=[a-f0-9]{12}"/);
+  assert.match(markup,/loading="lazy" decoding="async"/);
+  assert.doesNotMatch(markup,/data:image/);
   assert.doesNotMatch(markup,/https?:|<image|<script|<foreignObject/);
   assert.equal(markup,backdropMarkup());
-  const bytes=Buffer.from(/src="data:image\/jpeg;base64,([A-Za-z0-9+/=]+)"/.exec(markup)[1],'base64');
+  const source=/src="([^"?]+)\?v=([a-f0-9]{12})"/.exec(markup);
+  const bytes=await readFile(new URL('../../../frontend'+source[1],import.meta.url));
+  assert.equal(createHash('sha256').update(bytes).digest('hex').slice(0,12),source[2]);
+  const module=await readFile(new URL('../../../frontend/phase11/chat/ChatBackdrop/ChatBackdropArtwork.js',import.meta.url),'utf8');
+  assert.ok(Buffer.byteLength(module)<1024,'Image metadata must stay below 1 KiB');
+  const native=await readFile(new URL('../../../backend/application/modules/shared/transport/FrontendAssets/FrontendAssets.cpp',import.meta.url),'utf8');
+  assert.match(native,/extension=="\.jpg".*mime="image\/jpeg"/);
   assert.equal(bytes.readUInt16BE(0),0xffd8);
   assert.ok(bytes.length<512*1024,'Background download must stay below 512 KiB');
   assert.equal(createHash('sha256').update(bytes).digest('hex').slice(0,12),'5d7c79f59e36');

@@ -1,6 +1,6 @@
-#include "backend/application/business/AiChatService/AiChatService.h"
+#include "backend/application/modules/ai/application/AiChatService/AiChatService.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 #include <stdexcept>
 using namespace webserver::phase11;
 struct Sink final:IAiGenerationEventSink {

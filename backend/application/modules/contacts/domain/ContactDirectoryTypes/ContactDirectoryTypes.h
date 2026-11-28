@@ -1,5 +1,5 @@
 #pragma once
-#include "backend/application/domain/IdentityTypes/IdentityTypes.h"
+#include "backend/application/modules/shared/domain/IdentityTypes/IdentityTypes.h"
 #include <optional>
 #include <cstddef>
 #include <string>

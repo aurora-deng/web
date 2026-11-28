@@ -6,6 +6,6 @@
 
 同一 Observer 进程的告警配置、日志和采集事务共享 SQLite 写入口。写入等待有上限，提交或回滚完成后释放。报表和配置查询走只读连接，告警更新继续核对版本。 [并发写入复验](../../observability/validation.md#配置与诊断日志并发写入)
 
-[Observer 服务](../../../tools/observability/observer/server.py) · [架构与边界](../../observability/architecture.md) · [真实验收](../../observability/validation.md) · [日志范围与保留](../../observability/logging.md)
+[Observer 服务](../../../tools/observability/observer/http/server.py) · [架构与边界](../../observability/architecture.md) · [真实验收](../../observability/validation.md) · [日志范围与保留](../../observability/logging.md)
 
 [实操学习](learning.md) · [业务目录](../README.md)

@@ -1,6 +1,6 @@
 #pragma once
 #include "backend/application/modules/shared/infrastructure/Phase11Bridge/Phase11Bridge.h"
-#include "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.h"
 #include <cstdint>
 #include <vector>
 class Router;

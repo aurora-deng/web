@@ -1,4 +1,4 @@
-import { treeApi } from '../TreeApi/TreeApi.js?v=0613976363093f95';
+import { treeApi } from '../TreeApi/TreeApi.js?v=1f08ad808b467825';
 
 export function trainingConsentControl(api, post, status) {
   if (!post.treeChannel || !post.body?.trim() || String(post.authorId) !== String(api.user?.id)) return null;

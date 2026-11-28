@@ -1,8 +1,8 @@
-import { fetchWave, playSpeech } from '../SpeechPlayback/SpeechPlayback.js?v=0613976363093f95';
-import { speechApi } from "../../speech/SpeechApi/SpeechApi.js?v=0613976363093f95";
-import { notificationsApi } from "../../announcements/NotificationsApi/NotificationsApi.js?v=0613976363093f95";
-import { announcementsApi } from "../../announcements/AnnouncementsApi/AnnouncementsApi.js?v=0613976363093f95";
-import { ReconnectBackoff } from '../RecoveryBudget/RecoveryBudget.js?v=0613976363093f95';
+import { fetchWave, playSpeech } from '../SpeechPlayback/SpeechPlayback.js?v=1f08ad808b467825';
+import { speechApi } from "../../speech/SpeechApi/SpeechApi.js?v=1f08ad808b467825";
+import { notificationsApi } from "../../announcements/NotificationsApi/NotificationsApi.js?v=1f08ad808b467825";
+import { announcementsApi } from "../../announcements/AnnouncementsApi/AnnouncementsApi.js?v=1f08ad808b467825";
+import { ReconnectBackoff } from '../RecoveryBudget/RecoveryBudget.js?v=1f08ad808b467825';
 /** 文字独立于音频。自动播报先取得服务器一次性播放权，多个标签页不会重复播放。 */
 export class AnnouncementPlayer {
   constructor(api, container,{connectEvents=false, playbackOnly=false}={}) { this.connectEvents=connectEvents;this.playbackOnly=playbackOnly;this.api=api;this.container=container;this.after='0';this.pending=new Map();this.playing=false;this.recording=false;this.started=Date.now();this.settings={sound:false,voice:'zf_001'};this.backoff=new ReconnectBackoff();this.audioController=new AbortController();this.audioEpoch=0; }

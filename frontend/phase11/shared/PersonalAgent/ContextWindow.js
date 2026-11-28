@@ -1,4 +1,4 @@
-import { clip, explicitPreferences, modelPreferences, sensitive, temporary } from './PreferenceProfile.js?v=0613976363093f95';
+import { clip, explicitPreferences, modelPreferences, sensitive, temporary } from './PreferenceProfile.js?v=1f08ad808b467825';
 
 const encoder = new TextEncoder();
 export const utf8Bytes = text => encoder.encode(text).length;

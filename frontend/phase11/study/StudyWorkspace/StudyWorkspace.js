@@ -1,6 +1,6 @@
-import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=0613976363093f95';
-import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=0613976363093f95';
-import { accountEntry } from '../../shared/AccountSession/AccountSession.js?v=0613976363093f95';
+import { mountNavigation } from '../../shared/AppNavigation/AppNavigation.js?v=1f08ad808b467825';
+import { BusinessApi } from '../../shared/BusinessApi/BusinessApi.js?v=1f08ad808b467825';
+import { accountEntry } from '../../shared/AccountSession/AccountSession.js?v=1f08ad808b467825';
 
 const api = new BusinessApi();
 mountNavigation('study', { api });

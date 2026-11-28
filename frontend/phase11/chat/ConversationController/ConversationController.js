@@ -1,5 +1,5 @@
-import { sharedApi } from "../../shared/SharedApi/SharedApi.js?v=0613976363093f95";
-import { chatApi } from "../ChatApi/ChatApi.js?v=0613976363093f95";
+import { sharedApi } from "../../shared/SharedApi/SharedApi.js?v=1f08ad808b467825";
+import { chatApi } from "../ChatApi/ChatApi.js?v=1f08ad808b467825";
 export const dependencies={"resources":["$","userPickers","unreadWatermarks","elements","state","messageView","history","sender","runtime"],"commands":["savePendingMessages","settleHistoryPending","setStatus","toast","initials","api","paintAvatar","renderConversationMembers","renderGroupGovernance","renderCurrentMessages","acknowledge","applyAiModels","loadAiModels","refreshCancelButton","connectRealtime","refreshPendingBadge","loadFriendsPreview"],"types":["UserPicker","BusinessApi","AnnouncementPlayer","formatChatTime"]};
 /** ConversationController: explicit use cases; shared state/other controllers arrive through context. */
 export function createConversationController(context) {

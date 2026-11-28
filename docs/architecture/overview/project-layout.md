@@ -1,103 +1,47 @@
 # 项目目录与构建边界
 
-本轮新增同名组件目录：`business/AiGenerationState`、`AiGenerationPreparation`、`AiGenerationCompletion`、`AiGenerationAudit`，以及 `storage/postgres/PostgresUnitOfWork`。Observer 查询拆到 `metric_queries.py`、`trace_queries.py`、`experiment_queries.py`，固定 Prometheus 查询由 `prometheus_queries.py` 有界执行；交付增加 `runtime_inventory.py`、`release_preflight.py`、`run_release.py`。[职责和调用图](../../roadmap/project-review-implementation-2026-11-19.md#2-组件与责任)。
-
-现有 Web 目录以 `Function3.3` 为基准。新增 C++ 系统可独立启动。聊天 ACK 采样位于 `backend/application/observability/ChatAckTrace/`，车队 ACK 使用独立工单。 [Web 版范围](../../releases/function3.3.md) · [C++ 系统架构](cpp-systems.md)
+Function3.7 的业务目录已按领域和职责归位；不只整理 AI。新增引用优先使用规范路径，旧薄转发头只用于兼容。[业务目录规范与验收](application-domain-layout.md) · [C++ 系统架构](cpp-systems.md)
 
 ```text
-项目根目录
-├─ main.cpp                          Linux 进程入口
-├─ CMakeLists.txt / CMakePresets.json  Linux 构建目标与预设
-├─ Dockerfile                         通信演示镜像草案
-├─ .github/workflows/                 源码检查与手动触发的业务验证
-├─ backend/
-│  ├─ server/                         Linux 通信核心
-│  │  ├─ Reactor/、SubReactor/、Runtime/、session/
-│  │  ├─ http/、http2/、websocket/、sse/、tls/、grpc/
-│  │  └─ Route/、Executor/、CoroutineScheduler/ 等
-│  ├─ application/                    共享业务和运行时装配
-│  │  ├─ bootstrap/                   应用、业务、身份、聊天与实时入口
-│  │  ├─ modules/
-│  │  │  ├─ bootstrap/
-│  │  │  │  ├─ Function3Runtime/         社区总装配
-│  │  │  │  └─ CommunityContentRuntime/  神树、动态、举报、媒体
-│  │  │  ├─ messaging/
-│  │  │  │  ├─ bootstrap/
-│  │  │  │  │  └─ CommunityDeliveryRuntime/  Outbox、Broker、重放与通知
-│  │  │  │  └─ application/、ports/、infrastructure/、transport/
-│  │  │  ├─ accounts/、contacts/、chat/、files/
-│  │  │  ├─ tree/、activities/、profiles/、moderation/
-│  │  │  └─ admin/、ranking/、announcement/、assistant/、cache/、shared/
-│  │  ├─ business/、domain/、ports/    既有业务、领域对象与接口
-│  │  ├─ storage/
-│  │  │  ├─ postgres/
-│  │  │  │  └─ migrations/             共享业务编号迁移 001–026
-│  │  │  └─ memory/、InMemoryStore/、files/
-│  │  ├─ transport/                   HTTP、WS、SSE 业务适配
-│  │  ├─ observability/
-│  │  │  ├─ OperationCatalog/          固定业务操作目录，供 C++ / Observer 共用
-│  │  │  ├─ BusinessOperation/         同步及异步完成计量
-│  │  │  ├─ DetachedSpan/              跨线程任务 Trace 生命周期
-│  │  │  └─ Telemetry/、BusinessLog/、ChatAckTrace/ 等
-│  │  └─ config/、runtime/、security/
-│  ├─ ai/
-│  │  ├─ bootstrap/、models/           AI 装配、Provider、模型治理与 RAG
-│  │  └─ private/、speech/、training/   私人生成、语音、训练与转换
-│  ├─ study/AccountWorkspace/           研途会话、分账号同步与网关装配
-│  │  ├─ AccountWorkspace.py           账号核验、作用域与存储入口
-│  │  ├─ FrontendSnapshot.py           经清单校验的前端快照
-│  │  └─ GatewayConfig.py、LabRunner.py、ReleaseBundle.py
-│  ├─ systems/                         C++ 系统独立 CMake 入口与工作流检查点适配
-│  ├─ workflow/                        DAG 图校验、Worker、执行、恢复端口与事件编码
-│  ├─ agent/                           母 Agent 提案规则、Skill 注册、证据端口与 CLI
-│  └─ fleet/                           领域、技能目录、应用、账本与有界 gRPC
-├─ robotics/nav2_gateway/              ROS 2 仿真导航适配
-├─ client/                            Windows 客户端与独立 CMake 入口
-│  ├─ companion/、assistant/、storage/  本机代理、私人助手、SQLite 与 DPAPI
-│  └─ yantu/
-│     ├─ LocalWorkspace/               独立本地空库启动
-│     └─ runtime/                      研途导入运行代码及第三方许可
-├─ frontend/
-│  ├─ observability/                 Observer 大盘、SLO 与请求下钻
-│  └─ phase11/
-│     ├─ accounts/AccountEntryView/     登录、切号、网络失败和重试
-│     ├─ tree/                          缘生-广场
-│     │  └─ TreePageNavigation/、TreePageTransition/
-│     ├─ study/StudyWorkspace/         研途会话和嵌入式账号工作区
-│     ├─ contacts/、chat/、files/        缘续-聊天和社交
-│     ├─ activities/、profile/、announcements/、admin/
-│     ├─ ai/、assistant/、knowledge/、speech/、training/
-│     └─ shared/                      跨模块导航与会话
-│        ├─ AccountSession/、AppNavigation/
-│        ├─ ClientBootstrap/           Windows 本机账号变更处理
-│        ├─ AgentRuntime/              DAG 执行器与具身协作接口
-│        ├─ PersonalAgent/             小研偏好提取、词法召回、提示组装与档案
-│        └─ BusinessApi/ 等
-├─ static/                            其他静态资源
-├─ scripts/
-│  ├─ project/
-│  │  ├─ reproduce.py                 Linux 通信档和业务档复现入口
-│  │  ├─ repro_runtime.py             临时数据库、进程与业务冒烟
-│  │  └─ ci_checks.py、check_doc_links.py 等
-│  ├─ function3/                      日常运行、隔离验证、依赖准备
-│  └─ phase11/、client/                既有脚本与 Windows 构建
-├─ tests/                             单元、集成、Fuzz、工程与客户端测试
-├─ benchmarks/                        压测工具和配置
-├─ config/gateway/envoy.json           Envoy 隔离实验配置
-├─ examples/                          WebSocket 可靠消费等教学示例
-├─ tools/                             管理、评测、数据与模型工具
-│  └─ observability/                  隔离监控、信号适配、统计与故障实验
-│     ├─ gateway.py、verify_gateway.py 隔离网关启动与黑盒验证
-│     ├─ observer/gateway_logs.py      入口日志与分段耗时
-│     └─ gateway_plugins/StreamHandshake/  C++ 计时和 Proxy-Wasm 封装
-├─ artifacts/                         版本化证据及工作区本地证据
-└─ docs/
-   ├─ architecture/                   总览、底层通信、业务与源码索引
-   ├─ database/、contracts/            数据库规则与接口契约
-   ├─ ops/、testing/、performance/     运行、复现、测试与压测
-   ├─ observability/                  监控架构、验收证据与学习课程
-   └─ reports/、evidence/、releases/、roadmap/、learning/、archive/
+main.cpp                              进程入口，只交给 ApplicationRuntime
+backend/
+  server/                             冻结的通信核心（152 文件）
+  application/
+    modules/
+      accounts/ contacts/ chat/ files/ 账号、联系人、聊天、文件
+      messaging/                      Outbox、代理和投递编排
+      ai/                             持久化 AI 用例、知识/训练业务接口
+      shared/                         公共契约、协议辅助、兼容聚合头
+      learning/                       教学路由
+      tree/ activities/ admin/ ...    既有社区领域模块
+      <领域>/
+        domain/ ports/ application/ infrastructure/ transport/ bootstrap/
+    bootstrap/                        应用、网络、存储与全局运行装配
+    storage/                          共享数据库/内存驱动和事务生命周期
+    observability/                    业务操作、指标、Trace 与日志
+    config/ runtime/                  配置和有界执行器
+    business/ transport/http/         仅保留既有薄兼容头
+  ai/
+    bootstrap/                        推理依赖装配
+    inference/                        contract/inprocess/remote/resilience/metrics
+    registry/ rag/ training/data/     模型治理、检索和训练数据
+    private/ speech/ teacher/         私人生成、语音、teacher 设计位置
+  agent/                              规则、工具/技能、运行时与可执行入口
+  fleet/ workflow/ systems/           车队、工作流与独立构建入口
+  study/AccountWorkspace/             账号隔离的研途工作区
+scripts/
+  ai/                                 data/training/export/toolchain
+  function3/                          日常运行和隔离验证
+  project/                            边界、契约、文档与交付检查
+  project/layout/                     显式、可备份的目录迁移
+client/                               Windows 客户端
+frontend/                             社区、Agent 工作台和 Observer 页面
+tools/ai/                             模型与训练维护 CLI
+tools/observability/                  网关与分层 Observer（查询/指标/日志/告警等）
+robotics/nav2_gateway/                独立 ROS2 适配
 ```
+
+类型/接口按领域归属，不与驱动混放；共享存储的事务和连接所有权保持不变。具体组件列表见 [迁移清单](../source-layout-migration-3.json)。构建产物、模型、用户上传和真实配置不属于源码整理对象。
 
 ## 调用与构建边界
 
@@ -117,3 +61,9 @@ C++ 组件用同名目录存放头文件与实现。纯接口保留头文件，�
 共享业务以 Linux PostgreSQL 为权威存储。Windows SQLite 存放按账号隔离的私人资料。数据库升级只追加编号迁移，原库变更和日常服务切换按运维文档操作。[迁移规则](../../database/migration-policy.md) · [日常运行](../../ops/runtime/function3-runtime.md)
 
 [文档导航](../../README.md) · [当前端到端图](../business/flows/current-end-to-end.md) · [代码索引](../business/indexes/README.md) · [历史目录迁移清单](../source-layout-migration.json)
+
+Observer 的 29 个实现模块也已从平铺目录归位，保留原服务 CLI 的薄兼容入口。[Observer 职责目录](../../../tools/observability/observer/README.md) · [精确迁移清单](../source-observer-layout-migration.json)
+
+监控配套工具的 23 个实现也已按网关、实验、依赖供应、诊断、验收和留存分组，20 个原命令名保留，避免破坏进程身份校验。[工具目录与边界](../../../tools/observability/README.md)
+
+应用层观测实现已按 catalog、logging、metrics、operations、tracing、runtime 分组，详见 [应用观测目录规范](application-observability-layout.md)。

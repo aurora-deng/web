@@ -145,14 +145,14 @@ Release、Debug、Sanitizer 全矩阵以及正式库迁移会等待当前 24 小
 
 | 文件 | 作用 |
 |---|---|
-| `backend/application/domain/Domain/Domain.h` | `TrainingAuthorizationMode` 与 `ModelTrainingLineage` 领域对象 |
-| `backend/application/ports/Ports/Ports.h` | 原子 Candidate+Lineage Repository 端口 |
+| `backend/application/modules/shared/compatibility/Domain/Domain.h` | `TrainingAuthorizationMode` 与 `ModelTrainingLineage` 领域对象 |
+| `backend/application/modules/shared/compatibility/Ports/Ports.h` | 原子 Candidate+Lineage Repository 端口 |
 | `backend/ai/models/ModelRegistryService/` | 训练版本业务校验与登记入口 |
 | `backend/application/storage/InMemoryStore/` | 无数据库测试替身与契约实现 |
 | `backend/application/storage/postgres/PostgresStore/` | Dataset 再核对、事务写入与查询 |
 | `backend/application/storage/postgres/migrations/012_model_training_lineage.sql` | 血缘表、外键、模式与 Hash 约束 |
 | `scripts/phase11/export-trained-lora-onnx.py` | 生成部署制品和 Phase 24 扁平血缘清单 |
-| `tools/phase11_model_admin.cpp` | 路径/Hash 校验、训练 Candidate 登记及 `show-lineage` 查询 |
+| `tools/ai/ModelAdmin/ModelAdmin.cpp` | 路径/Hash 校验、训练 Candidate 登记及 `show-lineage` 查询 |
 | `tests/phase11/unit/core.cpp` | 内存业务和错误 Dataset 反向用例 |
 | `tests/phase11/unit/postgres_contract.cpp` | PostgreSQL 原子持久化契约 |
 

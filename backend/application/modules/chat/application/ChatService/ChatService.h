@@ -1,16 +1,17 @@
 #pragma once
 
-#include "backend/application/business/ApplicationError/ApplicationError.h"
-#include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
-#include "backend/application/ports/IDatabase/IDatabase.h"
-#include "backend/application/ports/IUserRepository/IUserRepository.h"
-#include "backend/application/ports/ISocialRepository/ISocialRepository.h"
-#include "backend/application/ports/IConversationRepository/IConversationRepository.h"
-#include "backend/application/ports/IMessageRepository/IMessageRepository.h"
-#include "backend/application/ports/IFileRepository/IFileRepository.h"
-#include "backend/application/ports/IOutboxRepository/IOutboxRepository.h"
-#include "backend/application/domain/ConversationTypes/ConversationTypes.h"
-#include "backend/application/domain/MessageTypes/MessageTypes.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/chat/domain/ConversationParticipant/ConversationParticipant.h"
+#include "backend/application/modules/chat/ports/IChatBusiness/IChatBusiness.h"
+#include "backend/application/modules/shared/ports/IDatabase/IDatabase.h"
+#include "backend/application/modules/accounts/ports/IUserRepository/IUserRepository.h"
+#include "backend/application/modules/contacts/ports/ISocialRepository/ISocialRepository.h"
+#include "backend/application/modules/chat/ports/IConversationRepository/IConversationRepository.h"
+#include "backend/application/modules/chat/ports/IMessageRepository/IMessageRepository.h"
+#include "backend/application/modules/files/ports/IFileRepository/IFileRepository.h"
+#include "backend/application/modules/messaging/ports/IOutboxRepository/IOutboxRepository.h"
+#include "backend/application/modules/chat/domain/ConversationTypes/ConversationTypes.h"
+#include "backend/application/modules/chat/domain/MessageTypes/MessageTypes.h"
 
 namespace webserver::phase11
 {

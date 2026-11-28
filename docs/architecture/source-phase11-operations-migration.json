@@ -1,0 +1,219 @@
+{
+  "schema": "phase11-operations-layout-v1",
+  "date": "2026-11-28",
+  "moves": [
+    [
+      "scripts/phase11/postgres-backup.sh",
+      "scripts/function3/database/backup.sh"
+    ],
+    [
+      "scripts/phase11/postgres-migrate.sh",
+      "scripts/function3/database/migrate.sh"
+    ],
+    [
+      "scripts/phase11/postgres-migration-status.sh",
+      "scripts/function3/database/migration_status.sh"
+    ],
+    [
+      "scripts/phase11/postgres-user-service.sh",
+      "scripts/function3/database/user_service.sh"
+    ],
+    [
+      "scripts/phase11/seed-demo-users.py",
+      "scripts/function3/data/seed_demo_users.py"
+    ],
+    [
+      "scripts/phase11/phase16-soak.py",
+      "scripts/function3/validation/phase16_soak.py"
+    ],
+    [
+      "scripts/phase11/webserver-user-service.sh",
+      "scripts/function3/runtime/webserver/service.sh"
+    ],
+    [
+      "scripts/phase11/webserver-user-supervisor.sh",
+      "scripts/function3/runtime/webserver/supervisor.sh"
+    ]
+  ],
+  "behaviorChangeIntended": false,
+  "pythonSemanticSha256": {
+    "scripts/function3/validation/phase16_soak.py": "2cc9b55c5276ba28eaaf7db44c409b54b477819a934e8a19dc05d0904806352b",
+    "scripts/function3/data/seed_demo_users.py": "11979cffd4832115e270e9b79dcceb44fa317a46ddc6af8c85074ccc8634aff8"
+  },
+  "shellContentSha256": {
+    "scripts/function3/database/backup.sh": {
+      "beforeSha256": "ad4c712d9a24be18d73dc8495e96d4f7b922826ad0b9f2215a94ca0f871761aa",
+      "afterSha256": "ad4c712d9a24be18d73dc8495e96d4f7b922826ad0b9f2215a94ca0f871761aa"
+    },
+    "scripts/function3/database/migrate.sh": {
+      "beforeSha256": "85ac149885485d78a7678ceb5c7a3462e48e8535b31a37c1a2672d6287ea1a56",
+      "afterSha256": "aa871493b0d449490a2ecf5c7652e7eb99e673aa6e2e1f7ae4c0fc094ee3ba5f"
+    },
+    "scripts/function3/database/migration_status.sh": {
+      "beforeSha256": "fc05b7c985e4d55b819b7230fe986d62c8a6add085238563952ea6604f3e6c22",
+      "afterSha256": "019890423610f6a346dbae0b6428526cd48d7078e948e08e9fe763874081f9da"
+    },
+    "scripts/function3/database/user_service.sh": {
+      "beforeSha256": "6ec6347ba790806f1d3034c44e66d8fc71715f5614a454a247b64e09a7bc085c",
+      "afterSha256": "6ec6347ba790806f1d3034c44e66d8fc71715f5614a454a247b64e09a7bc085c"
+    },
+    "scripts/function3/runtime/webserver/service.sh": {
+      "beforeSha256": "98a8108fc2950610c535c028769fc740a7c329e22cfe920e1ea8e5be2f3fe29d",
+      "afterSha256": "d774de90bbbf02f98890b0d9c1595702614f0b4a01bb6fb85e9f25157f08b067"
+    },
+    "scripts/function3/runtime/webserver/supervisor.sh": {
+      "beforeSha256": "cb2aafb0038b645edb9ce5358fa836d6af6ec805da6cd8c7d15cc7833ec3576c",
+      "afterSha256": "40b2b7b25be6e93fe0cb5ac6a1a0e8ef10331e59a442349ad75991c2a2ed575d"
+    }
+  },
+  "referenceRewrites": {
+    "CMakeLists.txt": {
+      "scripts/phase11/webserver-user-supervisor.sh": "scripts/function3/runtime/webserver/supervisor.sh"
+    },
+    "scripts/function3/runtime/service.py": {
+      "scripts/phase11/postgres-user-service.sh": "scripts/function3/database/user_service.sh"
+    },
+    "scripts/phase15-business-benchmark.sh": {
+      "scripts/phase11/webserver-user-service.sh": "scripts/function3/runtime/webserver/service.sh",
+      "scripts/phase11/webserver-user-supervisor.sh": "scripts/function3/runtime/webserver/supervisor.sh"
+    },
+    "scripts/README.md": {
+      "scripts/phase11/seed-demo-users.py": "scripts/function3/data/seed_demo_users.py"
+    }
+  },
+  "compatibilityEntrypoints": [
+    "scripts/phase11/postgres-backup.sh",
+    "scripts/phase11/postgres-migrate.sh",
+    "scripts/phase11/postgres-migration-status.sh",
+    "scripts/phase11/postgres-user-service.sh",
+    "scripts/phase11/seed-demo-users.py",
+    "scripts/phase11/phase16-soak.py",
+    "scripts/phase11/webserver-user-service.sh",
+    "scripts/phase11/webserver-user-supervisor.sh"
+  ],
+  "historicalEvidenceRewritten": false,
+  "files": [
+    {
+      "old": "CMakeLists.txt",
+      "new": "CMakeLists.txt",
+      "beforeSha256": "e85a0acbc1f625141c066b068c4659483c9bd182e1f9fe1439e46eb7cad4b6f6",
+      "afterSha256": "c2bda12674191e53002a6815d7916c407b9f7f1941ee2e5b059a20e18b40b2de"
+    },
+    {
+      "old": "scripts/README.md",
+      "new": "scripts/README.md",
+      "beforeSha256": "0316ea896b20d12fc48ef791d2d1dc80a798d20fdad473a88e1b429e8a19d881",
+      "afterSha256": "d88bbb9e96fd196bc13e278c6754fcc5beaf74ca61af082ea7c3dedcc52c7635"
+    },
+    {
+      "old": "scripts/function3/runtime/service.py",
+      "new": "scripts/function3/runtime/service.py",
+      "beforeSha256": "e094771098ea4010f57e5f638ad47fe8c8c0235e3b7c0d0ada588ed19e52f01f",
+      "afterSha256": "3331e66a2e264ee09983139cb6ee280a49a66efadf9de0435c0548b321c850c5"
+    },
+    {
+      "old": "scripts/phase11/phase16-soak.py",
+      "new": "scripts/function3/validation/phase16_soak.py",
+      "beforeSha256": "3f93b9a24e7b0fe8d10e0514cdec8499696ed1a22fb53a31e00195591e910068",
+      "afterSha256": "3f93b9a24e7b0fe8d10e0514cdec8499696ed1a22fb53a31e00195591e910068"
+    },
+    {
+      "old": "scripts/phase11/postgres-backup.sh",
+      "new": "scripts/function3/database/backup.sh",
+      "beforeSha256": "ad4c712d9a24be18d73dc8495e96d4f7b922826ad0b9f2215a94ca0f871761aa",
+      "afterSha256": "ad4c712d9a24be18d73dc8495e96d4f7b922826ad0b9f2215a94ca0f871761aa"
+    },
+    {
+      "old": "scripts/phase11/postgres-migrate.sh",
+      "new": "scripts/function3/database/migrate.sh",
+      "beforeSha256": "85ac149885485d78a7678ceb5c7a3462e48e8535b31a37c1a2672d6287ea1a56",
+      "afterSha256": "aa871493b0d449490a2ecf5c7652e7eb99e673aa6e2e1f7ae4c0fc094ee3ba5f"
+    },
+    {
+      "old": "scripts/phase11/postgres-migration-status.sh",
+      "new": "scripts/function3/database/migration_status.sh",
+      "beforeSha256": "fc05b7c985e4d55b819b7230fe986d62c8a6add085238563952ea6604f3e6c22",
+      "afterSha256": "019890423610f6a346dbae0b6428526cd48d7078e948e08e9fe763874081f9da"
+    },
+    {
+      "old": "scripts/phase11/postgres-user-service.sh",
+      "new": "scripts/function3/database/user_service.sh",
+      "beforeSha256": "6ec6347ba790806f1d3034c44e66d8fc71715f5614a454a247b64e09a7bc085c",
+      "afterSha256": "6ec6347ba790806f1d3034c44e66d8fc71715f5614a454a247b64e09a7bc085c"
+    },
+    {
+      "old": "scripts/phase11/seed-demo-users.py",
+      "new": "scripts/function3/data/seed_demo_users.py",
+      "beforeSha256": "3092b72884779d3dd0462d73c947480c82e270f1dac802772ad53c2f19bf1574",
+      "afterSha256": "3092b72884779d3dd0462d73c947480c82e270f1dac802772ad53c2f19bf1574"
+    },
+    {
+      "old": "scripts/phase11/webserver-user-service.sh",
+      "new": "scripts/function3/runtime/webserver/service.sh",
+      "beforeSha256": "98a8108fc2950610c535c028769fc740a7c329e22cfe920e1ea8e5be2f3fe29d",
+      "afterSha256": "d774de90bbbf02f98890b0d9c1595702614f0b4a01bb6fb85e9f25157f08b067"
+    },
+    {
+      "old": "scripts/phase11/webserver-user-supervisor.sh",
+      "new": "scripts/function3/runtime/webserver/supervisor.sh",
+      "beforeSha256": "cb2aafb0038b645edb9ce5358fa836d6af6ec805da6cd8c7d15cc7833ec3576c",
+      "afterSha256": "40b2b7b25be6e93fe0cb5ac6a1a0e8ef10331e59a442349ad75991c2a2ed575d"
+    },
+    {
+      "old": "scripts/phase15-business-benchmark.sh",
+      "new": "scripts/phase15-business-benchmark.sh",
+      "beforeSha256": "7984b7921e2608a6463b4de5744d3f409f885be6425e0848469720930d93e2db",
+      "afterSha256": "c2672c23308c4586f14ed7f1644b81762798b1b4671dfa5619124266fc4bbb08"
+    }
+  ],
+  "generated": [
+    {
+      "path": "scripts/function3/data/README.md",
+      "sha256": "815ae26eb1ec2f6222900cefe4747487c70f4fd40618bd2842953c20f6f85631"
+    },
+    {
+      "path": "scripts/function3/database/README.md",
+      "sha256": "398478d3c000ff2e7bdc10cefaec705496914ba41a71c7ca78a4c4857a91d3ad"
+    },
+    {
+      "path": "scripts/function3/runtime/webserver/README.md",
+      "sha256": "44bf1e6720de5afc7598d7af323d86ac199fefe9eb19ec1e763bd14468ad6377"
+    },
+    {
+      "path": "scripts/phase11/README.md",
+      "sha256": "d069a8df51d0d3cd9825b3a43c09f6fdf28f1aece06a4e5cb33a55adbf3746a4"
+    },
+    {
+      "path": "scripts/phase11/phase16-soak.py",
+      "sha256": "3856c83e568be7067c615d680363713620cd27d38caf44337ce05e5c3fb525fb"
+    },
+    {
+      "path": "scripts/phase11/postgres-backup.sh",
+      "sha256": "42b0236e9818adb57de9943fb52820901ebde269e841d74b4b6c8f26618dc5d0"
+    },
+    {
+      "path": "scripts/phase11/postgres-migrate.sh",
+      "sha256": "3e76399e3f7ec59b48cbe985de3359a969bcfe6c57fa0c2ff06602903293a185"
+    },
+    {
+      "path": "scripts/phase11/postgres-migration-status.sh",
+      "sha256": "350deefbf43d606c1fda5e4044a3207f0b16bed0f8e4a01a46a4963060160fe3"
+    },
+    {
+      "path": "scripts/phase11/postgres-user-service.sh",
+      "sha256": "8ad6cb0c275d833ae4343195b566c9ce33b55b33275ccd91fb3b897280cb6389"
+    },
+    {
+      "path": "scripts/phase11/seed-demo-users.py",
+      "sha256": "8ce6a323dca1064b64080be538723a31a00ab75fe73b78838db5995ba46114bc"
+    },
+    {
+      "path": "scripts/phase11/webserver-user-service.sh",
+      "sha256": "679f4c4cac9de0025517009a6b372158713e75238e2b4f146b6b9e1fa9671c87"
+    },
+    {
+      "path": "scripts/phase11/webserver-user-supervisor.sh",
+      "sha256": "7067d4d6be7d9861d2804d57f4d247b4d52cd95e5ed15eebd712fe04490a747b"
+    }
+  ]
+}

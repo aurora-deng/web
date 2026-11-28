@@ -17,9 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts/project'))
 from repro_runtime import browser_fixture, require
 sys.path.insert(0, str(ROOT))
-from tools.observability.observer.local_metrics import parse_metrics, metric
-from tools.observability.observer.operation_catalog import FUNCTION_DEFINITIONS, HTTP_OPERATIONS
-from tools.observability.observer.access_preflight import prometheus_baseline
+from tools.observability.observer.metrics.local_metrics import parse_metrics, metric
+from tools.observability.observer.contracts.operation_catalog import FUNCTION_DEFINITIONS, HTTP_OPERATIONS
+from tools.observability.observer.http.access_preflight import prometheus_baseline
 
 
 def request(port, method, path, data=None, headers=None):

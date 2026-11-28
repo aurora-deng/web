@@ -1,5 +1,5 @@
-#include "backend/ai/models/OllamaModelProvider/OllamaModelProvider.h"
-#include "backend/ai/models/OllamaStreamDecoder/OllamaStreamDecoder.h"
+#include "backend/ai/inference/remote/OllamaModelProvider/OllamaModelProvider.h"
+#include "backend/ai/inference/remote/OllamaStreamDecoder/OllamaStreamDecoder.h"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>

@@ -6,7 +6,7 @@
 |---|---|---|
 |后端|统一既有配置和跨字段启动校验|[RuntimeConfig.cpp](../../../../backend/application/config/RuntimeConfig/RuntimeConfig.cpp)|
 |后端|统一既有配置和跨字段启动校验|[RuntimeConfig.h](../../../../backend/application/config/RuntimeConfig/RuntimeConfig.h)|
-|后端|数据库/排队/事件年龄指标|[BusinessMetrics.h](../../../../backend/application/observability/BusinessMetrics/BusinessMetrics.h)|
+|后端|数据库/排队/事件年龄指标|[BusinessMetrics.h](../../../../backend/application/observability/metrics/BusinessMetrics.h)|
 |后端|明确、幂等的业务停止顺序|[BusinessShutdown.h](../../../../backend/application/runtime/BusinessShutdown/BusinessShutdown.h)|
 |后端|历史/搜索/定位的批量正文与附件装配|[PostgresMessageRepository.cpp](../../../../backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.cpp)|
 |后端|历史/搜索/定位的批量正文与附件装配|[PostgresMessageRepository.h](../../../../backend/application/storage/postgres/PostgresMessageRepository/PostgresMessageRepository.h)|

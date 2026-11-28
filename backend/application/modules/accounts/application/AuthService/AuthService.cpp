@@ -1,4 +1,4 @@
-#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
+#include "backend/application/observability/operations/BusinessOperation.h"
 #include "backend/application/modules/accounts/application/AuthService/AuthService.h"
 #include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
 

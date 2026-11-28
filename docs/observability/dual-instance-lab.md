@@ -65,4 +65,4 @@ python3 -m tools.observability.isolated_dual --profile full --with-alertmanager 
 | 实时投递积压 | 发布循环观察到的最老待投递事件超过 15 秒并持续 1 分钟。空队列为零，数据库读取异常期间指标缺测 |
 | Trace 丢弃 | 5 分钟内丢弃计数有增量并持续 30 秒。与业务 ACK 计数独立 |
 
-数据库历史最大值保留在诊断目录。`verify_alert_policy` 使用 Prometheus 自身规则测试器验证低流量抑制、P99 样本门槛、积压恢复与丢弃窗口到期。实验阈值写在规则中，可用真实负载和用户影响重新校准。[告警策略源码](../../tools/observability/observer/alert_policy.py) · [当前验收结果](validation.md#双实例实时投递与告警验收)
+数据库历史最大值保留在诊断目录。`verify_alert_policy` 使用 Prometheus 自身规则测试器验证低流量抑制、P99 样本门槛、积压恢复与丢弃窗口到期。实验阈值写在规则中，可用真实负载和用户影响重新校准。[告警策略源码](../../tools/observability/observer/alerts/alert_policy.py) · [当前验收结果](validation.md#双实例实时投递与告警验收)

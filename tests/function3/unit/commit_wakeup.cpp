@@ -1,4 +1,4 @@
-#include "backend/application/observability/CommitWakeClock/CommitWakeClock.h"
+#include "backend/application/observability/runtime/CommitWakeClock.h"
 #include <chrono>
 
 int main() {

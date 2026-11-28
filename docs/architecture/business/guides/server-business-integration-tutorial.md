@@ -128,7 +128,7 @@ dispatcher.on("chat.send", [this](WsMessageContext& context) {
 
 Router 按“方法 + 路径”查找，Dispatcher 按“应用消息 type”查找。WebSocket 帧的 Text/Ping/Close 由协议层处理；`chat.send/chat.read` 是你自己定义的业务消息。
 
-路由表在服务器运行前登记，在 [ServerRuntime](../../../../backend/server/Runtime/ServerRuntime.cpp) 中冻结。往 [Contracts.h](../../../../backend/application/transport/Contracts/Contracts.h) 里加一个字符串常量，只是起了名字，**不会自动注册功能**。例如常量中有 `presence.subscribe`，当前 `Phase11Realtime::registerHandlers` 并没有对应处理器。
+路由表在服务器运行前登记，在 [ServerRuntime](../../../../backend/server/Runtime/ServerRuntime.cpp) 中冻结。往 [Contracts.h](../../../../backend/application/modules/shared/transport/Contracts/Contracts.h) 里加一个字符串常量，只是起了名字，**不会自动注册功能**。例如常量中有 `presence.subscribe`，当前 `Phase11Realtime::registerHandlers` 并没有对应处理器。
 
 ## 4. 线程边界：目前是隔离执行，不是每一层都异步等待
 
@@ -150,7 +150,7 @@ sequenceDiagram
     R->>R: 连接出站队列继续写
 ```
 
-看 [Phase11AuthHttp.h](../../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h) 的 `runDatabase`，以及 [Phase11Realtime.h](../../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h) 的同名函数：
+看 [Phase11AuthHttp.h](../../../../backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.h) 的 `runDatabase`，以及 [Phase11Realtime.h](../../../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.h) 的同名函数：
 
 ```cpp
 // 原实现的核心思想，省略 void 返回与异常分支。
@@ -190,14 +190,14 @@ Content-Type: application/json
 
 ### 5.2 HTTP 前台做什么
 
-读 [Phase11AuthHttp.cpp](../../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp) 的 `registerRoutes`：
+读 [Phase11AuthHttp.cpp](../../../../backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp) 的 `registerRoutes`：
 
 1. `requestObject` 限制/解析 JSON，取 `username/password`。
 2. 提取来源信息，供登录限流使用。
 3. `runDatabase` 调用 `IAuthBusiness::login`。
 4. 收到 `LoginSession`，返回用户资料和 `csrfToken`，通过 `Set-Cookie` 保存 Session Token。
 
-读 [AuthService.cpp](../../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp)：验证账号、限流和密码；生成会话；数据库保存 Token Hash。密码散列与随机 Token 的具体能力交给 [SodiumCredentialCodec](../../../../backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)。
+读 [AuthService.cpp](../../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp)：验证账号、限流和密码；生成会话；数据库保存 Token Hash。密码散列与随机 Token 的具体能力交给 [SodiumCredentialCodec](../../../../backend/application/modules/accounts/infrastructure/SodiumCredentialCodec/SodiumCredentialCodec.cpp)。
 
 **注册与登录要分开理解**：`POST /api/auth/register` 返回 `201` 和 `User`，它不创建登录 Cookie；`POST /api/auth/login` 才创建会话。不要把“创建了账号”画成“自动获得登录 Session”。
 
@@ -241,7 +241,7 @@ Cookie 默认安全配置与明文学习环境的配置不同；当前虚拟机 
 
 ### 6.3 后端关键步骤
 
-读 [Phase11Realtime.cpp](../../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) 的 `registerHandlers`：
+读 [Phase11Realtime.cpp](../../../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp) 的 `registerHandlers`：
 
 1. Dispatcher 找到 `chat.send`。
 2. 从可信 `context.uid` 得到发送人；复制 DTO 参数进入 DB 任务。
@@ -294,7 +294,7 @@ sequenceDiagram
 
 ## 7. 事务与 Repository：为什么七个参数都可以是同一个 store
 
-读 [BusinessInterfaces.h](../../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h) 和 [Ports.h](../../../../backend/application/ports/Ports/Ports.h)：业务依赖抽象接口；一个 `PostgresStore` 可以同时实现多个接口，就像同一位仓库管理员戴着“管用户、管消息、管通知”几顶帽子。
+读 [BusinessInterfaces.h](../../../../backend/application/modules/shared/compatibility/BusinessInterfaces/BusinessInterfaces.h) 和 [Ports.h](../../../../backend/application/modules/shared/compatibility/Ports/Ports.h)：业务依赖抽象接口；一个 `PostgresStore` 可以同时实现多个接口，就像同一位仓库管理员戴着“管用户、管消息、管通知”几顶帽子。
 
 业务 Service 不应暴露 `PGconn*`，也不应自己拼接 SQL。内存 Store 与 PostgreSQL Store 可通过同一套 Repository 契约验证行为。
 
@@ -409,7 +409,7 @@ flowchart LR
     Json --> Offline[恢复撤回占位]
 ```
 
-数据库保留消息和撤回元数据；当前实现也保留原正文。普通消息输出由 [MessageJson](../../../../backend/application/transport/serialization/MessageJson/MessageJson.cpp) 对 recalled 消息返回空正文和空附件，搜索排除撤回消息。**这属于用户可见性的撤回，不是数据库物理抹除，也不是训练模型“遗忘”该内容。**
+数据库保留消息和撤回元数据；当前实现也保留原正文。普通消息输出由 [MessageJson](../../../../backend/application/modules/chat/transport/MessageJson/MessageJson.cpp) 对 recalled 消息返回空正文和空附件，搜索排除撤回消息。**这属于用户可见性的撤回，不是数据库物理抹除，也不是训练模型“遗忘”该内容。**
 
 先读后端权限再看 `ChatHistory.js::canRecallMessage` 与 `app.js::requestRecall`。Phase 27 已接入管理者入口；前端判断改善交互，后端 `ChatService::recallMessage` 才能真正授权，伪造按钮不能绕过它。
 
@@ -419,7 +419,7 @@ flowchart LR
 
 直接 `INSERT message → socket.send` 有一个夹缝：提交成功后进程崩溃，通知就没了。当前用 `messages + outbox_events` 同事务提交，重启后仍能扫描待处理事件。
 
-[OutboxDispatcher.cpp](../../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp) 实际做的是：
+[OutboxDispatcher.cpp](../../../../backend/application/modules/messaging/application/OutboxDispatcher/OutboxDispatcher.cpp) 实际做的是：
 
 ```text
 pendingOutbox(limit)，按顺序取尚未发布事件
@@ -429,7 +429,7 @@ sink.publish(event)
     └─ true：markPublished(event.id)
 ```
 
-[Phase11OutboxPump](../../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp) 在专用线程执行循环。普通变更通过 `notifyCommitted()` 叫醒，轮询是兜底；当前每批 100 个。若 `publish` 成功但 `markPublished` 前崩溃，下次可能再次发布，所以消费端必须允许重复。
+[Phase11OutboxPump](../../../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp) 在专用线程执行循环。普通变更通过 `notifyCommitted()` 叫醒，轮询是兜底；当前每批 100 个。若 `publish` 成功但 `markPublished` 前崩溃，下次可能再次发布，所以消费端必须允许重复。
 
 ### 10.2 三个不能混淆的成功
 
@@ -483,7 +483,7 @@ sequenceDiagram
     S-->>UI: 收敛 UI 终态
 ```
 
-读 [AiChatService.cpp](../../../../backend/application/business/AiChatService/AiChatService.cpp) 的 `generate`、准备任务、`onToken`、`onModelCompleted`：
+读 [AiChatService.cpp](../../../../backend/application/modules/ai/application/AiChatService/AiChatService.cpp) 的 `generate`、准备任务、`onToken`、`onModelCompleted`：
 
 1. `ai.accepted` 之后仍可能遇到权限、模型、期限或持久化错误，不能把它当成生成成功。
 2. 普通聊天主链与推理边界分离；模型路由统一选择 Ollama、进程内 ONNX 或独立 gRPC Worker。
@@ -629,17 +629,17 @@ flowchart LR
 | 依赖组装、路由登记、握手身份 | [main.cpp](../../../../main.cpp) |
 | HTTP 分发与执行策略 | [Router](../../../../backend/server/Route/Router.cpp)、[HttpSession](../../../../backend/server/http/HttpSession/HttpSession.cpp) |
 | WS 应用分发 | [WebSocketDispatcher](../../../../backend/server/websocket/WebSocketDispatcher/WebSocketDispatcher.cpp)、[WsMessageContext](../../../../backend/server/websocket/WebSocketDispatcher/WsMessageContext.h) |
-| 业务接口与存储端口 | [BusinessInterfaces](../../../../backend/application/business/BusinessInterfaces/BusinessInterfaces.h)、[Ports](../../../../backend/application/ports/Ports/Ports.h) |
-| HTTP 身份与账号 | [AuthHttp.cpp](../../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp)、[AuthHttp.h](../../../../backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h)、[AuthService](../../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp) |
-| 社交/群聊/历史 HTTP | [SocialChatHttp](../../../../backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)、[SocialService](../../../../backend/application/modules/contacts/application/SocialService/SocialService.cpp) |
-| 实时命令、Outbox Pump/Sink、Presence Bridge、AI SSE | [Phase11Realtime.cpp](../../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)、[Phase11Realtime.h](../../../../backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.h) |
-| 发消息、游标与撤回 | [ChatService](../../../../backend/application/modules/chat/application/ChatService/ChatService.cpp)、[MessageJson](../../../../backend/application/transport/serialization/MessageJson/MessageJson.cpp) |
+| 业务接口与存储端口 | [BusinessInterfaces](../../../../backend/application/modules/shared/compatibility/BusinessInterfaces/BusinessInterfaces.h)、[Ports](../../../../backend/application/modules/shared/compatibility/Ports/Ports.h) |
+| HTTP 身份与账号 | [AuthHttp.cpp](../../../../backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp)、[AuthHttp.h](../../../../backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.h)、[AuthService](../../../../backend/application/modules/accounts/application/AuthService/AuthService.cpp) |
+| 社交/群聊/历史 HTTP | [SocialChatHttp](../../../../backend/application/modules/chat/transport/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp)、[SocialService](../../../../backend/application/modules/contacts/application/SocialService/SocialService.cpp) |
+| 实时命令、Outbox Pump/Sink、Presence Bridge、AI SSE | [Phase11Realtime.cpp](../../../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp)、[Phase11Realtime.h](../../../../backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.h) |
+| 发消息、游标与撤回 | [ChatService](../../../../backend/application/modules/chat/application/ChatService/ChatService.cpp)、[MessageJson](../../../../backend/application/modules/chat/transport/MessageJson/MessageJson.cpp) |
 | 有界慢任务执行器 | [BoundedExecutor](../../../../backend/application/runtime/BoundedExecutor/BoundedExecutor.h) |
 | PostgreSQL 事务/幂等/序号/查询 | [PostgresStore](../../../../backend/application/storage/postgres/PostgresStore/PostgresStore.cpp)、[PostgresConnectionPool](../../../../backend/application/storage/postgres/PostgresConnectionPool/PostgresConnectionPool.cpp) |
-| Outbox 分发规则 | [OutboxDispatcher](../../../../backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp) |
-| 文件入口与业务 | [FileHttp](../../../../backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp)、[FileService](../../../../backend/application/modules/files/application/FileService/FileService.cpp) |
-| AI、RAG 与模型 | [AiChatService](../../../../backend/application/business/AiChatService/AiChatService.cpp)、[RagService](../../../../backend/ai/models/RagService/RagService.cpp)、[ModelRegistryService](../../../../backend/ai/models/ModelRegistryService/ModelRegistryService.cpp) |
-| 训练数据与管理 | [TrainingDataService](../../../../backend/ai/training/TrainingDataService/TrainingDataService.cpp)、[训练管理工具](../../../../tools/phase11_training_admin.cpp)、[模型管理工具](../../../../tools/phase11_model_admin.cpp) |
+| Outbox 分发规则 | [OutboxDispatcher](../../../../backend/application/modules/messaging/application/OutboxDispatcher/OutboxDispatcher.cpp) |
+| 文件入口与业务 | [FileHttp](../../../../backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp)、[FileService](../../../../backend/application/modules/files/application/FileService/FileService.cpp) |
+| AI、RAG 与模型 | [AiChatService](../../../../backend/application/modules/ai/application/AiChatService/AiChatService.cpp)、[RagService](../../../../backend/ai/rag/RagService/RagService.cpp)、[ModelRegistryService](../../../../backend/ai/registry/ModelRegistryService/ModelRegistryService.cpp) |
+| 训练数据与管理 | [TrainingDataService](../../../../backend/ai/training/data/TrainingDataService/TrainingDataService.cpp)、[训练管理工具](../../../../tools/ai/TrainingAdmin/TrainingAdmin.cpp)、[模型管理工具](../../../../tools/ai/ModelAdmin/ModelAdmin.cpp) |
 | 前端命令与状态消费 | [app.js](../../../../frontend/phase11/app.js) |
 | Repository 契约与业务测试 | [RepositoryContract.h](../../../../tests/phase11/unit/RepositoryContract.h)、[core.cpp](../../../../tests/phase11/unit/core.cpp) |
 | 网络接口纵向黑盒 | [runtime_blackbox.py](../../../../tests/phase11/integration/runtime_blackbox.py)、[file_blackbox.py](../../../../tests/phase11/integration/file_blackbox.py) |

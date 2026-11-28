@@ -1,6 +1,6 @@
-#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
+#include "backend/application/observability/operations/BusinessOperation.h"
 #include "backend/application/modules/chat/application/ChatService/ChatService.h"
-#include "backend/application/observability/Telemetry/Telemetry.h"
+#include "backend/application/observability/tracing/Telemetry.h"
 
 #include <algorithm>
 #include <chrono>

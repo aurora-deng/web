@@ -1,6 +1,6 @@
 #pragma once
 #include "backend/application/storage/postgres/PostgresSql/PostgresSql.h"
-#include "backend/application/domain/Domain/Domain.h"
+#include "backend/application/modules/shared/compatibility/Domain/Domain.h"
 namespace webserver::phase11 {
     /** Read repository delegated to by PostgresStore; preserves one leased transaction. */
     class PostgresMessageRepository final {

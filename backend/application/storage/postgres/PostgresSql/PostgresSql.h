@@ -1,8 +1,8 @@
 #pragma once
 #include <libpq-fe.h>
-#include "backend/application/business/ApplicationError/ApplicationError.h"
-#include "backend/application/observability/BusinessMetrics/BusinessMetrics.h"
-#include "backend/application/observability/Telemetry/Telemetry.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
+#include "backend/application/observability/metrics/BusinessMetrics.h"
+#include "backend/application/observability/tracing/Telemetry.h"
 #include <optional>
 #include <string>
 #include <string_view>

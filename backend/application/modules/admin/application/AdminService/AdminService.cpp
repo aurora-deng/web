@@ -1,5 +1,5 @@
 #include "AdminService.h"
-#include "backend/application/modules/shared/TextRules/TextRules.h"
+#include "backend/application/modules/shared/domain/TextRules/TextRules.h"
 namespace webserver::function3 {
 void AdminService::administrator(Id actor) const {if(activeActor(actors_,actor).role!=Role::Administrator)throw BusinessError(Failure::Forbidden,"site administrator required");}
 std::vector<SiteUser> AdminService::users(Id actor,Id after) const {administrator(actor);return repository_.users(after,50);}

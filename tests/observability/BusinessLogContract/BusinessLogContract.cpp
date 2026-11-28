@@ -1,5 +1,5 @@
-#include "backend/application/observability/BusinessLog/BusinessLog.h"
-#include "backend/application/observability/Telemetry/Telemetry.h"
+#include "backend/application/observability/logging/BusinessLog.h"
+#include "backend/application/observability/tracing/Telemetry.h"
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>

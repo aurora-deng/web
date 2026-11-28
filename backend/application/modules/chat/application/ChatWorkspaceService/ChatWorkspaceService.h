@@ -1,7 +1,7 @@
 #pragma once
 #include "backend/application/modules/contacts/application/UserDirectoryService/UserDirectoryService.h"
 #include "backend/application/modules/chat/ports/IWorkspaceRepository/IWorkspaceRepository.h"
-#include "backend/application/ports/Ports/Ports.h"
+#include "backend/application/modules/shared/compatibility/Ports/Ports.h"
 #include "backend/application/modules/chat/application/WorkspaceRequests/WorkspaceRequests.h"
 #include <utility>
 namespace webserver::chat {

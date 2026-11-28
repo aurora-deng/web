@@ -1,14 +1,14 @@
 #include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
-#include "backend/ai/models/ModelEvaluationService/ModelEvaluationService.h"
-#include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
-#include "backend/ai/models/RagService/RagService.h"
+#include "backend/ai/registry/ModelEvaluationService/ModelEvaluationService.h"
+#include "backend/ai/rag/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "backend/ai/rag/RagService/RagService.h"
 #include "tests/phase11/unit/RepositoryContract.h"
 #include "tests/function3/unit/WorkspaceContract.h"
 
 #if defined(WEBSERVER_HAS_SODIUM)
 #include "backend/application/modules/accounts/application/AuthService/AuthService.h"
-#include "backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
-#include "backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.h"
+#include "backend/application/modules/accounts/infrastructure/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.h"
+#include "backend/application/modules/accounts/infrastructure/SodiumCredentialCodec/SodiumCredentialCodec.h"
 #endif
 
 #include <libpq-fe.h>

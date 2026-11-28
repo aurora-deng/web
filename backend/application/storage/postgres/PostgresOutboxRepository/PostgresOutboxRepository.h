@@ -1,6 +1,6 @@
 #pragma once
 #include <memory>
-#include "backend/application/domain/OutboxTypes/OutboxTypes.h"
+#include "backend/application/modules/messaging/domain/OutboxTypes/OutboxTypes.h"
 #include "backend/application/modules/chat/ports/IRealtimeRelayRepository/IRealtimeRelayRepository.h"
 #include "backend/application/modules/profiles/ports/IProfileOperations/IProfileOperations.h"
 #include "backend/application/storage/postgres/PostgresOutboxWriter/PostgresOutboxWriter.h"

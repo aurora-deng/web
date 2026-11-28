@@ -1,6 +1,7 @@
 {
-  "version": "0613976363093f95",
-  "nativeFiles": 141,
+  "version": "1f08ad808b467825",
+  "nativeFiles": 144,
   "vendor": "three-r186 (unchanged)",
-  "includesDynamicReferences": true
+  "includesDynamicReferences": true,
+  "binaryImages": 2
 }

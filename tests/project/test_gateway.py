@@ -15,12 +15,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from backend.study.AccountWorkspace import LabRunner
 from backend.study.AccountWorkspace.GatewayConfig import add_workspace
-from tools.observability.gateway import render
-from tools.observability.observer.events import Invalid
-from tools.observability.observer.gateway_logs import GatewayTelemetry, ROUTES, normalize_access
-from tools.observability.observer.log_store import LogStore
-from tools.observability.observer.store import Store, DAY
-from tools.observability.observer.workspace import Workspace, provision_files
+from tools.observability.gateways.gateway import render
+from tools.observability.observer.contracts.events import Invalid
+from tools.observability.observer.logs.gateway_logs import GatewayTelemetry, ROUTES, normalize_access
+from tools.observability.observer.logs.log_store import LogStore
+from tools.observability.observer.storage.store import Store, DAY
+from tools.observability.observer.configuration.workspace import Workspace, provision_files
 
 
 REQUESTS = [f"{letter * 8}-{letter * 4}-{letter * 4}-{letter * 4}-{letter * 12}" for letter in "bcd"]

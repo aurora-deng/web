@@ -1,5 +1,5 @@
-import { knowledgeApi } from "../KnowledgeApi/KnowledgeApi.js?v=0613976363093f95";
-import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=0613976363093f95';
+import { knowledgeApi } from "../KnowledgeApi/KnowledgeApi.js?v=1f08ad808b467825";
+import { createChatScope } from '../../chat/ChatScope/ChatScope.js?v=1f08ad808b467825';
 export const dependencies={"resources":["$","elements","state"],"commands":["setStatus","toast","conversationTitle","setButtonBusy","api","knowledgeScope","loadKnowledgeDocuments","updateKnowledgeScopeHint"],"types":[],"events":true};
 /** Knowledge UI subscriptions. All listeners belong to the page lifecycle. */
 export function bindKnowledge(context) {

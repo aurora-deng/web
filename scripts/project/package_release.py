@@ -28,11 +28,14 @@ RUNTIME_FILES = {
     "frontend/observability": {".html", ".css", ".js", ".svg"},
     "static": {".svg"},
     "tools/observability/observer": {".py"},
-    "backend/application/observability/OperationCatalog": {".def"},
+    "backend/application/observability/catalog": {".def"},
     "docs/contracts": {".json"},
     "config/observability/dashboards": {".json"},
     "backend/application/storage/postgres/migrations": {".sql"},
     "backend/study/AccountWorkspace": {".py"},
+    "backend/agent/tool_runtime": {".py"},
+    "backend/agent/tools": {".py", ".md"},
+    "backend/agent/skills": {".py", ".md"},
     "client/yantu/runtime": {".py", ".ps1", ".txt", ".html", ".js", ".mjs", ".css", ".webmanifest",
                              ".json", ".png", ".woff", ".woff2", ".ttf", ".pfb", ".bcmap", ".icc", ".wasm", ".svg", ".gif"},
     "config/gateway": {".json"},
@@ -44,7 +47,8 @@ FLEET_PROGRAMS = {
     "fleet/nebula_fleet_agent": "agent/nebula_fleet_agent",
 }
 FLEET_EVIDENCE = "fleet/cpp-systems-evidence.json"
-RUNTIME_ENTRY_FILES = {"tools/observability/gateway.py", "prepare-runtime-libs.py", *FLEET_PROGRAMS, FLEET_EVIDENCE}
+RUNTIME_ENTRY_FILES = {"backend/agent/catalog.json", "tools/observability/gateway.py", "tools/observability/gateways/__init__.py",
+                       "tools/observability/gateways/gateway.py", "prepare-runtime-libs.py", *FLEET_PROGRAMS, FLEET_EVIDENCE}
 
 
 def sha256(data):
@@ -249,7 +253,7 @@ def package(build, output, revision, archive_format="tar.gz", fleet_build=None):
     require(smoke.get("sourceFingerprint") == fingerprint(), "Source bytes differ from the tested build")
     require(json.loads(payload["frontend/phase11/asset-manifest.json"])["version"] == smoke.get("assetVersion"),
             "Frontend asset manifest differs from the tested version")
-    require(all(name in payload for name in ("frontend/observability/index.html", "tools/observability/observer/server.py")),
+    require(all(name in payload for name in ("frontend/observability/index.html", "tools/observability/observer/http/server.py")),
             "Observer runtime is missing")
     require(all(name in payload for name in ("backend/study/AccountWorkspace/AccountWorkspace.py",
                                              "client/yantu/runtime/target/index.html", "config/gateway/envoy.json")),
@@ -287,7 +291,7 @@ def smoke_archive(archive, manifest, postgres_prefix):
                     observed["assetVersion"] == manifest["assetVersion"] and
                     observed["requiredMigration"] == migration == manifest["migration"],
                     "Packaged runtime does not agree with the delivery manifest")
-        subprocess.run([sys.executable, "-m", "tools.observability.observer.server", "serve", "--help"],
+        subprocess.run([sys.executable, "-m", "tools.observability.observer.http.server", "serve", "--help"],
                        cwd=source, env=clean_environment(), check=True, stdout=subprocess.DEVNULL)
         if manifest.get('schemaVersion')==2:
             subprocess.run([sys.executable,str(source/'release_preflight.py'),'--root',str(source)],

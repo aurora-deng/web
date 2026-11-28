@@ -171,9 +171,9 @@ python3 scripts/phase11/phase16-soak.py \
 |---|---|
 | `backend/application/runtime/BoundedExecutor/` | 有界任务队列及低竞争快照 |
 | `backend/application/storage/postgres/PostgresConnectionPool/` | 连接池等待、超时和水位指标 |
-| `backend/application/business/OutboxDispatcher/` | 发布结果和最老事件年龄 |
-| `backend/application/transport/realtime/Phase11Realtime/` | Outbox Pump 主动唤醒、快照与 WS 提交通知 |
-| `backend/application/transport/http/Phase11SocialChatHttp/` | HTTP 写操作提交后的统一通知 |
+| `backend/application/modules/messaging/application/OutboxDispatcher/` | 发布结果和最老事件年龄 |
+| `backend/application/modules/chat/transport/Phase11Realtime/` | Outbox Pump 主动唤醒、快照与 WS 提交通知 |
+| `backend/application/modules/chat/transport/Phase11SocialChatHttp/` | HTTP 写操作提交后的统一通知 |
 | `main.cpp` | 装配回调、readiness 和 Prometheus 输出 |
 | `benchmarks/phase15_business_benchmark.py` | 采集前后应用指标 |
 | `benchmarks/phase15_aggregate.py` | 聚合指标增量中位数 |

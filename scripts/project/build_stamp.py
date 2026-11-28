@@ -8,6 +8,7 @@ import subprocess
 ROOT=Path(__file__).resolve().parents[2]
 def fingerprint():
     paths=[ROOT/'main.cpp',ROOT/'CMakeLists.txt']
+    paths.extend(p for p in (ROOT/'cmake').rglob('*.cmake') if not any(x.startswith(('build','.')) for x in p.relative_to(ROOT/'cmake').parts))
     for name in ('backend','client','frontend'):
         paths.extend(p for p in (ROOT/name).rglob('*') if p.suffix in ('.h','.cpp','.def','.js','.css','.html','.json','.sql') and not any(x.startswith(('build','.')) for x in p.relative_to(ROOT/name).parts))
     h=hashlib.sha256()

@@ -1,7 +1,7 @@
 #include "backend/application/modules/chat/application/ChatService/ChatService.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
-#include "backend/ai/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.h"
-#include "backend/ai/training/TrainingDataService/TrainingDataService.h"
+#include "backend/ai/training/data/JsonlTrainingDataExporter/JsonlTrainingDataExporter.h"
+#include "backend/ai/training/data/TrainingDataService/TrainingDataService.h"
 
 #include <chrono>
 #include <cstdlib>

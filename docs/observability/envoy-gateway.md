@@ -20,8 +20,8 @@ flowchart LR
 |---|---|
 | [Envoy 配置](../../config/gateway/envoy.json)和[启动适配](../../tools/observability/gateway.py) | 仅本机监听，管理端口只提供就绪和 Prometheus 指标。使用普通启动参数时代理一个上游。双实例实验对两个上游轮询、主动检查就绪，并关闭全部不健康时向故障实例转发的行为。支持带明确证书的 HTTPS 和本地 Wasm |
 | [隔离监控入口](../../tools/observability/lab.py) | 负责进程、临时库、采集配置、端口、目录预算及关闭顺序 |
-| [入口日志采集器](../../tools/observability/observer/gateway_logs.py) | 有界读取和白名单校验。汇总访问结果与普通 HTTP 耗时，索引入口错误和带业务 Trace 的记录 |
-| [HTTP 业务采样](../../backend/application/transport/http/BusinessHttpObservation/BusinessHttpObservation.h) | 在隔离实验开关启用且业务请求已采样时，将 Trace ID 写入业务响应头，供入口日志关联 |
+| [入口日志采集器](../../tools/observability/observer/logs/gateway_logs.py) | 有界读取和白名单校验。汇总访问结果与普通 HTTP 耗时，索引入口错误和带业务 Trace 的记录 |
+| [HTTP 业务采样](../../backend/application/modules/shared/transport/BusinessHttpObservation/BusinessHttpObservation.h) | 在隔离实验开关启用且业务请求已采样时，将 Trace ID 写入业务响应头，供入口日志关联 |
 | [C++ 建连计时](../../tools/observability/gateway_plugins/StreamHandshake/StreamHandshakeWasm.cpp) | 可选的 HTTP Wasm 插件，在 WS `101` 和 SSE `200` 且媒体类型正确时各记一次响应头耗时。插件不访问文件、业务库或请求正文 |
 | [黑盒验收](../../tools/observability/verify_gateway.py) | 握手、浏览器来源检查、ACK/重复重发、SSE 补发、文件上传与 Range、入口日志、真实指标及可选上游超时演练 |
 

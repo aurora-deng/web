@@ -1,5 +1,5 @@
 #include "ActivityService.h"
-#include "backend/application/modules/shared/TextRules/TextRules.h"
+#include "backend/application/modules/shared/domain/TextRules/TextRules.h"
 namespace webserver::function3 {
 namespace {void pageSize(std::size_t value){if(value==0||value>100)throw BusinessError(Failure::Invalid,"page size must be 1..100");}}
 TreePost ActivityService::publish(Id actor,PublishPost request,bool publicConfirmed,Milliseconds now) {

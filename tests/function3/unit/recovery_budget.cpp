@@ -1,5 +1,5 @@
 #include "backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.h"
-#include "backend/application/business/ApplicationError/ApplicationError.h"
+#include "backend/application/modules/shared/domain/ApplicationError/ApplicationError.h"
 #include <iostream>
 using namespace webserver::phase11;
 template<class F>void rejected(F f){try{f();}catch(const ApplicationError&e){if(e.code()==ErrorCode::RateLimited)return;throw;}throw std::runtime_error("budget should reject");}

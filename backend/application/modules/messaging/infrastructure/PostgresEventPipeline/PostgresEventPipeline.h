@@ -1,8 +1,8 @@
 #pragma once
-#include "backend/application/ports/IMessageRepository/IMessageRepository.h"
+#include "backend/application/modules/chat/ports/IMessageRepository/IMessageRepository.h"
 #include "backend/application/modules/messaging/ports/IEventBroker/IEventBroker.h"
 #include "backend/application/modules/shared/infrastructure/SqlContext/SqlContext.h"
-#include "backend/application/business/OutboxDispatcher/OutboxDispatcher.h"
+#include "backend/application/modules/messaging/application/OutboxDispatcher/OutboxDispatcher.h"
 #include "backend/application/modules/messaging/ports/IMessagingOperations/IMessagingOperations.h"
 #include <atomic>
 namespace webserver::function3 {

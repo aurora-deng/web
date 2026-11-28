@@ -152,7 +152,7 @@ Sanitizer 未报告内存、泄漏或未定义行为问题。`normalized-exact-v
 
 | 文件 | 作用 |
 |---|---|
-| `tools/phase11_model_admin.cpp` | Candidate 登记、真实评测和人工激活命令入口 |
+| `tools/ai/ModelAdmin/ModelAdmin.cpp` | Candidate 登记、真实评测和人工激活命令入口 |
 | `backend/ai/models/DeterministicExactScorer/` | 可复现的确定性精确评分器 |
 | `backend/ai/models/ModelEvaluationService/` | Run 生命周期、逐题结果、汇总和质量门禁 |
 | `backend/ai/models/ModelRegistryService/` | Runtime 校验、原子激活/回滚与审计 |

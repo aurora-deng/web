@@ -127,11 +127,11 @@
 - 修改 · [frontend/observability/dashboard.js](../../frontend/observability/dashboard.js)
 - 修改 · [frontend/observability/dashboard_queries.js](../../frontend/observability/dashboard_queries.js)
 - 修改 · [frontend/observability/workspace.js](../../frontend/observability/workspace.js)
-- 修改 · [tools/observability/observer/gateway_logs.py](../../tools/observability/observer/gateway_logs.py)
-- 修改 · [tools/observability/observer/local_metrics.py](../../tools/observability/observer/local_metrics.py)
-- 修改 · [tools/observability/observer/resource_history.py](../../tools/observability/observer/resource_history.py)
-- 修改 · [tools/observability/observer/server.py](../../tools/observability/observer/server.py)
-- 修改 · [tools/observability/observer/store.py](../../tools/observability/observer/store.py)
+- 修改 · [tools/observability/observer/logs/gateway_logs.py](../../tools/observability/observer/logs/gateway_logs.py)
+- 修改 · [tools/observability/observer/metrics/local_metrics.py](../../tools/observability/observer/metrics/local_metrics.py)
+- 修改 · [tools/observability/observer/resources/resource_history.py](../../tools/observability/observer/resources/resource_history.py)
+- 修改 · [tools/observability/observer/http/server.py](../../tools/observability/observer/http/server.py)
+- 修改 · [tools/observability/observer/storage/store.py](../../tools/observability/observer/storage/store.py)
 
 ## 测试与可执行示例（8 个）
 

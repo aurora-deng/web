@@ -1,5 +1,5 @@
-#include "backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.h"
-#include "backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerService.h"
+#include "backend/ai/inference/remote/GrpcOnnxModelProvider/GrpcOnnxModelProvider.h"
+#include "backend/ai/inference/remote/GrpcOnnxWorker/GrpcOnnxWorkerService.h"
 
 #include <grpcpp/grpcpp.h>
 
@@ -74,7 +74,16 @@ public:
                 return;
             }
             onToken(" world");
-            onComplete({true, false, {}, {}});
+            webserver::phase11::TokenizerUsage usage;
+            usage.promptTokens = 7;
+            usage.outputTokens = 5; // Deliberately differs from the two text chunks.
+            usage.decodeTokens = 4;
+            usage.decodeMicroseconds = 800'000;
+            usage.firstTokenMicroseconds = 60'000;
+            usage.modelLoadMicroseconds = 90'000;
+            usage.queueWaitMicroseconds = 2'000;
+            usage.modelLoadPerformed = true;
+            onComplete({true, false, {}, {}, usage});
         });
         {
             std::lock_guard lock(mutex_);
@@ -162,6 +171,10 @@ int main()
             version.runtime = "onnx-grpc";
             version.modelArtifact = "model";
             version.checksum = "sha256-tree-v1:test";
+            const auto readyDeadline = std::chrono::steady_clock::now()+2s;
+            while(!client.ready() && std::chrono::steady_clock::now()<readyDeadline)
+                std::this_thread::sleep_for(10ms);
+            require(client.ready(), "live worker never became ready");
             const auto validation = client.validateVersion(version);
             require(validation.valid, "remote model validation failed");
 
@@ -178,6 +191,18 @@ int main()
             require(completed.success && !completed.cancelled,
                     "remote generation did not succeed");
             require(output == "hello world", "remote token stream changed order");
+            require(completed.usage && completed.usage->valid(),
+                    "worker tokenizer metadata was lost");
+            const auto &usage = *completed.usage;
+            require(usage.promptTokens == 7 && usage.outputTokens == 5 &&
+                    usage.decodeTokens == 4 && usage.decodeMicroseconds == 800'000 &&
+                    usage.firstTokenMicroseconds == 60'000 &&
+                    usage.modelLoadPerformed && usage.modelLoadMicroseconds == 90'000 &&
+                    usage.queueWaitMicroseconds == 2'000,
+                    "worker tokenizer metadata changed during RPC round trip");
+            const auto queue = client.queueSnapshot();
+            require(queue && queue->workers == 1 && queue->capacity == 4,
+                    "RPC executor queue snapshot is missing");
 
             webserver::phase11::CancellationToken cancellation;
             CompletionWaiter cancelled;
@@ -213,6 +238,27 @@ int main()
 
         server->Shutdown();
         server->Wait();
+        webserver::phase11::GrpcOnnxModelProvider disconnected(
+            {.target="127.0.0.1:"+std::to_string(port), .workerCount=1, .maxQueued=2});
+        require(!disconnected.ready(), "stopped worker reported ready");
+        const auto failedAt = std::chrono::steady_clock::now();
+        for(int i=0;i<5;++i){
+            CompletionWaiter failure;
+            disconnected.generate(request("offline-"+std::to_string(i)), {},
+                [&](auto completion){failure.complete(std::move(completion));});
+            require(!failure.wait().success, "offline worker accepted generation");
+        }
+        require(std::chrono::steady_clock::now()-failedAt<2s, "offline failures waited for inference deadline");
+        grpc::ServerBuilder recovery;
+        recovery.AddListeningPort("127.0.0.1:"+std::to_string(port),grpc::InsecureServerCredentials());
+        recovery.RegisterService(&service);
+        auto restarted=recovery.BuildAndStart();
+        require(bool(restarted), "worker restart failed");
+        const auto recoveryDeadline=std::chrono::steady_clock::now()+10s;
+        while(!disconnected.ready() && std::chrono::steady_clock::now()<recoveryDeadline)
+            std::this_thread::sleep_for(20ms);
+        require(disconnected.ready(), "readiness did not recover after worker restart");
+        restarted->Shutdown(); restarted->Wait();
         std::cout << "PHASE11_GRPC_ONNX_PROVIDER_OK\n";
         return 0;
     }

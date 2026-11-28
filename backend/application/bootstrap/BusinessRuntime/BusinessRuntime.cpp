@@ -1,4 +1,4 @@
-#include "backend/application/bootstrap/ContactsRuntime/ContactsRuntime.h"
+#include "backend/application/modules/contacts/bootstrap/ContactsRuntime/ContactsRuntime.h"
 #include "backend/application/bootstrap/BusinessRuntime/BusinessRuntime.h"
 #include "backend/application/bootstrap/BootstrapSettings/BootstrapSettings.h"
 
@@ -7,21 +7,21 @@
 #include <iostream>
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
 #include "backend/application/bootstrap/StorageRuntime/StorageRuntime.h"
-#include "backend/application/bootstrap/IdentityRuntime/IdentityRuntime.h"
-#include "backend/application/bootstrap/ChatRuntime/ChatRuntime.h"
-#include "backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.h"
+#include "backend/application/modules/accounts/bootstrap/IdentityRuntime/IdentityRuntime.h"
+#include "backend/application/modules/chat/bootstrap/ChatRuntime/ChatRuntime.h"
+#include "backend/ai/rag/KnowledgeRuntime/KnowledgeRuntime.h"
 
-#include "backend/application/bootstrap/FileRuntime/FileRuntime.h"
-#include "backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.h"
+#include "backend/application/modules/files/bootstrap/FileRuntime/FileRuntime.h"
+#include "backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.h"
 #include "backend/ai/bootstrap/AiRuntime/AiRuntime.h"
-#include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "backend/ai/rag/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
 #include "backend/application/storage/postgres/PostgresStore/PostgresStore.h"
-#include "backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.h"
+#include "backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.h"
 #include "backend/application/modules/files/application/FileService/FileService.h"
 #include "backend/application/modules/contacts/application/SocialService/SocialService.h"
 #include "backend/application/modules/bootstrap/Function3Runtime/Function3Runtime.h"
 #include "backend/application/runtime/BusinessShutdown/BusinessShutdown.h"
-#include "backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.h"
+#include "backend/application/observability/metrics/BusinessMetricsFormatter.h"
 #endif
 namespace webserver::bootstrap {
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
@@ -88,7 +88,7 @@ bool BusinessRuntime::ready()const{
 }
 std::string BusinessRuntime::metrics()const{
 #if defined(WEBSERVER_HAS_POSTGRES) && defined(WEBSERVER_HAS_SODIUM)
-    if(impl_)return phase11::formatBusinessMetrics(&impl_->storage.store(),impl_->storage.deliveryMetrics(),&impl_->storage.executor(),&impl_->files.executor(),&impl_->knowledge.executor(),&impl_->realtime->pump(),&impl_->ai.chat(),impl_->ai.resilient());
+    if(impl_)return phase11::formatBusinessMetrics(&impl_->storage.store(),impl_->storage.deliveryMetrics(),&impl_->storage.executor(),&impl_->files.executor(),&impl_->knowledge.executor(),&impl_->realtime->pump(),&impl_->ai.chat(),impl_->ai.resilient(),&impl_->ai.executor());
 #endif
     return {};
 }

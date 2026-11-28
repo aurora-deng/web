@@ -1,5 +1,5 @@
-#include "backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
-#include "backend/ai/models/RagService/RagService.h"
+#include "backend/ai/rag/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.h"
+#include "backend/ai/rag/RagService/RagService.h"
 #include "backend/application/storage/InMemoryStore/InMemoryStore.h"
 
 #include <cstdlib>

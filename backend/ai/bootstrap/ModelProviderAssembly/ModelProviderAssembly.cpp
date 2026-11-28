@@ -1,13 +1,13 @@
 #include "backend/ai/bootstrap/ModelProviderAssembly/ModelProviderAssembly.h"
 #include "backend/application/config/RuntimeConfig/RuntimeConfig.h"
 #ifdef WEBSERVER_HAS_CURL_CLIENT
-#include "backend/ai/models/OllamaModelProvider/OllamaModelProvider.h"
+#include "backend/ai/inference/remote/OllamaModelProvider/OllamaModelProvider.h"
 #endif
 #ifdef WEBSERVER_HAS_ONNX_GENAI
-#include "backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
+#include "backend/ai/inference/inprocess/InProcessOnnxModelProvider/InProcessOnnxModelProvider.h"
 #endif
 #ifdef WEBSERVER_HAS_PHASE11_GRPC_ONNX
-#include "backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.h"
+#include "backend/ai/inference/remote/GrpcOnnxModelProvider/GrpcOnnxModelProvider.h"
 #endif
 #include <fstream>
 #include <iterator>

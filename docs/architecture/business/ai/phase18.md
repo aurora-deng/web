@@ -164,8 +164,8 @@ webserver_phase11_ai_provider_active
 
 | 文件 | 职责 |
 |---|---|
-| `backend/application/business/AiChatService/AiChatService.h` | 配额/期限配置与业务指标 |
-| `backend/application/business/AiChatService/AiChatService.cpp` | 活动表、统一看门线程、取消和停机回收 |
+| `backend/application/modules/ai/application/AiChatService/AiChatService.h` | 配额/期限配置与业务指标 |
+| `backend/application/modules/ai/application/AiChatService/AiChatService.cpp` | 活动表、统一看门线程、取消和停机回收 |
 | `backend/ai/models/ResilientModelProvider/ResilientModelProvider.h` | 韧性配置、指标和 Provider 装饰器接口 |
 | `backend/ai/models/ResilientModelProvider/ResilientModelProvider.cpp` | 熔断、主备切换、端点期限、serial 防迟到回调 |
 | `main.cpp` | 环境变量、Provider 包装、Ollama 备用端点和指标装配 |

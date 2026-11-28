@@ -1,6 +1,6 @@
 #pragma once
 
-#include "backend/application/business/OutboxDispatcher/OutboxDispatcher.h"
+#include "backend/application/modules/messaging/application/OutboxDispatcher/OutboxDispatcher.h"
 #include "backend/application/modules/chat/ports/IRealtimeRelayRepository/IRealtimeRelayRepository.h"
 
 namespace webserver::phase11 {

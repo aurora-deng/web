@@ -1,7 +1,7 @@
 #pragma once
 #include "backend/application/modules/tree/ports/ITreeMediaProcessor/ITreeMediaProcessor.h"
 #include "backend/application/modules/tree/application/TreeService/TreeService.h"
-#include "backend/application/business/BusinessInterfaces/BusinessInterfaces.h"
+#include "backend/application/modules/files/ports/IFileBusiness/IFileBusiness.h"
 namespace webserver::function3 {
 class TreeMediaService final {
 public:

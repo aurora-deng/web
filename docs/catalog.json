@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-11-26",
+  "generated": "2026-11-28",
   "scope": "public human-readable documents; raw evidence and local account files excluded",
   "documents": [
     {
@@ -706,6 +706,18 @@
       "kind": "index"
     },
     {
+      "path": "docs/architecture/overview/application-domain-layout.md",
+      "title": "业务目录规范与迁移验收",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
+      "path": "docs/architecture/overview/application-observability-layout.md",
+      "title": "应用观测目录规范",
+      "category": "architecture",
+      "kind": "document"
+    },
+    {
       "path": "docs/architecture/overview/cpp-systems.md",
       "title": "C++ DAG 与车队系统架构",
       "category": "architecture",
@@ -997,6 +1009,30 @@
       "path": "docs/database/phase48-outbox.md",
       "title": "Phase48 数据库兼容说明",
       "category": "database",
+      "kind": "document"
+    },
+    {
+      "path": "docs/function3/model-benchmark.md",
+      "title": "离线合成模型对比",
+      "category": "function3",
+      "kind": "document"
+    },
+    {
+      "path": "docs/function3/optimization-progress.md",
+      "title": "Function3.7 优化进度与验收边界",
+      "category": "function3",
+      "kind": "document"
+    },
+    {
+      "path": "docs/function3/personnel-permissions.md",
+      "title": "人员与权限工作台",
+      "category": "function3",
+      "kind": "document"
+    },
+    {
+      "path": "docs/function3/source-layout-guidelines.md",
+      "title": "源码目录规范与分阶段迁移",
+      "category": "function3",
       "kind": "document"
     },
     {

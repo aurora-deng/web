@@ -1,6 +1,6 @@
 #include "backend/application/modules/chat/transport/MessageHistoryHttp/MessageHistoryHttp.h"
-#include "backend/application/observability/Telemetry/Telemetry.h"
-#include "backend/application/transport/http/BusinessHttpCodec/BusinessHttpCodec.h"
+#include "backend/application/observability/tracing/Telemetry.h"
+#include "backend/application/modules/shared/transport/BusinessHttpCodec/BusinessHttpCodec.h"
 #include "backend/server/Route/Router.h"
 #include "backend/server/websocket/WebSocketSessionManager/WebSocketSessionManager.h"
 namespace webserver::phase11::transport {

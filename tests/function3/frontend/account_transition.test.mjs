@@ -5,6 +5,8 @@ import {TreePageTransition} from '../../../frontend/phase11/tree/TreePageTransit
 
 test('workspace login return stays within declared local workspaces and preserves the selected panel', () => {
   const origin = 'http://localhost:18091';
+  assert.equal(workspaceReturn('/phase11/admin/permissions/', origin), '/phase11/admin/permissions/');
+  assert.equal(workspaceReturn('/phase11/agent-control/', origin), '/phase11/agent-control/');
   const path = '/phase11/study/#download-settings';
   const entry = new URL(accountEntry(path, {change:true, origin}), origin);
   assert.equal(entry.searchParams.get('returnTo'), path);

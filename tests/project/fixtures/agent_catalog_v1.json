@@ -1,0 +1,1339 @@
+{
+  "tools": [
+    {
+      "name": "fleet.get_task_status",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1500,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": null,
+      "version": 1
+    },
+    {
+      "name": "fleet.list_tasks",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": 16,
+      "version": 1
+    },
+    {
+      "name": "evidence.get",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "evidenceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "evidenceId"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 4096,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": null,
+      "version": 1
+    },
+    {
+      "name": "workflow.get_run",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "nodeLimit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          }
+        },
+        "required": [
+          "runId",
+          "nodeLimit"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": 64,
+      "version": 1
+    },
+    {
+      "name": "metrics.get",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "enum": [
+                "fleet.active_tasks",
+                "fleet.accept_latency_ms",
+                "chat.ack_latency_ms",
+                "workflow.failed_runs"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true
+          },
+          "windowSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          }
+        },
+        "required": [
+          "names",
+          "windowSeconds"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 3000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": 256,
+      "version": 1
+    },
+    {
+      "name": "chat.search",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12,
+            "enum": [
+              "conversation",
+              "workspace"
+            ]
+          },
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "query",
+          "scope",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": 50,
+      "version": 1
+    },
+    {
+      "name": "chat.get_context",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "messageId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "radius": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "conversationId",
+          "messageId",
+          "radius"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": 41,
+      "version": 1
+    },
+    {
+      "name": "chat.tree_node",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "nodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "conversationId",
+          "nodeId"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": null,
+      "version": 1
+    },
+    {
+      "name": "memory.read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": 50,
+      "version": 1
+    },
+    {
+      "name": "memory.write",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}"
+          }
+        },
+        "required": [
+          "text",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "external",
+      "idempotency_key": "idempotencyKey",
+      "max_items": null,
+      "version": 1
+    },
+    {
+      "name": "preference.get",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": null,
+      "version": 1
+    },
+    {
+      "name": "material.search",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8,
+            "enum": [
+              "note",
+              "pdf",
+              "video",
+              "document"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "query",
+          "subject",
+          "type",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 2000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": 20,
+      "version": 1
+    },
+    {
+      "name": "material.chunk",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "materialId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "anchor": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4,
+                "enum": [
+                  "page",
+                  "time"
+                ]
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 86400000
+              }
+            },
+            "required": [
+              "kind",
+              "offset"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "materialId",
+          "anchor"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 4096,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": null,
+      "version": 1
+    },
+    {
+      "name": "material.stats",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": null,
+      "version": 1
+    },
+    {
+      "name": "quiz.next",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "excludeMastered": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "subject",
+          "excludeMastered"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": null,
+      "version": 1
+    },
+    {
+      "name": "progress.read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "subject",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 1000,
+      "max_age_seconds": 30,
+      "effect": "read",
+      "idempotency_key": null,
+      "max_items": 50,
+      "version": 1
+    },
+    {
+      "name": "progress.write",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10,
+            "pattern": "\\d{4}-\\d{2}-\\d{2}"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "itemId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}"
+          }
+        },
+        "required": [
+          "date",
+          "subject",
+          "itemId",
+          "minutes",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 2000,
+      "max_age_seconds": 30,
+      "effect": "external",
+      "idempotency_key": "idempotencyKey",
+      "max_items": null,
+      "version": 1
+    },
+    {
+      "name": "mistake.write",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "itemId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}"
+          }
+        },
+        "required": [
+          "subject",
+          "itemId",
+          "text",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      },
+      "max_bytes": 8192,
+      "timeout_ms": 2000,
+      "max_age_seconds": 30,
+      "effect": "external",
+      "idempotency_key": "idempotencyKey",
+      "max_items": null,
+      "version": 1
+    }
+  ],
+  "skills": [
+    {
+      "name": "chat.draft_reply",
+      "effect": "proposal",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "messageId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "radius": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "conversationId",
+          "messageId",
+          "radius"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "human_approval"
+      ],
+      "timeout_ms": 2000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Draft a reply from a bounded symmetric context; never sends a message."
+    },
+    {
+      "name": "chat.escalate",
+      "effect": "proposal",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "conversationId",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "human_approval"
+      ],
+      "timeout_ms": 1000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Stage a human handoff; never contacts an external system."
+    },
+    {
+      "name": "chat.recall",
+      "effect": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12,
+            "enum": [
+              "conversation",
+              "workspace"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "query",
+          "scope",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor"
+      ],
+      "timeout_ms": 1500,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Search only this conversation, or the authenticated actor workspace; always bounded."
+    },
+    {
+      "name": "chat.remind",
+      "effect": "proposal",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "messageId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "conversationId",
+          "messageId"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "human_approval"
+      ],
+      "timeout_ms": 1000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Stage a reminder for a specific authorized message; never delivers notifications."
+    },
+    {
+      "name": "chat.summarize",
+      "effect": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "messageId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "radius": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "conversationId",
+          "messageId",
+          "radius"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor"
+      ],
+      "timeout_ms": 2000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Extractive summary of at most 41 messages around one anchor, not whole-history summarization."
+    },
+    {
+      "name": "fleet.fleet.overview",
+      "effect": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "entity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5,
+            "enum": [
+              "tasks"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          }
+        },
+        "required": [
+          "entity",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor"
+      ],
+      "timeout_ms": 1000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "List at most 16 task records, not robots or global fleet statistics."
+    },
+    {
+      "name": "fleet.get_task_status",
+      "effect": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor"
+      ],
+      "timeout_ms": 1500,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Read one task status without mutation."
+    },
+    {
+      "name": "fleet.propose_sim_reschedule",
+      "effect": "proposal",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "taskId"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "human_approval"
+      ],
+      "timeout_ms": 2500,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Stage a replacement of one queued simulation task; approval uses the existing C++ review path."
+    },
+    {
+      "name": "fleet.review_failures",
+      "effect": "proposal",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+            },
+            "minItems": 1,
+            "maxItems": 3,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "taskIds"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "human_approval"
+      ],
+      "timeout_ms": 2500,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Stage a diagnostic review of up to three failed or uncertain tasks, never reassigns them."
+    },
+    {
+      "name": "fleet.robot.quarantine",
+      "effect": "proposal",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "robotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "robotId",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "human_approval"
+      ],
+      "timeout_ms": 1000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Record an operator quarantine request only; no robot control port is exposed."
+    },
+    {
+      "name": "fleet.task.reassign",
+      "effect": "proposal",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "robotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "taskId",
+          "robotId"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "human_approval"
+      ],
+      "timeout_ms": 1000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Record a targeted human reassignment request; not a batch failure review."
+    },
+    {
+      "name": "metrics.query",
+      "effect": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "enum": [
+                "fleet.active_tasks",
+                "fleet.accept_latency_ms",
+                "chat.ack_latency_ms",
+                "workflow.failed_runs"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true
+          },
+          "windowSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          }
+        },
+        "required": [
+          "names",
+          "windowSeconds"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor"
+      ],
+      "timeout_ms": 4000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Read allowlisted, actually sampled metrics over a bounded window; absent metrics fail unavailable."
+    },
+    {
+      "name": "study.explain",
+      "effect": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "materialId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "anchor": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4,
+                "enum": [
+                  "page",
+                  "time"
+                ]
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 86400000
+              }
+            },
+            "required": [
+              "kind",
+              "offset"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "materialId",
+          "anchor"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor"
+      ],
+      "timeout_ms": 1500,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Return one located material excerpt, at most 4KB; never reads an entire attachment."
+    },
+    {
+      "name": "study.log_progress",
+      "effect": "external",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10,
+            "pattern": "\\d{4}-\\d{2}-\\d{2}"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "itemId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}"
+          }
+        },
+        "required": [
+          "date",
+          "subject",
+          "itemId",
+          "minutes",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "confirmed_user_intent",
+        "atomic_idempotent_port"
+      ],
+      "timeout_ms": 2500,
+      "idempotency_key": "idempotencyKey",
+      "version": 1,
+      "description": "Commit one confirmed progress record and its replay receipt atomically."
+    },
+    {
+      "name": "study.mistake_add",
+      "effect": "external",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "itemId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}"
+          }
+        },
+        "required": [
+          "subject",
+          "itemId",
+          "text",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "confirmed_user_intent",
+        "atomic_idempotent_port"
+      ],
+      "timeout_ms": 2500,
+      "idempotency_key": "idempotencyKey",
+      "version": 1,
+      "description": "Commit one confirmed mistake note and its replay receipt atomically."
+    },
+    {
+      "name": "study.plan_day",
+      "effect": "proposal",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10,
+            "pattern": "\\d{4}-\\d{2}-\\d{2}"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "date",
+          "subject"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor",
+        "human_approval"
+      ],
+      "timeout_ms": 2000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Stage a bounded daily plan from stored progress and preferences; no calendar write."
+    },
+    {
+      "name": "study.quiz",
+      "effect": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          }
+        },
+        "required": [
+          "subject"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor"
+      ],
+      "timeout_ms": 1500,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Select one stored unmastered question, not model-generated scoring."
+    },
+    {
+      "name": "study.search_material",
+      "effect": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8,
+            "enum": [
+              "note",
+              "pdf",
+              "video",
+              "document"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "query",
+          "subject",
+          "type",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor"
+      ],
+      "timeout_ms": 2500,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Search indexed metadata for one subject and material type, limit at most 20; never scans attachment bytes."
+    },
+    {
+      "name": "workflow.run.trace",
+      "effect": "read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
+          },
+          "nodeLimit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          }
+        },
+        "required": [
+          "runId",
+          "nodeLimit"
+        ],
+        "additionalProperties": false
+      },
+      "preconditions": [
+        "authorized_actor"
+      ],
+      "timeout_ms": 1000,
+      "idempotency_key": null,
+      "version": 1,
+      "description": "Read persisted checkpoints of one run, at most 64 nodes."
+    }
+  ],
+  "nativeCatalogSha256": "a15651599aec04f251cbd29ee03d1371d2d6788ceee8a10a85cfb66e4cad1615"
+}

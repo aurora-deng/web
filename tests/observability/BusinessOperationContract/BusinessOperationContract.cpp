@@ -1,5 +1,5 @@
-#include "backend/application/observability/BusinessOperation/BusinessOperation.h"
-#include "backend/application/transport/http/BusinessHttpObservation/BusinessHttpObservation.h"
+#include "backend/application/observability/operations/BusinessOperation.h"
+#include "backend/application/modules/shared/transport/BusinessHttpObservation/BusinessHttpObservation.h"
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>

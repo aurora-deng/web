@@ -156,32 +156,32 @@ target_link_libraries(webserver_security PUBLIC OpenSSL::Crypto webserver_saniti
 # 已存在的库，绝不使用 FetchContent 或在配置时联网下载。
 # ==============================================================================
 add_library(webserver_telemetry
-    backend/application/observability/Telemetry/Telemetry.cpp
-    backend/application/observability/BusinessOperation/BusinessOperation.cpp
-    backend/application/observability/DetachedSpan/DetachedSpan.cpp
-    backend/application/observability/BusinessLog/BusinessLog.cpp)
+    backend/application/observability/tracing/Telemetry.cpp
+    backend/application/observability/operations/BusinessOperation.cpp
+    backend/application/observability/tracing/DetachedSpan.cpp
+    backend/application/observability/logging/BusinessLog.cpp)
 target_include_directories(webserver_telemetry PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(webserver_telemetry PUBLIC Threads::Threads OpenSSL::Crypto webserver_sanitizers)
 if(WEBSERVER_ENABLE_PHASE11)
     # 可移植任务队列与 JSON 工具不依赖 Reactor；AI Worker 和业务共享这两个小组件。
     add_library(webserver_application_support
         backend/application/runtime/BoundedExecutor/BoundedExecutor.cpp
-        backend/application/transport/FlatJson/FlatJson.cpp)
+        backend/application/modules/shared/transport/FlatJson/FlatJson.cpp)
     target_include_directories(webserver_application_support PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_application_support PUBLIC Threads::Threads webserver_sanitizers webserver_telemetry)
 
     # AI 核心可独立构建；只依赖领域/Repository 契约，不链接网络核心。
     add_library(webserver_ai
-        backend/ai/models/DeterministicExactScorer/DeterministicExactScorer.cpp
-        backend/ai/models/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp
-        backend/ai/models/ModelEvaluationService/ModelEvaluationService.cpp
-        backend/ai/models/ModelRegistryService/ModelRegistryService.cpp
-        backend/ai/models/RagService/RagService.cpp
-        backend/ai/models/ResilientModelProvider/ResilientModelProvider.cpp
+        backend/ai/registry/DeterministicExactScorer/DeterministicExactScorer.cpp
+        backend/ai/rag/DeterministicKnowledgeIndex/DeterministicKnowledgeIndex.cpp
+        backend/ai/registry/ModelEvaluationService/ModelEvaluationService.cpp
+        backend/ai/registry/ModelRegistryService/ModelRegistryService.cpp
+        backend/ai/rag/RagService/RagService.cpp
+        backend/ai/inference/resilience/ResilientModelProvider/ResilientModelProvider.cpp
         backend/ai/private/application/PrivateGenerationService/PrivateGenerationService.cpp
         backend/ai/private/infrastructure/PrivateModelRouter/PrivateModelRouter.cpp
-        backend/ai/training/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp
-        backend/ai/training/TrainingDataService/TrainingDataService.cpp)
+        backend/ai/training/data/JsonlTrainingDataExporter/JsonlTrainingDataExporter.cpp
+        backend/ai/training/data/TrainingDataService/TrainingDataService.cpp)
     target_include_directories(webserver_ai PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_ai PUBLIC webserver_application_support OpenSSL::Crypto)
     # Chat use cases depend on ports only; a driver is selected at assembly time.
@@ -205,17 +205,17 @@ if(WEBSERVER_ENABLE_PHASE11)
         backend/application/storage/memory/MemoryTrainingRepository/MemoryTrainingRepository.cpp
         backend/application/storage/memory/MemoryWorkspaceRepository/MemoryWorkspaceRepository.cpp
         backend/application/runtime/UserRecoveryBudget/UserRecoveryBudget.cpp
-        backend/application/security/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp
+        backend/application/modules/accounts/infrastructure/InMemoryLoginRateLimiter/InMemoryLoginRateLimiter.cpp
         backend/application/modules/accounts/application/AuthService/AuthService.cpp
         backend/application/modules/contacts/application/SocialService/SocialService.cpp
         backend/application/modules/chat/application/ChatService/ChatService.cpp
         backend/application/modules/files/application/FileService/FileService.cpp
-        backend/application/business/AiChatService/AiChatService.cpp
-        backend/application/business/AiGenerationAudit/AiGenerationAudit.cpp
-        backend/application/business/AiGenerationCompletion/AiGenerationCompletion.cpp
-        backend/application/business/AiGenerationPreparation/AiGenerationPreparation.cpp
+        backend/application/modules/ai/application/AiChatService/AiChatService.cpp
+        backend/application/modules/ai/application/AiGenerationAudit/AiGenerationAudit.cpp
+        backend/application/modules/ai/application/AiGenerationCompletion/AiGenerationCompletion.cpp
+        backend/application/modules/ai/application/AiGenerationPreparation/AiGenerationPreparation.cpp
         backend/application/modules/assistant/application/AiTriggerPolicy/AiTriggerPolicy.cpp
-        backend/application/business/OutboxDispatcher/OutboxDispatcher.cpp
+        backend/application/modules/messaging/application/OutboxDispatcher/OutboxDispatcher.cpp
         backend/application/modules/chat/application/RealtimeRelay/RealtimeRelay.cpp
         backend/application/storage/files/LocalFileStorage/LocalFileStorage.cpp)
     target_include_directories(webserver_phase11 PUBLIC ${PROJECT_SOURCE_DIR})
@@ -256,7 +256,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         # 本地运维入口：审核用户明确授权的样本并导出不可变 JSONL。它只读环境中的
         # 数据库连接串，不启动网络端口，也不会下载模型或依赖。
         add_executable(phase11-training-admin
-            tools/phase11_training_admin.cpp)
+            tools/ai/TrainingAdmin/TrainingAdmin.cpp)
         target_link_libraries(phase11-training-admin PRIVATE webserver_phase11)
     endif()
 
@@ -278,7 +278,7 @@ if(WEBSERVER_ENABLE_PHASE11)
                 "This project will not download or install it automatically.")
         endif()
         target_sources(webserver_phase11 PRIVATE
-            backend/application/security/SodiumCredentialCodec/SodiumCredentialCodec.cpp)
+            backend/application/modules/accounts/infrastructure/SodiumCredentialCodec/SodiumCredentialCodec.cpp)
         target_include_directories(webserver_phase11 PUBLIC ${WEBSERVER_SODIUM_INCLUDE_DIR})
         target_link_libraries(webserver_phase11 PUBLIC ${WEBSERVER_SODIUM_LIBRARY})
         target_compile_definitions(webserver_phase11 PUBLIC WEBSERVER_HAS_SODIUM=1)
@@ -295,8 +295,8 @@ if(WEBSERVER_ENABLE_PHASE11)
         endif()
         find_package(CURL 8.0 REQUIRED)
         target_sources(webserver_ai PRIVATE
-            backend/ai/models/OllamaStreamDecoder/OllamaStreamDecoder.cpp
-            backend/ai/models/OllamaModelProvider/OllamaModelProvider.cpp)
+            backend/ai/inference/remote/OllamaStreamDecoder/OllamaStreamDecoder.cpp
+            backend/ai/inference/remote/OllamaModelProvider/OllamaModelProvider.cpp)
         target_link_libraries(webserver_ai PUBLIC CURL::libcurl)
         target_link_libraries(webserver_telemetry PRIVATE CURL::libcurl)
         target_compile_definitions(webserver_telemetry PRIVATE NEBULA_HAS_OTLP_CURL=1)
@@ -346,7 +346,7 @@ if(WEBSERVER_ENABLE_PHASE11)
             endif()
         endif()
         target_sources(webserver_ai PRIVATE
-            backend/ai/models/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp)
+            backend/ai/inference/inprocess/InProcessOnnxModelProvider/InProcessOnnxModelProvider.cpp)
         target_include_directories(webserver_ai PUBLIC
             ${WEBSERVER_ONNX_RUNTIME_INCLUDE_DIR}
             ${WEBSERVER_ONNX_GENAI_INCLUDE_DIR})
@@ -360,7 +360,7 @@ if(WEBSERVER_ENABLE_PHASE11)
         # ONNX Runtime 都已显式启用时才构建，不下载任何模型或依赖。
         if(WEBSERVER_ENABLE_POSTGRES)
             add_executable(phase11-model-admin
-                tools/phase11_model_admin.cpp)
+                tools/ai/ModelAdmin/ModelAdmin.cpp)
             target_link_libraries(phase11-model-admin PRIVATE webserver_phase11)
         endif()
     endif()
@@ -448,14 +448,14 @@ if(WEBSERVER_ENABLE_PHASE11)
     # HTTP 适配层同时依赖协议核心与 Phase 11 业务核心，因此在两个底层库都定义后
     # 单独组装，避免让领域模型反向依赖 HttpRequest/Router。
     add_library(webserver_phase11_http
-        backend/application/transport/http/Phase11AuthHttp/Phase11AuthHttp.cpp
-        backend/application/transport/http/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp
+        backend/application/modules/accounts/transport/Phase11AuthHttp/Phase11AuthHttp.cpp
+        backend/application/modules/chat/transport/Phase11SocialChatHttp/Phase11SocialChatHttp.cpp
         backend/application/modules/chat/transport/ChatWorkspaceHttp/ChatWorkspaceHttp.cpp
-        backend/application/transport/http/Phase11FileHttp/Phase11FileHttp.cpp
-        backend/application/transport/http/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp
-        backend/application/transport/http/Phase11TrainingHttp/Phase11TrainingHttp.cpp
-        backend/application/transport/serialization/MessageJson/MessageJson.cpp
-        backend/application/transport/realtime/Phase11Realtime/Phase11Realtime.cpp)
+        backend/application/modules/files/transport/Phase11FileHttp/Phase11FileHttp.cpp
+        backend/application/modules/ai/transport/Phase11KnowledgeHttp/Phase11KnowledgeHttp.cpp
+        backend/application/modules/ai/transport/Phase11TrainingHttp/Phase11TrainingHttp.cpp
+        backend/application/modules/chat/transport/MessageJson/MessageJson.cpp
+        backend/application/modules/chat/transport/Phase11Realtime/Phase11Realtime.cpp)
     target_include_directories(webserver_phase11_http PUBLIC ${PROJECT_SOURCE_DIR})
     target_link_libraries(webserver_phase11_http PUBLIC
         webserver_core webserver_phase11)
@@ -477,6 +477,9 @@ target_link_libraries(webserver_runtime_config PUBLIC webserver_sanitizers)
 add_executable(webserver main.cpp)
 target_link_libraries(webserver PRIVATE webserver_runtime_config)
 if(BUILD_TESTING)
+    add_executable(function3_generation_metrics tests/function3/unit/generation_metrics.cpp)
+    target_include_directories(function3_generation_metrics PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME function3_generation_metrics COMMAND function3_generation_metrics)
     add_executable(business_log_contract tests/observability/BusinessLogContract/BusinessLogContract.cpp)
     target_link_libraries(business_log_contract PRIVATE webserver_telemetry)
     add_test(NAME business_log_contract COMMAND business_log_contract)
@@ -532,6 +535,8 @@ if(WEBSERVER_ENABLE_GRPC)
     set(protobuf_MODULE_COMPATIBLE TRUE)
     find_package(Protobuf CONFIG REQUIRED)
     find_package(gRPC CONFIG REQUIRED)
+    include("${PROJECT_SOURCE_DIR}/cmake/GrpcTlsCompatibility.cmake")
+    webserver_require_compatible_grpc_tls()
 
     if(CMAKE_CROSSCOMPILING)
         find_program(WEBSERVER_PROTOC protoc REQUIRED)
@@ -600,8 +605,8 @@ if(WEBSERVER_ENABLE_GRPC)
         # 独立推理进程与聊天进程的客户端适配器共用同一份生成协议。模型仍只在
         # webserver-onnx-worker 内加载，聊天主进程链接此库不会创建 OgaModel。
         add_library(webserver_phase11_grpc_onnx
-            backend/ai/models/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp
-            backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp)
+            backend/ai/inference/remote/GrpcOnnxModelProvider/GrpcOnnxModelProvider.cpp
+            backend/ai/inference/remote/GrpcOnnxWorker/GrpcOnnxWorkerService.cpp)
         target_include_directories(webserver_phase11_grpc_onnx PUBLIC
             ${PROJECT_SOURCE_DIR}
             ${WEBSERVER_GRPC_GENERATED_DIR})
@@ -612,7 +617,7 @@ if(WEBSERVER_ENABLE_GRPC)
             webserver_sanitizers)
 
         add_executable(webserver-onnx-worker
-            backend/ai/models/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp)
+            backend/ai/inference/remote/GrpcOnnxWorker/GrpcOnnxWorkerMain.cpp)
         target_link_libraries(webserver-onnx-worker PRIVATE
             webserver_phase11_grpc_onnx)
 
@@ -735,6 +740,11 @@ if(BUILD_TESTING)
                 TIMEOUT 30)
         endif()
 
+        add_executable(phase11_onnx_benchmark_contract tests/phase11/unit/onnx_benchmark.cpp)
+        target_link_libraries(phase11_onnx_benchmark_contract PRIVATE webserver_phase11)
+        add_test(NAME phase11_onnx_benchmark_contract COMMAND phase11_onnx_benchmark_contract)
+        set_tests_properties(phase11_onnx_benchmark_contract PROPERTIES TIMEOUT 15)
+
         if(WEBSERVER_ENABLE_ONNX_GENAI)
             add_executable(phase11_onnx_provider_tests
                 tests/phase11/unit/onnx_provider.cpp)
@@ -751,6 +761,10 @@ if(BUILD_TESTING)
                 tests/phase11/smoke/onnx_model_smoke.cpp)
             target_link_libraries(phase11_onnx_model_smoke PRIVATE
                 webserver_phase11)
+
+            # Explicit offline synthetic benchmark only; never automatically runs models in CTest.
+            add_executable(phase11_onnx_model_benchmark tests/phase11/smoke/onnx_model_benchmark.cpp)
+            target_link_libraries(phase11_onnx_model_benchmark PRIVATE webserver_phase11)
 
             if(WEBSERVER_ENABLE_GRPC)
                 add_executable(phase11_grpc_onnx_provider_tests
@@ -924,7 +938,7 @@ if(BUILD_TESTING)
             COMMAND ${Python3_EXECUTABLE}
                     ${PROJECT_SOURCE_DIR}/tests/phase11/integration/supervisor_recovery.py
                     --supervisor
-                    ${PROJECT_SOURCE_DIR}/scripts/phase11/webserver-user-supervisor.sh
+                    ${PROJECT_SOURCE_DIR}/scripts/function3/runtime/webserver/supervisor.sh
         )
         # 设置测试超时时间90秒，防止测试卡死阻塞CI
         set_tests_properties(
@@ -979,7 +993,7 @@ add_library(webserver_application_runtime
     backend/application/bootstrap/OperationalRuntime/OperationalRuntime.cpp
     backend/application/bootstrap/GrpcRuntime/GrpcRuntime.cpp
     backend/application/bootstrap/BusinessRuntime/BusinessRuntime.cpp
-    backend/application/transport/learning/LearningRoutes/LearningRoutes.cpp)
+    backend/application/modules/learning/transport/LearningRoutes/LearningRoutes.cpp)
 target_include_directories(webserver_application_runtime PUBLIC ${PROJECT_SOURCE_DIR} PRIVATE ${PROJECT_BINARY_DIR}/generated)
 add_dependencies(webserver_application_runtime project_build_stamp)
 target_link_libraries(webserver_application_runtime PUBLIC webserver_core webserver_runtime_config function3_assets webserver_telemetry)
@@ -989,15 +1003,15 @@ endif()
 if(WEBSERVER_ENABLE_PHASE11 AND WEBSERVER_ENABLE_POSTGRES AND WEBSERVER_ENABLE_SODIUM)
     target_sources(webserver_application_runtime PRIVATE
         backend/application/bootstrap/StorageRuntime/StorageRuntime.cpp
-        backend/application/bootstrap/IdentityRuntime/IdentityRuntime.cpp
-        backend/application/bootstrap/ContactsRuntime/ContactsRuntime.cpp
-        backend/application/bootstrap/ChatRuntime/ChatRuntime.cpp
-        backend/application/bootstrap/FileRuntime/FileRuntime.cpp
-        backend/application/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp
-        backend/ai/bootstrap/KnowledgeRuntime/KnowledgeRuntime.cpp
+        backend/application/modules/accounts/bootstrap/IdentityRuntime/IdentityRuntime.cpp
+        backend/application/modules/contacts/bootstrap/ContactsRuntime/ContactsRuntime.cpp
+        backend/application/modules/chat/bootstrap/ChatRuntime/ChatRuntime.cpp
+        backend/application/modules/files/bootstrap/FileRuntime/FileRuntime.cpp
+        backend/application/modules/chat/bootstrap/RealtimeRuntime/RealtimeRuntime.cpp
+        backend/ai/rag/KnowledgeRuntime/KnowledgeRuntime.cpp
         backend/ai/bootstrap/AiRuntime/AiRuntime.cpp
         backend/ai/bootstrap/ModelProviderAssembly/ModelProviderAssembly.cpp
-        backend/application/observability/BusinessMetricsFormatter/BusinessMetricsFormatter.cpp)
+        backend/application/observability/metrics/BusinessMetricsFormatter.cpp)
     target_link_libraries(webserver_application_runtime PUBLIC function3_http)
 endif()
 if(WEBSERVER_ENABLE_GRPC)

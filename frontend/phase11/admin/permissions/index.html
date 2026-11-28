@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>人员与权限 · NEBULA</title>
+  <link rel="stylesheet" href="/phase11/shared/DesignSystem/tokens.css?v=1f08ad808b467825">
+  <link rel="stylesheet" href="/phase11/shared/DesignSystem/base.css?v=1f08ad808b467825">
+  <link rel="stylesheet" href="/phase11/admin/permissions/style.css?v=1f08ad808b467825">
+</head>
+<body data-workspace="admin">
+<main class="permission-workspace">
+  <header class="hero"><div><p class="eyebrow">NEBULA / ACCESS MANAGEMENT</p><h1>人员与权限</h1><p>管理账号身份、登录状态与访问权限。每次变更都有原因、有记录。</p></div><span id="identity" class="identity">正在验证身份…</span></header>
+  <p id="status" role="status" aria-live="polite">正在读取服务器权限…</p>
+  <div id="workspace" hidden>
+    <section class="access-card"><div><h2>站点管理员工作台</h2><p>可授予管理员、处理内容、管理模型与运行状态。Agent 控制台使用独立白名单；授予站点管理员不会自动授予 Agent 执行或审批权。</p></div><a href="/phase11/admin/#audits">查看操作审计 ↗</a></section>
+    <nav class="shortcuts" aria-label="应用页面入口">
+      <a href="/phase11/">缘续 · 聊天<span>会话、联系人与文件</span></a>
+      <a href="/phase11/tree/">缘生 · 广场<span>内容、互动与社区</span></a>
+      <a href="/phase11/study/">研途 · 学习<span>学习工作区与资料</span></a>
+      <a href="/phase11/assistant/">个人助手<span>AI 与个人工作流</span></a>
+      <a href="/phase11/profile/">个人主页<span>账号资料与设置</span></a>
+      <a href="/phase11/admin/">管理中心<span>内容、模型、消息与运行状态</span></a>
+      <a id="control-entry" href="/phase11/agent-control/" hidden>Agent 控制台<span>工具、技能与审批</span></a>
+    </nav>
+    <section class="people-card" aria-labelledby="people-title">
+      <div class="table-toolbar"><div><h2 id="people-title">人员列表</h2><p id="count">—</p></div><label>筛选已加载人员<input id="filter" type="search" placeholder="账号名 / 显示名 / ID" maxlength="64"></label><button id="refresh" type="button">刷新</button></div>
+      <div class="table-scroll"><table><thead><tr><th>人员</th><th>站点角色</th><th>账号状态</th><th>管理操作</th></tr></thead><tbody id="people"></tbody></table></div>
+      <p id="empty" hidden>没有符合条件的人员。</p><button id="more" type="button" hidden>加载下一页</button>
+    </section>
+    <p class="boundary">安全边界：不会显示密码；不会删除账号或业务数据；不能停用或降级最后一位活跃管理员。管理身份不代表可冒用其他人的私有会话。</p>
+  </div>
+  <p><a href="/phase11/">返回登录 / 聊天 ↗</a></p>
+</main>
+<dialog id="confirm"><form id="change-form"><h2 id="change-title">确认权限变更</h2><p id="change-target"></p><label>操作原因（必填，最多 200 字）<textarea id="reason" required maxlength="200" rows="3"></textarea></label><p>角色变更、停用或吊销会话会使该账号需要重新登录。</p><div class="dialog-actions"><button id="cancel" type="button">取消</button><button id="submit" type="submit">确认执行</button></div></form></dialog>
+<script type="module" src="/phase11/admin/permissions/app.js?v=1f08ad808b467825"></script>
+</body></html>
